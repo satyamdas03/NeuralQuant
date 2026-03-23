@@ -5,6 +5,7 @@ Rate limit: 10 req/sec — handled by DataBroker.
 Note: _fetch_raw returns filing metadata only. Full XML parsing of individual
 filings (for shares, price, is_purchase) is deferred to Phase 2.
 """
+import warnings
 import requests
 from datetime import date, timedelta
 from ..broker import broker
@@ -47,7 +48,18 @@ class Form4Connector:
 
     def get_insider_events(self, ticker: str, start: date, end: date) -> list[dict]:
         """Return parsed insider transaction events. Override _fetch_raw in tests."""
-        return self._fetch_raw(ticker, start, end)
+        events = self._fetch_raw(ticker, start, end)
+        # Warn if live data is returned without parsed transaction fields
+        # (Phase 2 will add full XML parsing)
+        if events and "is_purchase" not in events[0]:
+            warnings.warn(
+                f"Form4Connector._fetch_raw returned filing metadata only — "
+                f"is_purchase/shares/price fields are not available until Phase 2 XML parsing. "
+                f"compute_insider_cluster_score will return 0.0 for live data.",
+                UserWarning,
+                stacklevel=2,
+            )
+        return events
 
 
 def compute_insider_cluster_score(events: list[dict], lookback_days: int = 90) -> float:
