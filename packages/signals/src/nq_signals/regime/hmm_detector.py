@@ -7,6 +7,7 @@ States:
   4 = Recovery
 Trained on: VIX, VIX 20d change, SPX vs 200MA, HY spread OAS, ISM PMI
 """
+import warnings
 import numpy as np
 import pandas as pd
 from dataclasses import dataclass
@@ -58,35 +59,54 @@ class RegimeDetector:
         X = macro_df[FEATURE_COLS].ffill().fillna(0).values
         X_scaled = self._scaler.fit_transform(X)
         self._hmm.fit(X_scaled)
+        if not self._hmm.monitor_.converged:
+            warnings.warn(
+                f"GaussianHMM did not converge after {self._hmm.n_iter} iterations. "
+                "Regime assignments may be unreliable. Consider increasing n_iter or "
+                "providing more training data.",
+                UserWarning,
+                stacklevel=2,
+            )
         self._fitted = True
         self._regime_map = self._assign_semantic_regimes(X_scaled)
         return self
 
     def _assign_semantic_regimes(self, X_scaled: np.ndarray) -> dict[int, int]:
         """
-        Map HMM states (0-indexed) to semantic regime IDs (1-4) based on
-        mean VIX and mean SPX-vs-200MA of each state.
-        Highest VIX + most negative SPX-vs-200MA → Regime 3 (Stress/Bear)
-        Lowest VIX + most positive SPX-vs-200MA → Regime 1 (Risk-On)
+        Map HMM states (0-indexed) to semantic regime IDs (1-4).
+
+        Outer anchors (robust):
+          - Lowest stress (VIX - SPX_vs_200MA) → Regime 1 (Risk-On)
+          - Highest stress → Regime 3 (Stress/Bear)
+
+        Middle states distinguished by PMI:
+          - Higher PMI among middle two → Regime 4 (Recovery, PMI rising)
+          - Lower PMI among middle two → Regime 2 (Late Cycle, PMI softening)
         """
         means = self._hmm.means_  # Shape: (n_components, n_features)
-        # Feature indices: vix=0, vix_20d_change=1, spx_vs_200ma=2, hy_spread=3, pmi=4
-        vix_col = 0
-        spx_col = 2
+        vix_col = 0      # Index in FEATURE_COLS
+        spx_col = 2      # Index in FEATURE_COLS
+        pmi_col = 4      # Index in FEATURE_COLS
 
-        # Score each state: higher score = more stressed
+        # Primary stress score for outer anchor assignment
         stress_scores = means[:, vix_col] - means[:, spx_col]
-        ranking = np.argsort(stress_scores)  # Low stress to high stress
+        ranking = np.argsort(stress_scores)  # Low stress → high stress (4 indices)
 
-        # ranking[0] = least stressed = Risk-On (1)
-        # ranking[1] = second least = Recovery (4)
-        # ranking[2] = moderate-high stress = Late Cycle (2)
-        # ranking[3] = most stressed = Bear (3)
-        mapping = {}
-        mapping[int(ranking[0])] = 1   # Risk-On
-        mapping[int(ranking[1])] = 4   # Recovery
-        mapping[int(ranking[2])] = 2   # Late Cycle
-        mapping[int(ranking[3])] = 3   # Bear/Stress
+        mapping: dict[int, int] = {}
+        mapping[int(ranking[0])] = 1   # Least stressed → Risk-On
+        mapping[int(ranking[3])] = 3   # Most stressed → Stress/Bear
+
+        # Differentiate the two middle states by PMI
+        mid_states = [int(ranking[1]), int(ranking[2])]
+        pmi_values = [means[s, pmi_col] for s in mid_states]
+        if pmi_values[0] >= pmi_values[1]:
+            # mid_states[0] has higher PMI → Recovery
+            mapping[mid_states[0]] = 4  # Recovery
+            mapping[mid_states[1]] = 2  # Late Cycle
+        else:
+            mapping[mid_states[0]] = 2  # Late Cycle
+            mapping[mid_states[1]] = 4  # Recovery
+
         return mapping
 
     def predict_proba(self, macro_df: pd.DataFrame) -> np.ndarray:
@@ -103,9 +123,27 @@ class RegimeDetector:
             reordered[:, semantic_id - 1] = raw_posteriors[:, hmm_state]
         return reordered
 
-    def get_current_state(self, latest_row: pd.DataFrame) -> RegimeState:
-        """Get current regime state from the most recent macro observation."""
-        posteriors = self.predict_proba(latest_row)[0]
+    def get_current_state(self, latest_row: pd.DataFrame,
+                          context_rows: Optional[pd.DataFrame] = None) -> RegimeState:
+        """
+        Get current regime state from the most recent macro observation.
+
+        Args:
+            latest_row: Single-row DataFrame with current macro values.
+            context_rows: Optional historical rows to provide sequence context.
+                          If provided, posteriors are computed on the full sequence
+                          and only the last row's posterior is returned.
+                          Recommended: provide last 20+ rows for meaningful posteriors.
+        """
+        if context_rows is not None and len(context_rows) > 0:
+            # Use full sequence for posteriors, take last row
+            full_df = pd.concat([context_rows, latest_row], ignore_index=True)
+            posteriors = self.predict_proba(full_df)[-1]
+        else:
+            # Single-row: posteriors are emission-weighted priors only
+            # Still useful as a rough signal but confidence will be lower
+            posteriors = self.predict_proba(latest_row)[0]
+
         regime_idx = int(np.argmax(posteriors))  # 0-indexed
         regime_id = regime_idx + 1
         confidence = float(posteriors[regime_idx])
