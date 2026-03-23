@@ -11,6 +11,12 @@ from .factors.quality import compute_quality_composite
 from .factors.momentum import compute_momentum_cross_sectional, apply_crash_protection
 from .regime.hmm_detector import RegimeDetector, RegimeState, REGIME_WEIGHTS
 
+# Fixed allocation for short interest signal (regime-invariant for now).
+# Pulled proportionally from the remaining regime budget so the composite
+# weights always sum to exactly 1.0:
+#   regime_budget * sum(regime_weights) + SHORT_INT_WEIGHT = 0.85 * 1.0 + 0.15 = 1.0
+SHORT_INT_WEIGHT = 0.15
+
 
 @dataclass
 class UniverseSnapshot:
@@ -73,14 +79,18 @@ class SignalEngine:
         momentum = df.get("momentum_percentile", pd.Series(0.5, index=df.index))
         short_int = df.get("short_interest_percentile", pd.Series(0.5, index=df.index))
 
+        # Scale regime weights to fill the remaining budget after short interest.
+        # This ensures composite weights sum to 1.0 regardless of regime.
+        regime_budget = 1.0 - SHORT_INT_WEIGHT  # 0.85
+
         # NOTE: value and low_vol signals not yet implemented in Phase 1.
         # Using neutral 0.5 placeholders to avoid double-counting quality.
         df["composite_score"] = (
-            quality * w.get("quality", 0.25) +
-            momentum * w.get("momentum", 0.25) +
-            short_int * 0.15 +
-            pd.Series(0.5, index=df.index) * w.get("value", 0.10) +
-            pd.Series(0.5, index=df.index) * w.get("low_vol", 0.15)
+            quality   * w.get("quality",   0.25) * regime_budget +
+            momentum  * w.get("momentum",  0.25) * regime_budget +
+            short_int * SHORT_INT_WEIGHT +
+            pd.Series(0.5, index=df.index) * w.get("value",   0.10) * regime_budget +
+            pd.Series(0.5, index=df.index) * w.get("low_vol", 0.15) * regime_budget
         )
 
         df["regime_id"] = regime.regime_id
