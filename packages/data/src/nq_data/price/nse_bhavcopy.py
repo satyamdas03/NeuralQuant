@@ -20,6 +20,15 @@ NSE_HEADERS = {
 class NSEBhavCopyConnector:
     BASE_URL = "https://nsearchives.nseindia.com/content/historical/EQUITIES/{year}/{month}/cm{day}{month}{year}bhav.csv.zip"
 
+    def _safe_float(self, value, default: float = 0.0) -> float:
+        """Convert value to float, treating NaN/None as default."""
+        if value is None or (isinstance(value, float) and pd.isna(value)):
+            return default
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return default
+
     def download_bhavcopy(self, for_date: date) -> list[OHLCVBar]:
         """Download and parse Bhavcopy for a given date."""
         url = self.BASE_URL.format(
@@ -40,23 +49,30 @@ class NSEBhavCopyConnector:
     def parse_bhavcopy(self, source, for_date: date) -> list[OHLCVBar]:
         """Parse Bhavcopy CSV. source can be file path str or StringIO."""
         df = pd.read_csv(source)
-        # Normalize column names (Bhavcopy format varies slightly by year)
         df.columns = [c.strip() for c in df.columns]
-        series_col = df.get("SERIES", df.get("Series", pd.Series(dtype=str)))
-        eq = df[series_col.str.strip() == "EQ"]
+
+        # Find the series column (column naming varies across Bhavcopy years)
+        series_col_name = next(
+            (c for c in df.columns if c.upper() in ("SERIES", "SERIES ")),
+            None
+        )
+        if series_col_name is None:
+            return []  # Not a recognized Bhavcopy format
+
+        eq = df[df[series_col_name].str.strip() == "EQ"]
         bars = []
         for _, row in eq.iterrows():
             ticker = str(row.get("SYMBOL", row.get("Symbol", ""))).strip()
-            tottrd = float(row.get("TOTTRDQTY", row.get("TOTTRDQTY", 0)) or 0)
-            deliv = float(row.get("DELIV_QTY", row.get("DELVQTY", 0)) or 0)
+            tottrd = self._safe_float(row.get("TOTTRDQTY", row.get("TOTALTRDQTY", 0)))
+            deliv = self._safe_float(row.get("DELIV_QTY", row.get("DELVQTY", 0)))
             delivery_pct = (deliv / tottrd * 100) if tottrd > 0 else None
             bars.append(OHLCVBar(
                 ticker=ticker, market="IN",
                 date=for_date,
-                open=float(row.get("OPEN", row.get("Open", 0)) or 0),
-                high=float(row.get("HIGH", row.get("High", 0)) or 0),
-                low=float(row.get("LOW", row.get("Low", 0)) or 0),
-                close=float(row.get("CLOSE", row.get("Close", 0)) or 0),
+                open=self._safe_float(row.get("OPEN", row.get("Open", 0))),
+                high=self._safe_float(row.get("HIGH", row.get("High", 0))),
+                low=self._safe_float(row.get("LOW", row.get("Low", 0))),
+                close=self._safe_float(row.get("CLOSE", row.get("Close", 0))),
                 volume=tottrd,
                 delivery_pct=delivery_pct,
             ))
