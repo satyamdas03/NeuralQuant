@@ -5,18 +5,12 @@ import numpy as np
 import pandas as pd
 from dataclasses import dataclass
 
-import nq_api.routes.stocks as _self_module
 from nq_api.deps import get_signal_engine
 from nq_api.schemas import AIScore
 from nq_api.score_builder import row_to_ai_score
 from nq_signals.engine import SignalEngine, UniverseSnapshot
 
 router = APIRouter()
-
-
-def _engine_dep() -> SignalEngine:
-    """Indirection so tests can patch `nq_api.routes.stocks.get_signal_engine`."""
-    return _self_module.get_signal_engine()
 
 
 @dataclass
@@ -57,7 +51,7 @@ def _build_snapshot(ticker: str, market: str) -> UniverseSnapshot:
 def get_stock_score(
     ticker: str,
     market: Literal["US", "IN", "GLOBAL"] = Query("US"),
-    engine: SignalEngine = Depends(_engine_dep),
+    engine: SignalEngine = Depends(get_signal_engine),
 ) -> AIScore:
     snapshot = _build_snapshot(ticker.upper(), market)
     result_df = engine.compute(snapshot)

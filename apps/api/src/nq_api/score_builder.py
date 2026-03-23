@@ -1,5 +1,6 @@
 # apps/api/src/nq_api/score_builder.py
 """Maps raw SignalEngine output to AIScore schema with explainability."""
+from datetime import datetime, timezone
 import pandas as pd
 from nq_api.schemas import AIScore, SubScores, FeatureDriver
 
@@ -17,8 +18,11 @@ def _score_to_1_10(score: float) -> int:
 
 
 def _confidence(row: pd.Series) -> str:
-    sub = [row.get("quality_percentile", 0.5),
-           row.get("momentum_percentile", 0.5)]
+    sub = [
+        row.get("quality_percentile", 0.5),
+        row.get("momentum_percentile", 0.5),
+        row.get("short_interest_percentile", 0.5),
+    ]
     spread = max(sub) - min(sub)
     if spread < 0.2:
         return "high"
@@ -51,7 +55,6 @@ def build_top_drivers(row: pd.Series) -> list[FeatureDriver]:
 
 
 def row_to_ai_score(row: pd.Series, market: str) -> AIScore:
-    from datetime import datetime, timezone
     regime_id = int(row.get("regime_id", 1))
     composite = float(row["composite_score"])
 
