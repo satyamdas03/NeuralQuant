@@ -24,7 +24,8 @@ KEY_POINTS:
 
 
 def test_macro_agent_parses_output():
-    with patch("nq_api.agents.base.anthropic.Anthropic") as mock_cls:
+    with patch("nq_api.agents.base.anthropic.Anthropic") as mock_cls, \
+         patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
         mock_client = MagicMock()
         mock_cls.return_value = mock_client
         mock_client.messages.create.return_value = _mock_claude_response(MOCK_MACRO_RESPONSE)
@@ -34,14 +35,15 @@ def test_macro_agent_parses_output():
 
         assert isinstance(result, AgentOutput)
         assert result.agent == "MACRO"
-        assert result.stance in ("BULL", "BEAR", "NEUTRAL")
-        assert result.conviction in ("HIGH", "MEDIUM", "LOW")
+        assert result.stance == "BULL"
+        assert result.conviction == "MEDIUM"
         assert len(result.thesis) > 20
         assert len(result.key_points) >= 3
 
 
 def test_macro_agent_defaults_neutral_on_parse_failure():
-    with patch("nq_api.agents.base.anthropic.Anthropic") as mock_cls:
+    with patch("nq_api.agents.base.anthropic.Anthropic") as mock_cls, \
+         patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
         mock_client = MagicMock()
         mock_cls.return_value = mock_client
         mock_client.messages.create.return_value = _mock_claude_response("Garbage output")
