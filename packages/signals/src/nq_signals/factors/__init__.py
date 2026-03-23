@@ -1,0 +1,1 @@
+# nq_signals.factors
