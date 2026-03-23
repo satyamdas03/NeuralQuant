@@ -20,7 +20,7 @@ Existing tools fall into two camps:
 NeuralQuant is a global AI equity research platform. A 7-agent Claude-powered research team — modeled on how an actual investment research desk works — analyzes stocks across US, India, and global markets each quarter. It produces ranked picks with institutional-grade dossiers, validated against historical outcomes, Wall Street consensus, and live paper trading. Accessible to retail investors at $29/month.
 
 ### 1.3 Core Insight
-The most important architectural decision: include an **ADVERSARIAL agent** that bears the bull case on every top pick. This prevents the system from herding into consensus (the dominant failure mode of analyst teams), builds user trust through transparency, and is completely absent from every competitor.
+The most important architectural decision: include an **ADVERSARIAL agent** that steelmans the bear case on every top pick. This prevents the system from herding into consensus (the dominant failure mode of analyst teams), builds user trust through transparency, and is completely absent from every competitor.
 
 ---
 
@@ -83,7 +83,55 @@ The most important architectural decision: include an **ADVERSARIAL agent** that
 - **Email:** Resend
 - **Monitoring:** PostHog (analytics) + Sentry (errors)
 
-### 3.4 Monorepo Structure
+### 3.4 Auth & Access Control Flow
+
+```
+1. User signs up via Clerk (email/Google/GitHub)
+2. Clerk issues JWT → stored in browser cookie
+3. On each API request: Next.js passes JWT in Authorization header
+4. FastAPI middleware validates JWT via Clerk JWKS endpoint
+   (GET https://api.clerk.com/v1/jwks → cache public keys, verify signature locally)
+5. Stripe webhook (customer.subscription.updated) → Supabase user_entitlements table update
+6. FastAPI middleware reads Supabase user_entitlements to determine tier:
+   FREE | PRO_GLOBAL | PRO_INDIA | ENTERPRISE
+7. Route-level guards enforce tier. Rate limit headers returned on every response:
+   X-RateLimit-Tier, X-RateLimit-Remaining, X-RateLimit-Reset
+
+Tier enforcement per route:
+  GET /api/picks/quarterly         → FREE (Top 3), PRO+ (all 15)
+  GET /api/stocks/{ticker}/dossier → FREE (3/day), PRO+ (unlimited)
+  POST /api/chat                   → FREE (5 msg/day), PRO+ (unlimited)
+  GET /api/portfolio/blueprint     → PRO+ only
+  GET /api/validate/leaderboard    → PUBLIC
+  GET /api/signals/{ticker}        → PRO+ only
+  POST /api/analysis/run           → ENTERPRISE only
+```
+
+### 3.5 Core API Contract
+
+Base URL: `https://api.neuralquant.ai/v1`
+
+| Method | Endpoint | Auth | Response Shape |
+|--------|----------|------|----------------|
+| GET | `/picks/quarterly?market=US\|IN\|ALL&quarter=2026-Q1` | Public (limited) / Pro (full) | `{picks: Pick[], regime: RegimeState, generated_at: ISO8601}` |
+| GET | `/stocks/{ticker}/dossier` | Pro | `{ticker, agents: AgentReport[], signals: SignalValues, conviction: Tier, thesis, risk}` |
+| GET | `/stocks/{ticker}/signals` | Pro | `{ticker, signal_values: Record<SignalName, number>, regime_weights: RegimeWeights}` |
+| POST | `/chat` | Free (5/day) / Pro | `{message: string, context?: {ticker?: string}}` → SSE stream |
+| GET | `/validate/leaderboard` | Public | `{quarters: QuarterResult[], win_rates: TierWinRates, vs_benchmarks: BenchmarkComparison}` |
+| GET | `/portfolio/blueprint` | Pro | Request: `{picks: TickerList, total_capital: number}` → `{allocations: Allocation[], expected_return_range, max_drawdown_est}` |
+| GET | `/market/regime` | Public | `{regime: 1\|2\|3\|4, label: string, confidence: number, indicators: MacroPulse}` |
+| POST | `/alerts/subscribe` | Pro | `{ticker: string, condition: AlertCondition}` → `{alert_id: string}` |
+
+Key types:
+```typescript
+type Tier = 'HIGH' | 'MEDIUM' | 'SPECULATIVE'
+type RegimeState = { id: 1|2|3|4; label: string; confidence: number; factor_weights: Record<string, number> }
+type AgentReport = { agent: AgentName; score: number; rationale: string; flags: string[] }
+type SignalValues = Record<SignalName, { value: number; percentile: number; direction: 'bullish'|'bearish'|'neutral' }>
+type Pick = { ticker: string; market: 'US'|'IN'|'GLOBAL'; conviction: Tier; position_size_pct: [number, number]; thesis: string; primary_risk: string; agent_agreement: number; score: number }
+```
+
+### 3.6 Monorepo Structure
 ```
 neuralquant/
 ├── apps/
@@ -118,7 +166,7 @@ All signals use free data sources. Listed by Information Coefficient (IC) — pr
 | 4 | Quality Composite (Piotroski F-score + Gross Profitability + Accruals) | 0.06–0.08 | EDGAR XBRL / Screener.in | Most portable factor globally |
 | 5 | Insider Cluster Buys (SEC Form 4, officers/directors) | 0.05–0.08 | SEC EDGAR (free, T+2) | ~5-8% 6-month abnormal return |
 | 6 | Momentum 12-1 with crash-protection filter | 0.05–0.07 | yfinance (free) | Disabled in Regime 3 (bear) |
-| 7 | Earnings Call NLP Tone Delta (FinBERT) | 0.03–0.05 | EDGAR transcripts (free) | Near-zero correlation with price factors → pure additive alpha |
+| 7 | Earnings Call NLP Tone Delta (FinBERT) | 0.03–0.05 | Seeking Alpha free-tier (24-48hr delay) + company IR website scraping | Near-zero correlation with price factors → pure additive alpha. Note: EDGAR does not host earnings call transcripts. Use Seeking Alpha delayed free transcripts or IR site scraping. Real-time transcripts require paid Refinitiv/FactSet. |
 | 8 | Institutional Ownership Delta (13F quarter-over-quarter) | 0.03–0.06 | SEC EDGAR 13F (free) | 45-day lag |
 | 9 | Put/Call Ratio + Options Flow | 0.04–0.08 | yfinance options / NSE Options API | Contrarian + directional |
 | 10 | Low Volatility / Beta-Adjusted Beta (BAB) factor | 0.04–0.06 | yfinance (free) | Overweighted in Regime 3 |
@@ -192,6 +240,42 @@ Phase 5 (10 min): HEAD ANALYST reads all → Final Top 15 with:
 Total runtime: ~50 min serial, ~25 min with parallel async execution
 ```
 
+### 5.3 Agent Input/Output Contracts
+
+**Phase 1 Specialist Agent — Input Data Packet (per stock, ~6,800 tokens for Tier A):**
+```json
+{
+  "ticker": "NVDA",
+  "market": "US",
+  "data_as_of": "2026-03-23",
+  "price_data": { "ohlcv_1y_daily": [...], "volume_avg_30d": 45000000, "52w_high": 974.0, "52w_low": 462.0 },
+  "fundamentals": { "pe_ttm": 38.2, "pb": 22.1, "roe": 0.91, "gross_margin": 0.744, "fcf_yield": 0.021, "revenue_growth_yoy": 0.122, "debt_equity": 0.42, "piotroski_score": 7, "accruals_ratio": -0.03 },
+  "signals": { "momentum_12_1": 0.82, "short_interest_pct": 0.023, "insider_net_buys_90d": 3, "institutional_delta_qoq": 0.02, "put_call_ratio": 0.72 },
+  "sentiment": { "news_headlines_90d": [...], "earnings_call_tone_delta": 0.12, "reddit_mention_7d": 420, "stocktwits_bullish_pct": 0.67 },
+  "macro_context": { "regime_id": 1, "regime_confidence": 0.84, "sector_relative_strength": 1.14 },
+  "geo_reg_flags": []
+}
+```
+
+**Phase 1 Specialist Agent — Output Schema (JSON, max 300 tokens/stock):**
+```json
+{
+  "ticker": "NVDA",
+  "agent": "FUND",
+  "score": 82,
+  "direction": "bullish",
+  "rationale": "Strong FCF generation, minimal accruals (Piotroski 7/9), margins expanding. Key risk: valuation premium requires continued AI capex tailwind.",
+  "flags": ["high_pe_premium"],
+  "confidence": 0.78
+}
+```
+
+**QUANT-RANK — Input:** Array of Phase 1 outputs (all agents, all Tier A stocks). **Output:** `{ preliminary_top_20: [{ ticker, composite_score, agent_scores: {}, rank }] }`
+
+**ADVERSARIAL — Output per stock:** `{ ticker, bear_thesis: string, probability_thesis_wrong: number, crowding_risk: number, resolved: false }`
+
+**HEAD ANALYST — Output (Final):** Full `quarterly_picks` records matching DB schema in Section 6.3.
+
 **Epistemic Independence Rule:** Phase 1 agents receive identical data packets but never see each other's outputs. Independence is preserved until Phase 2, maximizing signal diversity.
 
 **Context Window Management:** Each specialist agent processes 25–30 stocks per batch (25 × ~6,800 tokens = ~170K tokens, leaving buffer for prompts + output). A 200-stock universe runs in 8 parallel batches. QUANT-RANK and HEAD ANALYST operate on compressed JSON summaries (~500 tokens/stock), enabling full-universe synthesis in one context window.
@@ -208,10 +292,17 @@ Three tiers with empirically anchored win rate targets:
 
 Confidence score formula:
 ```
-Score = (FUND×0.30) + (TECH×0.20) + (SENTIMENT×0.15) + (MACRO×0.25)
-      + GEO_REG_penalty (-5/-15/-40 for Med/High/Critical)
+# Base score (weights sum to 1.0)
+# GEO-REG contributes positively (low risk = high score) + penalty component
+Score = (FUND×0.30) + (TECH×0.20) + (SENTIMENT×0.15) + (MACRO×0.25) + (GEO_REG_positive×0.10)
+      + GEO_REG_penalty (-5/-15/-40 for Med/High/Critical severity)
       + ADVERSARIAL_haircut (0/-10/-50 for Resolved/Unresolved/BrokenThesis)
       + CROWDING_penalty (-8 if in top-10 most common HF holdings)
+
+# GEO_REG_positive: score of 1.0 if no flags, 0.5 if LOW severity flag, 0.0 if any higher severity
+# Note: The 5/5 agreement count in tier conditions refers to the 5 Phase 1 specialist agents
+# (MACRO, FUND, TECH-QUANT, SENTIMENT, GEO-REG) only. QUANT-RANK, ADVERSARIAL, and HEAD
+# ANALYST are synthesis roles and are excluded from the agreement ratio.
 ```
 
 **Brier-Score Calibration:** After each quarter, per-tier Brier scores are computed. If HIGH CONVICTION wins at only 55% vs 65% target, the tier threshold auto-tightens (e.g., 75 → 82 points required). This prevents "high confidence" from becoming meaningless.
@@ -282,6 +373,45 @@ weight_A = skill_A / sum(skill_all_agents)
 
 **Storage:** DuckDB (dev, zero-config columnar) → TimescaleDB/Supabase (production time-series). Centralized `DataBroker` class manages per-source token buckets — no direct API calls from signal code.
 
+### 6.3 Core Database Schema (Supabase / PostgreSQL)
+
+```sql
+-- Core entities
+stocks(id, ticker, name, market, sector, market_cap_usd, is_active, created_at)
+quarterly_runs(id, quarter, started_at, completed_at, regime_id, status, total_stocks_analyzed)
+quarterly_picks(id, run_id, stock_id, conviction_tier, score, position_size_min, position_size_max, thesis, primary_risk, agent_agreement_count, created_at)
+
+-- Signal values (one row per stock per signal per date)
+signal_values(id, stock_id, signal_name, value, percentile, date, created_at)
+
+-- Agent outputs
+agent_outputs(id, run_id, stock_id, agent_name, score, rationale, flags jsonb, raw_response text, created_at)
+
+-- Regime tracking
+regime_states(id, detected_at, regime_id, confidence, vix, yield_spread, hml_spread, pmi, macro_snapshot jsonb)
+
+-- Validation / paper trading
+paper_trade_results(id, pick_id, start_date, end_date, start_price, end_price, return_pct, benchmark_return_pct, alpha, status)
+brier_scores(id, quarter, agent_name, brier_score, skill_score, weight, created_at)
+
+-- User management
+user_entitlements(id, clerk_user_id, stripe_customer_id, tier, market_access text[], api_calls_remaining, api_calls_reset_at, created_at, updated_at)
+chat_messages(id, user_id, role, content, ticker_context, tokens_used, created_at)
+alerts(id, user_id, stock_id, condition jsonb, is_active, last_triggered_at, created_at)
+```
+
+### 6.4 Failure Modes & Recovery
+
+| Failure | Detection | Recovery Strategy |
+|---------|-----------|------------------|
+| Data source down (yfinance, NSE API) | DataBroker health check before pipeline run | Use last cached values + flag data as "stale"; degrade gracefully, do not abort run |
+| Claude API timeout (agent call) | 30s timeout + asyncio timeout wrapper | Retry up to 3× with exponential backoff (5s, 15s, 45s). If all fail: mark agent as "UNAVAILABLE", reduce conviction tier by one level for affected stocks |
+| Claude API rate limit (429) | Response status code | Pause affected agent batch 60s, retry; if persists, queue remaining batches for next slot |
+| Celery task failure | DLQ + Sentry alert | Dead-letter queue captures failed tasks; ops alert to Slack/email; manual re-trigger via admin API |
+| Quarterly run failure at Phase 3+ | Run status = "PARTIAL" | Resume from last completed phase (idempotent phase IDs stored in quarterly_runs.metadata) |
+| User-facing API error | Standard HTTP error codes | Return structured error: `{error: string, code: string, retry_after?: number}`; never expose internal state |
+| Claude API cost spike | Monthly budget monitor | Per-user token budget enforced in middleware; if monthly budget exceeded, downgrade chat to claude-haiku; circuit breaker alerts at 80% of monthly budget cap |
+
 ---
 
 ## 7. Product & User Flows (Layer 5)
@@ -312,17 +442,23 @@ Every score has a "why." Every pick shows agent agreement count. The ADVERSARIAL
 
 ### 8.2 Revenue Projections
 
-| Stream | Year 1 ARR | Year 3 ARR | Margin |
-|--------|-----------|-----------|--------|
-| Pro subscriptions | $50K | $500K | 85% |
-| Enterprise/white-label | $30K | $400K | 90% |
-| API access | $10K | $150K | 80% |
-| Research reports | $15K | $80K | 70% |
-| Affiliate + data licensing | $5K | $125K | 95% |
-| **Total** | **~$110K** | **~$1.25M** | **~85%** |
+| Stream | Year 1 ARR | Year 2 ARR | Year 3 ARR | Margin |
+|--------|-----------|-----------|-----------|--------|
+| Pro subscriptions (Global + India) | $50K | $250K | $500K | 85% |
+| Enterprise/white-label | $30K | $180K | $400K | 90% |
+| API access | $10K | $60K | $150K | 80% |
+| Research reports | $15K | $40K | $80K | 70% |
+| Affiliate + data licensing | $5K | $20K | $125K | 95% |
+| **Total** | **~$110K** | **~$550K** | **~$1.25M** | **~85%** |
+
+**India Pro revenue note:** ₹499/mo ≈ $5.94 USD at ~₹84/USD. India Pro subscribers tracked separately. Year 1 assumption: 500 India Pro + 120 Global Pro subscribers for the $50K blended ARR figure.
 
 ### 8.3 Unit Economics
-- Pro Global LTV (7% monthly churn): ~$406 · Annual plan LTV: ~$600+
+- Pro Global LTV formula: `p / c` where p = $29/mo, c = monthly churn rate
+  - Conservative (7% monthly churn, 84% annual): LTV = $29 / 0.07 = ~$414
+  - Base case (4% monthly churn, 40% annual): LTV = $29 / 0.04 = ~$725
+  - Annual plan (≈2% monthly churn): LTV = $19 / 0.02 = ~$950
+  - Note: 7% churn is high for a sticky financial tool; 4% is the base case assumption
 - CAC target: <$40 (3-4 month payback on monthly, <2 month on annual)
 - India brokerage white-label: ₹3-5L/month per partner (~$3.5-6K/mo)
 
@@ -408,38 +544,42 @@ Not "AI stock tips" — regulatory risk (SEBI), trust deficit, and commoditizati
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|------------|
 | SEBI non-compliance (India) | High if unaddressed | Existential | Register as RA before India launch; label all outputs as "research" not "advice" |
-| Claude API cost at scale | Medium | High | Cache repeated stock queries; optimize prompt token efficiency; batch processing |
-| NSE unofficial API breaking | Medium | High | Bhavcopy bulk download as fallback; jugaad-data library handles headers |
-| LLM hallucination of financial data | Medium | High | Agents only cite provided context — never recall financial figures from training |
-| Market downturn churn | High (cyclical) | Medium | Counter-cyclical features: portfolio risk analysis, hedging suggestions, bear-market picks |
-| Black swan / regime break | Low | High | Regime Uncertainty Flag: all picks auto-downgrade to SPECULATIVE when confidence <60% |
+| US Investment Adviser Act violation | Medium if unaddressed | High | Position as "impersonal research tool"; sizing guidance labeled "illustrative not personalized"; legal review before US public launch; explicit SEC-compliant disclaimers |
+| Claude API cost spike at scale | Medium | High | Per-user token budget enforced in middleware; monthly budget circuit breaker (alert at 80%, downgrade at 100%); cache repeated queries; claude-haiku as fallback for non-critical paths. Estimate: ~$15-50 per quarterly run; ~$0.05-0.20 per on-demand deep-dive |
+| NSE unofficial API breaking | Medium | High | Bhavcopy bulk download as fallback; jugaad-data library handles headers; 0.5-1s delay between requests |
+| LLM hallucination of financial data | Medium | High | Agents only cite provided context — never recall financial figures from training; output validation layer checks all numbers against source data |
+| Market downturn churn | High (cyclical) | Medium | Counter-cyclical features: portfolio risk analysis, hedging suggestions, bear-market picks; annual plan incentives |
+| Black swan / regime break | Low | High | Regime Uncertainty Flag: all picks auto-downgrade to SPECULATIVE when macro confidence <60% |
 | V8 logic overfitting to India/historical data | Medium | Medium | Walk-forward validation, out-of-sample testing on US data from day 1 |
+| Screener.in scraping ToS violation | Medium | Medium | Fallback: BSE XBRL filings (free, official); negotiate data partnership once revenue supports it; Trendlyne API as paid alternative |
+| Open-source signals → competitive copying | Medium | Low-Medium | Open-source signal framework + connectors only; factor weights, combination logic, and IC-ranked ordering stay proprietary in cloud layer |
+| Earnings transcript source fragility | Medium | Medium | Seeking Alpha 24-48hr delay acceptable for quarterly analysis; IR website scraping as fallback; budget for paid transcripts at $500-2K/mo once revenue allows |
 | Data vendor dependency | Low | Medium | Diversify across 20+ sources; no single point of failure; Polygon.io as paid upgrade path |
 
 ---
 
 ## 13. Implementation Phases
 
-### Phase 1 — Foundation (Weeks 1–3)
+### Phase 1 — Foundation (Weeks 1–6)
 - Monorepo setup (Turborepo, TypeScript + Python)
 - Core data pipeline: yfinance + NSE Bhavcopy + FRED + EDGAR XBRL
 - LightGBM signal engine + 10-factor library (evolved from V8)
 - Regime HMM detector
 - Backtesting framework (16+ quarters)
 
-### Phase 2 — Agent System (Weeks 4–6)
+### Phase 2 — Agent System (Weeks 7–9)
 - 7-agent Claude architecture with PARA-DEBATE protocol
 - Agent prompts + context packaging
 - QUANT-RANK aggregation + HEAD ANALYST synthesis
 - Confidence scoring + Brier calibration framework
 
-### Phase 3 — Product (Weeks 7–9)
+### Phase 3 — Product (Weeks 10–13)
 - Next.js 15 frontend (5 screens, Stitch UI generation)
 - FastAPI backend + Supabase integration
 - Clerk auth + Stripe billing
 - Paper trading tracker
 
-### Phase 4 — Validation & Launch (Weeks 10–12)
+### Phase 4 — Validation & Launch (Weeks 14–16)
 - Full backtest pipeline (2022–2025 quarters)
 - Validation Center (accuracy leaderboard)
 - GitHub repo + README
