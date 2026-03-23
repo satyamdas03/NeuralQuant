@@ -6,6 +6,9 @@ from nq_signals.factors.quality import compute_piotroski_score, compute_quality_
 def make_fundamental(roa=0.08, delta_roa=0.02, cfo=0.12, accruals=-0.03,
                      delta_leverage=-0.05, delta_liquidity=0.1, no_dilution=True,
                      delta_margin=0.02, delta_turnover=0.05) -> dict:
+    # Note: the Piotroski "accruals" signal is computed as cfo > roa (CFO > ROA = quality earnings).
+    # The `accruals` parameter here is NOT read by compute_piotroski_score — it is kept in the
+    # fixture dict for documentation/future use only. The actual accruals test depends on cfo vs roa.
     return {
         "roa": roa, "delta_roa": delta_roa, "cfo": cfo,
         "accruals": accruals, "delta_leverage": delta_leverage,
@@ -21,7 +24,8 @@ def test_piotroski_score_high_quality():
 
 
 def test_piotroski_score_low_quality():
-    f = make_fundamental(roa=-0.05, delta_roa=-0.03, cfo=-0.02, accruals=0.08,
+    # roa=-0.01, cfo=-0.05: cfo(-0.05) > roa(-0.01) is False → accruals signal correctly fails
+    f = make_fundamental(roa=-0.01, delta_roa=-0.03, cfo=-0.05, accruals=0.08,
                          delta_leverage=0.1, delta_liquidity=-0.2, no_dilution=False,
                          delta_margin=-0.05, delta_turnover=-0.03)
     score = compute_piotroski_score(f)

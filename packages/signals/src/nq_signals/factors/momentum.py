@@ -8,13 +8,13 @@ def compute_momentum_12_1(prices: pd.Series) -> float:
     Skips most recent month to avoid short-term reversal contamination.
     Returns raw return (not percentile — caller handles cross-sectional ranking).
     """
-    if len(prices) < 252:
-        return 0.0
+    if len(prices) < 253:
+        return float("nan")  # Need 252 days of lookback + 1 current price = 253 minimum
     # 252 trading days ≈ 12 months; 21 ≈ 1 month
     price_12m_ago = float(prices.iloc[-252])
     price_1m_ago = float(prices.iloc[-21])
     if price_12m_ago == 0:
-        return 0.0
+        return float("nan")
     return (price_1m_ago - price_12m_ago) / price_12m_ago
 
 
@@ -44,5 +44,6 @@ def compute_momentum_cross_sectional(universe: pd.DataFrame,
     if crash_flag:
         df["momentum_percentile"] = 0.5
     else:
-        df["momentum_percentile"] = df["momentum_raw"].rank(pct=True)
+        df["momentum_percentile"] = df["momentum_raw"].rank(pct=True, na_option="keep")
+        # NaN tickers (insufficient history) keep NaN — they are excluded from ranking
     return df

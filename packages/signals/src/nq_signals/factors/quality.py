@@ -36,6 +36,10 @@ def compute_quality_composite(universe: pd.DataFrame) -> pd.DataFrame:
     Input DataFrame must have columns: ticker, gross_profit_margin, accruals_ratio, piotroski
     Returns DataFrame with added quality_percentile column (0.0 to 1.0).
     """
+    required = {"ticker", "gross_profit_margin", "accruals_ratio", "piotroski"}
+    missing = required - set(universe.columns)
+    if missing:
+        raise ValueError(f"compute_quality_composite: missing required columns: {missing}")
     df = universe.copy()
 
     # Percentile rank each component (higher = better)
