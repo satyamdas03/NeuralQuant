@@ -10,7 +10,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "https://neuralquant.vercel.app"],
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 app.include_router(stocks.router, prefix="/stocks", tags=["stocks"])
@@ -20,6 +20,5 @@ app.include_router(query.router, prefix="/query", tags=["query"])
 
 
 @app.get("/health")
-@app.options("/health")
 def health():
     return {"status": "ok", "version": "2.0.0"}
