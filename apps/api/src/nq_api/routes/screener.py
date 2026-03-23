@@ -7,7 +7,7 @@ from nq_api.deps import get_signal_engine
 from nq_api.schemas import ScreenerRequest, ScreenerResponse
 from nq_api.score_builder import row_to_ai_score, REGIME_LABELS
 from nq_api.universe import UNIVERSE_BY_MARKET
-from nq_api.routes.stocks import _SyntheticMacro   # reuse the Phase 2 macro stub
+from nq_api.routes.stocks import _SyntheticMacro   # reuse Phase 2 macro stub; TODO(phase3): centralise or remove
 from nq_signals.engine import SignalEngine, UniverseSnapshot
 
 router = APIRouter()

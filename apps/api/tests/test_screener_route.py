@@ -1,6 +1,6 @@
 # apps/api/tests/test_screener_route.py
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 import pandas as pd
 import numpy as np
 from nq_api.main import app
@@ -37,7 +37,7 @@ def test_screener_returns_ranked_list():
         scores = [r["composite_score"] for r in data["results"]]
         assert scores == sorted(scores, reverse=True), "Must be sorted descending"
     finally:
-        app.dependency_overrides.clear()
+        app.dependency_overrides.pop(get_signal_engine, None)
 
 
 def test_screener_filters_by_min_score():
@@ -52,4 +52,4 @@ def test_screener_filters_by_min_score():
         for r in data["results"]:
             assert r["composite_score"] >= 0.8
     finally:
-        app.dependency_overrides.clear()
+        app.dependency_overrides.pop(get_signal_engine, None)

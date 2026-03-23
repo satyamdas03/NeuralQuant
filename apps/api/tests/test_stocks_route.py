@@ -32,7 +32,7 @@ def test_get_stock_score_returns_ai_score():
         assert len(data["top_drivers"]) >= 3
         assert "sub_scores" in data
     finally:
-        app.dependency_overrides.clear()
+        app.dependency_overrides.pop(get_signal_engine, None)
 
 
 def test_get_stock_score_unknown_ticker_returns_404():
@@ -43,4 +43,4 @@ def test_get_stock_score_unknown_ticker_returns_404():
         response = client.get("/stocks/FAKE999?market=US")
         assert response.status_code == 404
     finally:
-        app.dependency_overrides.clear()
+        app.dependency_overrides.pop(get_signal_engine, None)
