@@ -45,3 +45,19 @@ def test_store_fundamentals_round_trip(tmp_store):
     assert len(result) == 1
     assert result[0].pe_ttm == 28.5
     assert result[0].roe == 0.87
+
+def test_store_fundamentals_deduplicates(tmp_store):
+    """Upserting the same (ticker, market, as_of_date) twice should not create duplicate rows."""
+    snap = FundamentalSnapshot(
+        ticker="AAPL", market="US", as_of_date=date(2025, 1, 2),
+        pe_ttm=25.0
+    )
+    snap_updated = FundamentalSnapshot(
+        ticker="AAPL", market="US", as_of_date=date(2025, 1, 2),
+        pe_ttm=28.0  # updated value
+    )
+    tmp_store.upsert_fundamentals(snap)
+    tmp_store.upsert_fundamentals(snap_updated)
+    result = tmp_store.get_fundamentals("AAPL", "US", date(2025, 1, 1), date(2025, 1, 3))
+    assert len(result) == 1
+    assert result[0].pe_ttm == 28.0  # latest value wins
