@@ -1,10 +1,10 @@
 from datetime import date, datetime
-from typing import Optional
+from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 class OHLCVBar(BaseModel):
     ticker: str
-    market: str  # "US" | "IN" | "GLOBAL"
+    market: Literal["US", "IN", "GLOBAL"]
     date: date
     open: float
     high: float
@@ -16,7 +16,7 @@ class OHLCVBar(BaseModel):
 
 class FundamentalSnapshot(BaseModel):
     ticker: str
-    market: str
+    market: Literal["US", "IN", "GLOBAL"]
     as_of_date: date
     pe_ttm: Optional[float] = None
     pb: Optional[float] = None

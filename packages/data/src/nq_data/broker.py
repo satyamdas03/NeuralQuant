@@ -1,3 +1,4 @@
+import copy
 import time
 import threading
 from contextlib import contextmanager
@@ -11,8 +12,9 @@ class SourceConfig:
     _lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
     _request_times: list = field(default_factory=list, init=False, repr=False)
 
-    def _min_interval(self) -> float:
-        return 60.0 / self.requests_per_minute
+    def __deepcopy__(self, memo: dict) -> "SourceConfig":
+        # Create a fresh instance; do not copy lock or request history
+        return SourceConfig(name=self.name, requests_per_minute=self.requests_per_minute)
 
     def wait_if_needed(self) -> None:
         with self._lock:
@@ -46,7 +48,9 @@ class DataBroker:
     }
 
     def __init__(self, extra_configs: list[SourceConfig] | None = None):
-        self._sources: dict[str, SourceConfig] = dict(self.DEFAULTS)
+        self._sources: dict[str, SourceConfig] = {
+            name: copy.deepcopy(cfg) for name, cfg in self.DEFAULTS.items()
+        }
         for cfg in (extra_configs or []):
             self._sources[cfg.name] = cfg
 
