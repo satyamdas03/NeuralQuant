@@ -125,10 +125,33 @@ def run_nl_query(req: QueryRequest) -> QueryResponse:
     today = date.today().strftime("%B %d, %Y")
     headlines = _fetch_relevant_news(req.question, req.ticker)
 
+    # Inject live macro snapshot so answers are grounded in real market conditions
+    from nq_api.data_builder import fetch_real_macro
+    try:
+        macro = fetch_real_macro()
+        macro_ctx = (
+            f"Live market conditions (as of {today}): "
+            f"VIX={macro.vix:.1f}, "
+            f"SPX vs 200-MA={macro.spx_vs_200ma*100:+.1f}%, "
+            f"SPX 1-month return={macro.spx_return_1m*100:+.1f}%, "
+            f"HY spread={macro.hy_spread_oas:.0f}bps, "
+            f"10Y yield={macro.yield_10y:.2f}%, "
+            f"2Y yield={macro.yield_2y:.2f}%, "
+            f"2s10s spread={macro.yield_spread_2y10y*100:+.0f}bps, "
+            f"ISM PMI={macro.ism_pmi:.1f}, "
+            f"CPI YoY={macro.cpi_yoy:.1f}%, "
+            f"Fed funds rate={macro.fed_funds_rate:.2f}%"
+            + (" [FRED-sourced]" if macro.fred_sourced else " [partial — yfinance proxies]")
+        )
+    except Exception:
+        macro_ctx = None
+
     context_parts = [
         f"Today's date: {today}",
         f"User question: {req.question}",
     ]
+    if macro_ctx:
+        context_parts.append(macro_ctx)
     if req.ticker:
         context_parts.append(f"Stock in focus: {req.ticker} ({req.market or 'US'} market)")
     if headlines:

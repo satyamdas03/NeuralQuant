@@ -25,26 +25,46 @@ async def run_analyst(req: AnalystRequest) -> AnalystResponse:
     macro = fetch_real_macro()
 
     # Build context from real macro + engine output
+    regime_id = int(result_df["regime_id"].iloc[0]) if not result_df.empty else 1
+    regime_labels = {1: "Risk-On", 2: "Late-Cycle", 3: "Bear", 4: "Recovery"}
+
     context = {
         "market": req.market,
-        "vix": macro.vix,
-        "ism_pmi": macro.ism_pmi,
-        "regime_label": "Risk-On",
-        "hy_spread_oas": macro.hy_spread_oas,
-        "spx_return_1m": macro.spx_return_1m,
-        "spx_vs_200ma": macro.spx_vs_200ma,
-        "yield_spread_2y10y": macro.yield_spread_2y10y,
+        # Market regime
+        "regime_label": regime_labels.get(regime_id, "Risk-On"),
+        # yfinance macro
+        "vix": round(macro.vix, 2),
+        "spx_return_1m": round(macro.spx_return_1m * 100, 2),   # as %
+        "spx_vs_200ma": round(macro.spx_vs_200ma * 100, 2),     # as %
+        # FRED macro
+        "hy_spread_oas": round(macro.hy_spread_oas, 1),
+        "ism_pmi": round(macro.ism_pmi, 1),
+        "yield_spread_2y10y": round(macro.yield_spread_2y10y, 3),
+        "yield_10y": round(macro.yield_10y, 2),
+        "yield_2y": round(macro.yield_2y, 2),
+        "cpi_yoy": round(macro.cpi_yoy, 2),
+        "fed_funds_rate": round(macro.fed_funds_rate, 2),
+        "fred_sourced": macro.fred_sourced,
     }
 
     matching = result_df[result_df["ticker"] == ticker]
     if not matching.empty:
         row = matching.iloc[0]
         context.update({
-            "composite_score": float(row.get("composite_score", 0.5)),
-            "quality_percentile": float(row.get("quality_percentile", 0.5)),
-            "momentum_percentile": float(row.get("momentum_percentile", 0.5)),
-            "short_interest_percentile": float(row.get("short_interest_percentile", 0.5)),
-            "momentum_raw": float(row.get("momentum_raw", 0.0)),
+            "composite_score":           round(float(row.get("composite_score", 0.5)), 4),
+            "quality_percentile":        round(float(row.get("quality_percentile", 0.5)), 3),
+            "momentum_percentile":       round(float(row.get("momentum_percentile", 0.5)), 3),
+            "value_percentile":          round(float(row.get("value_percentile", 0.5)), 3),
+            "low_vol_percentile":        round(float(row.get("low_vol_percentile", 0.5)), 3),
+            "short_interest_percentile": round(float(row.get("short_interest_percentile", 0.5)), 3),
+            "momentum_raw":              round(float(row.get("momentum_raw", 0.0)), 4),
+            # Raw fundamentals for richer analyst context
+            "gross_profit_margin":       round(float(row.get("gross_profit_margin", 0.0)), 3),
+            "piotroski":                 int(row.get("piotroski", 5)),
+            "pe_ttm":                    round(float(row.get("pe_ttm", 20.0)), 1),
+            "pb_ratio":                  round(float(row.get("pb_ratio", 2.0)), 2),
+            "beta":                      round(float(row.get("beta", 1.0)), 2),
+            "realized_vol_1y":           round(float(row.get("realized_vol_1y", 0.20)), 3),
         })
 
     orch = ParaDebateOrchestrator()

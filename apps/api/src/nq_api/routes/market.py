@@ -97,8 +97,9 @@ def market_sectors():
 
 @router.get("/data-quality")
 def data_quality():
-    """Shows how many tickers have real vs synthetic data in the cache."""
+    """Shows live data quality: how many tickers are real vs synthetic, full macro snapshot."""
     from nq_api.data_builder import _fund_cache, _fund_ts, _macro_cache, _macro_ts, FUND_TTL
+    import os
     now = time.time()
     real = sum(
         1 for k, v in _fund_cache.items()
@@ -109,13 +110,24 @@ def data_quality():
         if not v.get("_is_real") and now - _fund_ts.get(k, 0) < FUND_TTL
     )
     macro_fresh = _macro_cache is not None and now - _macro_ts < 3600
+    m = _macro_cache
     return {
         "tickers_with_real_data": real,
         "tickers_with_synthetic_fallback": synthetic,
+        "total_cached": real + synthetic,
         "macro_is_real": macro_fresh,
-        "macro_vix": getattr(_macro_cache, "vix", None) if macro_fresh else None,
-        "macro_spx_vs_200ma": getattr(_macro_cache, "spx_vs_200ma", None) if macro_fresh else None,
-        "fred_key_configured": bool(
-            __import__("os").environ.get("FRED_API_KEY", "").strip()
-        ),
+        "fred_sourced": getattr(m, "fred_sourced", False) if macro_fresh else False,
+        "fred_key_configured": bool(os.environ.get("FRED_API_KEY", "").strip()),
+        "macro": {
+            "vix":                getattr(m, "vix",                None) if macro_fresh else None,
+            "spx_vs_200ma_pct":   round(getattr(m, "spx_vs_200ma", 0) * 100, 2) if macro_fresh else None,
+            "spx_return_1m_pct":  round(getattr(m, "spx_return_1m", 0) * 100, 2) if macro_fresh else None,
+            "hy_spread_oas":      getattr(m, "hy_spread_oas",      None) if macro_fresh else None,
+            "ism_pmi":            getattr(m, "ism_pmi",            None) if macro_fresh else None,
+            "yield_10y":          getattr(m, "yield_10y",          None) if macro_fresh else None,
+            "yield_2y":           getattr(m, "yield_2y",           None) if macro_fresh else None,
+            "yield_spread_2y10y": getattr(m, "yield_spread_2y10y", None) if macro_fresh else None,
+            "cpi_yoy":            getattr(m, "cpi_yoy",            None) if macro_fresh else None,
+            "fed_funds_rate":     getattr(m, "fed_funds_rate",     None) if macro_fresh else None,
+        } if macro_fresh else None,
     }

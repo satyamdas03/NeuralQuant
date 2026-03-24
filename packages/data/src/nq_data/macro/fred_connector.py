@@ -9,7 +9,7 @@ SERIES = {
     "yield_10y":       "DGS10",
     "yield_2y":        "DGS2",
     "hy_spread_oas":   "BAMLH0A0HYM2",
-    "ism_pmi":         "NAPM",    # ISM Manufacturing PMI Composite Index (0-100 scale)
+    "ism_pmi":         "NAPMPMI",  # ISM Manufacturing PMI Composite (post-2002 series)
     "fed_funds_rate":  "FEDFUNDS",
 }
 
@@ -24,16 +24,21 @@ class FREDConnector:
         self._fred = Fred(api_key=key)
 
     def _fetch(self, series_id: str, as_of: date) -> float | None:
-        start = (as_of - timedelta(days=10)).isoformat()
-        with broker.acquire("fred"):
-            s = self._fred.get_series(series_id, observation_start=start,
-                                      observation_end=as_of.isoformat())
-        if s.empty:
-            return None
-        dropped = s.dropna()
-        if dropped.empty:
-            return None  # All values in window are NaN (e.g. holiday week for monthly series)
-        return float(dropped.iloc[-1])
+        """Fetch a single FRED series; returns None on any error (retired/missing series, etc.)."""
+        try:
+            # Monthly series may need a wider lookback window (up to 60 days for PMI, fed funds)
+            start = (as_of - timedelta(days=60)).isoformat()
+            with broker.acquire("fred"):
+                s = self._fred.get_series(series_id, observation_start=start,
+                                          observation_end=as_of.isoformat())
+            if s is None or s.empty:
+                return None
+            dropped = s.dropna()
+            if dropped.empty:
+                return None
+            return float(dropped.iloc[-1])
+        except Exception:
+            return None  # Series retired, not found, or network error — caller uses fallback
 
     def get_snapshot(self, as_of: date) -> MacroSnapshot:
         vals = {k: self._fetch(sid, as_of) for k, sid in SERIES.items()}

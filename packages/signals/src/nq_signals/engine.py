@@ -83,14 +83,17 @@ class SignalEngine:
         # This ensures composite weights sum to 1.0 regardless of regime.
         regime_budget = 1.0 - SHORT_INT_WEIGHT  # 0.85
 
-        # NOTE: value and low_vol signals not yet implemented in Phase 1.
-        # Using neutral 0.5 placeholders to avoid double-counting quality.
+        # Value and low_vol: use pre-computed percentiles if available (Phase 3+),
+        # otherwise fall back to neutral 0.5.
+        value   = df.get("value_percentile",   pd.Series(0.5, index=df.index))
+        low_vol = df.get("low_vol_percentile", pd.Series(0.5, index=df.index))
+
         df["composite_score"] = (
             quality   * w.get("quality",   0.25) * regime_budget +
             momentum  * w.get("momentum",  0.25) * regime_budget +
             short_int * SHORT_INT_WEIGHT +
-            pd.Series(0.5, index=df.index) * w.get("value",   0.10) * regime_budget +
-            pd.Series(0.5, index=df.index) * w.get("low_vol", 0.15) * regime_budget
+            value     * w.get("value",     0.10) * regime_budget +
+            low_vol   * w.get("low_vol",   0.15) * regime_budget
         )
 
         df["regime_id"] = regime.regime_id

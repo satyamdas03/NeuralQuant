@@ -9,6 +9,8 @@ REGIME_LABELS = {1: "Risk-On", 2: "Late-Cycle", 3: "Bear", 4: "Recovery"}
 _FEATURE_DISPLAY = {
     "quality_percentile":        ("Quality composite",  True),
     "momentum_percentile":       ("12-1 Momentum",      True),
+    "value_percentile":          ("Value (P/E + P/B)",  True),
+    "low_vol_percentile":        ("Low Volatility",     True),
     "short_interest_percentile": ("Short interest",     False),  # high SI = bearish
 }
 
