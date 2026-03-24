@@ -1,4 +1,7 @@
 # apps/api/src/nq_api/main.py
+from dotenv import load_dotenv
+load_dotenv()  # loads apps/api/.env when uvicorn is run from apps/api/
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
