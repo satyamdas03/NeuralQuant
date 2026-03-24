@@ -1,3 +1,4 @@
+import pytest
 from unittest.mock import MagicMock, patch
 from nq_api.agents.macro import MacroAgent
 from nq_api.schemas import AgentOutput
@@ -53,3 +54,43 @@ def test_macro_agent_defaults_neutral_on_parse_failure():
 
         assert result.stance == "NEUTRAL"
         assert result.conviction == "LOW"
+
+
+from nq_api.agents.fundamental import FundamentalAgent
+from nq_api.agents.technical import TechnicalAgent
+from nq_api.agents.sentiment import SentimentAgent
+from nq_api.agents.geopolitical import GeopoliticalAgent
+from nq_api.agents.adversarial import AdversarialAgent
+
+
+MOCK_RESPONSE = """
+STANCE: NEUTRAL
+CONVICTION: MEDIUM
+THESIS: Analysis is inconclusive given mixed signals. Further data required.
+KEY_POINTS:
+- Signal A is positive
+- Signal B is negative
+- Net effect is neutral
+"""
+
+
+@pytest.mark.parametrize("AgentClass,name", [
+    (FundamentalAgent, "FUNDAMENTAL"),
+    (TechnicalAgent, "TECHNICAL"),
+    (SentimentAgent, "SENTIMENT"),
+    (GeopoliticalAgent, "GEOPOLITICAL"),
+    (AdversarialAgent, "ADVERSARIAL"),
+])
+def test_agent_returns_valid_output(AgentClass, name):
+    with patch("nq_api.agents.base.anthropic.Anthropic") as mock_cls, \
+         patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
+        mock_client = MagicMock()
+        mock_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_claude_response(MOCK_RESPONSE)
+
+        agent = AgentClass()
+        result = agent.run(ticker="MSFT", context={"quality_percentile": 0.8})
+
+        assert result.agent == name
+        assert result.stance in ("BULL", "BEAR", "NEUTRAL")
+        assert isinstance(result.key_points, list)
