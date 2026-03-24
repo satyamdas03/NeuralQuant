@@ -10,10 +10,35 @@ from nq_api.schemas import QueryRequest, QueryResponse
 
 router = APIRouter()
 
+MODEL = "claude-sonnet-4-20250514"
+
 _STOP_WORDS = {
     "WHAT", "WHEN", "WHERE", "WILL", "HAVE", "DOES", "WERE", "THAN",
     "THAT", "WITH", "FROM", "THIS", "THEY", "BEEN", "ALSO", "SOME",
     "INTO", "OVER", "AFTER", "WOULD", "COULD", "ABOUT", "WHICH",
+    "CAUSE", "EFFECT", "IMPACT", "STOCK", "STOCKS",
+}
+
+# Keyword → sector ETF / representative tickers for news injection
+_SECTOR_MAP: dict[str, list[str]] = {
+    "OIL":      ["XLE", "XOM", "CVX"],
+    "ENERGY":   ["XLE", "XOM", "CVX"],
+    "GAS":      ["XLE", "UNG"],
+    "CRUDE":    ["XLE", "XOM"],
+    "IRAN":     ["XLE", "XOM", "^GSPC"],
+    "WAR":      ["^GSPC", "XLE", "GLD"],
+    "GEOPOLIT": ["^GSPC", "GLD"],
+    "TECH":     ["XLK", "NVDA", "AAPL"],
+    "AI":       ["XLK", "NVDA", "MSFT"],
+    "RATE":     ["^TNX", "XLF", "TLT"],
+    "FED":      ["^TNX", "XLF", "SPY"],
+    "GOLD":     ["GLD", "GDX"],
+    "CRYPTO":   ["BTC-USD", "ETH-USD"],
+    "BITCOIN":  ["BTC-USD"],
+    "BANK":     ["XLF", "JPM", "BAC"],
+    "PHARMA":   ["XLV", "JNJ", "PFE"],
+    "INDIA":    ["INDA", "^BSESN"],
+    "NSE":      ["INDA", "^BSESN"],
 }
 
 _SYSTEM = """You are NeuralQuant's financial intelligence assistant.
@@ -23,8 +48,9 @@ Use them as your primary source of truth for current events.
 Rules:
 1. ALWAYS use the injected "Today's date" and "Recent headlines" for any current-events question.
 2. If relevant headlines are provided, answer based on them — never say "I have no data".
-3. If the event is clearly after your training cutoff AND no headlines cover it, say so briefly,
-   then give the best analysis you can from first principles and the headlines available.
+3. If the event is clearly after your training cutoff AND no headlines cover it, acknowledge the
+   current date, reference any relevant headlines you have, then give the best analysis from
+   first principles. NEVER give a historical answer when a current question is asked.
 4. End every response with exactly 3 follow-up questions the user might want answered.
 5. Cite which sources informed your answer.
 6. Be direct. Financial professionals read this.
@@ -38,23 +64,36 @@ FOLLOW_UP:
 - [Question 3]"""
 
 
-def _fetch_relevant_news(question: str, ticker: str | None, n: int = 6) -> list[str]:
+def _fetch_relevant_news(question: str, ticker: str | None, n: int = 8) -> list[str]:
     """Pull recent headlines from yfinance for context injection."""
-    candidates: list[str] = []
+    # Always start with broad market + any user-specified ticker
+    priority: list[str] = ["^GSPC", "SPY"]
     if ticker:
-        candidates.append(ticker)
-    for word in question.upper().split():
+        priority.insert(0, ticker)
+
+    # Detect sector keywords and inject the right ETFs/tickers
+    q_upper = question.upper()
+    for keyword, syms in _SECTOR_MAP.items():
+        if keyword in q_upper:
+            for s in syms:
+                if s not in priority:
+                    priority.append(s)
+
+    # Also try any short words that look like real tickers (2-5 alpha chars, not stop-words)
+    extra: list[str] = []
+    for word in q_upper.split():
         clean = re.sub(r"[^A-Z]", "", word)
-        if 2 <= len(clean) <= 5 and clean not in _STOP_WORDS:
-            candidates.append(clean)
-    candidates += ["^GSPC", "SPY"]
+        if 2 <= len(clean) <= 5 and clean not in _STOP_WORDS and clean not in priority:
+            extra.append(clean)
+
+    candidates = priority + extra
 
     headlines: list[str] = []
     seen: set[str] = set()
-    for sym in candidates[:5]:
+    for sym in candidates[:8]:  # try up to 8 sources
         try:
             items = yf.Ticker(sym).news or []
-            for item in items[:4]:
+            for item in items[:3]:
                 content = item.get("content") or {}
                 title = content.get("title") or item.get("title", "")
                 publisher = (
@@ -101,7 +140,7 @@ def run_nl_query(req: QueryRequest) -> QueryResponse:
 
     try:
         response = client.messages.create(
-            model="claude-sonnet-4-6",
+            model=MODEL,
             max_tokens=1024,
             system=_SYSTEM,
             messages=[{"role": "user", "content": user_msg}],

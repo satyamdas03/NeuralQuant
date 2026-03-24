@@ -1,6 +1,6 @@
 # apps/api/src/nq_api/main.py
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(override=True)   # always prefer .env values over stale system env vars
 
 import threading
 from contextlib import asynccontextmanager

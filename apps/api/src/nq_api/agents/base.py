@@ -10,7 +10,7 @@ import anthropic
 from nq_api.schemas import AgentOutput
 
 logger = logging.getLogger(__name__)
-MODEL = "claude-sonnet-4-6"
+MODEL = "claude-sonnet-4-20250514"
 MAX_TOKENS = 1024
 
 
