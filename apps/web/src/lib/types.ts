@@ -82,3 +82,36 @@ export interface QueryResponse {
   data_sources: string[];
   follow_up_questions: string[];
 }
+
+export interface IndexData {
+  symbol: string;
+  name: string;
+  price: number;
+  change_pct: number;
+  change_abs: number;
+}
+
+export interface NewsItem {
+  title: string;
+  publisher: string;
+  url: string;
+  time: string;
+}
+
+export interface SectorData {
+  symbol: string;
+  name: string;
+  change_pct: number;
+}
+
+export interface MarketOverview {
+  indices: IndexData[];
+}
+
+export interface MarketNews {
+  news: NewsItem[];
+}
+
+export interface MarketSectors {
+  sectors: SectorData[];
+}

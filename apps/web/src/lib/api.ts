@@ -2,6 +2,7 @@ import type {
   AIScore, Market, ScreenerRequest, ScreenerResponse,
   AnalystRequest, AnalystResponse,
   QueryRequest, QueryResponse,
+  MarketOverview, MarketNews, MarketSectors,
 } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -39,4 +40,8 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+
+  getMarketOverview: () => apiFetch<MarketOverview>("/market/overview"),
+  getMarketNews: (n = 8) => apiFetch<MarketNews>(`/market/news?n=${n}`),
+  getMarketSectors: () => apiFetch<MarketSectors>("/market/sectors"),
 };

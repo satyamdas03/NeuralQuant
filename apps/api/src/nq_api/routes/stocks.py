@@ -25,22 +25,28 @@ class _SyntheticMacro:
 
 
 def _build_snapshot(ticker: str, market: str) -> UniverseSnapshot:
-    """Build a minimal UniverseSnapshot for a single ticker with synthetic data.
-    Phase 3 will replace this with real-time data from DataStore.
+    """Build snapshot within the full reference universe so percentile ranks match
+    the screener — a single-stock universe always ranks at 100th percentile of itself.
+    Phase 3 will replace synthetic data with real-time DataStore lookups.
     """
-    np.random.seed(hash(ticker) % (2**31))
+    from nq_api.universe import UNIVERSE_BY_MARKET
 
+    universe = list(UNIVERSE_BY_MARKET.get(market, UNIVERSE_BY_MARKET["US"]))
+    if ticker not in universe:
+        universe = [ticker] + universe[:19]
+
+    seeds = [hash(t) % (2**31 - 1) for t in universe]
     fundamentals = pd.DataFrame([{
-        "ticker": ticker,
-        "gross_profit_margin": np.random.uniform(0.2, 0.8),
-        "accruals_ratio": np.random.uniform(-0.1, 0.1),
-        "piotroski": int(np.random.randint(3, 9)),
-        "momentum_raw": np.random.uniform(-0.2, 0.5),
-        "short_interest_pct": np.random.uniform(0.01, 0.15),
-    }])
+        "ticker": t,
+        "gross_profit_margin": np.random.RandomState(s).uniform(0.1, 0.9),
+        "accruals_ratio":      np.random.RandomState(s + 1).uniform(-0.15, 0.15),
+        "piotroski":           int(np.random.RandomState(s + 2).randint(2, 9)),
+        "momentum_raw":        np.random.RandomState(s + 3).uniform(-0.3, 0.6),
+        "short_interest_pct":  np.random.RandomState(s + 4).uniform(0.005, 0.20),
+    } for t, s in zip(universe, seeds)])
 
     return UniverseSnapshot(
-        tickers=[ticker],
+        tickers=universe,
         market=market,
         fundamentals=fundamentals,
         macro=_SyntheticMacro(),
@@ -53,11 +59,12 @@ def get_stock_score(
     market: Literal["US", "IN", "GLOBAL"] = Query("US"),
     engine: SignalEngine = Depends(get_signal_engine),
 ) -> AIScore:
-    snapshot = _build_snapshot(ticker.upper(), market)
+    ticker_upper = ticker.upper()
+    snapshot = _build_snapshot(ticker_upper, market)
     result_df = engine.compute(snapshot)
 
-    if result_df.empty:
+    matching = result_df[result_df["ticker"] == ticker_upper]
+    if matching.empty:
         raise HTTPException(status_code=404, detail=f"No data for {ticker}")
 
-    row = result_df.iloc[0]
-    return row_to_ai_score(row, market)
+    return row_to_ai_score(matching.iloc[0], market)

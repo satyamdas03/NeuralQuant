@@ -5,7 +5,7 @@ load_dotenv()  # loads apps/api/.env when uvicorn is run from apps/api/
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from nq_api.routes import stocks, screener, analyst, query
+from nq_api.routes import stocks, screener, analyst, query, market
 
 app = FastAPI(title="NeuralQuant API", version="2.0.0")
 
@@ -20,6 +20,7 @@ app.include_router(stocks.router, prefix="/stocks", tags=["stocks"])
 app.include_router(screener.router, prefix="/screener", tags=["screener"])
 app.include_router(analyst.router, prefix="/analyst", tags=["analyst"])
 app.include_router(query.router, prefix="/query", tags=["query"])
+app.include_router(market.router, prefix="/market", tags=["market"])
 
 
 @app.get("/health")
