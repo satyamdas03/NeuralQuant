@@ -33,8 +33,10 @@ KEY_POINTS:
 
 def test_orchestrator_returns_analyst_response():
     with patch("nq_api.agents.base.anthropic.Anthropic") as mock_cls, \
+         patch("nq_api.agents.head_analyst.anthropic.Anthropic") as mock_head_cls, \
          patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
         _mock_all_agents(mock_cls)
+        _mock_all_agents(mock_head_cls)
         orch = ParaDebateOrchestrator()
         result = asyncio.run(orch.analyse(ticker="AAPL", market="US", context={"vix": 18.0}))
 
@@ -50,8 +52,10 @@ def test_orchestrator_returns_analyst_response():
 
 def test_orchestrator_adversarial_is_always_bear():
     with patch("nq_api.agents.base.anthropic.Anthropic") as mock_cls, \
+         patch("nq_api.agents.head_analyst.anthropic.Anthropic") as mock_head_cls, \
          patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
         _mock_all_agents(mock_cls)
+        _mock_all_agents(mock_head_cls)
         orch = ParaDebateOrchestrator()
         result = asyncio.run(orch.analyse(ticker="AAPL", market="US", context={}))
 

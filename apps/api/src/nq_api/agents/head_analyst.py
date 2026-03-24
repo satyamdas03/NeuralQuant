@@ -5,7 +5,7 @@ import logging
 import os
 import re
 
-import nq_api.agents.base as _base_module
+import anthropic
 
 from nq_api.agents.base import MODEL, MAX_TOKENS
 from nq_api.schemas import AgentOutput
@@ -42,7 +42,7 @@ RISK_FACTORS:
             raise EnvironmentError(
                 "ANTHROPIC_API_KEY environment variable is not set."
             )
-        self._client = _base_module.anthropic.Anthropic(api_key=api_key)
+        self._client = anthropic.Anthropic(api_key=api_key)
 
     def run_synthesis(
         self, ticker: str, agent_outputs: list[AgentOutput], composite_score: float
@@ -66,7 +66,7 @@ RISK_FACTORS:
             raw = response.content[0].text
             return self._parse_synthesis(raw)
         except Exception as exc:
-            logger.warning("HEAD_ANALYST failed for %s: %s — using fallback", ticker, exc)
+            logger.error("HEAD_ANALYST failed for %s: %s — using fallback", ticker, exc)
             return self._fallback_synthesis()
 
     def _build_user_message(self, ticker: str, context: dict) -> str:

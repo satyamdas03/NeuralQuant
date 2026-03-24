@@ -1,5 +1,5 @@
 # apps/api/src/nq_api/agents/orchestrator.py
-"""PARA-DEBATE orchestrator — runs 6 agents in parallel, HEAD ANALYST synthesises."""
+"""PARA-DEBATE orchestrator — runs 5 specialist agents in parallel, adversarial sequentially, HEAD ANALYST synthesises."""
 from __future__ import annotations
 import asyncio
 
@@ -32,10 +32,16 @@ class ParaDebateOrchestrator:
         self, ticker: str, market: str, context: dict
     ) -> AnalystResponse:
         # Step 1: run 5 specialists in parallel
-        specialist_outputs: list[AgentOutput] = list(await asyncio.gather(
+        raw_results = await asyncio.gather(
             *[asyncio.to_thread(agent.run, ticker, context)
-              for agent in self._specialists]
-        ))
+              for agent in self._specialists],
+            return_exceptions=True,
+        )
+        specialist_outputs: list[AgentOutput] = [
+            r if isinstance(r, AgentOutput)
+            else agent._neutral_fallback()
+            for r, agent in zip(raw_results, self._specialists)
+        ]
 
         # Step 2: build bull thesis summary for adversarial to stress-test
         bull_summary = "; ".join(
@@ -55,10 +61,12 @@ class ParaDebateOrchestrator:
         all_outputs = specialist_outputs + [adversarial_output]
 
         # Step 3: compute consensus score (adversarial excluded)
-        consensus = sum(
-            STANCE_SCORE[o.stance] * CONVICTION_MULT[o.conviction]
-            for o in specialist_outputs
-        ) / len(specialist_outputs)
+        consensus = (
+            sum(
+                STANCE_SCORE[o.stance] * CONVICTION_MULT[o.conviction]
+                for o in specialist_outputs
+            ) / len(specialist_outputs)
+        ) if specialist_outputs else 0.5
 
         # Step 4: HEAD ANALYST synthesis
         composite_score = float(context.get("composite_score", 0.5))
