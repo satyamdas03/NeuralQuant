@@ -1,6 +1,7 @@
 export type Market = "US" | "IN" | "GLOBAL";
 export type Stance = "BULL" | "BEAR" | "NEUTRAL";
 export type Conviction = "HIGH" | "MEDIUM" | "LOW";
+export type ConfidenceLevel = "high" | "medium" | "low";
 export type Verdict = "STRONG BUY" | "BUY" | "HOLD" | "SELL" | "STRONG SELL";
 export type RegimeLabel = "Risk-On" | "Late-Cycle" | "Bear" | "Recovery";
 
@@ -28,7 +29,7 @@ export interface AIScore {
   regime_label: RegimeLabel;
   sub_scores: SubScores;
   top_drivers: FeatureDriver[];
-  confidence: "high" | "medium" | "low";
+  confidence: ConfidenceLevel;
   last_updated: string;
 }
 

@@ -1,5 +1,5 @@
 import type {
-  AIScore, ScreenerRequest, ScreenerResponse,
+  AIScore, Market, ScreenerRequest, ScreenerResponse,
   AnalystRequest, AnalystResponse,
   QueryRequest, QueryResponse,
 } from "./types";
@@ -19,7 +19,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  getStock: (ticker: string, market = "US") =>
+  getStock: (ticker: string, market: Market = "US") =>
     apiFetch<AIScore>(`/stocks/${ticker}?market=${market}`),
 
   runScreener: (body: ScreenerRequest) =>
