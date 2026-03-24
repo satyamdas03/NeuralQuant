@@ -1,7 +1,11 @@
 .superpowers/
 __pycache__/
 .env
+!.env.example
+!apps/**/.env.example
 node_modules/
 *.pyc
 data/backtest/*.csv
 results/
+apps/web/.next/
+apps/web/node_modules/

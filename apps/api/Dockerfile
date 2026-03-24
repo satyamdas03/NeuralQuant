@@ -1,0 +1,21 @@
+# Build context MUST be the repo root: `docker build -f apps/api/Dockerfile .`
+FROM python:3.12-slim
+WORKDIR /app
+
+# Install uv
+RUN pip install uv
+
+# Copy workspace packages first (for layer caching)
+COPY packages/ /workspace/packages/
+COPY pyproject.toml /workspace/pyproject.toml
+COPY uv.lock /workspace/uv.lock
+
+# Copy the API package
+COPY apps/api/ /app/
+
+# Install everything
+RUN cd /workspace && uv sync --frozen --no-dev && \
+    uv pip install --system -e /app
+
+EXPOSE 8000
+CMD ["uvicorn", "nq_api.main:app", "--host", "0.0.0.0", "--port", "8000"]
