@@ -1,13 +1,32 @@
 # apps/api/src/nq_api/main.py
 from dotenv import load_dotenv
-load_dotenv()  # loads apps/api/.env when uvicorn is run from apps/api/
+load_dotenv()
+
+import threading
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from nq_api.routes import stocks, screener, analyst, query, market
 
-app = FastAPI(title="NeuralQuant API", version="2.0.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Pre-warm real-data cache in a background thread so first requests are fast
+    def _warm():
+        try:
+            from nq_api.data_builder import prewarm_cache
+            from nq_api.universe import US_DEFAULT
+            prewarm_cache(US_DEFAULT, "US")
+        except Exception:
+            pass
+
+    threading.Thread(target=_warm, daemon=True).start()
+    yield
+
+
+app = FastAPI(title="NeuralQuant API", version="3.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -16,13 +35,13 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 
-app.include_router(stocks.router, prefix="/stocks", tags=["stocks"])
+app.include_router(stocks.router,   prefix="/stocks",   tags=["stocks"])
 app.include_router(screener.router, prefix="/screener", tags=["screener"])
-app.include_router(analyst.router, prefix="/analyst", tags=["analyst"])
-app.include_router(query.router, prefix="/query", tags=["query"])
-app.include_router(market.router, prefix="/market", tags=["market"])
+app.include_router(analyst.router,  prefix="/analyst",  tags=["analyst"])
+app.include_router(query.router,    prefix="/query",     tags=["query"])
+app.include_router(market.router,   prefix="/market",   tags=["market"])
 
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "version": "2.0.0"}
+    return {"status": "ok", "version": "3.0.0"}

@@ -1,4 +1,5 @@
 """GET /market — live market data via yfinance."""
+import time
 from fastapi import APIRouter
 import yfinance as yf
 
@@ -92,3 +93,29 @@ def market_sectors():
         d = _pct_change(sym)
         sectors.append({"symbol": sym, "name": name, "change_pct": d["change_pct"]})
     return {"sectors": sectors}
+
+
+@router.get("/data-quality")
+def data_quality():
+    """Shows how many tickers have real vs synthetic data in the cache."""
+    from nq_api.data_builder import _fund_cache, _fund_ts, _macro_cache, _macro_ts, FUND_TTL
+    now = time.time()
+    real = sum(
+        1 for k, v in _fund_cache.items()
+        if v.get("_is_real") and now - _fund_ts.get(k, 0) < FUND_TTL
+    )
+    synthetic = sum(
+        1 for k, v in _fund_cache.items()
+        if not v.get("_is_real") and now - _fund_ts.get(k, 0) < FUND_TTL
+    )
+    macro_fresh = _macro_cache is not None and now - _macro_ts < 3600
+    return {
+        "tickers_with_real_data": real,
+        "tickers_with_synthetic_fallback": synthetic,
+        "macro_is_real": macro_fresh,
+        "macro_vix": getattr(_macro_cache, "vix", None) if macro_fresh else None,
+        "macro_spx_vs_200ma": getattr(_macro_cache, "spx_vs_200ma", None) if macro_fresh else None,
+        "fred_key_configured": bool(
+            __import__("os").environ.get("FRED_API_KEY", "").strip()
+        ),
+    }
