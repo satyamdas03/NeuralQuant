@@ -162,11 +162,14 @@ def run_nl_query(req: QueryRequest) -> QueryResponse:
     user_msg = "\n".join(context_parts)
 
     try:
+        # Build message list — prepend up to 6 prior turns for multi-turn chat
+        messages = [{"role": m.role, "content": m.content} for m in req.history[-6:]]
+        messages.append({"role": "user", "content": user_msg})
         response = client.messages.create(
             model=MODEL,
             max_tokens=1024,
             system=_SYSTEM,
-            messages=[{"role": "user", "content": user_msg}],
+            messages=messages,
         )
         raw = response.content[0].text
         return _parse_query_response(raw)

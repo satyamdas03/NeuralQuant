@@ -115,3 +115,57 @@ export interface MarketNews {
 export interface MarketSectors {
   sectors: SectorData[];
 }
+
+export interface Mover {
+  ticker: string;
+  price: number;
+  change_pct: number;
+  change_abs: number;
+  volume: number;
+}
+
+export interface MarketMovers {
+  gainers: Mover[];
+  losers: Mover[];
+  active: Mover[];
+}
+
+export interface ChartBar {
+  date: string;
+  close: number;
+  open: number;
+  high: number;
+  low: number;
+  volume: number;
+}
+
+export interface StockChart {
+  ticker: string;
+  period: string;
+  data: ChartBar[];
+  period_change_pct: number;
+}
+
+export interface StockMeta {
+  ticker: string;
+  name: string;
+  market_cap: number | null;
+  market_cap_fmt: string | null;
+  pe_ttm: number | null;
+  pb_ratio: number | null;
+  beta: number | null;
+  week_52_high: number | null;
+  week_52_low: number | null;
+  earnings_date: string | null;
+  analyst_target: number | null;
+  analyst_recommendation: string | null;
+  sector: string | null;
+  industry: string | null;
+  dividend_yield: number | null;
+  current_price: number | null;
+}
+
+export interface ConversationMessage {
+  role: "user" | "assistant";
+  content: string;
+}

@@ -3,6 +3,7 @@ import type {
   AnalystRequest, AnalystResponse,
   QueryRequest, QueryResponse,
   MarketOverview, MarketNews, MarketSectors,
+  MarketMovers, StockChart, StockMeta,
 } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -44,4 +45,9 @@ export const api = {
   getMarketOverview: () => apiFetch<MarketOverview>("/market/overview"),
   getMarketNews: (n = 8) => apiFetch<MarketNews>(`/market/news?n=${n}`),
   getMarketSectors: () => apiFetch<MarketSectors>("/market/sectors"),
+  getMarketMovers: () => apiFetch<MarketMovers>("/market/movers"),
+  getStockChart: (ticker: string, period = "1mo", market: Market = "US") =>
+    apiFetch<StockChart>(`/stocks/${ticker}/chart?period=${period}&market=${market}`),
+  getStockMeta: (ticker: string, market: Market = "US") =>
+    apiFetch<StockMeta>(`/stocks/${ticker}/meta?market=${market}`),
 };

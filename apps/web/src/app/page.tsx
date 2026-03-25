@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import type { IndexData, NewsItem, SectorData, AIScore } from "@/lib/types";
+import type { IndexData, NewsItem, SectorData, AIScore, Mover } from "@/lib/types";
 
 // ─── Market Indices Bar ────────────────────────────────────────────────────────
 
@@ -208,6 +208,66 @@ function HomeQueryBox() {
   );
 }
 
+// ─── Market Movers ────────────────────────────────────────────────────────────
+
+function MarketMoversPanel({ gainers, losers, active, loading }: {
+  gainers: Mover[]; losers: Mover[]; active: Mover[]; loading: boolean;
+}) {
+  const [tab, setTab] = useState<"gainers" | "losers" | "active">("gainers");
+  const rows = tab === "gainers" ? gainers : tab === "losers" ? losers : active;
+
+  return (
+    <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+      <div className="flex border-b border-gray-800">
+        {(["gainers", "losers", "active"] as const).map(t => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`flex-1 py-2.5 text-xs font-semibold uppercase tracking-wider transition-colors ${
+              tab === t
+                ? "text-white border-b-2 border-violet-500 bg-gray-800/40"
+                : "text-gray-500 hover:text-gray-300"
+            }`}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {loading && rows.length === 0 ? (
+        <div className="p-4 space-y-3">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="flex justify-between">
+              <div className="h-4 w-16 bg-gray-800 rounded animate-pulse" />
+              <div className="h-4 w-16 bg-gray-800 rounded animate-pulse" />
+            </div>
+          ))}
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="px-4 py-6 text-center text-xs text-gray-600">Data unavailable</div>
+      ) : (
+        <div className="divide-y divide-gray-800">
+          {rows.map(m => (
+            <Link
+              key={m.ticker}
+              href={`/stocks/${m.ticker}`}
+              className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-800/50 transition-colors"
+            >
+              <div>
+                <div className="text-sm font-semibold text-gray-100">{m.ticker}</div>
+                <div className="text-xs text-gray-500 tabular-nums">${m.price.toLocaleString()}</div>
+              </div>
+              <span className={`text-sm font-bold tabular-nums ${m.change_pct >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                {m.change_pct >= 0 ? "+" : ""}{m.change_pct.toFixed(2)}%
+              </span>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Top AI Picks Sidebar ─────────────────────────────────────────────────────
 
 function TopAIPicks({
@@ -327,10 +387,14 @@ export default function Home() {
   const [sectors, setSectors] = useState<SectorData[]>([]);
   const [topStocks, setTopStocks] = useState<AIScore[]>([]);
   const [regime, setRegime] = useState("");
+  const [gainers, setGainers] = useState<Mover[]>([]);
+  const [losers, setLosers] = useState<Mover[]>([]);
+  const [active, setActive] = useState<Mover[]>([]);
   const [indicesLoading, setIndicesLoading] = useState(true);
   const [newsLoading, setNewsLoading] = useState(true);
   const [sectorsLoading, setSectorsLoading] = useState(true);
   const [stocksLoading, setStocksLoading] = useState(true);
+  const [moversLoading, setMoversLoading] = useState(true);
 
   useEffect(() => {
     api.getMarketOverview()
@@ -352,6 +416,11 @@ export default function Home() {
       .then((d) => { setTopStocks(d.results); setRegime(d.regime_label); })
       .catch(() => {})
       .finally(() => setStocksLoading(false));
+
+    api.getMarketMovers()
+      .then((d) => { setGainers(d.gainers); setLosers(d.losers); setActive(d.active); })
+      .catch(() => {})
+      .finally(() => setMoversLoading(false));
   }, []);
 
   return (
@@ -381,6 +450,9 @@ export default function Home() {
 
         {/* Right sidebar */}
         <div className="space-y-5">
+          <MarketMoversPanel
+            gainers={gainers} losers={losers} active={active} loading={moversLoading}
+          />
           <TopAIPicks stocks={topStocks} regime={regime} loading={stocksLoading} />
           <SectorList sectors={sectors} loading={sectorsLoading} />
         </div>

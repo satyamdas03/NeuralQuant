@@ -71,10 +71,16 @@ class AnalystResponse(BaseModel):
     consensus_score: float       # weighted average of agent conviction scores
 
 
+class ConversationMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+
 class QueryRequest(BaseModel):
     question: str
-    ticker: Optional[str] = None  # if provided, grounds answer in ticker data
+    ticker: Optional[str] = None
     market: Literal["US", "IN", "GLOBAL"] = "US"
+    history: list[ConversationMessage] = []  # previous turns for multi-turn chat
 
 
 class QueryResponse(BaseModel):

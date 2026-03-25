@@ -2,6 +2,7 @@
 import time
 from fastapi import APIRouter
 import yfinance as yf
+import pandas as pd
 
 router = APIRouter()
 
@@ -93,6 +94,61 @@ def market_sectors():
         d = _pct_change(sym)
         sectors.append({"symbol": sym, "name": name, "change_pct": d["change_pct"]})
     return {"sectors": sectors}
+
+
+_MOVERS_UNIVERSE = [
+    "AAPL","MSFT","GOOGL","AMZN","NVDA","META","TSLA","BRK-B","JPM","V",
+    "MA","UNH","XOM","JNJ","HD","COST","ABBV","LLY","CVX","BAC",
+    "NFLX","ORCL","ADBE","CRM","AMD","AVGO","WMT","MCD","PFE","ISRG",
+]
+
+_movers_cache: dict = {}
+_movers_ts: float = 0.0
+MOVERS_TTL = 600  # 10 minutes
+
+
+@router.get("/movers")
+def market_movers():
+    global _movers_cache, _movers_ts
+    if _movers_cache and time.time() - _movers_ts < MOVERS_TTL:
+        return _movers_cache
+
+    try:
+        raw = yf.download(
+            _MOVERS_UNIVERSE, period="2d", progress=False,
+            auto_adjust=True, threads=True,
+        )
+        # yf.download returns MultiIndex columns when >1 ticker
+        close  = raw["Close"]  if isinstance(raw.columns, pd.MultiIndex) else raw[["Close"]]
+        volume = raw["Volume"] if isinstance(raw.columns, pd.MultiIndex) else raw[["Volume"]]
+
+        rows = []
+        for sym in _MOVERS_UNIVERSE:
+            try:
+                closes = close[sym].dropna()
+                if len(closes) < 2:
+                    continue
+                price    = float(closes.iloc[-1])
+                prev     = float(closes.iloc[-2])
+                chg_abs  = round(price - prev, 2)
+                chg_pct  = round((chg_abs / prev * 100) if prev else 0.0, 2)
+                vol      = int(volume[sym].iloc[-1])
+                rows.append({"ticker": sym, "price": round(price, 2),
+                              "change_pct": chg_pct, "change_abs": chg_abs, "volume": vol})
+            except Exception:
+                pass
+
+        rows_sorted = sorted(rows, key=lambda x: x["change_pct"], reverse=True)
+        result = {
+            "gainers": rows_sorted[:5],
+            "losers":  list(reversed(rows_sorted[-5:])),
+            "active":  sorted(rows, key=lambda x: x["volume"], reverse=True)[:5],
+        }
+        _movers_cache = result
+        _movers_ts = time.time()
+        return result
+    except Exception as exc:
+        return {"gainers": [], "losers": [], "active": [], "error": str(exc)}
 
 
 @router.get("/data-quality")
