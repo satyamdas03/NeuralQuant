@@ -7,16 +7,25 @@ from nq_api.schemas import AIScore, SubScores, FeatureDriver
 REGIME_LABELS = {1: "Risk-On", 2: "Late-Cycle", 3: "Bear", 4: "Recovery"}
 
 _FEATURE_DISPLAY = {
-    "quality_percentile":        ("Quality composite",  True),
-    "momentum_percentile":       ("12-1 Momentum",      True),
-    "value_percentile":          ("Value (P/E + P/B)",  True),
-    "low_vol_percentile":        ("Low Volatility",     True),
-    "short_interest_percentile": ("Short interest",     False),  # high SI = bearish
+    "quality_percentile":        ("Quality composite",   True),
+    "momentum_percentile":       ("12-1 Momentum",       True),
+    "value_percentile":          ("Value (P/E + P/B)",   True),
+    "low_vol_percentile":        ("Low Volatility",      True),
+    # NOTE: engine stores 1 - rank_pct, so HIGH value = GOOD (low short interest).
+    # higher_is_better MUST be True here — the inversion already happened in the engine.
+    "short_interest_percentile": ("Low Short Interest",  True),
 }
 
 
-def _score_to_1_10(score: float) -> int:
-    return max(1, min(10, round(score * 9 + 1)))
+def _score_to_1_10(score: float, universe_min: float = 0.35, universe_max: float = 0.65) -> int:
+    """
+    Map composite score to 1-10.
+    Stretches score across the expected universe range (0.35–0.65) so that
+    the full integer scale is used rather than everyone clustering at 5.
+    """
+    clamped = max(universe_min, min(universe_max, score))
+    relative = (clamped - universe_min) / (universe_max - universe_min)  # 0–1
+    return max(1, min(10, round(relative * 9 + 1)))
 
 
 def _confidence(row: pd.Series) -> str:
@@ -56,7 +65,17 @@ def build_top_drivers(row: pd.Series) -> list[FeatureDriver]:
     return drivers[:5]
 
 
-def row_to_ai_score(row: pd.Series, market: str) -> AIScore:
+def rank_scores_in_universe(result_df: pd.DataFrame) -> pd.Series:
+    """
+    Return rank-based 1-10 integer scores for all rows.
+    Top composite_score in the universe → 10, bottom → 1.
+    This spreads scores across the full range instead of everyone scoring 5.
+    """
+    pct = result_df["composite_score"].rank(pct=True, method="average")
+    return (pct * 9 + 1).round().clip(1, 10).astype(int)
+
+
+def row_to_ai_score(row: pd.Series, market: str, score_1_10_override: int | None = None) -> AIScore:
     regime_id = int(row.get("regime_id", 1))
     composite = float(row["composite_score"])
 
@@ -64,7 +83,7 @@ def row_to_ai_score(row: pd.Series, market: str) -> AIScore:
         ticker=str(row["ticker"]),
         market=market,
         composite_score=round(composite, 4),
-        score_1_10=_score_to_1_10(composite),
+        score_1_10=score_1_10_override if score_1_10_override is not None else _score_to_1_10(composite),
         regime_id=regime_id,
         regime_label=REGIME_LABELS.get(regime_id, "Unknown"),
         sub_scores=SubScores(

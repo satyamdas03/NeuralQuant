@@ -41,23 +41,24 @@ _SECTOR_MAP: dict[str, list[str]] = {
     "NSE":      ["INDA", "^BSESN"],
 }
 
-_SYSTEM = """You are NeuralQuant's financial intelligence assistant.
-Today's date and recent market news headlines are injected at the top of every user message.
-Use them as your primary source of truth for current events.
+_SYSTEM = """You are NeuralQuant's financial intelligence assistant — an AI with access to:
+1. Live macro data (FRED: HY spreads, CPI, Fed funds, yield curve; yfinance: VIX, SPX momentum)
+2. NeuralQuant AI stock scores for 50 US stocks and 50 Indian (NSE) stocks — injected below when relevant
+3. Live market prices, sector performance, and news headlines
+4. 5-factor quantitative model: Quality, Momentum, Value (P/E+P/B), Low-Volatility, Short Interest
 
 Rules:
-1. ALWAYS use the injected "Today's date" and "Recent headlines" for any current-events question.
-2. If relevant headlines are provided, answer based on them — never say "I have no data".
-3. If the event is clearly after your training cutoff AND no headlines cover it, acknowledge the
-   current date, reference any relevant headlines you have, then give the best analysis from
-   first principles. NEVER give a historical answer when a current question is asked.
-4. End every response with exactly 3 follow-up questions the user might want answered.
-5. Cite which sources informed your answer.
-6. Be direct. Financial professionals read this.
+1. ALWAYS use the injected live data. NEVER say "I don't have access" when data is provided below.
+2. When NeuralQuant stock scores are injected, CITE THEM: "NeuralQuant rates NVDA 6/10 (medium confidence)"
+3. When asked about a specific stock, use its injected score, factors, and confidence.
+4. When asked "best stock" or "top pick", use the injected screener rankings.
+5. For current events, use injected news headlines. Reference the date in your answer.
+6. Be direct and quantitative. Financial professionals read this.
+7. End every response with exactly 3 follow-up questions.
 
 Response format:
-ANSWER: [Your answer]
-DATA_SOURCES: [comma-separated list]
+ANSWER: [Your answer — cite NeuralQuant scores, live macro, and news headlines specifically]
+DATA_SOURCES: [comma-separated list of what you used: NeuralQuant Screener / FRED Macro / Live News / etc.]
 FOLLOW_UP:
 - [Question 1]
 - [Question 2]
@@ -111,8 +112,148 @@ def _fetch_relevant_news(question: str, ticker: str | None, n: int = 8) -> list[
     return headlines[:n]
 
 
+_SCREENER_KEYWORDS = {
+    "SCREENER", "BEST STOCK", "TOP STOCK", "RANK", "RANKING", "TOP PICK",
+    "RECOMMEND", "BUY RIGHT NOW", "SHOULD I BUY", "WHICH STOCK",
+    "NEURALQUANT", "YOUR PLATFORM", "YOUR SCREENER", "YOUR MODEL",
+}
+_INDIA_KEYWORDS = {"INDIA", "INDIAN", "NSE", "BSE", "NIFTY", "SENSEX", "RUPEE"}
+
+
+def _detect_tickers_in_question(question: str) -> list[str]:
+    """Extract potential ticker symbols from the question text."""
+    from nq_api.universe import US_DEFAULT, IN_DEFAULT
+    known = set(US_DEFAULT) | set(IN_DEFAULT)
+    found = []
+    q_upper = question.upper()
+    # Check all known tickers
+    for t in known:
+        if re.search(r'\b' + re.escape(t) + r'\b', q_upper):
+            found.append(t)
+    return found[:5]  # cap at 5
+
+
+def _enrich_with_platform_data(question: str, market: str) -> str | None:
+    """
+    Fetch NeuralQuant's own stock scores + movers when the question needs them.
+    Returns a formatted context string, or None if not needed.
+    """
+    from nq_api.data_builder import build_real_snapshot, fetch_fundamentals_batch
+    from nq_api.universe import UNIVERSE_BY_MARKET
+    from nq_signals.engine import SignalEngine
+    from nq_api.score_builder import row_to_ai_score, rank_scores_in_universe
+    from nq_api.deps import get_signal_engine
+
+    q_upper = question.upper()
+    parts: list[str] = []
+
+    # Determine which market to use for screener
+    target_market = "IN" if any(k in q_upper for k in _INDIA_KEYWORDS) else market
+
+    # Check if question asks about the screener / best stocks
+    needs_screener = any(k in q_upper for k in _SCREENER_KEYWORDS)
+    # Detect specific ticker mentions
+    mentioned_tickers = _detect_tickers_in_question(question)
+    # Check if it asks about "buy/sell/hold" a stock or a comparison
+    needs_stock_scores = (
+        mentioned_tickers
+        or any(k in q_upper for k in ["IS A BUY", "IS A SELL", "COMPARE", "VERSUS", "VS ", "OVERVALUED", "SHORT INTEREST"])
+    )
+
+    if not needs_screener and not needs_stock_scores and not mentioned_tickers:
+        return None  # No platform data needed
+
+    try:
+        engine = get_signal_engine()
+
+        if needs_screener or (not mentioned_tickers and needs_stock_scores):
+            # Run screener for top 10
+            universe = UNIVERSE_BY_MARKET.get(target_market, UNIVERSE_BY_MARKET["US"])[:20]
+            snapshot = build_real_snapshot(universe, target_market)
+            result_df = engine.compute(snapshot)
+            ranked = rank_scores_in_universe(result_df)
+            top = result_df.head(10)
+            lines = [f"NeuralQuant {target_market} Screener — Top 10 stocks right now:"]
+            for i, (idx, row) in enumerate(top.iterrows()):
+                sc = int(ranked.iloc[idx]) if idx < len(ranked) else 5
+                q = row.get("quality_percentile", 0.5)
+                m = row.get("momentum_percentile", 0.5)
+                v = row.get("value_percentile", 0.5)
+                si = row.get("short_interest_percentile", 0.5)
+                lines.append(
+                    f"  #{i+1} {row['ticker']}: {sc}/10 score | "
+                    f"Quality={q:.0%} Momentum={m:.0%} Value={v:.0%} LowSI={si:.0%} | "
+                    f"Confidence: {row.get('regime_confidence', 0.5):.0%}"
+                )
+            parts.append("\n".join(lines))
+
+        if mentioned_tickers:
+            # Fetch scores for specifically mentioned tickers
+            # Use full universe so percentile ranks are meaningful
+            base_universe = UNIVERSE_BY_MARKET.get(target_market, UNIVERSE_BY_MARKET["US"])
+            universe = list(dict.fromkeys(mentioned_tickers + base_universe))[:25]
+            snapshot = build_real_snapshot(universe, target_market)
+            result_df = engine.compute(snapshot)
+            ranked = rank_scores_in_universe(result_df)
+            lines = [f"NeuralQuant scores for mentioned stocks:"]
+            for t in mentioned_tickers:
+                row_match = result_df[result_df["ticker"] == t]
+                if not row_match.empty:
+                    row = row_match.iloc[0]
+                    idx = row_match.index[0]
+                    sc = int(ranked.iloc[idx]) if idx < len(ranked) else 5
+                    conf_label = "high" if row.get("regime_confidence", 0.5) > 0.7 else ("medium" if row.get("regime_confidence", 0.5) > 0.4 else "low")
+                    lines.append(
+                        f"  {t}: {sc}/10 (composite={row['composite_score']:.3f}) | "
+                        f"Quality={row.get('quality_percentile', 0.5):.0%} "
+                        f"Momentum={row.get('momentum_percentile', 0.5):.0%} "
+                        f"Value={row.get('value_percentile', 0.5):.0%} "
+                        f"LowVol={row.get('low_vol_percentile', 0.5):.0%} "
+                        f"LowSI={row.get('short_interest_percentile', 0.5):.0%} | "
+                        f"Regime: {row.get('regime_id', 1)} | P/E={row.get('pe_ttm', 'N/A')} P/B={row.get('pb_ratio', 'N/A'):.1f} Beta={row.get('beta', 'N/A'):.2f}"
+                    )
+            parts.append("\n".join(lines))
+
+        # Also inject live prices for mentioned tickers
+        if mentioned_tickers:
+            try:
+                import yfinance as yf
+                price_lines = ["Live prices:"]
+                for t in mentioned_tickers[:3]:
+                    try:
+                        info = yf.Ticker(t).info
+                        price = info.get("currentPrice") or info.get("regularMarketPrice")
+                        high52 = info.get("fiftyTwoWeekHigh")
+                        low52 = info.get("fiftyTwoWeekLow")
+                        target = info.get("targetMeanPrice")
+                        if price:
+                            price_lines.append(
+                                f"  {t}: ${price:.2f} | 52w range ${low52:.2f}–${high52:.2f}"
+                                + (f" | Analyst target ${target:.2f}" if target else "")
+                            )
+                    except Exception:
+                        pass
+                if len(price_lines) > 1:
+                    parts.append("\n".join(price_lines))
+            except Exception:
+                pass
+
+    except Exception as exc:
+        return f"[Platform data unavailable: {exc}]"
+
+    return "\n\n".join(parts) if parts else None
+
+
 @router.post("", response_model=QueryResponse)
 def run_nl_query(req: QueryRequest) -> QueryResponse:
+    # BUG-007: validate non-empty question
+    if not req.question or len(req.question.strip()) < 3:
+        return QueryResponse(
+            answer="Please enter a question (at least 3 characters).",
+            data_sources=[],
+            follow_up_questions=["What is the current VIX?", "Which stocks are top ranked?", "What is the Fed funds rate?"],
+        )
+
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         return QueryResponse(
@@ -125,7 +266,7 @@ def run_nl_query(req: QueryRequest) -> QueryResponse:
     today = date.today().strftime("%B %d, %Y")
     headlines = _fetch_relevant_news(req.question, req.ticker)
 
-    # Inject live macro snapshot so answers are grounded in real market conditions
+    # Inject live macro snapshot
     from nq_api.data_builder import fetch_real_macro
     try:
         macro = fetch_real_macro()
@@ -141,10 +282,13 @@ def run_nl_query(req: QueryRequest) -> QueryResponse:
             f"ISM PMI={macro.ism_pmi:.1f}, "
             f"CPI YoY={macro.cpi_yoy:.1f}%, "
             f"Fed funds rate={macro.fed_funds_rate:.2f}%"
-            + (" [FRED-sourced]" if macro.fred_sourced else " [partial — yfinance proxies]")
+            + (" [FRED-sourced]" if macro.fred_sourced else " [partial]")
         )
     except Exception:
         macro_ctx = None
+
+    # BUG-002 fix: inject NeuralQuant's own stock scores + prices when relevant
+    platform_ctx = _enrich_with_platform_data(req.question, req.market)
 
     context_parts = [
         f"Today's date: {today}",
@@ -152,6 +296,8 @@ def run_nl_query(req: QueryRequest) -> QueryResponse:
     ]
     if macro_ctx:
         context_parts.append(macro_ctx)
+    if platform_ctx:
+        context_parts.append(platform_ctx)
     if req.ticker:
         context_parts.append(f"Stock in focus: {req.ticker} ({req.market or 'US'} market)")
     if headlines:

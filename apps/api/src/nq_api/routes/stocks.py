@@ -5,9 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from nq_api.deps import get_signal_engine
 from nq_api.schemas import AIScore
-from nq_api.score_builder import row_to_ai_score
+from nq_api.score_builder import row_to_ai_score, rank_scores_in_universe
 from nq_api.universe import UNIVERSE_BY_MARKET
-from nq_api.data_builder import build_real_snapshot
+from nq_api.data_builder import build_real_snapshot, _fund_cache
 from nq_signals.engine import SignalEngine
 
 router = APIRouter()
@@ -42,16 +42,35 @@ def get_stock_score(
     engine: SignalEngine = Depends(get_signal_engine),
 ) -> AIScore:
     ticker_upper = ticker.upper()
+    known_universe = list(UNIVERSE_BY_MARKET.get(market, UNIVERSE_BY_MARKET["US"]))
+
     # Always compute within full reference universe for meaningful percentile ranks
-    universe = list(UNIVERSE_BY_MARKET.get(market, UNIVERSE_BY_MARKET["US"]))
+    universe = known_universe.copy()
     if ticker_upper not in universe:
         universe = [ticker_upper] + universe[:19]
+
     snapshot = build_real_snapshot(universe, market)
     result_df = engine.compute(snapshot)
+
+    # BUG-001 fix: reject tickers that yfinance couldn't find (synthetic fallback + not in known universe)
+    fund_data = _fund_cache.get(f"{ticker_upper}:{market}", {})
+    if not fund_data.get("_is_real") and ticker_upper not in known_universe:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Ticker '{ticker_upper}' not found in {market} market. "
+                   "Check the ticker symbol and market parameter."
+        )
+
     matching = result_df[result_df["ticker"] == ticker_upper]
     if matching.empty:
         raise HTTPException(status_code=404, detail=f"No data for {ticker}")
-    return row_to_ai_score(matching.iloc[0], market)
+
+    # Use rank-based 1-10 within the reference universe for consistent spread
+    ranked_scores = rank_scores_in_universe(result_df)
+    ticker_idx = matching.index[0]
+    score_override = int(ranked_scores.iloc[ticker_idx]) if ticker_idx < len(ranked_scores) else None
+
+    return row_to_ai_score(matching.iloc[0], market, score_1_10_override=score_override)
 
 
 @router.get("/{ticker}/chart")
