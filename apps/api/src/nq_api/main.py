@@ -30,7 +30,12 @@ app = FastAPI(title="NeuralQuant API", version="3.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://neuralquant.vercel.app"],
+    allow_origins=[
+        "http://localhost:3000",
+        "https://neuralquant.vercel.app",
+        "https://*.vercel.app",
+    ],
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_methods=["*"],
     allow_headers=["Authorization", "Content-Type"],
 )

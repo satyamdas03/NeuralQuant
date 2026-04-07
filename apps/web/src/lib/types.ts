@@ -75,6 +75,7 @@ export interface QueryRequest {
   question: string;
   ticker?: string;
   market?: Market;
+  history?: ConversationMessage[];
 }
 
 export interface QueryResponse {
