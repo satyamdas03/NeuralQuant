@@ -116,7 +116,7 @@ def fetch_real_macro() -> _LiveMacro:
             if snap.hy_spread_oas is not None:
                 # FRED BAMLH0A0HYM2 is in percent (e.g. 3.24 = 3.24%); convert to bps
                 m.hy_spread_oas = snap.hy_spread_oas * 100
-            if snap.ism_pmi is not None:
+            if snap.ism_pmi is not None and snap.ism_pmi > 0:
                 m.ism_pmi = snap.ism_pmi
             if snap.yield_spread_2y10y is not None:
                 m.yield_spread_2y10y = snap.yield_spread_2y10y

@@ -116,6 +116,9 @@ _SCREENER_KEYWORDS = {
     "SCREENER", "BEST STOCK", "TOP STOCK", "RANK", "RANKING", "TOP PICK",
     "RECOMMEND", "BUY RIGHT NOW", "SHOULD I BUY", "WHICH STOCK",
     "NEURALQUANT", "YOUR PLATFORM", "YOUR SCREENER", "YOUR MODEL",
+    # Additional patterns for natural-language "top picks" questions
+    "TOP PICKS", "TOP 3", "TOP 5", "TOP 10", "BEST PICK", "BEST PICKS",
+    "YOUR TOP", "STOCK PICKS", "STOCK PICK", "WHICH STOCKS",
 }
 _INDIA_KEYWORDS = {"INDIA", "INDIAN", "NSE", "BSE", "NIFTY", "SENSEX", "RUPEE"}
 
@@ -171,11 +174,14 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
             universe = UNIVERSE_BY_MARKET.get(target_market, UNIVERSE_BY_MARKET["US"])[:20]
             snapshot = build_real_snapshot(universe, target_market)
             result_df = engine.compute(snapshot)
+            # Sort by composite_score descending so head(10) gives the true top 10
+            result_df = result_df.sort_values("composite_score", ascending=False).reset_index(drop=True)
             ranked = rank_scores_in_universe(result_df)
             top = result_df.head(10)
             lines = [f"NeuralQuant {target_market} Screener — Top 10 stocks right now:"]
             for i, (idx, row) in enumerate(top.iterrows()):
-                sc = int(ranked.iloc[idx]) if idx < len(ranked) else 5
+                # Use .loc[idx] not .iloc[idx] — idx is a label after reset_index
+                sc = int(ranked.loc[idx]) if idx in ranked.index else 5
                 q = row.get("quality_percentile", 0.5)
                 m = row.get("momentum_percentile", 0.5)
                 v = row.get("value_percentile", 0.5)
@@ -201,7 +207,7 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                 if not row_match.empty:
                     row = row_match.iloc[0]
                     idx = row_match.index[0]
-                    sc = int(ranked.iloc[idx]) if idx < len(ranked) else 5
+                    sc = int(ranked.loc[idx]) if idx in ranked.index else 5
                     conf_label = "high" if row.get("regime_confidence", 0.5) > 0.7 else ("medium" if row.get("regime_confidence", 0.5) > 0.4 else "low")
                     lines.append(
                         f"  {t}: {sc}/10 (composite={row['composite_score']:.3f}) | "

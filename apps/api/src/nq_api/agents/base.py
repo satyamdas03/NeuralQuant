@@ -60,7 +60,7 @@ class BaseAnalystAgent(ABC):
             points_raw = re.search(r"KEY_POINTS:(.*)", raw, re.I | re.S)
             if points_raw:
                 points = [
-                    re.sub(r"^[-*•]\s*|\d+\.\s*", "", p.strip()).strip()
+                    re.sub(r"^[-*•]\s*|^\d+\.\s*", "", p.strip()).strip()
                     for p in points_raw.group(1).strip().splitlines()
                     if p.strip() and p.strip() not in ("-", "*", "•")
                 ]
