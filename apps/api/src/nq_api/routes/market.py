@@ -13,6 +13,12 @@ _INDICES = {
     "^VIX": "VIX",
 }
 
+_FUTURES = {
+    "ES=F": "S&P Futures",
+    "NQ=F": "NASDAQ Futures",
+    "YM=F": "Dow Futures",
+}
+
 _SECTORS = {
     "XLK": "Technology",
     "XLE": "Energy",
@@ -57,7 +63,11 @@ def market_overview():
     for sym, name in _INDICES.items():
         d = _pct_change(sym)
         indices.append({"symbol": sym, "name": name, **d})
-    return {"indices": indices}
+    futures = []
+    for sym, name in _FUTURES.items():
+        d = _pct_change(sym)
+        futures.append({"symbol": sym, "name": name, **d})
+    return {"indices": indices, "futures": futures}
 
 
 @router.get("/news")

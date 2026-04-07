@@ -383,6 +383,7 @@ function SectorList({ sectors, loading }: { sectors: SectorData[]; loading: bool
 
 export default function Home() {
   const [indices, setIndices] = useState<IndexData[]>([]);
+  const [futures, setFutures] = useState<IndexData[]>([]);
   const [news, setNews] = useState<NewsItem[]>([]);
   const [sectors, setSectors] = useState<SectorData[]>([]);
   const [topStocks, setTopStocks] = useState<AIScore[]>([]);
@@ -398,7 +399,7 @@ export default function Home() {
 
   useEffect(() => {
     api.getMarketOverview()
-      .then((d) => setIndices(d.indices))
+      .then((d) => { setIndices(d.indices); setFutures(d.futures ?? []); })
       .catch(() => {})
       .finally(() => setIndicesLoading(false));
 
@@ -426,17 +427,25 @@ export default function Home() {
   return (
     <div className="space-y-5">
       {/* Market Indices Bar */}
-      <div className="flex flex-wrap gap-3">
-        {indicesLoading
-          ? [1, 2, 3, 4].map((i) => <IndexSkeleton key={i} />)
-          : indices.length > 0
-          ? indices.map((d) => <IndexCard key={d.symbol} d={d} />)
-          : (
-            <div className="w-full bg-gray-900 border border-gray-800 rounded-xl px-5 py-4 text-sm text-gray-500">
-              Live market indices unavailable.{" "}
-              <span className="text-gray-600">Restart the FastAPI backend to load real-time data.</span>
-            </div>
-          )}
+      <div className="space-y-2">
+        <div className="flex flex-wrap gap-3">
+          {indicesLoading
+            ? [1, 2, 3, 4].map((i) => <IndexSkeleton key={i} />)
+            : indices.length > 0
+            ? indices.map((d) => <IndexCard key={d.symbol} d={d} />)
+            : (
+              <div className="w-full bg-gray-900 border border-gray-800 rounded-xl px-5 py-4 text-sm text-gray-500">
+                Live market indices unavailable.{" "}
+                <span className="text-gray-600">Restart the FastAPI backend to load real-time data.</span>
+              </div>
+            )}
+        </div>
+        {futures.length > 0 && (
+          <div className="flex flex-wrap gap-3 items-center">
+            <span className="text-xs text-gray-600 uppercase tracking-widest font-semibold px-1 min-w-[60px]">Futures</span>
+            {futures.map((d) => <IndexCard key={d.symbol} d={d} />)}
+          </div>
+        )}
       </div>
 
       {/* Main grid */}

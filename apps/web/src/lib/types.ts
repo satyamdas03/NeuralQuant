@@ -107,6 +107,7 @@ export interface SectorData {
 
 export interface MarketOverview {
   indices: IndexData[];
+  futures: IndexData[];
 }
 
 export interface MarketNews {
