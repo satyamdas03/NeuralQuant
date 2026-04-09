@@ -24,8 +24,10 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
+  const [slowLoad, setSlowLoad] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const slowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -35,6 +37,7 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
     const q = question.trim();
     if (!q || loading) return;
     setInput("");
+    setSlowLoad(false);
 
     const userMsg: ChatMessage = { id: Date.now().toString(), role: "user", content: q };
     const placeholderId = (Date.now() + 1).toString();
@@ -42,6 +45,9 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
 
     setMessages(prev => [...prev, userMsg, placeholder]);
     setLoading(true);
+
+    // After 8s still loading → show cold-start warning
+    slowTimer.current = setTimeout(() => setSlowLoad(true), 8000);
 
     // Build conversation history from prior completed turns
     const history: ConversationMessage[] = messages
@@ -67,12 +73,14 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
       setMessages(prev =>
         prev.map(m =>
           m.id === placeholderId
-            ? { ...m, content: "Query failed — check the backend is running.", loading: false }
+            ? { ...m, content: "Query failed — backend may be warming up. Please try again in 30 seconds.", loading: false }
             : m
         )
       );
     } finally {
       setLoading(false);
+      setSlowLoad(false);
+      if (slowTimer.current) clearTimeout(slowTimer.current);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   };
@@ -81,6 +89,16 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
 
   return (
     <div className="flex flex-col h-full space-y-4">
+      {/* Cold-start banner */}
+      {slowLoad && (
+        <div className="px-4 py-2.5 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-center gap-2">
+          <span className="text-amber-400 text-xs">⚡</span>
+          <span className="text-amber-300 text-xs">
+            Backend is warming up after inactivity — this may take 30–60 seconds. Please wait…
+          </span>
+        </div>
+      )}
+
       {/* Chat history */}
       {messages.length > 0 ? (
         <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1 scroll-smooth">

@@ -37,42 +37,183 @@ _SECTOR_MAP: dict[str, list[str]] = {
     "BITCOIN":  ["BTC-USD"],
     "BANK":     ["XLF", "JPM", "BAC"],
     "PHARMA":   ["XLV", "JNJ", "PFE"],
-    "INDIA":    ["INDA", "^BSESN"],
-    "NSE":      ["INDA", "^BSESN"],
+    "INDIA":    ["INDA", "^BSESN", "^NSEI"],
+    "NSE":      ["INDA", "^BSESN", "^NSEI"],
+    "NIFTY":    ["^NSEI"],
+    "SENSEX":   ["^BSESN"],
 }
 
-_SYSTEM = """You are NeuralQuant's financial intelligence assistant — an AI with access to:
-1. Live macro data (FRED: HY spreads, CPI, Fed funds, yield curve; yfinance: VIX, SPX momentum)
-2. NeuralQuant AI stock scores for 50 US stocks and 50 Indian (NSE) stocks — injected below when relevant
-3. Live market prices, sector performance, and news headlines
-4. 5-factor quantitative model: Quality, Momentum, Value (P/E+P/B), Low-Volatility, Short Interest
+_SYSTEM = """You are NeuralQuant — an institutional-grade AI stock intelligence engine. You have access to live data injected in every user message. Your job: give direct, data-driven, actionable answers. No hedging. No disclaimers. No detours.
 
-Rules:
-1. ALWAYS use the injected live data. NEVER say "I don't have access" when data is provided below.
-2. When NeuralQuant stock scores are injected, CITE THEM: "NeuralQuant rates NVDA 6/10 (medium confidence)"
-3. When asked about a specific stock, use its injected score, factors, and confidence.
-4. When asked "best stock" or "top pick", use the injected screener rankings.
-5. For current events, use injected news headlines. Reference the date in your answer.
-6. Be direct and quantitative. Financial professionals read this.
-7. End every response with exactly 3 follow-up questions.
+## DATA YOU HAVE ACCESS TO
+1. Live macro data: FRED (HY spreads, CPI, Fed funds, yield curve) + yfinance (VIX, SPX, Nifty, INR/USD)
+2. NeuralQuant AI stock scores (1-10) for 50 US + 50 Indian NSE stocks
+3. Live prices, 52-week ranges, analyst targets, P/E, P/B, beta
+4. Real-time market headlines
 
-Response format:
-ANSWER: [Your answer — cite NeuralQuant scores, live macro, and news headlines specifically]
-DATA_SOURCES: [comma-separated list of what you used: NeuralQuant Screener / FRED Macro / Live News / etc.]
+## HARD RULES — NEVER VIOLATE
+1. **NEVER say "I don't have data/scores for this stock" when price or fundamentals are injected above.** If live price is injected, USE IT. Quote exact numbers.
+2. **NEVER deflect to a different stock when the user asks about a specific one.** If asked about Trent, answer about Trent — not Bharti, not Maruti.
+3. **NEVER mention US indices (S&P 500, VIX, HY spreads, 2s10s) as primary context for India-specific questions.** For India queries: lead with Nifty/Sensex/INR, mention global risk only as a footnote.
+4. **NEVER give indirect or vague investment advice.** If asked "which stocks to buy for ₹10L", name SPECIFIC stocks with specific rupee allocations.
+5. **NEVER start with "Based on available data, I cannot..."** — you always have data. Use it.
+
+## RESPONSE STYLE
+- **Data-heavy, narrative-light.** Lead with numbers. Support with a brief directional thesis.
+- **One clear direction.** Pick bull or bear. Don't say "on one hand... but on the other." Give a verdict and defend it.
+- **Quantify everything.** Not "elevated risk" — say "15% downside risk if X scenario".
+- **For price predictions:** Always give 3 scenarios:
+  - Bear case: X% (trigger: [specific event])
+  - Base case: X% (most likely path)
+  - Bull case: X% (trigger: [specific event])
+- **For portfolio allocation questions (e.g. "invest ₹10L in Indian stocks"):**
+  - Name 4-6 specific stocks
+  - Give exact rupee allocation per stock
+  - Give entry price range
+  - Give 3-month target
+  - Give stop-loss level
+- **For specific stock queries:** Lead with: score/10 (if available), current price, 1-line verdict (BUY / HOLD / AVOID), then justify with data.
+- **Avoid:** Internal scoring jargon (don't say "Quality score 41%") — translate to plain English ("Strong balance sheet, improving margins").
+- **For Indian stocks:** Use ₹ symbol, crore/lakh notation where appropriate.
+
+## RESPONSE FORMAT
+ANSWER: [Direct answer — numbers first, verdict clear, one direction]
+DATA_SOURCES: [comma-separated: NeuralQuant Screener / FRED Macro / India Macro / Live News / yfinance]
 FOLLOW_UP:
-- [Question 1]
-- [Question 2]
-- [Question 3]"""
+- [Specific follow-up question]
+- [Specific follow-up question]
+- [Specific follow-up question]"""
+
+
+# NSE common stock name → ticker mappings (handles natural language names)
+_NSE_NAME_MAP = {
+    "TRENT": "TRENT.NS",
+    "TITAN": "TITAN.NS",
+    "ZOMATO": "ZOMATO.NS",
+    "NYKAA": "NYKAA.NS",
+    "PAYTM": "PAYTM.NS",
+    "DMART": "DMART.NS",
+    "ZYDUS": "ZYDUSLIFE.NS",
+    "ZYDUSLIFE": "ZYDUSLIFE.NS",
+    "DIXON": "DIXON.NS",
+    "IRCTC": "IRCTC.NS",
+    "PIDILITE": "PIDILITIND.NS",
+    "PIDILITIND": "PIDILITIND.NS",
+    "EICHER": "EICHERMOT.NS",
+    "EICHERMOT": "EICHERMOT.NS",
+    "BAJAJ": "BAJFINANCE.NS",
+    "BAJFINANCE": "BAJFINANCE.NS",
+    "BAJAJFINANCE": "BAJFINANCE.NS",
+    "HDFC": "HDFCBANK.NS",
+    "HDFCBANK": "HDFCBANK.NS",
+    "ICICI": "ICICIBANK.NS",
+    "ICICIBANK": "ICICIBANK.NS",
+    "KOTAK": "KOTAKBANK.NS",
+    "KOTAKBANK": "KOTAKBANK.NS",
+    "RELIANCE": "RELIANCE.NS",
+    "INFOSYS": "INFY.NS",
+    "INFY": "INFY.NS",
+    "WIPRO": "WIPRO.NS",
+    "HCLTECH": "HCLTECH.NS",
+    "SUNPHARMA": "SUNPHARMA.NS",
+    "DRREDDY": "DRREDDY.NS",
+    "CIPLA": "CIPLA.NS",
+    "MARUTI": "MARUTI.NS",
+    "TATAMOTORS": "TATAMOTORS.NS",
+    "TATASTEEL": "TATASTEEL.NS",
+    "TATA": "TCS.NS",  # Ambiguous — default to TCS; user should be specific
+    "TCS": "TCS.NS",
+    "ADANI": "ADANIENT.NS",
+    "ADANIENT": "ADANIENT.NS",
+    "HINDALCO": "HINDALCO.NS",
+    "ONGC": "ONGC.NS",
+    "NTPC": "NTPC.NS",
+    "POWERGRID": "POWERGRID.NS",
+    "COALINDIA": "COALINDIA.NS",
+    "SBIN": "SBIN.NS",
+    "SBI": "SBIN.NS",
+    "AXISBANK": "AXISBANK.NS",
+    "AXIS": "AXISBANK.NS",
+    "INDUSINDBANK": "INDUSINDBK.NS",
+    "INDUSINDBK": "INDUSINDBK.NS",
+    "BAJAJFINSV": "BAJAJFINSV.NS",
+    "NESTLEIND": "NESTLEIND.NS",
+    "NESTLE": "NESTLEIND.NS",
+    "ASIANPAINTS": "ASIANPAINT.NS",
+    "ASIANPAINT": "ASIANPAINT.NS",
+    "ULTRACEMCO": "ULTRACEMCO.NS",
+    "SHREECEM": "SHREECEM.NS",
+    "GRASIM": "GRASIM.NS",
+    "TECHM": "TECHM.NS",
+    "LTI": "LTIM.NS",
+    "LTIM": "LTIM.NS",
+    "MPHASIS": "MPHASIS.NS",
+    "PERSISTENT": "PERSISTENT.NS",
+    "COFORGE": "COFORGE.NS",
+    "HAPPIEST": "HAPPSTMNDS.NS",
+    "HAPPSTMNDS": "HAPPSTMNDS.NS",
+    "TATAPOWER": "TATAPOWER.NS",
+    "JSWENERGY": "JSWENERGY.NS",
+    "POLYCAB": "POLYCAB.NS",
+    "APLAPOLLO": "APLAPOLLO.NS",
+    "BHARTIARTL": "BHARTIARTL.NS",
+    "BHARTI": "BHARTIARTL.NS",
+    "AIRTEL": "BHARTIARTL.NS",
+    "JSWSTEEL": "JSWSTEEL.NS",
+    "JSW": "JSWSTEEL.NS",
+    "HAVELLS": "HAVELLS.NS",
+    "VOLTAS": "VOLTAS.NS",
+    "CROMPTON": "CROMPTON.NS",
+    "ABFRL": "ABFRL.NS",
+    "MINDA": "MINDAIND.NS",
+    "VARUNBEV": "VARUNBEV.NS",
+    "VARUN": "VARUNBEV.NS",
+    "JUBLFOOD": "JUBLFOOD.NS",
+    "JUBILEE": "JUBLFOOD.NS",
+    "DOMINOS": "JUBLFOOD.NS",
+    "APOLLOHOSP": "APOLLOHOSP.NS",
+    "APOLLO": "APOLLOHOSP.NS",
+    "FORTIS": "FORTIS.NS",
+    "MAXHEALTH": "MAXHEALTH.NS",
+    "MANKIND": "MANKIND.NS",
+    "ALKEM": "ALKEM.NS",
+    "TORNTPHARM": "TORNTPHARM.NS",
+    "TORRENT": "TORNTPHARM.NS",
+    "DEEPAKNTR": "DEEPAKNTR.NS",
+    "DEEPAK": "DEEPAKNTR.NS",
+    "GLAND": "GLAND.NS",
+    "LAURUS": "LAURUSLABS.NS",
+    "LAURUSLABS": "LAURUSLABS.NS",
+}
+
+# Words that should never be treated as stock tickers
+_TICKER_STOP_WORDS = {
+    "SHOULD", "INVEST", "INDIA", "INDIAN", "STOCK", "SHARE", "SHARES",
+    "MARKET", "NIFTY", "SENSEX", "RUPEE", "LAKH", "CRORE", "MILLION",
+    "BILLION", "WANT", "GIVE", "TELL", "BEST", "GOOD", "HIGH", "LARGE",
+    "SMALL", "LONG", "TERM", "CURRENT", "TODAY", "YEAR", "MONTH", "WEEK",
+    "PLEASE", "WHICH", "ABOUT", "PORTFOLIO", "INVEST", "ADVICE", "RETURN",
+    "GROWTH", "VALUE", "STRONG", "WEAK", "RISK", "SAFE", "SECTOR", "NSE",
+    "BSE", "BULL", "BEAR", "TRADE", "TRADE", "PRICE", "RANGE", "TARGET",
+}
+
+_SCREENER_KEYWORDS = {
+    "SCREENER", "BEST STOCK", "TOP STOCK", "RANK", "RANKING", "TOP PICK",
+    "RECOMMEND", "BUY RIGHT NOW", "SHOULD I BUY", "WHICH STOCK",
+    "NEURALQUANT", "YOUR PLATFORM", "YOUR SCREENER", "YOUR MODEL",
+    "TOP PICKS", "TOP 3", "TOP 5", "TOP 10", "BEST PICK", "BEST PICKS",
+    "YOUR TOP", "STOCK PICKS", "STOCK PICK", "WHICH STOCKS",
+    "NAME SPECIFIC", "NAME SHARES", "NAME STOCKS",
+}
+_INDIA_KEYWORDS = {"INDIA", "INDIAN", "NSE", "BSE", "NIFTY", "SENSEX", "RUPEE", "LAKH", "CRORE", "INR"}
 
 
 def _fetch_relevant_news(question: str, ticker: str | None, n: int = 8) -> list[str]:
     """Pull recent headlines from yfinance for context injection."""
-    # Always start with broad market + any user-specified ticker
     priority: list[str] = ["^GSPC", "SPY"]
     if ticker:
         priority.insert(0, ticker)
 
-    # Detect sector keywords and inject the right ETFs/tickers
     q_upper = question.upper()
     for keyword, syms in _SECTOR_MAP.items():
         if keyword in q_upper:
@@ -80,7 +221,6 @@ def _fetch_relevant_news(question: str, ticker: str | None, n: int = 8) -> list[
                 if s not in priority:
                     priority.append(s)
 
-    # Also try any short words that look like real tickers (2-5 alpha chars, not stop-words)
     extra: list[str] = []
     for word in q_upper.split():
         clean = re.sub(r"[^A-Z]", "", word)
@@ -88,10 +228,9 @@ def _fetch_relevant_news(question: str, ticker: str | None, n: int = 8) -> list[
             extra.append(clean)
 
     candidates = priority + extra
-
     headlines: list[str] = []
     seen: set[str] = set()
-    for sym in candidates[:8]:  # try up to 8 sources
+    for sym in candidates[:8]:
         try:
             items = yf.Ticker(sym).news or []
             for item in items[:3]:
@@ -112,103 +251,197 @@ def _fetch_relevant_news(question: str, ticker: str | None, n: int = 8) -> list[
     return headlines[:n]
 
 
-_SCREENER_KEYWORDS = {
-    "SCREENER", "BEST STOCK", "TOP STOCK", "RANK", "RANKING", "TOP PICK",
-    "RECOMMEND", "BUY RIGHT NOW", "SHOULD I BUY", "WHICH STOCK",
-    "NEURALQUANT", "YOUR PLATFORM", "YOUR SCREENER", "YOUR MODEL",
-    # Additional patterns for natural-language "top picks" questions
-    "TOP PICKS", "TOP 3", "TOP 5", "TOP 10", "BEST PICK", "BEST PICKS",
-    "YOUR TOP", "STOCK PICKS", "STOCK PICK", "WHICH STOCKS",
-}
-_INDIA_KEYWORDS = {"INDIA", "INDIAN", "NSE", "BSE", "NIFTY", "SENSEX", "RUPEE"}
+def _fetch_india_macro() -> str | None:
+    """Fetch India-specific market context: Nifty 50, Sensex, INR/USD, India VIX."""
+    try:
+        lines = []
+
+        # Nifty 50
+        nifty = yf.Ticker("^NSEI")
+        hist = nifty.history(period="5d", auto_adjust=True)
+        if len(hist) >= 2:
+            nifty_price = float(hist["Close"].iloc[-1])
+            nifty_prev = float(hist["Close"].iloc[-2])
+            nifty_chg = (nifty_price - nifty_prev) / nifty_prev * 100
+            lines.append(f"Nifty 50: {nifty_price:,.0f} ({nifty_chg:+.2f}% today)")
+
+        # BSE Sensex
+        sensex = yf.Ticker("^BSESN")
+        hist2 = sensex.history(period="5d", auto_adjust=True)
+        if len(hist2) >= 2:
+            sensex_price = float(hist2["Close"].iloc[-1])
+            sensex_prev = float(hist2["Close"].iloc[-2])
+            sensex_chg = (sensex_price - sensex_prev) / sensex_prev * 100
+            lines.append(f"BSE Sensex: {sensex_price:,.0f} ({sensex_chg:+.2f}% today)")
+
+        # INR/USD exchange rate
+        inr = yf.Ticker("USDINR=X")
+        inr_hist = inr.history(period="5d", auto_adjust=True)
+        if not inr_hist.empty:
+            inr_rate = float(inr_hist["Close"].iloc[-1])
+            lines.append(f"USD/INR: {inr_rate:.2f}")
+
+        # India VIX
+        india_vix = yf.Ticker("^INDIAVIX")
+        vix_hist = india_vix.history(period="5d", auto_adjust=True)
+        if not vix_hist.empty:
+            ivix = float(vix_hist["Close"].iloc[-1])
+            lines.append(f"India VIX: {ivix:.1f} ({'elevated' if ivix > 20 else 'normal'})")
+
+        return "Indian Market Context: " + " | ".join(lines) if lines else None
+    except Exception:
+        return None
 
 
-def _detect_tickers_in_question(question: str) -> list[str]:
-    """Extract potential ticker symbols from the question text."""
+def _fetch_dynamic_nse_stock(word: str) -> dict | None:
+    """
+    Try to fetch live data for an NSE stock not in our screener universe.
+    word: uppercase stock name/ticker from user query.
+    Returns a dict with price, fundamentals, or None if not found.
+    """
+    nse_sym = _NSE_NAME_MAP.get(word)
+    if not nse_sym:
+        nse_sym = f"{word}.NS"
+
+    try:
+        t = yf.Ticker(nse_sym)
+        info = t.info
+        price = info.get("currentPrice") or info.get("regularMarketPrice")
+        if not price:
+            return None  # Stock not found or no price data
+
+        return {
+            "symbol": nse_sym,
+            "display": word,
+            "price": price,
+            "currency": info.get("currency", "INR"),
+            "change_pct": info.get("regularMarketChangePercent", 0),
+            "week52_high": info.get("fiftyTwoWeekHigh"),
+            "week52_low": info.get("fiftyTwoWeekLow"),
+            "pe_ttm": info.get("trailingPE"),
+            "pb_ratio": info.get("priceToBook"),
+            "market_cap": info.get("marketCap"),
+            "beta": info.get("beta"),
+            "analyst_target": info.get("targetMeanPrice"),
+            "analyst_recommendation": info.get("recommendationKey", "").upper(),
+            "gross_margin": info.get("grossMargins"),
+            "revenue_growth": info.get("revenueGrowth"),
+            "sector": info.get("sector", ""),
+            "longName": info.get("longName", word),
+        }
+    except Exception:
+        return None
+
+
+def _detect_tickers_in_question(question: str, market: str = "US") -> tuple[list[str], list[str]]:
+    """
+    Returns (in_universe_tickers, out_of_universe_words).
+    in_universe_tickers: known tickers found in question.
+    out_of_universe_words: words that look like NSE tickers but aren't in universe.
+    """
     from nq_api.universe import US_DEFAULT, IN_DEFAULT
     known = set(US_DEFAULT) | set(IN_DEFAULT)
-    found = []
+    in_universe = []
     q_upper = question.upper()
-    # Check all known tickers
+
+    # Check known universe tickers (strip .NS / .BO for matching)
     for t in known:
-        if re.search(r'\b' + re.escape(t) + r'\b', q_upper):
-            found.append(t)
-    return found[:5]  # cap at 5
+        base = t.replace(".NS", "").replace(".BO", "")
+        if re.search(r'\b' + re.escape(base) + r'\b', q_upper):
+            in_universe.append(t)
+
+    # For India queries, also check NSE name map keys
+    out_of_universe = []
+    if market == "IN" or any(k in q_upper for k in _INDIA_KEYWORDS):
+        # First check the name map directly
+        for name_key in _NSE_NAME_MAP:
+            if (re.search(r'\b' + re.escape(name_key) + r'\b', q_upper)
+                    and name_key not in {t.replace(".NS", "").replace(".BO", "") for t in known}):
+                if name_key not in out_of_universe:
+                    out_of_universe.append(name_key)
+
+        # Then scan remaining words that look like tickers
+        for word in q_upper.split():
+            clean = re.sub(r"[^A-Z]", "", word)
+            if (3 <= len(clean) <= 12
+                    and clean not in _STOP_WORDS
+                    and clean not in _TICKER_STOP_WORDS
+                    and clean not in known
+                    and clean not in {t.replace(".NS", "").replace(".BO", "") for t in known}
+                    and clean not in out_of_universe
+                    and clean not in _NSE_NAME_MAP):
+                out_of_universe.append(clean)
+
+    return in_universe[:5], out_of_universe[:3]
 
 
 def _enrich_with_platform_data(question: str, market: str) -> str | None:
     """
     Fetch NeuralQuant's own stock scores + movers when the question needs them.
+    Also dynamically fetches data for stocks not in the screener universe.
     Returns a formatted context string, or None if not needed.
     """
-    from nq_api.data_builder import build_real_snapshot, fetch_fundamentals_batch
+    from nq_api.data_builder import build_real_snapshot
     from nq_api.universe import UNIVERSE_BY_MARKET
-    from nq_signals.engine import SignalEngine
-    from nq_api.score_builder import row_to_ai_score, rank_scores_in_universe
+    from nq_api.score_builder import rank_scores_in_universe
     from nq_api.deps import get_signal_engine
 
     q_upper = question.upper()
     parts: list[str] = []
 
-    # Determine which market to use for screener
+    # Determine which market to use
     target_market = "IN" if any(k in q_upper for k in _INDIA_KEYWORDS) else market
 
-    # Check if question asks about the screener / best stocks
     needs_screener = any(k in q_upper for k in _SCREENER_KEYWORDS)
-    # Detect specific ticker mentions
-    mentioned_tickers = _detect_tickers_in_question(question)
-    # Check if it asks about "buy/sell/hold" a stock or a comparison
+    in_universe_tickers, out_of_universe_words = _detect_tickers_in_question(question, target_market)
     needs_stock_scores = (
-        mentioned_tickers
+        in_universe_tickers
+        or out_of_universe_words
         or any(k in q_upper for k in ["IS A BUY", "IS A SELL", "COMPARE", "VERSUS", "VS ", "OVERVALUED", "SHORT INTEREST"])
     )
 
-    if not needs_screener and not needs_stock_scores and not mentioned_tickers:
-        return None  # No platform data needed
+    if not needs_screener and not needs_stock_scores:
+        return None
 
     try:
         engine = get_signal_engine()
 
-        if needs_screener or (not mentioned_tickers and needs_stock_scores):
-            # Run screener for top 10
+        if needs_screener or (not in_universe_tickers and not out_of_universe_words and needs_stock_scores):
             universe = UNIVERSE_BY_MARKET.get(target_market, UNIVERSE_BY_MARKET["US"])[:20]
             snapshot = build_real_snapshot(universe, target_market)
             result_df = engine.compute(snapshot)
-            # Sort by composite_score descending so head(10) gives the true top 10
             result_df = result_df.sort_values("composite_score", ascending=False).reset_index(drop=True)
             ranked = rank_scores_in_universe(result_df)
             top = result_df.head(10)
             lines = [f"NeuralQuant {target_market} Screener — Top 10 stocks right now:"]
             for i, (idx, row) in enumerate(top.iterrows()):
-                # Use .loc[idx] not .iloc[idx] — idx is a label after reset_index
                 sc = int(ranked.loc[idx]) if idx in ranked.index else 5
                 q = row.get("quality_percentile", 0.5)
                 m = row.get("momentum_percentile", 0.5)
                 v = row.get("value_percentile", 0.5)
                 si = row.get("short_interest_percentile", 0.5)
                 lines.append(
-                    f"  #{i+1} {row['ticker']}: {sc}/10 score | "
+                    f"  #{i+1} {row['ticker']}: {sc}/10 | "
                     f"Quality={q:.0%} Momentum={m:.0%} Value={v:.0%} LowSI={si:.0%} | "
                     f"Confidence: {row.get('regime_confidence', 0.5):.0%}"
                 )
             parts.append("\n".join(lines))
 
-        if mentioned_tickers:
-            # Fetch scores for specifically mentioned tickers
-            # Use full universe so percentile ranks are meaningful
+        if in_universe_tickers:
             base_universe = UNIVERSE_BY_MARKET.get(target_market, UNIVERSE_BY_MARKET["US"])
-            universe = list(dict.fromkeys(mentioned_tickers + base_universe))[:25]
+            universe = list(dict.fromkeys(in_universe_tickers + base_universe))[:25]
             snapshot = build_real_snapshot(universe, target_market)
             result_df = engine.compute(snapshot)
             ranked = rank_scores_in_universe(result_df)
-            lines = [f"NeuralQuant scores for mentioned stocks:"]
-            for t in mentioned_tickers:
+            lines = ["NeuralQuant scores for mentioned stocks:"]
+            for t in in_universe_tickers:
                 row_match = result_df[result_df["ticker"] == t]
                 if not row_match.empty:
                     row = row_match.iloc[0]
                     idx = row_match.index[0]
                     sc = int(ranked.loc[idx]) if idx in ranked.index else 5
-                    conf_label = "high" if row.get("regime_confidence", 0.5) > 0.7 else ("medium" if row.get("regime_confidence", 0.5) > 0.4 else "low")
+                    conf_val = row.get("regime_confidence", 0.5)
+                    conf_label = "high" if conf_val > 0.7 else ("medium" if conf_val > 0.4 else "low")
                     lines.append(
                         f"  {t}: {sc}/10 (composite={row['composite_score']:.3f}) | "
                         f"Quality={row.get('quality_percentile', 0.5):.0%} "
@@ -216,26 +449,61 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                         f"Value={row.get('value_percentile', 0.5):.0%} "
                         f"LowVol={row.get('low_vol_percentile', 0.5):.0%} "
                         f"LowSI={row.get('short_interest_percentile', 0.5):.0%} | "
-                        f"Regime: {row.get('regime_id', 1)} | P/E={row.get('pe_ttm', 'N/A')} P/B={row.get('pb_ratio', 'N/A'):.1f} Beta={row.get('beta', 'N/A'):.2f}"
+                        f"Confidence: {conf_label} | P/E={row.get('pe_ttm', 'N/A')} "
+                        f"P/B={row.get('pb_ratio', 0):.1f} Beta={row.get('beta', 0):.2f}"
                     )
             parts.append("\n".join(lines))
 
-        # Also inject live prices for mentioned tickers
-        if mentioned_tickers:
+        # Dynamic fetch for out-of-universe NSE stocks (e.g. TRENT, DIXON, ZYDUS)
+        if out_of_universe_words:
+            dynamic_lines = ["Live data for requested stocks (dynamically fetched from NSE):"]
+            found_any = False
+            for word in out_of_universe_words:
+                data = _fetch_dynamic_nse_stock(word)
+                if data:
+                    found_any = True
+                    pe_str = f"P/E={data['pe_ttm']:.1f}" if data.get("pe_ttm") else "P/E=N/A"
+                    pb_str = f"P/B={data['pb_ratio']:.1f}" if data.get("pb_ratio") else "P/B=N/A"
+                    beta_str = f"Beta={data['beta']:.2f}" if data.get("beta") else ""
+                    target_str = (
+                        f"Analyst target=₹{data['analyst_target']:.0f} ({data['analyst_recommendation']})"
+                        if data.get("analyst_target") else ""
+                    )
+                    chg_str = f"{data['change_pct']:+.2f}%" if data.get("change_pct") else ""
+                    mcap = f"MCap=₹{data['market_cap']/1e7:.0f}Cr" if data.get("market_cap") else ""
+                    rev_growth = f"Rev growth={data['revenue_growth']*100:.1f}%" if data.get("revenue_growth") else ""
+                    dynamic_lines.append(
+                        f"  {data['longName']} ({data['symbol']}): "
+                        f"₹{data['price']:.2f} {chg_str} | "
+                        f"52w ₹{data.get('week52_low', 0):.0f}–₹{data.get('week52_high', 0):.0f} | "
+                        f"{pe_str} {pb_str} {beta_str} {mcap} {rev_growth} | {target_str}"
+                    )
+            if found_any:
+                dynamic_lines.append(
+                    "  NOTE: Full NeuralQuant AI score unavailable for above stocks "
+                    "(not in screener universe), but live price + fundamentals are injected above. "
+                    "Use these numbers to give a direct, data-driven answer about the REQUESTED stock."
+                )
+                parts.append("\n".join(dynamic_lines))
+
+        # Live prices for in-universe mentioned tickers
+        if in_universe_tickers:
             try:
-                import yfinance as yf
                 price_lines = ["Live prices:"]
-                for t in mentioned_tickers[:3]:
+                for t in in_universe_tickers[:3]:
                     try:
                         info = yf.Ticker(t).info
                         price = info.get("currentPrice") or info.get("regularMarketPrice")
                         high52 = info.get("fiftyTwoWeekHigh")
                         low52 = info.get("fiftyTwoWeekLow")
                         target = info.get("targetMeanPrice")
+                        chg = info.get("regularMarketChangePercent", 0)
+                        currency = "₹" if t.endswith(".NS") or t.endswith(".BO") else "$"
                         if price:
                             price_lines.append(
-                                f"  {t}: ${price:.2f} | 52w range ${low52:.2f}–${high52:.2f}"
-                                + (f" | Analyst target ${target:.2f}" if target else "")
+                                f"  {t}: {currency}{price:.2f} ({chg:+.2f}%) | "
+                                f"52w {currency}{low52:.2f}–{currency}{high52:.2f}"
+                                + (f" | Analyst target {currency}{target:.2f}" if target else "")
                             )
                     except Exception:
                         pass
@@ -252,12 +520,11 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
 
 @router.post("", response_model=QueryResponse)
 def run_nl_query(req: QueryRequest) -> QueryResponse:
-    # BUG-007: validate non-empty question
     if not req.question or len(req.question.strip()) < 3:
         return QueryResponse(
             answer="Please enter a question (at least 3 characters).",
             data_sources=[],
-            follow_up_questions=["What is the current VIX?", "Which stocks are top ranked?", "What is the Fed funds rate?"],
+            follow_up_questions=["What is the current Nifty level?", "Which Indian stocks rank highest?", "What is the Fed funds rate?"],
         )
 
     api_key = os.environ.get("ANTHROPIC_API_KEY")
@@ -272,29 +539,52 @@ def run_nl_query(req: QueryRequest) -> QueryResponse:
     today = date.today().strftime("%B %d, %Y")
     headlines = _fetch_relevant_news(req.question, req.ticker)
 
-    # Inject live macro snapshot
+    # ── Market-aware macro context ──────────────────────────────────────────
     from nq_api.data_builder import fetch_real_macro
-    try:
-        macro = fetch_real_macro()
-        macro_ctx = (
-            f"Live market conditions (as of {today}): "
-            f"VIX={macro.vix:.1f}, "
-            f"SPX vs 200-MA={macro.spx_vs_200ma*100:+.1f}%, "
-            f"SPX 1-month return={macro.spx_return_1m*100:+.1f}%, "
-            f"HY spread={macro.hy_spread_oas:.0f}bps, "
-            f"10Y yield={macro.yield_10y:.2f}%, "
-            f"2Y yield={macro.yield_2y:.2f}%, "
-            f"2s10s spread={macro.yield_spread_2y10y*100:+.0f}bps, "
-            f"ISM PMI={macro.ism_pmi:.1f}, "
-            f"CPI YoY={macro.cpi_yoy:.1f}%, "
-            f"Fed funds rate={macro.fed_funds_rate:.2f}%"
-            + (" [FRED-sourced]" if macro.fred_sourced else " [partial]")
-        )
-    except Exception:
-        macro_ctx = None
+    q_upper = req.question.upper()
+    is_india_query = any(k in q_upper for k in _INDIA_KEYWORDS) or req.market == "IN"
 
-    # BUG-002 fix: inject NeuralQuant's own stock scores + prices when relevant
-    platform_ctx = _enrich_with_platform_data(req.question, req.market)
+    macro_ctx: str | None = None
+    if is_india_query:
+        # India-focused: inject Indian market context, suppress heavy US macro
+        india_ctx = _fetch_india_macro()
+        macro_ctx = india_ctx or ""
+        # Add brief global risk sentiment (VIX + Fed only)
+        try:
+            macro = fetch_real_macro()
+            global_note = (
+                f" | Global risk sentiment: US VIX={macro.vix:.1f}"
+                f", Fed funds={macro.fed_funds_rate:.2f}%"
+                f", CPI={macro.cpi_yoy:.1f}%"
+            )
+            macro_ctx = (macro_ctx + global_note).strip(" |")
+        except Exception:
+            pass
+        if macro_ctx:
+            macro_ctx = f"Market conditions (as of {today}): {macro_ctx}"
+    else:
+        # US/Global query: full macro context
+        try:
+            macro = fetch_real_macro()
+            macro_ctx = (
+                f"Live market conditions (as of {today}): "
+                f"VIX={macro.vix:.1f}, "
+                f"SPX vs 200-MA={macro.spx_vs_200ma*100:+.1f}%, "
+                f"SPX 1-month return={macro.spx_return_1m*100:+.1f}%, "
+                f"HY spread={macro.hy_spread_oas:.0f}bps, "
+                f"10Y yield={macro.yield_10y:.2f}%, "
+                f"2Y yield={macro.yield_2y:.2f}%, "
+                f"2s10s spread={macro.yield_spread_2y10y*100:+.0f}bps, "
+                f"ISM PMI={macro.ism_pmi:.1f}, "
+                f"CPI YoY={macro.cpi_yoy:.1f}%, "
+                f"Fed funds rate={macro.fed_funds_rate:.2f}%"
+                + (" [FRED-sourced]" if macro.fred_sourced else " [partial]")
+            )
+        except Exception:
+            macro_ctx = None
+
+    # Inject NeuralQuant's own stock scores + dynamic NSE data
+    platform_ctx = _enrich_with_platform_data(req.question, req.market or "US")
 
     context_parts = [
         f"Today's date: {today}",
@@ -315,11 +605,11 @@ def run_nl_query(req: QueryRequest) -> QueryResponse:
 
     try:
         # Build message list — prepend up to 6 prior turns for multi-turn chat
-        messages = [{"role": m.role, "content": m.content} for m in req.history[-6:]]
+        messages = [{"role": m.role, "content": m.content} for m in (req.history or [])[-6:]]
         messages.append({"role": "user", "content": user_msg})
         response = client.messages.create(
             model=MODEL,
-            max_tokens=1024,
+            max_tokens=1500,
             system=_SYSTEM,
             messages=messages,
         )
@@ -335,7 +625,7 @@ def run_nl_query(req: QueryRequest) -> QueryResponse:
 
 def _parse_query_response(raw: str) -> QueryResponse:
     answer_match = re.search(r"ANSWER:\s*(.+?)(?=DATA_SOURCES:|\Z)", raw, re.I | re.S | re.M)
-    answer = answer_match.group(1).strip() if answer_match else raw[:500]
+    answer = answer_match.group(1).strip() if answer_match else raw[:800]
 
     sources_match = re.search(r"DATA_SOURCES:\s*(.+?)(?=FOLLOW_UP:|\Z)", raw, re.I | re.S | re.M)
     sources = [s.strip() for s in sources_match.group(1).split(",")] if sources_match else []
@@ -350,7 +640,7 @@ def _parse_query_response(raw: str) -> QueryResponse:
         ]
 
     return QueryResponse(
-        answer=answer[:2000],
+        answer=answer[:3000],
         data_sources=sources[:5],
         follow_up_questions=followups[:3],
     )

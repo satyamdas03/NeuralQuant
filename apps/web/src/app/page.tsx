@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import type { IndexData, NewsItem, SectorData, AIScore, Mover } from "@/lib/types";
@@ -152,57 +152,206 @@ function SectorHeatmap({ sectors, loading }: { sectors: SectorData[]; loading: b
   );
 }
 
-// ─── Inline NL Query Box ──────────────────────────────────────────────────────
+// ─── Inline NL Query Box (full chat with history + cold-start banner) ─────────
+
+interface HomeChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  sources?: string[];
+  followUps?: string[];
+  loading?: boolean;
+}
+
+const HOME_EXAMPLES = [
+  "What is the effect of Iran-US tensions on oil stocks?",
+  "Should I invest in Trent right now?",
+  "I want to invest ₹10L in Indian stocks — which ones?",
+  "Give me a 1-month outlook for TCS",
+];
 
 function HomeQueryBox() {
-  const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState("");
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<HomeChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
+  const [slowLoad, setSlowLoad] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const slowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  async function submit() {
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const ask = async (question: string) => {
     const q = question.trim();
     if (!q || loading) return;
+    setInput("");
+    setSlowLoad(false);
+
+    const userMsg: HomeChatMessage = { id: Date.now().toString(), role: "user", content: q };
+    const placeholderId = (Date.now() + 1).toString();
+    const placeholder: HomeChatMessage = { id: placeholderId, role: "assistant", content: "", loading: true };
+
+    setMessages(prev => [...prev, userMsg, placeholder]);
     setLoading(true);
-    setAnswer("");
+
+    // After 8s still loading → show cold-start warning
+    slowTimer.current = setTimeout(() => setSlowLoad(true), 8000);
+
+    // Build conversation history from prior completed turns
+    const history = messages
+      .filter(m => !m.loading)
+      .map(m => ({ role: m.role as "user" | "assistant", content: m.content }));
+
     try {
-      const res = await api.runQuery({ question: q });
-      setAnswer(res.answer);
+      const res = await api.runQuery({ question: q, history });
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === placeholderId
+            ? { ...m, content: res.answer, sources: res.data_sources, followUps: res.follow_up_questions, loading: false }
+            : m
+        )
+      );
     } catch {
-      setAnswer("Failed — check backend is running and ANTHROPIC_API_KEY is set in apps/api/.env");
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === placeholderId
+            ? { ...m, content: "Failed — backend may be starting up. Please try again in 30 seconds.", loading: false }
+            : m
+        )
+      );
     } finally {
       setLoading(false);
+      setSlowLoad(false);
+      if (slowTimer.current) clearTimeout(slowTimer.current);
+      setTimeout(() => inputRef.current?.focus(), 50);
     }
-  }
+  };
+
+  const clear = () => { setMessages([]); setInput(""); };
 
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-      <div className="px-5 py-3 border-b border-gray-800">
+      <div className="px-5 py-3 border-b border-gray-800 flex items-center justify-between">
         <h2 className="font-semibold text-sm text-gray-300 uppercase tracking-wide">
           Ask anything about markets
         </h2>
-      </div>
-      <div className="p-4 space-y-3">
-        <div className="flex gap-2">
-          <input
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && submit()}
-            placeholder="e.g. What is the effect of Iran-US tensions on oil stocks?"
-            className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-violet-500"
-          />
-          <button
-            onClick={submit}
-            disabled={loading || !question.trim()}
-            className="px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 rounded-lg text-sm font-medium transition-colors"
-          >
-            {loading ? "…" : "→"}
+        {messages.length > 0 && (
+          <button onClick={clear} className="text-xs text-gray-600 hover:text-gray-400 transition-colors">
+            Clear
           </button>
+        )}
+      </div>
+
+      {/* Cold-start banner */}
+      {slowLoad && (
+        <div className="mx-4 mt-3 px-4 py-2.5 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-center gap-2">
+          <span className="text-amber-400 text-xs">⚡</span>
+          <span className="text-amber-300 text-xs">
+            Backend is warming up after inactivity — this may take 30–60 seconds. Please wait…
+          </span>
         </div>
-        {answer && (
-          <div className="text-sm text-gray-300 leading-relaxed bg-gray-800/50 rounded-lg p-4 whitespace-pre-wrap">
-            {answer}
+      )}
+
+      <div className="p-4 space-y-3">
+        {/* Chat history */}
+        {messages.length > 0 ? (
+          <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1 scroll-smooth">
+            {messages.map(msg => (
+              <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                {msg.role === "user" ? (
+                  <div className="max-w-[80%] bg-violet-600/20 border border-violet-500/20 rounded-2xl rounded-tr-sm px-4 py-2.5 text-sm text-gray-100">
+                    {msg.content}
+                  </div>
+                ) : (
+                  <div className="max-w-[95%] space-y-2">
+                    <div className="flex items-start gap-2">
+                      <div className="w-5 h-5 rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 flex-shrink-0 flex items-center justify-center mt-0.5">
+                        <span className="text-[9px] font-bold text-white">N</span>
+                      </div>
+                      <div className="bg-gray-800/60 border border-gray-700/50 rounded-2xl rounded-tl-sm px-4 py-3 text-sm text-gray-100 leading-relaxed">
+                        {msg.loading ? (
+                          <div className="flex gap-1.5 items-center py-1">
+                            {[0, 1, 2].map(i => (
+                              <span
+                                key={i}
+                                className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-bounce"
+                                style={{ animationDelay: `${i * 0.15}s` }}
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="whitespace-pre-wrap">{msg.content}</p>
+                        )}
+                      </div>
+                    </div>
+                    {/* Sources */}
+                    {!msg.loading && msg.sources && msg.sources.length > 0 && (
+                      <div className="ml-7 flex gap-1.5 flex-wrap">
+                        {msg.sources.map(s => (
+                          <span key={s} className="text-[10px] px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20">
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {/* Follow-up chips */}
+                    {!msg.loading && msg.followUps && msg.followUps.length > 0 && (
+                      <div className="ml-7 flex flex-wrap gap-1.5">
+                        {msg.followUps.map(q => (
+                          <button
+                            key={q}
+                            onClick={() => ask(q)}
+                            className="text-xs px-3 py-1 bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white rounded-full transition-colors border border-gray-700"
+                          >
+                            {q}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+            <div ref={bottomRef} />
+          </div>
+        ) : (
+          /* Empty state: example chips */
+          <div className="flex flex-wrap gap-2 pb-1">
+            {HOME_EXAMPLES.map(q => (
+              <button
+                key={q}
+                onClick={() => ask(q)}
+                className="text-xs px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white rounded-full transition-colors border border-gray-700"
+              >
+                {q}
+              </button>
+            ))}
           </div>
         )}
+
+        {/* Input bar */}
+        <div className="flex gap-2">
+          <input
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && ask(input)}
+            placeholder="Ask about any stock or market…"
+            className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors"
+            disabled={loading}
+          />
+          <button
+            onClick={() => ask(input)}
+            disabled={loading || !input.trim()}
+            className="px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 rounded-lg text-sm font-medium transition-colors"
+          >
+            {loading ? (
+              <span className="w-3.5 h-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin block" />
+            ) : "→"}
+          </button>
+        </div>
       </div>
     </div>
   );
