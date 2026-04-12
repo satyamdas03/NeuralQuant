@@ -271,6 +271,16 @@ def _fetch_one(ticker: str, market: str) -> dict:
         else:
             realized_vol = float(beta * 0.18)  # rough proxy
 
+        # ── Live price snapshot (for LLM context injection) ──────────────
+        current_price   = info.get("currentPrice") or info.get("regularMarketPrice")
+        week52_high     = info.get("fiftyTwoWeekHigh")
+        week52_low      = info.get("fiftyTwoWeekLow")
+        analyst_target  = info.get("targetMeanPrice")
+        analyst_rec     = info.get("recommendationKey", "")
+        market_cap      = info.get("marketCap")
+        change_pct      = info.get("regularMarketChangePercent", 0.0)
+        long_name       = info.get("longName") or info.get("shortName") or ticker
+
         result = {
             "gross_profit_margin": float(gpm),
             "accruals_ratio":       float(accruals),
@@ -282,6 +292,15 @@ def _fetch_one(ticker: str, market: str) -> dict:
             "beta":                 float(beta),
             "realized_vol_1y":      float(realized_vol),
             "_is_real":             True,
+            # Live price fields — used by query.py to inject accurate prices into LLM context
+            "current_price":        float(current_price) if current_price else None,
+            "week52_high":          float(week52_high) if week52_high else None,
+            "week52_low":           float(week52_low) if week52_low else None,
+            "analyst_target":       float(analyst_target) if analyst_target else None,
+            "analyst_rec":          analyst_rec.upper() if analyst_rec else None,
+            "market_cap":           float(market_cap) if market_cap else None,
+            "change_pct":           float(change_pct),
+            "long_name":            long_name,
         }
     except Exception as exc:
         log.debug("yfinance fetch failed for %s: %s — using synthetic", ticker, exc)

@@ -375,13 +375,45 @@ def _detect_tickers_in_question(question: str, market: str = "US") -> tuple[list
     return in_universe[:5], out_of_universe[:3]
 
 
+def _fmt_price_row(ticker: str, fund: dict, score: int, market: str, rank: int | None = None) -> str:
+    """Format a single stock row with LIVE price + score for LLM context injection."""
+    is_india = market == "IN" or ticker.endswith(".NS") or ticker.endswith(".BO")
+    cur = "Rs." if is_india else "$"  # ASCII-safe currency symbol
+
+    price    = fund.get("current_price")
+    low52    = fund.get("week52_low")
+    high52   = fund.get("week52_high")
+    target   = fund.get("analyst_target")
+    rec      = fund.get("analyst_rec", "")
+    chg      = fund.get("change_pct", 0.0)
+    pe       = fund.get("pe_ttm")
+    pb       = fund.get("pb_ratio")
+    name     = fund.get("long_name", ticker)
+    mcap     = fund.get("market_cap")
+
+    price_str  = f"{cur}{price:,.2f} ({chg:+.1f}%)" if price else "price N/A"
+    range_str  = f"52w {cur}{low52:,.0f}-{cur}{high52:,.0f}" if low52 and high52 else ""
+    target_str = f"analyst target {cur}{target:,.0f} ({rec})" if target else ""
+    pe_str     = f"P/E={pe:.1f}" if pe else ""
+    mcap_str   = ""
+    if mcap:
+        if is_india:
+            mcap_str = f"MCap={mcap/1e7:.0f}Cr"
+        else:
+            mcap_str = f"MCap=${mcap/1e9:.0f}B" if mcap >= 1e9 else f"MCap=${mcap/1e6:.0f}M"
+
+    prefix = f"#{rank} " if rank else "  "
+    details = " | ".join(x for x in [range_str, pe_str, mcap_str, target_str] if x)
+    return f"{prefix}{ticker} ({name}): {score}/10 | {price_str} | {details}"
+
+
 def _enrich_with_platform_data(question: str, market: str) -> str | None:
     """
-    Fetch NeuralQuant's own stock scores + movers when the question needs them.
+    Fetch NeuralQuant's own stock scores + live prices when the question needs them.
     Also dynamically fetches data for stocks not in the screener universe.
-    Returns a formatted context string, or None if not needed.
+    Returns a formatted context string with ACCURATE live prices, or None if not needed.
     """
-    from nq_api.data_builder import build_real_snapshot
+    from nq_api.data_builder import build_real_snapshot, _fund_cache
     from nq_api.universe import UNIVERSE_BY_MARKET
     from nq_api.score_builder import rank_scores_in_universe
     from nq_api.deps import get_signal_engine
@@ -389,7 +421,6 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
     q_upper = question.upper()
     parts: list[str] = []
 
-    # Determine which market to use
     target_market = "IN" if any(k in q_upper for k in _INDIA_KEYWORDS) else market
 
     needs_screener = any(k in q_upper for k in _SCREENER_KEYWORDS)
@@ -413,18 +444,13 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
             result_df = result_df.sort_values("composite_score", ascending=False).reset_index(drop=True)
             ranked = rank_scores_in_universe(result_df)
             top = result_df.head(10)
-            lines = [f"NeuralQuant {target_market} Screener — Top 10 stocks right now:"]
+            lines = [f"NeuralQuant {target_market} Screener — Top 10 with LIVE prices (use these exact prices):"]
             for i, (idx, row) in enumerate(top.iterrows()):
                 sc = int(ranked.loc[idx]) if idx in ranked.index else 5
-                q = row.get("quality_percentile", 0.5)
-                m = row.get("momentum_percentile", 0.5)
-                v = row.get("value_percentile", 0.5)
-                si = row.get("short_interest_percentile", 0.5)
-                lines.append(
-                    f"  #{i+1} {row['ticker']}: {sc}/10 | "
-                    f"Quality={q:.0%} Momentum={m:.0%} Value={v:.0%} LowSI={si:.0%} | "
-                    f"Confidence: {row.get('regime_confidence', 0.5):.0%}"
-                )
+                t = row["ticker"]
+                fund = _fund_cache.get(f"{t}:{target_market}", {})
+                lines.append(_fmt_price_row(t, fund, sc, target_market, rank=i + 1))
+            lines.append("IMPORTANT: Use the prices above — they are live as of today. Do NOT use prices from your training data.")
             parts.append("\n".join(lines))
 
         if in_universe_tickers:
@@ -433,25 +459,24 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
             snapshot = build_real_snapshot(universe, target_market)
             result_df = engine.compute(snapshot)
             ranked = rank_scores_in_universe(result_df)
-            lines = ["NeuralQuant scores for mentioned stocks:"]
+            lines = ["NeuralQuant scores + LIVE prices for mentioned stocks:"]
             for t in in_universe_tickers:
                 row_match = result_df[result_df["ticker"] == t]
                 if not row_match.empty:
                     row = row_match.iloc[0]
                     idx = row_match.index[0]
                     sc = int(ranked.loc[idx]) if idx in ranked.index else 5
+                    fund = _fund_cache.get(f"{t}:{target_market}", {})
                     conf_val = row.get("regime_confidence", 0.5)
                     conf_label = "high" if conf_val > 0.7 else ("medium" if conf_val > 0.4 else "low")
+                    base = _fmt_price_row(t, fund, sc, target_market)
                     lines.append(
-                        f"  {t}: {sc}/10 (composite={row['composite_score']:.3f}) | "
-                        f"Quality={row.get('quality_percentile', 0.5):.0%} "
-                        f"Momentum={row.get('momentum_percentile', 0.5):.0%} "
+                        base + f" | Momentum={row.get('momentum_percentile', 0.5):.0%} "
                         f"Value={row.get('value_percentile', 0.5):.0%} "
-                        f"LowVol={row.get('low_vol_percentile', 0.5):.0%} "
-                        f"LowSI={row.get('short_interest_percentile', 0.5):.0%} | "
-                        f"Confidence: {conf_label} | P/E={row.get('pe_ttm', 'N/A')} "
-                        f"P/B={row.get('pb_ratio', 0):.1f} Beta={row.get('beta', 0):.2f}"
+                        f"Quality={row.get('quality_percentile', 0.5):.0%} "
+                        f"Confidence={conf_label}"
                     )
+            lines.append("IMPORTANT: Use the prices above — they are live as of today. Do NOT use prices from your training data.")
             parts.append("\n".join(lines))
 
         # Dynamic fetch for out-of-universe NSE stocks (e.g. TRENT, DIXON, ZYDUS)
@@ -466,51 +491,25 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                     pb_str = f"P/B={data['pb_ratio']:.1f}" if data.get("pb_ratio") else "P/B=N/A"
                     beta_str = f"Beta={data['beta']:.2f}" if data.get("beta") else ""
                     target_str = (
-                        f"Analyst target=₹{data['analyst_target']:.0f} ({data['analyst_recommendation']})"
+                        f"Analyst target=Rs.{data['analyst_target']:.0f} ({data['analyst_recommendation']})"
                         if data.get("analyst_target") else ""
                     )
                     chg_str = f"{data['change_pct']:+.2f}%" if data.get("change_pct") else ""
-                    mcap = f"MCap=₹{data['market_cap']/1e7:.0f}Cr" if data.get("market_cap") else ""
+                    mcap = f"MCap=Rs.{data['market_cap']/1e7:.0f}Cr" if data.get("market_cap") else ""
                     rev_growth = f"Rev growth={data['revenue_growth']*100:.1f}%" if data.get("revenue_growth") else ""
                     dynamic_lines.append(
                         f"  {data['longName']} ({data['symbol']}): "
-                        f"₹{data['price']:.2f} {chg_str} | "
-                        f"52w ₹{data.get('week52_low', 0):.0f}–₹{data.get('week52_high', 0):.0f} | "
+                        f"Rs.{data['price']:.2f} {chg_str} | "
+                        f"52w Rs.{data.get('week52_low', 0):.0f}-Rs.{data.get('week52_high', 0):.0f} | "
                         f"{pe_str} {pb_str} {beta_str} {mcap} {rev_growth} | {target_str}"
                     )
             if found_any:
                 dynamic_lines.append(
                     "  NOTE: Full NeuralQuant AI score unavailable for above stocks "
-                    "(not in screener universe), but live price + fundamentals are injected above. "
-                    "Use these numbers to give a direct, data-driven answer about the REQUESTED stock."
+                    "(not in screener universe), but LIVE price + fundamentals are injected above. "
+                    "Use these exact numbers. Do NOT use prices from training data."
                 )
                 parts.append("\n".join(dynamic_lines))
-
-        # Live prices for in-universe mentioned tickers
-        if in_universe_tickers:
-            try:
-                price_lines = ["Live prices:"]
-                for t in in_universe_tickers[:3]:
-                    try:
-                        info = yf.Ticker(t).info
-                        price = info.get("currentPrice") or info.get("regularMarketPrice")
-                        high52 = info.get("fiftyTwoWeekHigh")
-                        low52 = info.get("fiftyTwoWeekLow")
-                        target = info.get("targetMeanPrice")
-                        chg = info.get("regularMarketChangePercent", 0)
-                        currency = "₹" if t.endswith(".NS") or t.endswith(".BO") else "$"
-                        if price:
-                            price_lines.append(
-                                f"  {t}: {currency}{price:.2f} ({chg:+.2f}%) | "
-                                f"52w {currency}{low52:.2f}–{currency}{high52:.2f}"
-                                + (f" | Analyst target {currency}{target:.2f}" if target else "")
-                            )
-                    except Exception:
-                        pass
-                if len(price_lines) > 1:
-                    parts.append("\n".join(price_lines))
-            except Exception:
-                pass
 
     except Exception as exc:
         return f"[Platform data unavailable: {exc}]"
