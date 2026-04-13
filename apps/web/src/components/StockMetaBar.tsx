@@ -19,10 +19,11 @@ function MetaItem({ label, value, color }: { label: string; value: string; color
   );
 }
 
-export function StockMetaBar({ meta }: { meta: StockMeta }) {
+export function StockMetaBar({ meta, market = "US" }: { meta: StockMeta; market?: string }) {
   const rec = meta.analyst_recommendation?.toLowerCase() ?? "";
   const recColor = REC_COLORS[rec] ?? "text-gray-300";
   const recLabel = rec.replace(/_/g, " ").toUpperCase() || "—";
+  const cur = market === "IN" ? "₹" : "$";
 
   const items = [
     { label: "Market Cap",   value: meta.market_cap_fmt ?? "—" },
@@ -32,11 +33,11 @@ export function StockMetaBar({ meta }: { meta: StockMeta }) {
     {
       label: "52W Range",
       value: meta.week_52_low && meta.week_52_high
-        ? `$${Number(meta.week_52_low).toFixed(0)} – $${Number(meta.week_52_high).toFixed(0)}`
+        ? `${cur}${Number(meta.week_52_low).toFixed(0)} – ${cur}${Number(meta.week_52_high).toFixed(0)}`
         : "—",
     },
     { label: "Next Earnings", value: meta.earnings_date ?? "—" },
-    { label: "Analyst Target", value: meta.analyst_target ? `$${Number(meta.analyst_target).toFixed(0)}` : "—" },
+    { label: "Analyst Target", value: meta.analyst_target ? `${cur}${Number(meta.analyst_target).toFixed(0)}` : "—" },
     { label: "Consensus",    value: recLabel, color: recColor },
     { label: "Sector",       value: meta.sector ?? "—" },
     { label: "Dividend",     value: meta.dividend_yield ? `${meta.dividend_yield}%` : "—" },

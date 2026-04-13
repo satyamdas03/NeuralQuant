@@ -87,7 +87,7 @@ export default function StockPage({
       </div>
 
       {/* Meta bar (fundamentals overview) */}
-      {meta && <StockMetaBar meta={meta} />}
+      {meta && <StockMetaBar meta={meta} market={market} />}
 
       {/* Price Chart */}
       <PriceChart ticker={ticker.toUpperCase()} market={market} />

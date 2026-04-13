@@ -204,6 +204,11 @@ _SCREENER_KEYWORDS = {
     "TOP PICKS", "TOP 3", "TOP 5", "TOP 10", "BEST PICK", "BEST PICKS",
     "YOUR TOP", "STOCK PICKS", "STOCK PICK", "WHICH STOCKS",
     "NAME SPECIFIC", "NAME SHARES", "NAME STOCKS",
+    # Investment / portfolio allocation triggers
+    "INVEST", "SUGGEST", "PORTFOLIO", "ALLOCAT", "WHERE TO PUT",
+    "LAKH", "CRORE", "LAKHS", "CRORES", "10L", "5L", "20L",
+    "MAKE 15", "MAKE 20", "MAKE 10", "RETURN TARGET", "TARGET RETURN",
+    "12 MONTH", "6 MONTH", "1 YEAR", "YEAR RETURN",
 }
 _INDIA_KEYWORDS = {"INDIA", "INDIAN", "NSE", "BSE", "NIFTY", "SENSEX", "RUPEE", "LAKH", "CRORE", "INR"}
 
@@ -438,7 +443,7 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
         engine = get_signal_engine()
 
         if needs_screener or (not in_universe_tickers and not out_of_universe_words and needs_stock_scores):
-            universe = UNIVERSE_BY_MARKET.get(target_market, UNIVERSE_BY_MARKET["US"])[:20]
+            universe = UNIVERSE_BY_MARKET.get(target_market, UNIVERSE_BY_MARKET["US"])[:25]
             snapshot = build_real_snapshot(universe, target_market)
             result_df = engine.compute(snapshot)
             result_df = result_df.sort_values("composite_score", ascending=False).reset_index(drop=True)

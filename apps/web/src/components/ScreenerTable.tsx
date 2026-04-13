@@ -23,7 +23,7 @@ export function ScreenerTable({ stocks }: { stocks: AIScore[] }) {
                 <div className="flex items-center gap-3">
                   <span className="text-gray-600 text-xs w-5">{i + 1}</span>
                   <Link
-                    href={`/stocks/${s.ticker}`}
+                    href={`/stocks/${s.ticker}?market=${s.market}`}
                     className="font-semibold text-white hover:text-violet-400 transition-colors"
                   >
                     {s.ticker}
