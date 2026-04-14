@@ -1,7 +1,11 @@
+import logging
 from typing import Literal
 
+import httpx
 import yfinance as yf
 from fastapi import APIRouter, Depends, HTTPException, Query
+
+log = logging.getLogger(__name__)
 
 from nq_api.deps import get_signal_engine
 from nq_api.schemas import AIScore
@@ -79,6 +83,83 @@ def get_stock_score(
     return row_to_ai_score(matching.iloc[0], market, score_1_10_override=score_override)
 
 
+# Period → (yahoo-range, yahoo-interval) for direct chart API fallback
+_YAHOO_RANGE_MAP = {
+    "1d":  ("1d",  "5m"),
+    "5d":  ("5d",  "30m"),
+    "1mo": ("1mo", "1d"),
+    "3mo": ("3mo", "1d"),
+    "1y":  ("1y",  "1d"),
+    "5y":  ("5y",  "1wk"),
+}
+
+
+def _fmt_chart_date(ts_epoch: int, period: str) -> str:
+    """Format an epoch seconds timestamp for the chart x-axis."""
+    import datetime as _dt
+    dt = _dt.datetime.fromtimestamp(ts_epoch)
+    if period in ("1d", "5d"):
+        return dt.strftime("%m/%d %H:%M")
+    return dt.strftime("%b %d")
+
+
+def _fetch_chart_yahoo_direct(sym: str, period: str) -> list[dict]:
+    """Hit Yahoo's chart API directly (v8) — works when yfinance's scraping path fails
+    in cloud environments (Render, etc.). Returns [] on any error."""
+    yrange, yinterval = _YAHOO_RANGE_MAP.get(period, ("1mo", "1d"))
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}"
+    params = {"range": yrange, "interval": yinterval, "includePrePost": "false"}
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                      "AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "application/json,text/plain,*/*",
+    }
+    try:
+        with httpx.Client(timeout=10.0, follow_redirects=True) as client:
+            r = client.get(url, params=params, headers=headers)
+            r.raise_for_status()
+            j = r.json()
+    except Exception as e:
+        log.warning("yahoo-direct chart fetch failed for %s: %s", sym, e)
+        return []
+
+    try:
+        result = j["chart"]["result"][0]
+        timestamps = result.get("timestamp") or []
+        quote = result["indicators"]["quote"][0]
+        opens   = quote.get("open")   or []
+        highs   = quote.get("high")   or []
+        lows    = quote.get("low")    or []
+        closes  = quote.get("close")  or []
+        volumes = quote.get("volume") or []
+    except Exception as e:
+        log.warning("yahoo-direct parse failed for %s: %s", sym, e)
+        return []
+
+    out: list[dict] = []
+    for i, ts in enumerate(timestamps):
+        try:
+            c = closes[i] if i < len(closes) else None
+            o = opens[i]  if i < len(opens)  else None
+            h = highs[i]  if i < len(highs)  else None
+            lo = lows[i]  if i < len(lows)   else None
+            v = volumes[i] if i < len(volumes) else 0
+            if c is None or o is None:
+                continue
+            out.append({
+                "date":   _fmt_chart_date(int(ts), period),
+                "close":  round(float(c),  2),
+                "open":   round(float(o),  2),
+                "high":   round(float(h),  2) if h is not None else round(float(c), 2),
+                "low":    round(float(lo), 2) if lo is not None else round(float(c), 2),
+                "volume": int(v or 0),
+            })
+        except Exception:
+            continue
+    return out
+
+
 @router.get("/{ticker}/chart")
 def get_stock_chart(
     ticker: str,
@@ -87,31 +168,48 @@ def get_stock_chart(
 ):
     yf_period, interval = _PERIOD_MAP.get(period, ("1mo", "1d"))
     sym = _yf_sym(ticker.upper(), market)
+    data: list[dict] = []
+
+    # Primary path: yfinance. Wrap EVERYTHING so no uncaught exceptions ever reach FastAPI.
     try:
         hist = yf.Ticker(sym).history(period=yf_period, interval=interval, auto_adjust=True)
+        if hist is not None and not hist.empty:
+            for idx, row in hist.iterrows():
+                try:
+                    if period in ("1d", "5d"):
+                        date_str = idx.strftime("%m/%d %H:%M")
+                    else:
+                        date_str = idx.strftime("%b %d")
+                    data.append({
+                        "date":   date_str,
+                        "close":  round(float(row["Close"]), 2),
+                        "open":   round(float(row["Open"]),  2),
+                        "high":   round(float(row["High"]),  2),
+                        "low":    round(float(row["Low"]),   2),
+                        "volume": int(row.get("Volume") or 0),
+                    })
+                except Exception as row_exc:
+                    log.debug("chart row parse failed for %s: %s", sym, row_exc)
+                    continue
     except Exception as exc:
-        raise HTTPException(500, str(exc))
-    if hist.empty:
-        raise HTTPException(404, f"No chart data for {ticker}")
+        log.warning("yfinance chart failed for %s (%s) — will try Yahoo direct: %s",
+                    sym, period, exc)
 
-    data = []
-    for idx, row in hist.iterrows():
-        # Intraday: keep HH:MM; daily: keep YYYY-MM-DD
-        if period in ("1d", "5d"):
-            date_str = idx.strftime("%m/%d %H:%M")
-        else:
-            date_str = idx.strftime("%b %d")
-        try:
-            data.append({
-                "date": date_str,
-                "close": round(float(row["Close"]), 2),
-                "open":  round(float(row["Open"]),  2),
-                "high":  round(float(row["High"]),  2),
-                "low":   round(float(row["Low"]),   2),
-                "volume": int(row.get("Volume") or 0),
-            })
-        except Exception:
-            pass
+    # Fallback: hit Yahoo chart API directly. Critical for NSE stocks on Render where
+    # yfinance's scraping path often fails with "Expecting value" / rate-limit errors.
+    if not data:
+        log.info("chart fallback: yahoo-direct for %s (%s)", sym, period)
+        data = _fetch_chart_yahoo_direct(sym, period)
+
+    if not data:
+        # Return valid empty-shape JSON rather than 500 so the UI can display
+        # "No chart data" gracefully without a crash.
+        return {
+            "ticker": ticker.upper(),
+            "period": period,
+            "data": [],
+            "period_change_pct": 0.0,
+        }
 
     period_change = 0.0
     if len(data) >= 2:
@@ -119,7 +217,12 @@ def get_stock_chart(
         last  = data[-1]["close"]
         period_change = round((last - first) / first * 100, 2) if first else 0.0
 
-    return {"ticker": ticker.upper(), "period": period, "data": data, "period_change_pct": period_change}
+    return {
+        "ticker": ticker.upper(),
+        "period": period,
+        "data": data,
+        "period_change_pct": period_change,
+    }
 
 
 @router.get("/{ticker}/meta")
