@@ -28,7 +28,13 @@ def _yf_sym(ticker: str, market: str) -> str:
     return ticker
 
 
-def _fmt_mcap(mc: float) -> str:
+def _fmt_mcap(mc: float, market: str = "US") -> str:
+    # India: Indian convention uses Crores (1 Cr = 10M = 1e7) and Lakh Crores (1 LCr = 1e12)
+    if market == "IN":
+        if mc >= 1e12: return f"₹{mc/1e12:.2f} LCr"
+        if mc >= 1e9:  return f"₹{mc/1e7:,.0f} Cr"
+        if mc >= 1e7:  return f"₹{mc/1e7:.1f} Cr"
+        return f"₹{mc:,.0f}"
     if mc >= 1e12: return f"${mc/1e12:.2f}T"
     if mc >= 1e9:  return f"${mc/1e9:.1f}B"
     if mc >= 1e6:  return f"${mc/1e6:.0f}M"
@@ -135,11 +141,26 @@ def get_stock_meta(ticker: str, market: str = Query("US")):
             pass
 
         mc = info.get("marketCap")
+
+        # Dividend yield normalization: recent yfinance versions return percent (0.94 = 0.94%),
+        # older versions return decimal (0.0094 = 0.94%). Heuristic: if raw value > 1, treat as
+        # already-percent. Also clamp to <30% (no legit stock exceeds that).
+        div_raw = info.get("dividendYield")
+        div_pct = None
+        if div_raw:
+            try:
+                v = float(div_raw)
+                v = v if v > 1 else v * 100  # normalize to percent
+                if 0 < v < 30:
+                    div_pct = round(v, 2)
+            except Exception:
+                pass
+
         return {
             "ticker":                  ticker.upper(),
             "name":                    info.get("longName") or info.get("shortName") or ticker,
             "market_cap":              mc,
-            "market_cap_fmt":          _fmt_mcap(float(mc)) if mc else None,
+            "market_cap_fmt":          _fmt_mcap(float(mc), market) if mc else None,
             "pe_ttm":                  round(float(info["trailingPE"]), 1)  if info.get("trailingPE")    else None,
             "pb_ratio":                round(float(info["priceToBook"]), 2) if info.get("priceToBook")   else None,
             "beta":                    round(float(info["beta"]), 2)        if info.get("beta")          else None,
@@ -150,7 +171,7 @@ def get_stock_meta(ticker: str, market: str = Query("US")):
             "analyst_recommendation":  info.get("recommendationKey"),
             "sector":                  info.get("sector"),
             "industry":                info.get("industry"),
-            "dividend_yield":          round(float(info["dividendYield"]) * 100, 2) if info.get("dividendYield") else None,
+            "dividend_yield":          div_pct,
             "current_price":           info.get("currentPrice") or info.get("regularMarketPrice"),
         }
     except Exception as exc:
