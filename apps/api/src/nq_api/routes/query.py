@@ -66,12 +66,18 @@ _SYSTEM = """You are NeuralQuant — an institutional-grade AI stock intelligenc
   - Bear case: X% (trigger: [specific event])
   - Base case: X% (most likely path)
   - Bull case: X% (trigger: [specific event])
-- **For portfolio allocation questions (e.g. "invest ₹10L in Indian stocks"):**
-  - Name 4-6 specific stocks
-  - Give exact rupee allocation per stock
-  - Give entry price range
-  - Give 3-month target
-  - Give stop-loss level
+- **For portfolio allocation questions (e.g. "invest ₹10L in Indian stocks for 15-20% in 12 months"):**
+  - Name 4-6 specific stocks. Allocations MUST sum exactly to the user's total capital (verify arithmetic before answering).
+  - Give exact allocation per stock (₹ or $ as appropriate — NEVER mix currencies in one portfolio)
+  - Give entry price range (use the LIVE price injected above as midpoint; range = ±2%)
+  - **CRITICAL — Target price rule:** If user specified a return target R% (e.g. "15-20%"), then EVERY stock's target price MUST equal entry_mid × (1 + r/100) where r ∈ [R_low, R_high]. Do NOT copy the analyst consensus target verbatim. Do NOT include a stock whose realistic 12-month upside falls outside the user's range — pick a different stock. Show the per-stock % next to the target and confirm it lands inside the user's band.
+  - Stop-loss: entry_mid × 0.90 (10% below entry) for every stock — consistent across the portfolio.
+  - **Scenario rule:** When user specifies a return band R_low–R_high, the three scenarios must be:
+    - Bear case: +(R_low − 5)% to +(R_low − 2)% (trigger: specific event)
+    - Base case: +((R_low + R_high) / 2)% — the midpoint of user's band
+    - Bull case: +(R_high + 5)% to +(R_high + 10)% (trigger: specific event)
+  - Finish with a one-line allocation audit: "Total: ₹X / ₹Y" confirming sum matches.
+  - Keep the entire portfolio block under 1200 characters so it renders cleanly.
 - **For specific stock queries:** Lead with: score/10 (if available), current price, 1-line verdict (BUY / HOLD / AVOID), then justify with data.
 - **Avoid:** Internal scoring jargon (don't say "Quality score 41%") — translate to plain English ("Strong balance sheet, improving margins").
 - **For Indian stocks:** Use ₹ symbol, crore/lakh notation where appropriate.
@@ -613,7 +619,7 @@ def run_nl_query(req: QueryRequest) -> QueryResponse:
         messages.append({"role": "user", "content": user_msg})
         response = client.messages.create(
             model=MODEL,
-            max_tokens=1500,
+            max_tokens=4000,
             system=_SYSTEM,
             messages=messages,
         )
@@ -644,7 +650,7 @@ def _parse_query_response(raw: str) -> QueryResponse:
         ]
 
     return QueryResponse(
-        answer=answer[:3000],
+        answer=answer[:8000],
         data_sources=sources[:5],
         follow_up_questions=followups[:3],
     )
