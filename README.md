@@ -2,7 +2,7 @@
 
 # NeuralQuant
 
-**AI-Powered Stock Intelligence Platform — v3.0.0**
+**AI-Powered Stock Intelligence Platform — v4.0.0-dev (Pillar A1 in progress)**
 
 *Institutional-grade quant research + 7-agent AI debate. US & India. 100% live data.*
 
@@ -15,6 +15,24 @@
 [![Data](https://img.shields.io/badge/data-100%25%20live-brightgreen)](#data-sources)
 
 </div>
+
+---
+
+## Phase 4 Progress (v4.0.0-dev)
+
+| Pillar | Scope | Status |
+|---|---|---|
+| **A1** | Supabase auth, watchlists, tiers (free/investor/pro/api) | Backend + frontend scaffolded, schema pending |
+| **A2** | Stripe checkout + per-tier rate limiting | Planned |
+| **B** | 500 US + 200 NSE universe, sector-adjusted factors, nightly cache | Planned |
+| **C** | Fitted HMM, ISM PMI, Reddit/StockTwits sentiment | Planned |
+| **D** | backtrader-based backtesting engine | Planned |
+
+**Ask AI bug fixes (Apr 17-18, 2026):** Portfolio responses now honour user-specified return bands (targets computed as entry × (1 + r%) with r inside band), scenarios align with band, Indian portfolios no longer truncate at COALINDIA (max_tokens 1500 → 4000, parser cap 3000 → 8000), screener pool 25 → 40, currency rule clarified (allocation currency = user capital, price currency = native).
+
+**Supabase schema:** `sql/001_init_auth_watchlists.sql` — paste into Supabase Dashboard → SQL Editor to provision `public.users`, `public.watchlists`, `public.usage_log`, RLS policies, and the `on_auth_user_created` trigger.
+
+**Env keys added:** `apps/api/.env` requires `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET` (HS256) or `SUPABASE_JWKS_URL` (ES256). `apps/web/.env.local` requires `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_API_BASE_URL`.
 
 ---
 

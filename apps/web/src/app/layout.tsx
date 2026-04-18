@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
+import NavAuth from "@/components/NavAuth";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -19,9 +20,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Link href="/" className="text-xl font-bold bg-gradient-to-r from-violet-400 to-cyan-400 bg-clip-text text-transparent">
               NeuralQuant
             </Link>
-            <div className="flex gap-6 text-sm text-gray-400">
+            <div className="flex gap-6 text-sm text-gray-400 items-center">
               <Link href="/screener" className="hover:text-white transition-colors">Screener</Link>
               <Link href="/query"    className="hover:text-white transition-colors">Ask AI</Link>
+              <NavAuth />
             </div>
           </div>
         </nav>

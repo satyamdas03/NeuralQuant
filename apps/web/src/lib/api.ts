@@ -20,6 +20,39 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   return response.json();
 }
 
+// Authed variant — attaches Supabase access token for /auth/* and /watchlist/*
+async function authedFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const { createClient } = await import("./supabase/client");
+  const supabase = createClient();
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  const headers = new Headers(options?.headers || {});
+  headers.set("Content-Type", "application/json");
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`API error ${response.status}: ${error}`);
+  }
+  if (response.status === 204) return undefined as T;
+  return response.json();
+}
+
+export const authedApi = {
+  me: () => authedFetch<{ id: string; email: string; tier: string; limits: Record<string, number> }>("/auth/me"),
+  listWatchlist: () =>
+    authedFetch<{ items: Array<{ id: string; ticker: string; market: "US" | "IN"; note: string | null; created_at: string }>; count: number }>(
+      "/watchlist"
+    ),
+  addWatchlist: (body: { ticker: string; market: "US" | "IN"; note?: string }) =>
+    authedFetch<{ id: string; ticker: string; market: "US" | "IN"; note: string | null; created_at: string }>("/watchlist", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  deleteWatchlist: (id: string) =>
+    authedFetch<void>(`/watchlist/${id}`, { method: "DELETE" }),
+};
+
 export const api = {
   getStock: (ticker: string, market: Market = "US") =>
     apiFetch<AIScore>(`/stocks/${ticker}?market=${market}`),

@@ -9,6 +9,8 @@ dependencies = [
     "pydantic>=2.7",
     "python-dotenv>=1.0",
     "httpx>=0.27",
+    "pyjwt[crypto]>=2.9",
+    "supabase>=2.8",
     "nq-data",
     "nq-signals",
 ]
