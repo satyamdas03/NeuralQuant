@@ -23,10 +23,10 @@
 | Pillar | Scope | Status |
 |---|---|---|
 | **A1** | Supabase auth, watchlists, tiers (free/investor/pro/api) | Backend + frontend scaffolded, schema pending |
-| **A2** | Stripe checkout + per-tier rate limiting | Planned |
-| **B** | 500 US + 200 NSE universe, sector-adjusted factors, nightly cache | Planned |
-| **C** | Fitted HMM, ISM PMI, Reddit/StockTwits sentiment | Planned |
-| **D** | backtrader-based backtesting engine | Planned |
+| **A2** | Stripe checkout + per-tier rate limiting | Plan written ([spec](docs/superpowers/plans/2026-04-18-pillar-a2-stripe-rate-limit.md)) |
+| **B** | 500 US + 200 NSE universe, sector-adjusted factors, nightly cache | Plan written ([spec](docs/superpowers/plans/2026-04-18-pillar-b-universe-sector-cache.md)) |
+| **C** | Fitted HMM, ISM PMI, Reddit/StockTwits sentiment | Plan written ([spec](docs/superpowers/plans/2026-04-18-pillar-c-hmm-pmi-sentiment.md)) |
+| **D** | backtrader-based backtesting engine | Plan written ([spec](docs/superpowers/plans/2026-04-18-pillar-d-backtesting.md)) |
 
 **Ask AI bug fixes (Apr 17-18, 2026):** Portfolio responses now honour user-specified return bands (targets computed as entry × (1 + r%) with r inside band), scenarios align with band, Indian portfolios no longer truncate at COALINDIA (max_tokens 1500 → 4000, parser cap 3000 → 8000), screener pool 25 → 40, currency rule clarified (allocation currency = user capital, price currency = native).
 
