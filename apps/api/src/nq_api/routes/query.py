@@ -68,8 +68,8 @@ _SYSTEM = """You are NeuralQuant — an institutional-grade AI stock intelligenc
   - Bull case: X% (trigger: [specific event])
 - **For portfolio allocation questions (e.g. "invest ₹10L in Indian stocks for 15-20% in 12 months"):**
   - Name 4-6 specific stocks. Allocations MUST sum exactly to the user's total capital (verify arithmetic before answering).
-  - Give exact allocation per stock (₹ or $ as appropriate — NEVER mix currencies in one portfolio)
-  - Give entry price range (use the LIVE price injected above as midpoint; range = ±2%)
+  - **Currency rule:** Allocation amounts use the user's stated capital currency (e.g. ₹10L → every allocation in ₹). Entry/target/stop prices use each stock's NATIVE trading currency ($ for US listings, ₹ for NSE/BSE). Do NOT convert prices. Example: "BAC: ₹1.5L | Entry: $53-55" is correct for an Indian user buying a US stock.
+  - Give entry price range (use the LIVE price injected above as midpoint; range = ±2%). Do NOT invent prices — if a stock's live price is not injected, exclude it.
   - **CRITICAL — Target price rule:** If user specified a return target R% (e.g. "15-20%"), then EVERY stock's target price MUST equal entry_mid × (1 + r/100) where r ∈ [R_low, R_high]. Do NOT copy the analyst consensus target verbatim. Do NOT include a stock whose realistic 12-month upside falls outside the user's range — pick a different stock. Show the per-stock % next to the target and confirm it lands inside the user's band.
   - Stop-loss: entry_mid × 0.90 (10% below entry) for every stock — consistent across the portfolio.
   - **Scenario rule:** When user specifies a return band R_low–R_high, the three scenarios must be:
@@ -449,13 +449,13 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
         engine = get_signal_engine()
 
         if needs_screener or (not in_universe_tickers and not out_of_universe_words and needs_stock_scores):
-            universe = UNIVERSE_BY_MARKET.get(target_market, UNIVERSE_BY_MARKET["US"])[:25]
+            universe = UNIVERSE_BY_MARKET.get(target_market, UNIVERSE_BY_MARKET["US"])[:40]
             snapshot = build_real_snapshot(universe, target_market)
             result_df = engine.compute(snapshot)
             result_df = result_df.sort_values("composite_score", ascending=False).reset_index(drop=True)
             ranked = rank_scores_in_universe(result_df)
-            top = result_df.head(10)
-            lines = [f"NeuralQuant {target_market} Screener — Top 10 with LIVE prices (use these exact prices):"]
+            top = result_df.head(20)
+            lines = [f"NeuralQuant {target_market} Screener — Top 20 with LIVE prices (use these exact prices):"]
             for i, (idx, row) in enumerate(top.iterrows()):
                 sc = int(ranked.loc[idx]) if idx in ranked.index else 5
                 t = row["ticker"]
@@ -635,7 +635,7 @@ def run_nl_query(req: QueryRequest) -> QueryResponse:
 
 def _parse_query_response(raw: str) -> QueryResponse:
     answer_match = re.search(r"ANSWER:\s*(.+?)(?=DATA_SOURCES:|\Z)", raw, re.I | re.S | re.M)
-    answer = answer_match.group(1).strip() if answer_match else raw[:800]
+    answer = answer_match.group(1).strip() if answer_match else raw[:8000]
 
     sources_match = re.search(r"DATA_SOURCES:\s*(.+?)(?=FOLLOW_UP:|\Z)", raw, re.I | re.S | re.M)
     sources = [s.strip() for s in sources_match.group(1).split(",")] if sources_match else []
