@@ -2,7 +2,7 @@
 
 # NeuralQuant
 
-**AI-Powered Stock Intelligence Platform — v4.0.0-dev (Pillar A1 in progress)**
+**AI-Powered Stock Intelligence Platform — v4.0.0-dev (Pillars A1 + A2 + B live)**
 
 *Institutional-grade quant research + 7-agent AI debate. US & India. 100% live data.*
 
@@ -22,17 +22,24 @@
 
 | Pillar | Scope | Status |
 |---|---|---|
-| **A1** | Supabase auth, watchlists, tiers (free/investor/pro/api) | Backend + frontend scaffolded, schema pending |
-| **A2** | Stripe checkout + per-tier rate limiting | Plan written ([spec](docs/superpowers/plans/2026-04-18-pillar-a2-stripe-rate-limit.md)) |
-| **B** | 500 US + 200 NSE universe, sector-adjusted factors, nightly cache | Plan written ([spec](docs/superpowers/plans/2026-04-18-pillar-b-universe-sector-cache.md)) |
+| **A1** | Supabase auth, watchlists, tiers (free/investor/pro/api) | ✅ LIVE — schema applied (migrations 001-003), API + web deployed |
+| **A2** | Per-tier rate limiting via `public.usage_log` | ✅ LIVE — `/query` `/analyst` `/screener` gated (Stripe deferred) |
+| **B** | 503 US (S&P 500) + 200 NSE (Nifty 200) universe, sector-adjusted factor ranks, nightly `score_cache` | ✅ LIVE — schema applied (migration 004), nightly GHA cron `0 2 * * *` |
 | **C** | Fitted HMM, ISM PMI, Reddit/StockTwits sentiment | Plan written ([spec](docs/superpowers/plans/2026-04-18-pillar-c-hmm-pmi-sentiment.md)) |
 | **D** | backtrader-based backtesting engine | Plan written ([spec](docs/superpowers/plans/2026-04-18-pillar-d-backtesting.md)) |
+| **Stripe** | Checkout + billing webhook | Deferred — will wire up at end |
+
+**Live deploys:**
+- API (Render): `https://neuralquant.onrender.com`
+- Web (Vercel): `https://neuralquant.vercel.app`
 
 **Ask AI bug fixes (Apr 17-18, 2026):** Portfolio responses now honour user-specified return bands (targets computed as entry × (1 + r%) with r inside band), scenarios align with band, Indian portfolios no longer truncate at COALINDIA (max_tokens 1500 → 4000, parser cap 3000 → 8000), screener pool 25 → 40, currency rule clarified (allocation currency = user capital, price currency = native).
 
-**Supabase schema:** `sql/001_init_auth_watchlists.sql` — paste into Supabase Dashboard → SQL Editor to provision `public.users`, `public.watchlists`, `public.usage_log`, RLS policies, and the `on_auth_user_created` trigger.
+**Supabase migrations applied:** `001_init_auth_watchlists`, `002_handle_new_user_search_path`, `003_rls_initplan_optimize`, `004_score_cache` (all live in `public` schema; RLS policies wrap `auth.uid()` in subselects; security + performance advisors clean).
 
-**Env keys added:** `apps/api/.env` requires `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET` (HS256) or `SUPABASE_JWKS_URL` (ES256). `apps/web/.env.local` requires `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_API_BASE_URL`.
+**Env keys (Render + Vercel configured via API):** `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`, `SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_API_URL`, `FRED_API_KEY`, `ANTHROPIC_API_KEY`.
+
+**GHA secrets:** `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `FRED_API_KEY` — set via `gh secret set` for nightly-score workflow.
 
 ---
 
