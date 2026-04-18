@@ -7,6 +7,8 @@ from nq_api.score_builder import row_to_ai_score, rank_scores_in_universe, REGIM
 from nq_api.universe import UNIVERSE_BY_MARKET
 from nq_api.data_builder import build_real_snapshot
 from nq_signals.engine import SignalEngine
+from nq_api.auth.rate_limit import enforce_tier_quota
+from nq_api.auth.models import User
 
 router = APIRouter()
 
@@ -15,6 +17,7 @@ router = APIRouter()
 def run_screener(
     req: ScreenerRequest,
     engine: SignalEngine = Depends(get_signal_engine),
+    user: User = Depends(enforce_tier_quota("screener")),
 ) -> ScreenerResponse:
     tickers = req.tickers or UNIVERSE_BY_MARKET.get(req.market, UNIVERSE_BY_MARKET["US"])
     snapshot = build_real_snapshot(tickers, req.market)

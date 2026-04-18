@@ -33,7 +33,7 @@
 | `apps/api/src/nq_api/routes/screener.py` | same (uses `screener_refresh_seconds` as cache key) |
 | `apps/web/src/app/pricing/page.tsx` | NEW — 4 plan cards, Checkout CTA |
 | `apps/web/src/app/account/page.tsx` | NEW — current tier, Manage Subscription (Stripe Portal) |
-| `sql/002_stripe_events.sql` | NEW — `public.stripe_events(id, type, received_at, payload)` for idempotency |
+| `sql/004_stripe_events.sql` | NEW — `public.stripe_events(id, type, received_at, payload)` for idempotency (002/003 taken by auth migrations) |
 | `.env.example` | add STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_*, NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY |
 | `apps/web/src/app/account/page.tsx` | account page |
 
@@ -41,7 +41,7 @@
 
 ## Task 1: SQL for idempotency
 
-- [ ] **Step 1:** Write `sql/002_stripe_events.sql`:
+- [ ] **Step 1:** Write `sql/004_stripe_events.sql`:
 
 ```sql
 CREATE TABLE IF NOT EXISTS public.stripe_events (

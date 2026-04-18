@@ -5,8 +5,10 @@ from datetime import date
 
 import anthropic
 import yfinance as yf
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from nq_api.schemas import QueryRequest, QueryResponse
+from nq_api.auth.rate_limit import enforce_tier_quota
+from nq_api.auth.models import User
 
 router = APIRouter()
 
@@ -529,7 +531,10 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
 
 
 @router.post("", response_model=QueryResponse)
-def run_nl_query(req: QueryRequest) -> QueryResponse:
+def run_nl_query(
+    req: QueryRequest,
+    user: User = Depends(enforce_tier_quota("query")),
+) -> QueryResponse:
     if not req.question or len(req.question.strip()) < 3:
         return QueryResponse(
             answer="Please enter a question (at least 3 characters).",

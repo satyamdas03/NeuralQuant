@@ -30,9 +30,14 @@ async function authedFetch<T>(path: string, options?: RequestInit): Promise<T> {
   headers.set("Content-Type", "application/json");
   if (token) headers.set("Authorization", `Bearer ${token}`);
   const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  if (response.status === 401 && typeof window !== "undefined") {
+    const nextUrl = window.location.pathname + window.location.search;
+    window.location.href = `/login?next=${encodeURIComponent(nextUrl)}`;
+    throw new Error("auth required — redirecting to login");
+  }
   if (!response.ok) {
     const error = await response.text();
-    throw new Error(`API error ${response.status}: ${error}`);
+    throw new Error(`API ${response.status}: ${error}`);
   }
   if (response.status === 204) return undefined as T;
   return response.json();
@@ -58,19 +63,19 @@ export const api = {
     apiFetch<AIScore>(`/stocks/${ticker}?market=${market}`),
 
   runScreener: (body: ScreenerRequest) =>
-    apiFetch<ScreenerResponse>("/screener", {
+    authedFetch<ScreenerResponse>("/screener", {
       method: "POST",
       body: JSON.stringify(body),
     }),
 
   runAnalyst: (body: AnalystRequest) =>
-    apiFetch<AnalystResponse>("/analyst", {
+    authedFetch<AnalystResponse>("/analyst", {
       method: "POST",
       body: JSON.stringify(body),
     }),
 
   runQuery: (body: QueryRequest) =>
-    apiFetch<QueryResponse>("/query", {
+    authedFetch<QueryResponse>("/query", {
       method: "POST",
       body: JSON.stringify(body),
     }),

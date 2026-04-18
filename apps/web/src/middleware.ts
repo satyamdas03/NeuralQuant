@@ -4,7 +4,14 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 type CookieToSet = { name: string; value: string; options?: CookieOptions };
 
-const PROTECTED = [/^\/watchlist(\/|$)/, /^\/dashboard(\/|$)/];
+const PROTECTED = [
+  /^\/watchlist(\/|$)/,
+  /^\/dashboard(\/|$)/,
+  /^\/ask(\/|$)/,
+  /^\/screener(\/|$)/,
+  /^\/analyst(\/|$)/,
+  /^\/account(\/|$)/,
+];
 
 export async function middleware(req: NextRequest) {
   let response = NextResponse.next({ request: req });

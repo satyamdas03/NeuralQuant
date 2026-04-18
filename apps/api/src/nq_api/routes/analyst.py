@@ -6,12 +6,17 @@ from nq_api.agents.orchestrator import ParaDebateOrchestrator
 from nq_api.deps import get_signal_engine
 from nq_api.universe import UNIVERSE_BY_MARKET
 from nq_api.data_builder import build_real_snapshot, fetch_real_macro
+from nq_api.auth.rate_limit import enforce_tier_quota
+from nq_api.auth.models import User
 
 router = APIRouter()
 
 
 @router.post("", response_model=AnalystResponse)
-async def run_analyst(req: AnalystRequest) -> AnalystResponse:
+async def run_analyst(
+    req: AnalystRequest,
+    user: User = Depends(enforce_tier_quota("analyst")),
+) -> AnalystResponse:
     engine = get_signal_engine()
     ticker = req.ticker.upper()
 
