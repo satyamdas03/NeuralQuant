@@ -379,11 +379,12 @@ def build_real_snapshot(tickers: list[str], market: str) -> UniverseSnapshot:
     macro    = fetch_real_macro()
     fund_map = fetch_fundamentals_batch(tickers, market)
 
+    from nq_api.universe import sector_of
     rows = []
     for t in tickers:
         row = fund_map.get(t, _synthetic_row(t)).copy()
         row.pop("_is_real", None)
-        rows.append({"ticker": t, **row})
+        rows.append({"ticker": t, "sector": sector_of(t, market), **row})
 
     fundamentals = pd.DataFrame(rows)
     fundamentals = _add_value_and_lowvol_percentiles(fundamentals)

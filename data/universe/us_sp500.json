@@ -1,0 +1,3523 @@
+[
+  {
+    "ticker": "MMM",
+    "name": "3M",
+    "sector": "Industrials",
+    "subindustry": "Industrial Conglomerates",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "AOS",
+    "name": "A. O. Smith",
+    "sector": "Industrials",
+    "subindustry": "Building Products",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ABT",
+    "name": "Abbott Laboratories",
+    "sector": "Health Care",
+    "subindustry": "Health Care Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ABBV",
+    "name": "AbbVie",
+    "sector": "Health Care",
+    "subindustry": "Biotechnology",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ACN",
+    "name": "Accenture",
+    "sector": "Information Technology",
+    "subindustry": "IT Consulting & Other Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ADBE",
+    "name": "Adobe Inc.",
+    "sector": "Information Technology",
+    "subindustry": "Application Software",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "AMD",
+    "name": "Advanced Micro Devices",
+    "sector": "Information Technology",
+    "subindustry": "Semiconductors",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "AES",
+    "name": "AES Corporation",
+    "sector": "Utilities",
+    "subindustry": "Independent Power Producers & Energy Traders",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "AFL",
+    "name": "Aflac",
+    "sector": "Financials",
+    "subindustry": "Life & Health Insurance",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "A",
+    "name": "Agilent Technologies",
+    "sector": "Health Care",
+    "subindustry": "Life Sciences Tools & Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "APD",
+    "name": "Air Products",
+    "sector": "Materials",
+    "subindustry": "Industrial Gases",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ABNB",
+    "name": "Airbnb",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Hotels, Resorts & Cruise Lines",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "AKAM",
+    "name": "Akamai Technologies",
+    "sector": "Information Technology",
+    "subindustry": "Internet Services & Infrastructure",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ALB",
+    "name": "Albemarle Corporation",
+    "sector": "Materials",
+    "subindustry": "Specialty Chemicals",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ARE",
+    "name": "Alexandria Real Estate Equities",
+    "sector": "Real Estate",
+    "subindustry": "Office REITs",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ALGN",
+    "name": "Align Technology",
+    "sector": "Health Care",
+    "subindustry": "Health Care Supplies",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ALLE",
+    "name": "Allegion",
+    "sector": "Industrials",
+    "subindustry": "Building Products",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "LNT",
+    "name": "Alliant Energy",
+    "sector": "Utilities",
+    "subindustry": "Electric Utilities",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ALL",
+    "name": "Allstate",
+    "sector": "Financials",
+    "subindustry": "Property & Casualty Insurance",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "GOOGL",
+    "name": "Alphabet Inc. (Class A)",
+    "sector": "Communication Services",
+    "subindustry": "Interactive Media & Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "GOOG",
+    "name": "Alphabet Inc. (Class C)",
+    "sector": "Communication Services",
+    "subindustry": "Interactive Media & Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MO",
+    "name": "Altria",
+    "sector": "Consumer Staples",
+    "subindustry": "Tobacco",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "AMZN",
+    "name": "Amazon",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Broadline Retail",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "AMCR",
+    "name": "Amcor",
+    "sector": "Materials",
+    "subindustry": "Paper & Plastic Packaging Products & Materials",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "AEE",
+    "name": "Ameren",
+    "sector": "Utilities",
+    "subindustry": "Multi-Utilities",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "AEP",
+    "name": "American Electric Power",
+    "sector": "Utilities",
+    "subindustry": "Electric Utilities",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "AXP",
+    "name": "American Express",
+    "sector": "Financials",
+    "subindustry": "Consumer Finance",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "AIG",
+    "name": "American International Group",
+    "sector": "Financials",
+    "subindustry": "Multi-line Insurance",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "AMT",
+    "name": "American Tower",
+    "sector": "Real Estate",
+    "subindustry": "Telecom Tower REITs",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "AWK",
+    "name": "American Water Works",
+    "sector": "Utilities",
+    "subindustry": "Water Utilities",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "AMP",
+    "name": "Ameriprise Financial",
+    "sector": "Financials",
+    "subindustry": "Asset Management & Custody Banks",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "AME",
+    "name": "Ametek",
+    "sector": "Industrials",
+    "subindustry": "Electrical Components & Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "AMGN",
+    "name": "Amgen",
+    "sector": "Health Care",
+    "subindustry": "Biotechnology",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "APH",
+    "name": "Amphenol",
+    "sector": "Information Technology",
+    "subindustry": "Electronic Components",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ADI",
+    "name": "Analog Devices",
+    "sector": "Information Technology",
+    "subindustry": "Semiconductors",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "AON",
+    "name": "Aon plc",
+    "sector": "Financials",
+    "subindustry": "Insurance Brokers",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "APA",
+    "name": "APA Corporation",
+    "sector": "Energy",
+    "subindustry": "Oil & Gas Exploration & Production",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "APO",
+    "name": "Apollo Global Management",
+    "sector": "Financials",
+    "subindustry": "Asset Management & Custody Banks",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "AAPL",
+    "name": "Apple Inc.",
+    "sector": "Information Technology",
+    "subindustry": "Technology Hardware, Storage & Peripherals",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "AMAT",
+    "name": "Applied Materials",
+    "sector": "Information Technology",
+    "subindustry": "Semiconductor Materials & Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "APP",
+    "name": "AppLovin",
+    "sector": "Information Technology",
+    "subindustry": "Application Software",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "APTV",
+    "name": "Aptiv",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Automotive Parts & Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ACGL",
+    "name": "Arch Capital Group",
+    "sector": "Financials",
+    "subindustry": "Property & Casualty Insurance",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ADM",
+    "name": "Archer Daniels Midland",
+    "sector": "Consumer Staples",
+    "subindustry": "Agricultural Products & Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ARES",
+    "name": "Ares Management",
+    "sector": "Financials",
+    "subindustry": "Asset Management & Custody Banks",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ANET",
+    "name": "Arista Networks",
+    "sector": "Information Technology",
+    "subindustry": "Communications Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "AJG",
+    "name": "Arthur J. Gallagher & Co.",
+    "sector": "Financials",
+    "subindustry": "Insurance Brokers",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "AIZ",
+    "name": "Assurant",
+    "sector": "Financials",
+    "subindustry": "Multi-line Insurance",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "T",
+    "name": "AT&T",
+    "sector": "Communication Services",
+    "subindustry": "Integrated Telecommunication Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ATO",
+    "name": "Atmos Energy",
+    "sector": "Utilities",
+    "subindustry": "Gas Utilities",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ADSK",
+    "name": "Autodesk",
+    "sector": "Information Technology",
+    "subindustry": "Application Software",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ADP",
+    "name": "Automatic Data Processing",
+    "sector": "Industrials",
+    "subindustry": "Human Resource & Employment Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "AZO",
+    "name": "AutoZone",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Automotive Retail",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "AVB",
+    "name": "AvalonBay Communities",
+    "sector": "Real Estate",
+    "subindustry": "Multi-Family Residential REITs",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "AVY",
+    "name": "Avery Dennison",
+    "sector": "Materials",
+    "subindustry": "Paper & Plastic Packaging Products & Materials",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "AXON",
+    "name": "Axon Enterprise",
+    "sector": "Industrials",
+    "subindustry": "Aerospace & Defense",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BKR",
+    "name": "Baker Hughes",
+    "sector": "Energy",
+    "subindustry": "Oil & Gas Equipment & Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BALL",
+    "name": "Ball Corporation",
+    "sector": "Materials",
+    "subindustry": "Metal, Glass & Plastic Containers",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BAC",
+    "name": "Bank of America",
+    "sector": "Financials",
+    "subindustry": "Diversified Banks",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BAX",
+    "name": "Baxter International",
+    "sector": "Health Care",
+    "subindustry": "Health Care Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BDX",
+    "name": "Becton Dickinson",
+    "sector": "Health Care",
+    "subindustry": "Health Care Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BRK-B",
+    "name": "Berkshire Hathaway",
+    "sector": "Financials",
+    "subindustry": "Multi-Sector Holdings",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BBY",
+    "name": "Best Buy",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Computer & Electronics Retail",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TECH",
+    "name": "Bio-Techne",
+    "sector": "Health Care",
+    "subindustry": "Life Sciences Tools & Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BIIB",
+    "name": "Biogen",
+    "sector": "Health Care",
+    "subindustry": "Biotechnology",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BLK",
+    "name": "BlackRock",
+    "sector": "Financials",
+    "subindustry": "Asset Management & Custody Banks",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BX",
+    "name": "Blackstone Inc.",
+    "sector": "Financials",
+    "subindustry": "Asset Management & Custody Banks",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "XYZ",
+    "name": "Block, Inc.",
+    "sector": "Financials",
+    "subindustry": "Transaction & Payment Processing Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BK",
+    "name": "BNY Mellon",
+    "sector": "Financials",
+    "subindustry": "Asset Management & Custody Banks",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BA",
+    "name": "Boeing",
+    "sector": "Industrials",
+    "subindustry": "Aerospace & Defense",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BKNG",
+    "name": "Booking Holdings",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Hotels, Resorts & Cruise Lines",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BSX",
+    "name": "Boston Scientific",
+    "sector": "Health Care",
+    "subindustry": "Health Care Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BMY",
+    "name": "Bristol Myers Squibb",
+    "sector": "Health Care",
+    "subindustry": "Pharmaceuticals",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "AVGO",
+    "name": "Broadcom",
+    "sector": "Information Technology",
+    "subindustry": "Semiconductors",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BR",
+    "name": "Broadridge Financial Solutions",
+    "sector": "Industrials",
+    "subindustry": "Data Processing & Outsourced Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BRO",
+    "name": "Brown & Brown",
+    "sector": "Financials",
+    "subindustry": "Insurance Brokers",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BF-B",
+    "name": "Brown\u2013Forman",
+    "sector": "Consumer Staples",
+    "subindustry": "Distillers & Vintners",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BLDR",
+    "name": "Builders FirstSource",
+    "sector": "Industrials",
+    "subindustry": "Building Products",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BG",
+    "name": "Bunge Global",
+    "sector": "Consumer Staples",
+    "subindustry": "Agricultural Products & Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BXP",
+    "name": "BXP, Inc.",
+    "sector": "Real Estate",
+    "subindustry": "Office REITs",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CHRW",
+    "name": "C.H. Robinson",
+    "sector": "Industrials",
+    "subindustry": "Air Freight & Logistics",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CDNS",
+    "name": "Cadence Design Systems",
+    "sector": "Information Technology",
+    "subindustry": "Application Software",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CPT",
+    "name": "Camden Property Trust",
+    "sector": "Real Estate",
+    "subindustry": "Multi-Family Residential REITs",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CPB",
+    "name": "Campbell's Company (The)",
+    "sector": "Consumer Staples",
+    "subindustry": "Packaged Foods & Meats",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "COF",
+    "name": "Capital One",
+    "sector": "Financials",
+    "subindustry": "Consumer Finance",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CAH",
+    "name": "Cardinal Health",
+    "sector": "Health Care",
+    "subindustry": "Health Care Distributors",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CCL",
+    "name": "Carnival",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Hotels, Resorts & Cruise Lines",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CARR",
+    "name": "Carrier Global",
+    "sector": "Industrials",
+    "subindustry": "Building Products",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CVNA",
+    "name": "Carvana",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Automotive Retail",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CASY",
+    "name": "Casey's",
+    "sector": "Consumer Staples",
+    "subindustry": "Food Retail",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CAT",
+    "name": "Caterpillar Inc.",
+    "sector": "Industrials",
+    "subindustry": "Construction Machinery & Heavy Transportation Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CBOE",
+    "name": "Cboe Global Markets",
+    "sector": "Financials",
+    "subindustry": "Financial Exchanges & Data",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CBRE",
+    "name": "CBRE Group",
+    "sector": "Real Estate",
+    "subindustry": "Real Estate Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CDW",
+    "name": "CDW Corporation",
+    "sector": "Information Technology",
+    "subindustry": "Technology Distributors",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "COR",
+    "name": "Cencora",
+    "sector": "Health Care",
+    "subindustry": "Health Care Distributors",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CNC",
+    "name": "Centene Corporation",
+    "sector": "Health Care",
+    "subindustry": "Managed Health Care",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CNP",
+    "name": "CenterPoint Energy",
+    "sector": "Utilities",
+    "subindustry": "Multi-Utilities",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CF",
+    "name": "CF Industries",
+    "sector": "Materials",
+    "subindustry": "Fertilizers & Agricultural Chemicals",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CRL",
+    "name": "Charles River Laboratories",
+    "sector": "Health Care",
+    "subindustry": "Life Sciences Tools & Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SCHW",
+    "name": "Charles Schwab Corporation",
+    "sector": "Financials",
+    "subindustry": "Investment Banking & Brokerage",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CHTR",
+    "name": "Charter Communications",
+    "sector": "Communication Services",
+    "subindustry": "Cable & Satellite",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CVX",
+    "name": "Chevron Corporation",
+    "sector": "Energy",
+    "subindustry": "Integrated Oil & Gas",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CMG",
+    "name": "Chipotle Mexican Grill",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Restaurants",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CB",
+    "name": "Chubb Limited",
+    "sector": "Financials",
+    "subindustry": "Property & Casualty Insurance",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CHD",
+    "name": "Church & Dwight",
+    "sector": "Consumer Staples",
+    "subindustry": "Household Products",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CIEN",
+    "name": "Ciena",
+    "sector": "Information Technology",
+    "subindustry": "Communications Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CI",
+    "name": "Cigna",
+    "sector": "Health Care",
+    "subindustry": "Health Care Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CINF",
+    "name": "Cincinnati Financial",
+    "sector": "Financials",
+    "subindustry": "Property & Casualty Insurance",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CTAS",
+    "name": "Cintas",
+    "sector": "Industrials",
+    "subindustry": "Diversified Support Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CSCO",
+    "name": "Cisco",
+    "sector": "Information Technology",
+    "subindustry": "Communications Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "C",
+    "name": "Citigroup",
+    "sector": "Financials",
+    "subindustry": "Diversified Banks",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CFG",
+    "name": "Citizens Financial Group",
+    "sector": "Financials",
+    "subindustry": "Regional Banks",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CLX",
+    "name": "Clorox",
+    "sector": "Consumer Staples",
+    "subindustry": "Household Products",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CME",
+    "name": "CME Group",
+    "sector": "Financials",
+    "subindustry": "Financial Exchanges & Data",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CMS",
+    "name": "CMS Energy",
+    "sector": "Utilities",
+    "subindustry": "Multi-Utilities",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "KO",
+    "name": "Coca-Cola Company (The)",
+    "sector": "Consumer Staples",
+    "subindustry": "Soft Drinks & Non-alcoholic Beverages",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CTSH",
+    "name": "Cognizant",
+    "sector": "Information Technology",
+    "subindustry": "IT Consulting & Other Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "COHR",
+    "name": "Coherent Corp.",
+    "sector": "Information Technology",
+    "subindustry": "Electronic Components",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "COIN",
+    "name": "Coinbase",
+    "sector": "Financials",
+    "subindustry": "Financial Exchanges & Data",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CL",
+    "name": "Colgate-Palmolive",
+    "sector": "Consumer Staples",
+    "subindustry": "Household Products",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CMCSA",
+    "name": "Comcast",
+    "sector": "Communication Services",
+    "subindustry": "Cable & Satellite",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "FIX",
+    "name": "Comfort Systems USA",
+    "sector": "Industrials",
+    "subindustry": "Construction & Engineering",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CAG",
+    "name": "Conagra Brands",
+    "sector": "Consumer Staples",
+    "subindustry": "Packaged Foods & Meats",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "COP",
+    "name": "ConocoPhillips",
+    "sector": "Energy",
+    "subindustry": "Oil & Gas Exploration & Production",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ED",
+    "name": "Consolidated Edison",
+    "sector": "Utilities",
+    "subindustry": "Multi-Utilities",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "STZ",
+    "name": "Constellation Brands",
+    "sector": "Consumer Staples",
+    "subindustry": "Distillers & Vintners",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CEG",
+    "name": "Constellation Energy",
+    "sector": "Utilities",
+    "subindustry": "Electric Utilities",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "COO",
+    "name": "Cooper Companies (The)",
+    "sector": "Health Care",
+    "subindustry": "Health Care Supplies",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CPRT",
+    "name": "Copart",
+    "sector": "Industrials",
+    "subindustry": "Diversified Support Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "GLW",
+    "name": "Corning Inc.",
+    "sector": "Information Technology",
+    "subindustry": "Electronic Components",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CPAY",
+    "name": "Corpay",
+    "sector": "Financials",
+    "subindustry": "Transaction & Payment Processing Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CTVA",
+    "name": "Corteva",
+    "sector": "Materials",
+    "subindustry": "Fertilizers & Agricultural Chemicals",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CSGP",
+    "name": "CoStar Group",
+    "sector": "Real Estate",
+    "subindustry": "Real Estate Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "COST",
+    "name": "Costco",
+    "sector": "Consumer Staples",
+    "subindustry": "Consumer Staples Merchandise Retail",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CTRA",
+    "name": "Coterra",
+    "sector": "Energy",
+    "subindustry": "Oil & Gas Exploration & Production",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CRH",
+    "name": "CRH plc",
+    "sector": "Materials",
+    "subindustry": "Construction Materials",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CRWD",
+    "name": "CrowdStrike",
+    "sector": "Information Technology",
+    "subindustry": "Systems Software",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CCI",
+    "name": "Crown Castle",
+    "sector": "Real Estate",
+    "subindustry": "Telecom Tower REITs",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CSX",
+    "name": "CSX Corporation",
+    "sector": "Industrials",
+    "subindustry": "Rail Transportation",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CMI",
+    "name": "Cummins",
+    "sector": "Industrials",
+    "subindustry": "Construction Machinery & Heavy Transportation Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CVS",
+    "name": "CVS Health",
+    "sector": "Health Care",
+    "subindustry": "Health Care Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "DHR",
+    "name": "Danaher Corporation",
+    "sector": "Health Care",
+    "subindustry": "Life Sciences Tools & Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "DRI",
+    "name": "Darden Restaurants",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Restaurants",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "DDOG",
+    "name": "Datadog",
+    "sector": "Information Technology",
+    "subindustry": "Application Software",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "DVA",
+    "name": "DaVita",
+    "sector": "Health Care",
+    "subindustry": "Health Care Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "DECK",
+    "name": "Deckers Brands",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Footwear",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "DE",
+    "name": "Deere & Company",
+    "sector": "Industrials",
+    "subindustry": "Agricultural & Farm Machinery",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "DELL",
+    "name": "Dell Technologies",
+    "sector": "Information Technology",
+    "subindustry": "Technology Hardware, Storage & Peripherals",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "DAL",
+    "name": "Delta Air Lines",
+    "sector": "Industrials",
+    "subindustry": "Passenger Airlines",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "DVN",
+    "name": "Devon Energy",
+    "sector": "Energy",
+    "subindustry": "Oil & Gas Exploration & Production",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "DXCM",
+    "name": "Dexcom",
+    "sector": "Health Care",
+    "subindustry": "Health Care Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "FANG",
+    "name": "Diamondback Energy",
+    "sector": "Energy",
+    "subindustry": "Oil & Gas Exploration & Production",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "DLR",
+    "name": "Digital Realty",
+    "sector": "Real Estate",
+    "subindustry": "Data Center REITs",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "DG",
+    "name": "Dollar General",
+    "sector": "Consumer Staples",
+    "subindustry": "Consumer Staples Merchandise Retail",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "DLTR",
+    "name": "Dollar Tree",
+    "sector": "Consumer Staples",
+    "subindustry": "Consumer Staples Merchandise Retail",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "D",
+    "name": "Dominion Energy",
+    "sector": "Utilities",
+    "subindustry": "Multi-Utilities",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "DPZ",
+    "name": "Domino's",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Restaurants",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "DASH",
+    "name": "DoorDash",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Specialized Consumer Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "DOV",
+    "name": "Dover Corporation",
+    "sector": "Industrials",
+    "subindustry": "Industrial Machinery & Supplies & Components",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "DOW",
+    "name": "Dow Inc.",
+    "sector": "Materials",
+    "subindustry": "Commodity Chemicals",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "DHI",
+    "name": "D. R. Horton",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Homebuilding",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "DTE",
+    "name": "DTE Energy",
+    "sector": "Utilities",
+    "subindustry": "Multi-Utilities",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "DUK",
+    "name": "Duke Energy",
+    "sector": "Utilities",
+    "subindustry": "Electric Utilities",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "DD",
+    "name": "DuPont",
+    "sector": "Materials",
+    "subindustry": "Specialty Chemicals",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ETN",
+    "name": "Eaton Corporation",
+    "sector": "Industrials",
+    "subindustry": "Electrical Components & Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "EBAY",
+    "name": "eBay Inc.",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Broadline Retail",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SATS",
+    "name": "EchoStar",
+    "sector": "Communication Services",
+    "subindustry": "Wireless Telecommunication Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ECL",
+    "name": "Ecolab",
+    "sector": "Materials",
+    "subindustry": "Specialty Chemicals",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "EIX",
+    "name": "Edison International",
+    "sector": "Utilities",
+    "subindustry": "Electric Utilities",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "EW",
+    "name": "Edwards Lifesciences",
+    "sector": "Health Care",
+    "subindustry": "Health Care Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "EA",
+    "name": "Electronic Arts",
+    "sector": "Communication Services",
+    "subindustry": "Interactive Home Entertainment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ELV",
+    "name": "Elevance Health",
+    "sector": "Health Care",
+    "subindustry": "Managed Health Care",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "EME",
+    "name": "Emcor",
+    "sector": "Industrials",
+    "subindustry": "Construction & Engineering",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "EMR",
+    "name": "Emerson Electric",
+    "sector": "Industrials",
+    "subindustry": "Electrical Components & Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ETR",
+    "name": "Entergy",
+    "sector": "Utilities",
+    "subindustry": "Electric Utilities",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "EOG",
+    "name": "EOG Resources",
+    "sector": "Energy",
+    "subindustry": "Oil & Gas Exploration & Production",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "EPAM",
+    "name": "EPAM Systems",
+    "sector": "Information Technology",
+    "subindustry": "IT Consulting & Other Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "EQT",
+    "name": "EQT Corporation",
+    "sector": "Energy",
+    "subindustry": "Oil & Gas Exploration & Production",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "EFX",
+    "name": "Equifax",
+    "sector": "Industrials",
+    "subindustry": "Research & Consulting Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "EQIX",
+    "name": "Equinix",
+    "sector": "Real Estate",
+    "subindustry": "Data Center REITs",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "EQR",
+    "name": "Equity Residential",
+    "sector": "Real Estate",
+    "subindustry": "Multi-Family Residential REITs",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ERIE",
+    "name": "Erie Indemnity",
+    "sector": "Financials",
+    "subindustry": "Insurance Brokers",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ESS",
+    "name": "Essex Property Trust",
+    "sector": "Real Estate",
+    "subindustry": "Multi-Family Residential REITs",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "EL",
+    "name": "Est\u00e9e Lauder Companies (The)",
+    "sector": "Consumer Staples",
+    "subindustry": "Personal Care Products",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "EG",
+    "name": "Everest Group",
+    "sector": "Financials",
+    "subindustry": "Reinsurance",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "EVRG",
+    "name": "Evergy",
+    "sector": "Utilities",
+    "subindustry": "Electric Utilities",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ES",
+    "name": "Eversource Energy",
+    "sector": "Utilities",
+    "subindustry": "Electric Utilities",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "EXC",
+    "name": "Exelon",
+    "sector": "Utilities",
+    "subindustry": "Electric Utilities",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "EXE",
+    "name": "Expand Energy",
+    "sector": "Energy",
+    "subindustry": "Oil & Gas Exploration & Production",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "EXPE",
+    "name": "Expedia Group",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Hotels, Resorts & Cruise Lines",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "EXPD",
+    "name": "Expeditors International",
+    "sector": "Industrials",
+    "subindustry": "Air Freight & Logistics",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "EXR",
+    "name": "Extra Space Storage",
+    "sector": "Real Estate",
+    "subindustry": "Self-Storage REITs",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "XOM",
+    "name": "ExxonMobil",
+    "sector": "Energy",
+    "subindustry": "Integrated Oil & Gas",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "FFIV",
+    "name": "F5, Inc.",
+    "sector": "Information Technology",
+    "subindustry": "Communications Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "FDS",
+    "name": "FactSet",
+    "sector": "Financials",
+    "subindustry": "Financial Exchanges & Data",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "FICO",
+    "name": "Fair Isaac",
+    "sector": "Information Technology",
+    "subindustry": "Application Software",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "FAST",
+    "name": "Fastenal",
+    "sector": "Industrials",
+    "subindustry": "Trading Companies & Distributors",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "FRT",
+    "name": "Federal Realty Investment Trust",
+    "sector": "Real Estate",
+    "subindustry": "Retail REITs",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "FDX",
+    "name": "FedEx",
+    "sector": "Industrials",
+    "subindustry": "Air Freight & Logistics",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "FIS",
+    "name": "Fidelity National Information Services",
+    "sector": "Financials",
+    "subindustry": "Transaction & Payment Processing Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "FITB",
+    "name": "Fifth Third Bancorp",
+    "sector": "Financials",
+    "subindustry": "Regional Banks",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "FSLR",
+    "name": "First Solar",
+    "sector": "Information Technology",
+    "subindustry": "Semiconductors",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "FE",
+    "name": "FirstEnergy",
+    "sector": "Utilities",
+    "subindustry": "Electric Utilities",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "FISV",
+    "name": "Fiserv",
+    "sector": "Financials",
+    "subindustry": "Transaction & Payment Processing Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "F",
+    "name": "Ford Motor Company",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Automobile Manufacturers",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "FTNT",
+    "name": "Fortinet",
+    "sector": "Information Technology",
+    "subindustry": "Systems Software",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "FTV",
+    "name": "Fortive",
+    "sector": "Industrials",
+    "subindustry": "Industrial Machinery & Supplies & Components",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "FOXA",
+    "name": "Fox Corporation (Class A)",
+    "sector": "Communication Services",
+    "subindustry": "Broadcasting",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "FOX",
+    "name": "Fox Corporation (Class B)",
+    "sector": "Communication Services",
+    "subindustry": "Broadcasting",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BEN",
+    "name": "Franklin Resources",
+    "sector": "Financials",
+    "subindustry": "Asset Management & Custody Banks",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "FCX",
+    "name": "Freeport-McMoRan",
+    "sector": "Materials",
+    "subindustry": "Copper",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "GRMN",
+    "name": "Garmin",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Consumer Electronics",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "IT",
+    "name": "Gartner",
+    "sector": "Information Technology",
+    "subindustry": "IT Consulting & Other Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "GE",
+    "name": "GE Aerospace",
+    "sector": "Industrials",
+    "subindustry": "Aerospace & Defense",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "GEHC",
+    "name": "GE HealthCare",
+    "sector": "Health Care",
+    "subindustry": "Health Care Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "GEV",
+    "name": "GE Vernova",
+    "sector": "Industrials",
+    "subindustry": "Heavy Electrical Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "GEN",
+    "name": "Gen Digital",
+    "sector": "Information Technology",
+    "subindustry": "Systems Software",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "GNRC",
+    "name": "Generac",
+    "sector": "Industrials",
+    "subindustry": "Electrical Components & Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "GD",
+    "name": "General Dynamics",
+    "sector": "Industrials",
+    "subindustry": "Aerospace & Defense",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "GIS",
+    "name": "General Mills",
+    "sector": "Consumer Staples",
+    "subindustry": "Packaged Foods & Meats",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "GM",
+    "name": "General Motors",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Automobile Manufacturers",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "GPC",
+    "name": "Genuine Parts Company",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Distributors",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "GILD",
+    "name": "Gilead Sciences",
+    "sector": "Health Care",
+    "subindustry": "Biotechnology",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "GPN",
+    "name": "Global Payments",
+    "sector": "Financials",
+    "subindustry": "Transaction & Payment Processing Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "GL",
+    "name": "Globe Life",
+    "sector": "Financials",
+    "subindustry": "Life & Health Insurance",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "GDDY",
+    "name": "GoDaddy",
+    "sector": "Information Technology",
+    "subindustry": "Internet Services & Infrastructure",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "GS",
+    "name": "Goldman Sachs",
+    "sector": "Financials",
+    "subindustry": "Investment Banking & Brokerage",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "HAL",
+    "name": "Halliburton",
+    "sector": "Energy",
+    "subindustry": "Oil & Gas Equipment & Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "HIG",
+    "name": "Hartford (The)",
+    "sector": "Financials",
+    "subindustry": "Property & Casualty Insurance",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "HAS",
+    "name": "Hasbro",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Leisure Products",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "HCA",
+    "name": "HCA Healthcare",
+    "sector": "Health Care",
+    "subindustry": "Health Care Facilities",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "DOC",
+    "name": "Healthpeak Properties",
+    "sector": "Real Estate",
+    "subindustry": "Health Care REITs",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "HSIC",
+    "name": "Henry Schein",
+    "sector": "Health Care",
+    "subindustry": "Health Care Distributors",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "HSY",
+    "name": "Hershey Company (The)",
+    "sector": "Consumer Staples",
+    "subindustry": "Packaged Foods & Meats",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "HPE",
+    "name": "Hewlett Packard Enterprise",
+    "sector": "Information Technology",
+    "subindustry": "Technology Hardware, Storage & Peripherals",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "HLT",
+    "name": "Hilton Worldwide",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Hotels, Resorts & Cruise Lines",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "HD",
+    "name": "Home Depot (The)",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Home Improvement Retail",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "HON",
+    "name": "Honeywell",
+    "sector": "Industrials",
+    "subindustry": "Industrial Conglomerates",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "HRL",
+    "name": "Hormel Foods",
+    "sector": "Consumer Staples",
+    "subindustry": "Packaged Foods & Meats",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "HST",
+    "name": "Host Hotels & Resorts",
+    "sector": "Real Estate",
+    "subindustry": "Hotel & Resort REITs",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "HWM",
+    "name": "Howmet Aerospace",
+    "sector": "Industrials",
+    "subindustry": "Aerospace & Defense",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "HPQ",
+    "name": "HP Inc.",
+    "sector": "Information Technology",
+    "subindustry": "Technology Hardware, Storage & Peripherals",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "HUBB",
+    "name": "Hubbell Incorporated",
+    "sector": "Industrials",
+    "subindustry": "Industrial Machinery & Supplies & Components",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "HUM",
+    "name": "Humana",
+    "sector": "Health Care",
+    "subindustry": "Managed Health Care",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "HBAN",
+    "name": "Huntington Bancshares",
+    "sector": "Financials",
+    "subindustry": "Regional Banks",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "HII",
+    "name": "Huntington Ingalls Industries",
+    "sector": "Industrials",
+    "subindustry": "Aerospace & Defense",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "IBM",
+    "name": "IBM",
+    "sector": "Information Technology",
+    "subindustry": "IT Consulting & Other Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "IEX",
+    "name": "IDEX Corporation",
+    "sector": "Industrials",
+    "subindustry": "Industrial Machinery & Supplies & Components",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "IDXX",
+    "name": "Idexx Laboratories",
+    "sector": "Health Care",
+    "subindustry": "Health Care Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ITW",
+    "name": "Illinois Tool Works",
+    "sector": "Industrials",
+    "subindustry": "Industrial Machinery & Supplies & Components",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "INCY",
+    "name": "Incyte",
+    "sector": "Health Care",
+    "subindustry": "Biotechnology",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "IR",
+    "name": "Ingersoll Rand",
+    "sector": "Industrials",
+    "subindustry": "Industrial Machinery & Supplies & Components",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PODD",
+    "name": "Insulet Corporation",
+    "sector": "Health Care",
+    "subindustry": "Health Care Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "INTC",
+    "name": "Intel",
+    "sector": "Information Technology",
+    "subindustry": "Semiconductors",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "IBKR",
+    "name": "Interactive Brokers",
+    "sector": "Financials",
+    "subindustry": "Investment Banking & Brokerage",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ICE",
+    "name": "Intercontinental Exchange",
+    "sector": "Financials",
+    "subindustry": "Financial Exchanges & Data",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "IFF",
+    "name": "International Flavors & Fragrances",
+    "sector": "Materials",
+    "subindustry": "Specialty Chemicals",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "IP",
+    "name": "International Paper",
+    "sector": "Materials",
+    "subindustry": "Paper & Plastic Packaging Products & Materials",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "INTU",
+    "name": "Intuit",
+    "sector": "Information Technology",
+    "subindustry": "Application Software",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ISRG",
+    "name": "Intuitive Surgical",
+    "sector": "Health Care",
+    "subindustry": "Health Care Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "IVZ",
+    "name": "Invesco",
+    "sector": "Financials",
+    "subindustry": "Asset Management & Custody Banks",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "INVH",
+    "name": "Invitation Homes",
+    "sector": "Real Estate",
+    "subindustry": "Single-Family Residential REITs",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "IQV",
+    "name": "IQVIA",
+    "sector": "Health Care",
+    "subindustry": "Life Sciences Tools & Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "IRM",
+    "name": "Iron Mountain",
+    "sector": "Real Estate",
+    "subindustry": "Other Specialized REITs",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "JBHT",
+    "name": "J.B. Hunt",
+    "sector": "Industrials",
+    "subindustry": "Cargo Ground Transportation",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "JBL",
+    "name": "Jabil",
+    "sector": "Information Technology",
+    "subindustry": "Electronic Manufacturing Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "JKHY",
+    "name": "Jack Henry & Associates",
+    "sector": "Financials",
+    "subindustry": "Transaction & Payment Processing Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "J",
+    "name": "Jacobs Solutions",
+    "sector": "Industrials",
+    "subindustry": "Construction & Engineering",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "JNJ",
+    "name": "Johnson & Johnson",
+    "sector": "Health Care",
+    "subindustry": "Pharmaceuticals",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "JCI",
+    "name": "Johnson Controls",
+    "sector": "Industrials",
+    "subindustry": "Building Products",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "JPM",
+    "name": "JPMorgan Chase",
+    "sector": "Financials",
+    "subindustry": "Diversified Banks",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "KVUE",
+    "name": "Kenvue",
+    "sector": "Consumer Staples",
+    "subindustry": "Personal Care Products",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "KDP",
+    "name": "Keurig Dr Pepper",
+    "sector": "Consumer Staples",
+    "subindustry": "Soft Drinks & Non-alcoholic Beverages",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "KEY",
+    "name": "KeyCorp",
+    "sector": "Financials",
+    "subindustry": "Regional Banks",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "KEYS",
+    "name": "Keysight Technologies",
+    "sector": "Information Technology",
+    "subindustry": "Electronic Equipment & Instruments",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "KMB",
+    "name": "Kimberly-Clark",
+    "sector": "Consumer Staples",
+    "subindustry": "Household Products",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "KIM",
+    "name": "Kimco Realty",
+    "sector": "Real Estate",
+    "subindustry": "Retail REITs",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "KMI",
+    "name": "Kinder Morgan",
+    "sector": "Energy",
+    "subindustry": "Oil & Gas Storage & Transportation",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "KKR",
+    "name": "KKR & Co.",
+    "sector": "Financials",
+    "subindustry": "Asset Management & Custody Banks",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "KLAC",
+    "name": "KLA Corporation",
+    "sector": "Information Technology",
+    "subindustry": "Semiconductor Materials & Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "KHC",
+    "name": "Kraft Heinz",
+    "sector": "Consumer Staples",
+    "subindustry": "Packaged Foods & Meats",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "KR",
+    "name": "Kroger",
+    "sector": "Consumer Staples",
+    "subindustry": "Food Retail",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "LHX",
+    "name": "L3Harris",
+    "sector": "Industrials",
+    "subindustry": "Aerospace & Defense",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "LH",
+    "name": "Labcorp",
+    "sector": "Health Care",
+    "subindustry": "Health Care Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "LRCX",
+    "name": "Lam Research",
+    "sector": "Information Technology",
+    "subindustry": "Semiconductor Materials & Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "LVS",
+    "name": "Las Vegas Sands",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Casinos & Gaming",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "LDOS",
+    "name": "Leidos",
+    "sector": "Industrials",
+    "subindustry": "Diversified Support Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "LEN",
+    "name": "Lennar",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Homebuilding",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "LII",
+    "name": "Lennox International",
+    "sector": "Industrials",
+    "subindustry": "Building Products",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "LLY",
+    "name": "Lilly (Eli)",
+    "sector": "Health Care",
+    "subindustry": "Pharmaceuticals",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "LIN",
+    "name": "Linde plc",
+    "sector": "Materials",
+    "subindustry": "Industrial Gases",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "LYV",
+    "name": "Live Nation Entertainment",
+    "sector": "Communication Services",
+    "subindustry": "Movies & Entertainment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "LMT",
+    "name": "Lockheed Martin",
+    "sector": "Industrials",
+    "subindustry": "Aerospace & Defense",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "L",
+    "name": "Loews Corporation",
+    "sector": "Financials",
+    "subindustry": "Multi-line Insurance",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "LOW",
+    "name": "Lowe's",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Home Improvement Retail",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "LULU",
+    "name": "Lululemon Athletica",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Apparel, Accessories & Luxury Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "LITE",
+    "name": "Lumentum",
+    "sector": "Information Technology",
+    "subindustry": "Communications Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "LYB",
+    "name": "LyondellBasell",
+    "sector": "Materials",
+    "subindustry": "Specialty Chemicals",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MTB",
+    "name": "M&T Bank",
+    "sector": "Financials",
+    "subindustry": "Regional Banks",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MPC",
+    "name": "Marathon Petroleum",
+    "sector": "Energy",
+    "subindustry": "Oil & Gas Refining & Marketing",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MAR",
+    "name": "Marriott International",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Hotels, Resorts & Cruise Lines",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MRSH",
+    "name": "Marsh McLennan",
+    "sector": "Financials",
+    "subindustry": "Insurance Brokers",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MLM",
+    "name": "Martin Marietta Materials",
+    "sector": "Materials",
+    "subindustry": "Construction Materials",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MAS",
+    "name": "Masco",
+    "sector": "Industrials",
+    "subindustry": "Building Products",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MA",
+    "name": "Mastercard",
+    "sector": "Financials",
+    "subindustry": "Transaction & Payment Processing Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MKC",
+    "name": "McCormick & Company",
+    "sector": "Consumer Staples",
+    "subindustry": "Packaged Foods & Meats",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MCD",
+    "name": "McDonald's",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Restaurants",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MCK",
+    "name": "McKesson Corporation",
+    "sector": "Health Care",
+    "subindustry": "Health Care Distributors",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MDT",
+    "name": "Medtronic",
+    "sector": "Health Care",
+    "subindustry": "Health Care Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MRK",
+    "name": "Merck & Co.",
+    "sector": "Health Care",
+    "subindustry": "Pharmaceuticals",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "META",
+    "name": "Meta Platforms",
+    "sector": "Communication Services",
+    "subindustry": "Interactive Media & Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MET",
+    "name": "MetLife",
+    "sector": "Financials",
+    "subindustry": "Life & Health Insurance",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MTD",
+    "name": "Mettler Toledo",
+    "sector": "Health Care",
+    "subindustry": "Life Sciences Tools & Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MGM",
+    "name": "MGM Resorts",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Casinos & Gaming",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MCHP",
+    "name": "Microchip Technology",
+    "sector": "Information Technology",
+    "subindustry": "Semiconductors",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MU",
+    "name": "Micron Technology",
+    "sector": "Information Technology",
+    "subindustry": "Semiconductors",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MSFT",
+    "name": "Microsoft",
+    "sector": "Information Technology",
+    "subindustry": "Systems Software",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MAA",
+    "name": "Mid-America Apartment Communities",
+    "sector": "Real Estate",
+    "subindustry": "Multi-Family Residential REITs",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MRNA",
+    "name": "Moderna",
+    "sector": "Health Care",
+    "subindustry": "Biotechnology",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TAP",
+    "name": "Molson Coors Beverage Company",
+    "sector": "Consumer Staples",
+    "subindustry": "Brewers",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MDLZ",
+    "name": "Mondelez International",
+    "sector": "Consumer Staples",
+    "subindustry": "Packaged Foods & Meats",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MPWR",
+    "name": "Monolithic Power Systems",
+    "sector": "Information Technology",
+    "subindustry": "Semiconductors",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MNST",
+    "name": "Monster Beverage",
+    "sector": "Consumer Staples",
+    "subindustry": "Soft Drinks & Non-alcoholic Beverages",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MCO",
+    "name": "Moody's Corporation",
+    "sector": "Financials",
+    "subindustry": "Financial Exchanges & Data",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MS",
+    "name": "Morgan Stanley",
+    "sector": "Financials",
+    "subindustry": "Investment Banking & Brokerage",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MOS",
+    "name": "Mosaic Company (The)",
+    "sector": "Materials",
+    "subindustry": "Fertilizers & Agricultural Chemicals",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MSI",
+    "name": "Motorola Solutions",
+    "sector": "Information Technology",
+    "subindustry": "Communications Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MSCI",
+    "name": "MSCI Inc.",
+    "sector": "Financials",
+    "subindustry": "Financial Exchanges & Data",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "NDAQ",
+    "name": "Nasdaq, Inc.",
+    "sector": "Financials",
+    "subindustry": "Financial Exchanges & Data",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "NTAP",
+    "name": "NetApp",
+    "sector": "Information Technology",
+    "subindustry": "Technology Hardware, Storage & Peripherals",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "NFLX",
+    "name": "Netflix",
+    "sector": "Communication Services",
+    "subindustry": "Movies & Entertainment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "NEM",
+    "name": "Newmont",
+    "sector": "Materials",
+    "subindustry": "Gold",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "NWSA",
+    "name": "News Corp (Class A)",
+    "sector": "Communication Services",
+    "subindustry": "Publishing",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "NWS",
+    "name": "News Corp (Class B)",
+    "sector": "Communication Services",
+    "subindustry": "Publishing",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "NEE",
+    "name": "NextEra Energy",
+    "sector": "Utilities",
+    "subindustry": "Multi-Utilities",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "NKE",
+    "name": "Nike, Inc.",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Apparel, Accessories & Luxury Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "NI",
+    "name": "NiSource",
+    "sector": "Utilities",
+    "subindustry": "Multi-Utilities",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "NDSN",
+    "name": "Nordson Corporation",
+    "sector": "Industrials",
+    "subindustry": "Industrial Machinery & Supplies & Components",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "NSC",
+    "name": "Norfolk Southern",
+    "sector": "Industrials",
+    "subindustry": "Rail Transportation",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "NTRS",
+    "name": "Northern Trust",
+    "sector": "Financials",
+    "subindustry": "Asset Management & Custody Banks",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "NOC",
+    "name": "Northrop Grumman",
+    "sector": "Industrials",
+    "subindustry": "Aerospace & Defense",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "NCLH",
+    "name": "Norwegian Cruise Line Holdings",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Hotels, Resorts & Cruise Lines",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "NRG",
+    "name": "NRG Energy",
+    "sector": "Utilities",
+    "subindustry": "Independent Power Producers & Energy Traders",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "NUE",
+    "name": "Nucor",
+    "sector": "Materials",
+    "subindustry": "Steel",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "NVDA",
+    "name": "Nvidia",
+    "sector": "Information Technology",
+    "subindustry": "Semiconductors",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "NVR",
+    "name": "NVR, Inc.",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Homebuilding",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "NXPI",
+    "name": "NXP Semiconductors",
+    "sector": "Information Technology",
+    "subindustry": "Semiconductors",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ORLY",
+    "name": "O\u2019Reilly Automotive",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Automotive Retail",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "OXY",
+    "name": "Occidental Petroleum",
+    "sector": "Energy",
+    "subindustry": "Oil & Gas Exploration & Production",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ODFL",
+    "name": "Old Dominion",
+    "sector": "Industrials",
+    "subindustry": "Cargo Ground Transportation",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "OMC",
+    "name": "Omnicom Group",
+    "sector": "Communication Services",
+    "subindustry": "Advertising",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ON",
+    "name": "ON Semiconductor",
+    "sector": "Information Technology",
+    "subindustry": "Semiconductors",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "OKE",
+    "name": "Oneok",
+    "sector": "Energy",
+    "subindustry": "Oil & Gas Storage & Transportation",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ORCL",
+    "name": "Oracle Corporation",
+    "sector": "Information Technology",
+    "subindustry": "Application Software",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "OTIS",
+    "name": "Otis Worldwide",
+    "sector": "Industrials",
+    "subindustry": "Industrial Machinery & Supplies & Components",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PCAR",
+    "name": "Paccar",
+    "sector": "Industrials",
+    "subindustry": "Construction Machinery & Heavy Transportation Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PKG",
+    "name": "Packaging Corporation of America",
+    "sector": "Materials",
+    "subindustry": "Paper & Plastic Packaging Products & Materials",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PLTR",
+    "name": "Palantir Technologies",
+    "sector": "Information Technology",
+    "subindustry": "Application Software",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PANW",
+    "name": "Palo Alto Networks",
+    "sector": "Information Technology",
+    "subindustry": "Systems Software",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PSKY",
+    "name": "Paramount Skydance Corporation",
+    "sector": "Communication Services",
+    "subindustry": "Movies & Entertainment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PH",
+    "name": "Parker Hannifin",
+    "sector": "Industrials",
+    "subindustry": "Industrial Machinery & Supplies & Components",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PAYX",
+    "name": "Paychex",
+    "sector": "Industrials",
+    "subindustry": "Human Resource & Employment Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PYPL",
+    "name": "PayPal",
+    "sector": "Financials",
+    "subindustry": "Transaction & Payment Processing Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PNR",
+    "name": "Pentair",
+    "sector": "Industrials",
+    "subindustry": "Industrial Machinery & Supplies & Components",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PEP",
+    "name": "PepsiCo",
+    "sector": "Consumer Staples",
+    "subindustry": "Soft Drinks & Non-alcoholic Beverages",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PFE",
+    "name": "Pfizer",
+    "sector": "Health Care",
+    "subindustry": "Pharmaceuticals",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PCG",
+    "name": "PG&E Corporation",
+    "sector": "Utilities",
+    "subindustry": "Multi-Utilities",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PM",
+    "name": "Philip Morris International",
+    "sector": "Consumer Staples",
+    "subindustry": "Tobacco",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PSX",
+    "name": "Phillips 66",
+    "sector": "Energy",
+    "subindustry": "Oil & Gas Refining & Marketing",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PNW",
+    "name": "Pinnacle West Capital",
+    "sector": "Utilities",
+    "subindustry": "Multi-Utilities",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PNC",
+    "name": "PNC Financial Services",
+    "sector": "Financials",
+    "subindustry": "Diversified Banks",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "POOL",
+    "name": "Pool Corporation",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Distributors",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PPG",
+    "name": "PPG Industries",
+    "sector": "Materials",
+    "subindustry": "Specialty Chemicals",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PPL",
+    "name": "PPL Corporation",
+    "sector": "Utilities",
+    "subindustry": "Electric Utilities",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PFG",
+    "name": "Principal Financial Group",
+    "sector": "Financials",
+    "subindustry": "Life & Health Insurance",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PG",
+    "name": "Procter & Gamble",
+    "sector": "Consumer Staples",
+    "subindustry": "Personal Care Products",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PGR",
+    "name": "Progressive Corporation",
+    "sector": "Financials",
+    "subindustry": "Property & Casualty Insurance",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PLD",
+    "name": "Prologis",
+    "sector": "Real Estate",
+    "subindustry": "Industrial REITs",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PRU",
+    "name": "Prudential Financial",
+    "sector": "Financials",
+    "subindustry": "Life & Health Insurance",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PEG",
+    "name": "Public Service Enterprise Group",
+    "sector": "Utilities",
+    "subindustry": "Electric Utilities",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PTC",
+    "name": "PTC Inc.",
+    "sector": "Information Technology",
+    "subindustry": "Application Software",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PSA",
+    "name": "Public Storage",
+    "sector": "Real Estate",
+    "subindustry": "Self-Storage REITs",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PHM",
+    "name": "PulteGroup",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Homebuilding",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PWR",
+    "name": "Quanta Services",
+    "sector": "Industrials",
+    "subindustry": "Construction & Engineering",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "QCOM",
+    "name": "Qualcomm",
+    "sector": "Information Technology",
+    "subindustry": "Semiconductors",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "DGX",
+    "name": "Quest Diagnostics",
+    "sector": "Health Care",
+    "subindustry": "Health Care Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "Q",
+    "name": "Qnity Electronics",
+    "sector": "Information Technology",
+    "subindustry": "Semiconductor Materials & Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "RL",
+    "name": "Ralph Lauren Corporation",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Apparel, Accessories & Luxury Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "RJF",
+    "name": "Raymond James Financial",
+    "sector": "Financials",
+    "subindustry": "Investment Banking & Brokerage",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "RTX",
+    "name": "RTX Corporation",
+    "sector": "Industrials",
+    "subindustry": "Aerospace & Defense",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "O",
+    "name": "Realty Income",
+    "sector": "Real Estate",
+    "subindustry": "Retail REITs",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "REG",
+    "name": "Regency Centers",
+    "sector": "Real Estate",
+    "subindustry": "Retail REITs",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "REGN",
+    "name": "Regeneron Pharmaceuticals",
+    "sector": "Health Care",
+    "subindustry": "Biotechnology",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "RF",
+    "name": "Regions Financial Corporation",
+    "sector": "Financials",
+    "subindustry": "Regional Banks",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "RSG",
+    "name": "Republic Services",
+    "sector": "Industrials",
+    "subindustry": "Environmental & Facilities Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "RMD",
+    "name": "ResMed",
+    "sector": "Health Care",
+    "subindustry": "Health Care Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "RVTY",
+    "name": "Revvity",
+    "sector": "Health Care",
+    "subindustry": "Health Care Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "HOOD",
+    "name": "Robinhood Markets",
+    "sector": "Financials",
+    "subindustry": "Investment Banking & Brokerage",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ROK",
+    "name": "Rockwell Automation",
+    "sector": "Industrials",
+    "subindustry": "Electrical Components & Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ROL",
+    "name": "Rollins, Inc.",
+    "sector": "Industrials",
+    "subindustry": "Environmental & Facilities Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ROP",
+    "name": "Roper Technologies",
+    "sector": "Information Technology",
+    "subindustry": "Electronic Equipment & Instruments",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ROST",
+    "name": "Ross Stores",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Apparel Retail",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "RCL",
+    "name": "Royal Caribbean Group",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Hotels, Resorts & Cruise Lines",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SPGI",
+    "name": "S&P Global",
+    "sector": "Financials",
+    "subindustry": "Financial Exchanges & Data",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CRM",
+    "name": "Salesforce",
+    "sector": "Information Technology",
+    "subindustry": "Application Software",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SNDK",
+    "name": "Sandisk",
+    "sector": "Information Technology",
+    "subindustry": "Technology Hardware, Storage & Peripherals",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SBAC",
+    "name": "SBA Communications",
+    "sector": "Real Estate",
+    "subindustry": "Telecom Tower REITs",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SLB",
+    "name": "Schlumberger",
+    "sector": "Energy",
+    "subindustry": "Oil & Gas Equipment & Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "STX",
+    "name": "Seagate Technology",
+    "sector": "Information Technology",
+    "subindustry": "Technology Hardware, Storage & Peripherals",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SRE",
+    "name": "Sempra",
+    "sector": "Utilities",
+    "subindustry": "Multi-Utilities",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "NOW",
+    "name": "ServiceNow",
+    "sector": "Information Technology",
+    "subindustry": "Systems Software",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SHW",
+    "name": "Sherwin-Williams",
+    "sector": "Materials",
+    "subindustry": "Specialty Chemicals",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SPG",
+    "name": "Simon Property Group",
+    "sector": "Real Estate",
+    "subindustry": "Retail REITs",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SWKS",
+    "name": "Skyworks Solutions",
+    "sector": "Information Technology",
+    "subindustry": "Semiconductors",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SJM",
+    "name": "J.M. Smucker Company (The)",
+    "sector": "Consumer Staples",
+    "subindustry": "Packaged Foods & Meats",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SW",
+    "name": "Smurfit Westrock",
+    "sector": "Materials",
+    "subindustry": "Paper & Plastic Packaging Products & Materials",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SNA",
+    "name": "Snap-on",
+    "sector": "Industrials",
+    "subindustry": "Industrial Machinery & Supplies & Components",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SOLV",
+    "name": "Solventum",
+    "sector": "Health Care",
+    "subindustry": "Health Care Technology",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SO",
+    "name": "Southern Company",
+    "sector": "Utilities",
+    "subindustry": "Electric Utilities",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "LUV",
+    "name": "Southwest Airlines",
+    "sector": "Industrials",
+    "subindustry": "Passenger Airlines",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SWK",
+    "name": "Stanley Black & Decker",
+    "sector": "Industrials",
+    "subindustry": "Industrial Machinery & Supplies & Components",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SBUX",
+    "name": "Starbucks",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Restaurants",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "STT",
+    "name": "State Street Corporation",
+    "sector": "Financials",
+    "subindustry": "Asset Management & Custody Banks",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "STLD",
+    "name": "Steel Dynamics",
+    "sector": "Materials",
+    "subindustry": "Steel",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "STE",
+    "name": "Steris",
+    "sector": "Health Care",
+    "subindustry": "Health Care Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SYK",
+    "name": "Stryker Corporation",
+    "sector": "Health Care",
+    "subindustry": "Health Care Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SMCI",
+    "name": "Supermicro",
+    "sector": "Information Technology",
+    "subindustry": "Technology Hardware, Storage & Peripherals",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SYF",
+    "name": "Synchrony Financial",
+    "sector": "Financials",
+    "subindustry": "Consumer Finance",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SNPS",
+    "name": "Synopsys",
+    "sector": "Information Technology",
+    "subindustry": "Application Software",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SYY",
+    "name": "Sysco",
+    "sector": "Consumer Staples",
+    "subindustry": "Food Distributors",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TMUS",
+    "name": "T-Mobile US",
+    "sector": "Communication Services",
+    "subindustry": "Wireless Telecommunication Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TROW",
+    "name": "T. Rowe Price",
+    "sector": "Financials",
+    "subindustry": "Asset Management & Custody Banks",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TTWO",
+    "name": "Take-Two Interactive",
+    "sector": "Communication Services",
+    "subindustry": "Interactive Home Entertainment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TPR",
+    "name": "Tapestry, Inc.",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Apparel, Accessories & Luxury Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TRGP",
+    "name": "Targa Resources",
+    "sector": "Energy",
+    "subindustry": "Oil & Gas Storage & Transportation",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TGT",
+    "name": "Target Corporation",
+    "sector": "Consumer Staples",
+    "subindustry": "Consumer Staples Merchandise Retail",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TEL",
+    "name": "TE Connectivity",
+    "sector": "Information Technology",
+    "subindustry": "Electronic Manufacturing Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TDY",
+    "name": "Teledyne Technologies",
+    "sector": "Information Technology",
+    "subindustry": "Electronic Equipment & Instruments",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TER",
+    "name": "Teradyne",
+    "sector": "Information Technology",
+    "subindustry": "Semiconductor Materials & Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TSLA",
+    "name": "Tesla, Inc.",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Automobile Manufacturers",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TXN",
+    "name": "Texas Instruments",
+    "sector": "Information Technology",
+    "subindustry": "Semiconductors",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TPL",
+    "name": "Texas Pacific Land Corporation",
+    "sector": "Energy",
+    "subindustry": "Oil & Gas Exploration & Production",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TXT",
+    "name": "Textron",
+    "sector": "Industrials",
+    "subindustry": "Aerospace & Defense",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TMO",
+    "name": "Thermo Fisher Scientific",
+    "sector": "Health Care",
+    "subindustry": "Life Sciences Tools & Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TJX",
+    "name": "TJX Companies",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Apparel Retail",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TKO",
+    "name": "TKO Group Holdings",
+    "sector": "Communication Services",
+    "subindustry": "Movies & Entertainment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TTD",
+    "name": "Trade Desk (The)",
+    "sector": "Communication Services",
+    "subindustry": "Advertising",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TSCO",
+    "name": "Tractor Supply",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Other Specialty Retail",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TT",
+    "name": "Trane Technologies",
+    "sector": "Industrials",
+    "subindustry": "Building Products",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TDG",
+    "name": "TransDigm Group",
+    "sector": "Industrials",
+    "subindustry": "Aerospace & Defense",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TRV",
+    "name": "Travelers Companies (The)",
+    "sector": "Financials",
+    "subindustry": "Property & Casualty Insurance",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TRMB",
+    "name": "Trimble Inc.",
+    "sector": "Information Technology",
+    "subindustry": "Electronic Equipment & Instruments",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TFC",
+    "name": "Truist Financial",
+    "sector": "Financials",
+    "subindustry": "Diversified Banks",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TYL",
+    "name": "Tyler Technologies",
+    "sector": "Information Technology",
+    "subindustry": "Application Software",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TSN",
+    "name": "Tyson Foods",
+    "sector": "Consumer Staples",
+    "subindustry": "Packaged Foods & Meats",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "USB",
+    "name": "U.S. Bancorp",
+    "sector": "Financials",
+    "subindustry": "Diversified Banks",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "UBER",
+    "name": "Uber",
+    "sector": "Industrials",
+    "subindustry": "Passenger Ground Transportation",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "UDR",
+    "name": "UDR, Inc.",
+    "sector": "Real Estate",
+    "subindustry": "Multi-Family Residential REITs",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ULTA",
+    "name": "Ulta Beauty",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Other Specialty Retail",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "UNP",
+    "name": "Union Pacific Corporation",
+    "sector": "Industrials",
+    "subindustry": "Rail Transportation",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "UAL",
+    "name": "United Airlines Holdings",
+    "sector": "Industrials",
+    "subindustry": "Passenger Airlines",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "UPS",
+    "name": "United Parcel Service",
+    "sector": "Industrials",
+    "subindustry": "Air Freight & Logistics",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "URI",
+    "name": "United Rentals",
+    "sector": "Industrials",
+    "subindustry": "Trading Companies & Distributors",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "UNH",
+    "name": "UnitedHealth Group",
+    "sector": "Health Care",
+    "subindustry": "Managed Health Care",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "UHS",
+    "name": "Universal Health Services",
+    "sector": "Health Care",
+    "subindustry": "Health Care Facilities",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "VLO",
+    "name": "Valero Energy",
+    "sector": "Energy",
+    "subindustry": "Oil & Gas Refining & Marketing",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "VTR",
+    "name": "Ventas",
+    "sector": "Real Estate",
+    "subindustry": "Health Care REITs",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "VLTO",
+    "name": "Veralto",
+    "sector": "Industrials",
+    "subindustry": "Environmental & Facilities Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "VRSN",
+    "name": "Verisign",
+    "sector": "Information Technology",
+    "subindustry": "Internet Services & Infrastructure",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "VRSK",
+    "name": "Verisk Analytics",
+    "sector": "Industrials",
+    "subindustry": "Research & Consulting Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "VZ",
+    "name": "Verizon",
+    "sector": "Communication Services",
+    "subindustry": "Integrated Telecommunication Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "VRTX",
+    "name": "Vertex Pharmaceuticals",
+    "sector": "Health Care",
+    "subindustry": "Biotechnology",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "VRT",
+    "name": "Vertiv",
+    "sector": "Industrials",
+    "subindustry": "Electrical Components & Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "VTRS",
+    "name": "Viatris",
+    "sector": "Health Care",
+    "subindustry": "Pharmaceuticals",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "VICI",
+    "name": "Vici Properties",
+    "sector": "Real Estate",
+    "subindustry": "Hotel & Resort REITs",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "V",
+    "name": "Visa Inc.",
+    "sector": "Financials",
+    "subindustry": "Transaction & Payment Processing Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "VST",
+    "name": "Vistra Corp.",
+    "sector": "Utilities",
+    "subindustry": "Electric Utilities",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "VMC",
+    "name": "Vulcan Materials Company",
+    "sector": "Materials",
+    "subindustry": "Construction Materials",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "WRB",
+    "name": "W. R. Berkley Corporation",
+    "sector": "Financials",
+    "subindustry": "Property & Casualty Insurance",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "GWW",
+    "name": "W. W. Grainger",
+    "sector": "Industrials",
+    "subindustry": "Industrial Machinery & Supplies & Components",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "WAB",
+    "name": "Wabtec",
+    "sector": "Industrials",
+    "subindustry": "Construction Machinery & Heavy Transportation Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "WMT",
+    "name": "Walmart",
+    "sector": "Consumer Staples",
+    "subindustry": "Consumer Staples Merchandise Retail",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "DIS",
+    "name": "Walt Disney Company (The)",
+    "sector": "Communication Services",
+    "subindustry": "Movies & Entertainment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "WBD",
+    "name": "Warner Bros. Discovery",
+    "sector": "Communication Services",
+    "subindustry": "Broadcasting",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "WM",
+    "name": "Waste Management",
+    "sector": "Industrials",
+    "subindustry": "Environmental & Facilities Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "WAT",
+    "name": "Waters Corporation",
+    "sector": "Health Care",
+    "subindustry": "Life Sciences Tools & Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "WEC",
+    "name": "WEC Energy Group",
+    "sector": "Utilities",
+    "subindustry": "Electric Utilities",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "WFC",
+    "name": "Wells Fargo",
+    "sector": "Financials",
+    "subindustry": "Diversified Banks",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "WELL",
+    "name": "Welltower",
+    "sector": "Real Estate",
+    "subindustry": "Health Care REITs",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "WST",
+    "name": "West Pharmaceutical Services",
+    "sector": "Health Care",
+    "subindustry": "Health Care Supplies",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "WDC",
+    "name": "Western Digital",
+    "sector": "Information Technology",
+    "subindustry": "Technology Hardware, Storage & Peripherals",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "WY",
+    "name": "Weyerhaeuser",
+    "sector": "Real Estate",
+    "subindustry": "Timber REITs",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "WSM",
+    "name": "Williams-Sonoma, Inc.",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Homefurnishing Retail",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "WMB",
+    "name": "Williams Companies",
+    "sector": "Energy",
+    "subindustry": "Oil & Gas Storage & Transportation",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "WTW",
+    "name": "Willis Towers Watson",
+    "sector": "Financials",
+    "subindustry": "Insurance Brokers",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "WDAY",
+    "name": "Workday, Inc.",
+    "sector": "Information Technology",
+    "subindustry": "Application Software",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "WYNN",
+    "name": "Wynn Resorts",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Casinos & Gaming",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "XEL",
+    "name": "Xcel Energy",
+    "sector": "Utilities",
+    "subindustry": "Multi-Utilities",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "XYL",
+    "name": "Xylem Inc.",
+    "sector": "Industrials",
+    "subindustry": "Industrial Machinery & Supplies & Components",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "YUM",
+    "name": "Yum! Brands",
+    "sector": "Consumer Discretionary",
+    "subindustry": "Restaurants",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ZBRA",
+    "name": "Zebra Technologies",
+    "sector": "Information Technology",
+    "subindustry": "Electronic Equipment & Instruments",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ZBH",
+    "name": "Zimmer Biomet",
+    "sector": "Health Care",
+    "subindustry": "Health Care Equipment",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ZTS",
+    "name": "Zoetis",
+    "sector": "Health Care",
+    "subindustry": "Pharmaceuticals",
+    "market_cap_bucket": "unknown"
+  }
+]

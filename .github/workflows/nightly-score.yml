@@ -1,0 +1,36 @@
+name: nightly-score
+
+on:
+  schedule:
+    - cron: "0 2 * * *"  # 02:00 UTC daily
+  workflow_dispatch: {}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install deps (api + signals + data packages)
+        run: |
+          uv pip install --system \
+            "fastapi>=0.115" "pydantic>=2.8" "uvicorn" \
+            "yfinance>=0.2.50" "pandas" "numpy" "requests" \
+            "anthropic>=0.40" "pyjwt[crypto]>=2.9" "supabase>=2.8" \
+            "scipy" "hmmlearn>=0.3" "scikit-learn"
+          uv pip install --system -e packages/data -e packages/signals -e apps/api
+
+      - name: Run nightly score builder
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        run: python scripts/nightly_score.py --market BOTH

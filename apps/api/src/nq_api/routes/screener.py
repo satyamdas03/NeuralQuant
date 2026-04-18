@@ -1,16 +1,32 @@
 # apps/api/src/nq_api/routes/screener.py
+import pandas as pd
 from fastapi import APIRouter, Depends
 
 from nq_api.deps import get_signal_engine
 from nq_api.schemas import ScreenerRequest, ScreenerResponse
 from nq_api.score_builder import row_to_ai_score, rank_scores_in_universe, REGIME_LABELS
 from nq_api.universe import UNIVERSE_BY_MARKET
-from nq_api.data_builder import build_real_snapshot
+from nq_api.data_builder import build_real_snapshot, fetch_real_macro
 from nq_signals.engine import SignalEngine
 from nq_api.auth.rate_limit import enforce_tier_quota
-from nq_api.auth.models import User
+from nq_api.auth.models import User, TIER_LIMITS
+from nq_api.cache import score_cache
 
 router = APIRouter()
+
+
+def _cache_rows_to_ai_scores(rows: list[dict], market: str, regime_id: int) -> list:
+    """Build AIScore list from cached rows. Ranks within the batch."""
+    if not rows:
+        return []
+    df = pd.DataFrame(rows)
+    df["regime_id"] = regime_id
+    ranked = rank_scores_in_universe(df).reset_index(drop=True)
+    df = df.reset_index(drop=True)
+    return [
+        row_to_ai_score(row, market, score_1_10_override=int(ranked.iloc[i]))
+        for i, (_, row) in enumerate(df.iterrows())
+    ]
 
 
 @router.post("", response_model=ScreenerResponse)
@@ -19,13 +35,35 @@ def run_screener(
     engine: SignalEngine = Depends(get_signal_engine),
     user: User = Depends(enforce_tier_quota("screener")),
 ) -> ScreenerResponse:
+    # Try cache first for full-universe requests
+    custom_tickers = bool(req.tickers)
+    if not custom_tickers:
+        max_age = TIER_LIMITS[user.tier].screener_refresh_seconds or 86400
+        cached = score_cache.read_top(req.market, n=max(100, req.max_results * 3), max_age_seconds=max_age)
+        cached = [r for r in cached if (r.get("composite_score") or 0) >= req.min_score]
+        if cached:
+            # regime: compute cheaply from macro (static across batch)
+            try:
+                macro = fetch_real_macro()
+                regime_id = int(macro.regime_id) if hasattr(macro, "regime_id") else 1
+            except Exception:
+                regime_id = 1
+            cached = cached[: req.max_results]
+            ai_scores = _cache_rows_to_ai_scores(cached, req.market, regime_id)
+            return ScreenerResponse(
+                regime_label=REGIME_LABELS.get(regime_id, "Unknown"),
+                regime_id=regime_id,
+                results=ai_scores,
+                total=len(ai_scores),
+            )
+
+    # Live compute fallback (cache miss or custom tickers)
     tickers = req.tickers or UNIVERSE_BY_MARKET.get(req.market, UNIVERSE_BY_MARKET["US"])
     snapshot = build_real_snapshot(tickers, req.market)
     result_df = engine.compute(snapshot)
 
     filtered = result_df[result_df["composite_score"] >= req.min_score]
     filtered = filtered.sort_values("composite_score", ascending=False)
-    # Rank within FULL result set (before head) so top-20 still gets a spread 1-10 score
     ranked_scores = rank_scores_in_universe(filtered).reset_index(drop=True)
     filtered = filtered.reset_index(drop=True).head(req.max_results)
 

@@ -1,0 +1,1402 @@
+[
+  {
+    "ticker": "360ONE",
+    "name": "360 ONE WAM Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ABB",
+    "name": "ABB India Ltd.",
+    "sector": "Capital Goods",
+    "subindustry": "Capital Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "APLAPOLLO",
+    "name": "APL Apollo Tubes Ltd.",
+    "sector": "Capital Goods",
+    "subindustry": "Capital Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "AUBANK",
+    "name": "AU Small Finance Bank Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ADANIENSOL",
+    "name": "Adani Energy Solutions Ltd.",
+    "sector": "Power",
+    "subindustry": "Power",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ADANIENT",
+    "name": "Adani Enterprises Ltd.",
+    "sector": "Metals & Mining",
+    "subindustry": "Metals & Mining",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ADANIGREEN",
+    "name": "Adani Green Energy Ltd.",
+    "sector": "Power",
+    "subindustry": "Power",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ADANIPORTS",
+    "name": "Adani Ports and Special Economic Zone Ltd.",
+    "sector": "Services",
+    "subindustry": "Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ADANIPOWER",
+    "name": "Adani Power Ltd.",
+    "sector": "Power",
+    "subindustry": "Power",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ATGL",
+    "name": "Adani Total Gas Ltd.",
+    "sector": "Oil Gas & Consumable Fuels",
+    "subindustry": "Oil Gas & Consumable Fuels",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ABCAPITAL",
+    "name": "Aditya Birla Capital Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ALKEM",
+    "name": "Alkem Laboratories Ltd.",
+    "sector": "Healthcare",
+    "subindustry": "Healthcare",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "AMBUJACEM",
+    "name": "Ambuja Cements Ltd.",
+    "sector": "Construction Materials",
+    "subindustry": "Construction Materials",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "APOLLOHOSP",
+    "name": "Apollo Hospitals Enterprise Ltd.",
+    "sector": "Healthcare",
+    "subindustry": "Healthcare",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ASHOKLEY",
+    "name": "Ashok Leyland Ltd.",
+    "sector": "Capital Goods",
+    "subindustry": "Capital Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ASIANPAINT",
+    "name": "Asian Paints Ltd.",
+    "sector": "Consumer Durables",
+    "subindustry": "Consumer Durables",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ASTRAL",
+    "name": "Astral Ltd.",
+    "sector": "Capital Goods",
+    "subindustry": "Capital Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "AUROPHARMA",
+    "name": "Aurobindo Pharma Ltd.",
+    "sector": "Healthcare",
+    "subindustry": "Healthcare",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "DMART",
+    "name": "Avenue Supermarts Ltd.",
+    "sector": "Consumer Services",
+    "subindustry": "Consumer Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "AXISBANK",
+    "name": "Axis Bank Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BSE",
+    "name": "BSE Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BAJAJ-AUTO",
+    "name": "Bajaj Auto Ltd.",
+    "sector": "Automobile and Auto Components",
+    "subindustry": "Automobile and Auto Components",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BAJFINANCE",
+    "name": "Bajaj Finance Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BAJAJFINSV",
+    "name": "Bajaj Finserv Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BAJAJHLDNG",
+    "name": "Bajaj Holdings & Investment Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BANKBARODA",
+    "name": "Bank of Baroda",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BANKINDIA",
+    "name": "Bank of India",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BDL",
+    "name": "Bharat Dynamics Ltd.",
+    "sector": "Capital Goods",
+    "subindustry": "Capital Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BEL",
+    "name": "Bharat Electronics Ltd.",
+    "sector": "Capital Goods",
+    "subindustry": "Capital Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BHARATFORG",
+    "name": "Bharat Forge Ltd.",
+    "sector": "Automobile and Auto Components",
+    "subindustry": "Automobile and Auto Components",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BHEL",
+    "name": "Bharat Heavy Electricals Ltd.",
+    "sector": "Capital Goods",
+    "subindustry": "Capital Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BPCL",
+    "name": "Bharat Petroleum Corporation Ltd.",
+    "sector": "Oil Gas & Consumable Fuels",
+    "subindustry": "Oil Gas & Consumable Fuels",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BHARTIARTL",
+    "name": "Bharti Airtel Ltd.",
+    "sector": "Telecommunication",
+    "subindustry": "Telecommunication",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "GROWW",
+    "name": "Billionbrains Garage Ventures Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BIOCON",
+    "name": "Biocon Ltd.",
+    "sector": "Healthcare",
+    "subindustry": "Healthcare",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BLUESTARCO",
+    "name": "Blue Star Ltd.",
+    "sector": "Consumer Durables",
+    "subindustry": "Consumer Durables",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BOSCHLTD",
+    "name": "Bosch Ltd.",
+    "sector": "Automobile and Auto Components",
+    "subindustry": "Automobile and Auto Components",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "BRITANNIA",
+    "name": "Britannia Industries Ltd.",
+    "sector": "Fast Moving Consumer Goods",
+    "subindustry": "Fast Moving Consumer Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CGPOWER",
+    "name": "CG Power and Industrial Solutions Ltd.",
+    "sector": "Capital Goods",
+    "subindustry": "Capital Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CANBK",
+    "name": "Canara Bank",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CHOLAFIN",
+    "name": "Cholamandalam Investment and Finance Company Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CIPLA",
+    "name": "Cipla Ltd.",
+    "sector": "Healthcare",
+    "subindustry": "Healthcare",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "COALINDIA",
+    "name": "Coal India Ltd.",
+    "sector": "Oil Gas & Consumable Fuels",
+    "subindustry": "Oil Gas & Consumable Fuels",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "COCHINSHIP",
+    "name": "Cochin Shipyard Ltd.",
+    "sector": "Capital Goods",
+    "subindustry": "Capital Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "COFORGE",
+    "name": "Coforge Ltd.",
+    "sector": "Information Technology",
+    "subindustry": "Information Technology",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "COLPAL",
+    "name": "Colgate Palmolive (India) Ltd.",
+    "sector": "Fast Moving Consumer Goods",
+    "subindustry": "Fast Moving Consumer Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CONCOR",
+    "name": "Container Corporation of India Ltd.",
+    "sector": "Services",
+    "subindustry": "Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "COROMANDEL",
+    "name": "Coromandel International Ltd.",
+    "sector": "Chemicals",
+    "subindustry": "Chemicals",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "CUMMINSIND",
+    "name": "Cummins India Ltd.",
+    "sector": "Capital Goods",
+    "subindustry": "Capital Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "DLF",
+    "name": "DLF Ltd.",
+    "sector": "Realty",
+    "subindustry": "Realty",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "DABUR",
+    "name": "Dabur India Ltd.",
+    "sector": "Fast Moving Consumer Goods",
+    "subindustry": "Fast Moving Consumer Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "DIVISLAB",
+    "name": "Divi's Laboratories Ltd.",
+    "sector": "Healthcare",
+    "subindustry": "Healthcare",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "DIXON",
+    "name": "Dixon Technologies (India) Ltd.",
+    "sector": "Consumer Durables",
+    "subindustry": "Consumer Durables",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "DRREDDY",
+    "name": "Dr. Reddy's Laboratories Ltd.",
+    "sector": "Healthcare",
+    "subindustry": "Healthcare",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "EICHERMOT",
+    "name": "Eicher Motors Ltd.",
+    "sector": "Automobile and Auto Components",
+    "subindustry": "Automobile and Auto Components",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ETERNAL",
+    "name": "Eternal Ltd.",
+    "sector": "Consumer Services",
+    "subindustry": "Consumer Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "EXIDEIND",
+    "name": "Exide Industries Ltd.",
+    "sector": "Automobile and Auto Components",
+    "subindustry": "Automobile and Auto Components",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "NYKAA",
+    "name": "FSN E-Commerce Ventures Ltd.",
+    "sector": "Consumer Services",
+    "subindustry": "Consumer Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "FEDERALBNK",
+    "name": "Federal Bank Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "FORTIS",
+    "name": "Fortis Healthcare Ltd.",
+    "sector": "Healthcare",
+    "subindustry": "Healthcare",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "GAIL",
+    "name": "GAIL (India) Ltd.",
+    "sector": "Oil Gas & Consumable Fuels",
+    "subindustry": "Oil Gas & Consumable Fuels",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "GVT&D",
+    "name": "GE Vernova T&D India Ltd.",
+    "sector": "Capital Goods",
+    "subindustry": "Capital Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "GMRAIRPORT",
+    "name": "GMR Airports Ltd.",
+    "sector": "Services",
+    "subindustry": "Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "GLENMARK",
+    "name": "Glenmark Pharmaceuticals Ltd.",
+    "sector": "Healthcare",
+    "subindustry": "Healthcare",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "GODFRYPHLP",
+    "name": "Godfrey Phillips India Ltd.",
+    "sector": "Fast Moving Consumer Goods",
+    "subindustry": "Fast Moving Consumer Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "GODREJCP",
+    "name": "Godrej Consumer Products Ltd.",
+    "sector": "Fast Moving Consumer Goods",
+    "subindustry": "Fast Moving Consumer Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "GODREJPROP",
+    "name": "Godrej Properties Ltd.",
+    "sector": "Realty",
+    "subindustry": "Realty",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "GRASIM",
+    "name": "Grasim Industries Ltd.",
+    "sector": "Construction Materials",
+    "subindustry": "Construction Materials",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "HCLTECH",
+    "name": "HCL Technologies Ltd.",
+    "sector": "Information Technology",
+    "subindustry": "Information Technology",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "HDFCAMC",
+    "name": "HDFC Asset Management Company Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "HDFCBANK",
+    "name": "HDFC Bank Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "HDFCLIFE",
+    "name": "HDFC Life Insurance Company Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "HAVELLS",
+    "name": "Havells India Ltd.",
+    "sector": "Consumer Durables",
+    "subindustry": "Consumer Durables",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "HEROMOTOCO",
+    "name": "Hero MotoCorp Ltd.",
+    "sector": "Automobile and Auto Components",
+    "subindustry": "Automobile and Auto Components",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "HINDALCO",
+    "name": "Hindalco Industries Ltd.",
+    "sector": "Metals & Mining",
+    "subindustry": "Metals & Mining",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "HAL",
+    "name": "Hindustan Aeronautics Ltd.",
+    "sector": "Capital Goods",
+    "subindustry": "Capital Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "HINDPETRO",
+    "name": "Hindustan Petroleum Corporation Ltd.",
+    "sector": "Oil Gas & Consumable Fuels",
+    "subindustry": "Oil Gas & Consumable Fuels",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "HINDUNILVR",
+    "name": "Hindustan Unilever Ltd.",
+    "sector": "Fast Moving Consumer Goods",
+    "subindustry": "Fast Moving Consumer Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "HINDZINC",
+    "name": "Hindustan Zinc Ltd.",
+    "sector": "Metals & Mining",
+    "subindustry": "Metals & Mining",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "POWERINDIA",
+    "name": "Hitachi Energy India Ltd.",
+    "sector": "Capital Goods",
+    "subindustry": "Capital Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "HUDCO",
+    "name": "Housing & Urban Development Corporation Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "HYUNDAI",
+    "name": "Hyundai Motor India Ltd.",
+    "sector": "Automobile and Auto Components",
+    "subindustry": "Automobile and Auto Components",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ICICIBANK",
+    "name": "ICICI Bank Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ICICIGI",
+    "name": "ICICI Lombard General Insurance Company Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ICICIAMC",
+    "name": "ICICI Prudential Asset Management Company Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "IDFCFIRSTB",
+    "name": "IDFC First Bank Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ITC",
+    "name": "ITC Ltd.",
+    "sector": "Fast Moving Consumer Goods",
+    "subindustry": "Fast Moving Consumer Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "INDIANB",
+    "name": "Indian Bank",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "INDHOTEL",
+    "name": "Indian Hotels Co. Ltd.",
+    "sector": "Consumer Services",
+    "subindustry": "Consumer Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "IOC",
+    "name": "Indian Oil Corporation Ltd.",
+    "sector": "Oil Gas & Consumable Fuels",
+    "subindustry": "Oil Gas & Consumable Fuels",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "IRCTC",
+    "name": "Indian Railway Catering And Tourism Corporation Ltd.",
+    "sector": "Consumer Services",
+    "subindustry": "Consumer Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "IRFC",
+    "name": "Indian Railway Finance Corporation Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "IREDA",
+    "name": "Indian Renewable Energy Development Agency Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "INDUSTOWER",
+    "name": "Indus Towers Ltd.",
+    "sector": "Telecommunication",
+    "subindustry": "Telecommunication",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "INDUSINDBK",
+    "name": "IndusInd Bank Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "NAUKRI",
+    "name": "Info Edge (India) Ltd.",
+    "sector": "Consumer Services",
+    "subindustry": "Consumer Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "INFY",
+    "name": "Infosys Ltd.",
+    "sector": "Information Technology",
+    "subindustry": "Information Technology",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "INDIGO",
+    "name": "InterGlobe Aviation Ltd.",
+    "sector": "Services",
+    "subindustry": "Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "JSWENERGY",
+    "name": "JSW Energy Ltd.",
+    "sector": "Power",
+    "subindustry": "Power",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "JSWSTEEL",
+    "name": "JSW Steel Ltd.",
+    "sector": "Metals & Mining",
+    "subindustry": "Metals & Mining",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "JINDALSTEL",
+    "name": "Jindal Steel Ltd.",
+    "sector": "Metals & Mining",
+    "subindustry": "Metals & Mining",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "JIOFIN",
+    "name": "Jio Financial Services Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "JUBLFOOD",
+    "name": "Jubilant Foodworks Ltd.",
+    "sector": "Consumer Services",
+    "subindustry": "Consumer Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "KEI",
+    "name": "KEI Industries Ltd.",
+    "sector": "Capital Goods",
+    "subindustry": "Capital Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "KPITTECH",
+    "name": "KPIT Technologies Ltd.",
+    "sector": "Information Technology",
+    "subindustry": "Information Technology",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "KALYANKJIL",
+    "name": "Kalyan Jewellers India Ltd.",
+    "sector": "Consumer Durables",
+    "subindustry": "Consumer Durables",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "KOTAKBANK",
+    "name": "Kotak Mahindra Bank Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "LTF",
+    "name": "L&T Finance Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "LGEINDIA",
+    "name": "LG Electronics India Ltd.",
+    "sector": "Consumer Durables",
+    "subindustry": "Consumer Durables",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "LICHSGFIN",
+    "name": "LIC Housing Finance Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "LTM",
+    "name": "LTM Ltd.",
+    "sector": "Information Technology",
+    "subindustry": "Information Technology",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "LT",
+    "name": "Larsen & Toubro Ltd.",
+    "sector": "Construction",
+    "subindustry": "Construction",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "LAURUSLABS",
+    "name": "Laurus Labs Ltd.",
+    "sector": "Healthcare",
+    "subindustry": "Healthcare",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "LENSKART",
+    "name": "Lenskart Solutions Ltd.",
+    "sector": "Consumer Services",
+    "subindustry": "Consumer Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "LODHA",
+    "name": "Lodha Developers Ltd.",
+    "sector": "Realty",
+    "subindustry": "Realty",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "LUPIN",
+    "name": "Lupin Ltd.",
+    "sector": "Healthcare",
+    "subindustry": "Healthcare",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MRF",
+    "name": "MRF Ltd.",
+    "sector": "Automobile and Auto Components",
+    "subindustry": "Automobile and Auto Components",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "M&MFIN",
+    "name": "Mahindra & Mahindra Financial Services Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "M&M",
+    "name": "Mahindra & Mahindra Ltd.",
+    "sector": "Automobile and Auto Components",
+    "subindustry": "Automobile and Auto Components",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MANKIND",
+    "name": "Mankind Pharma Ltd.",
+    "sector": "Healthcare",
+    "subindustry": "Healthcare",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MARICO",
+    "name": "Marico Ltd.",
+    "sector": "Fast Moving Consumer Goods",
+    "subindustry": "Fast Moving Consumer Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MARUTI",
+    "name": "Maruti Suzuki India Ltd.",
+    "sector": "Automobile and Auto Components",
+    "subindustry": "Automobile and Auto Components",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MFSL",
+    "name": "Max Financial Services Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MAXHEALTH",
+    "name": "Max Healthcare Institute Ltd.",
+    "sector": "Healthcare",
+    "subindustry": "Healthcare",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MAZDOCK",
+    "name": "Mazagoan Dock Shipbuilders Ltd.",
+    "sector": "Capital Goods",
+    "subindustry": "Capital Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MOTILALOFS",
+    "name": "Motilal Oswal Financial Services Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MPHASIS",
+    "name": "MphasiS Ltd.",
+    "sector": "Information Technology",
+    "subindustry": "Information Technology",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MCX",
+    "name": "Multi Commodity Exchange of India Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MUTHOOTFIN",
+    "name": "Muthoot Finance Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "NHPC",
+    "name": "NHPC Ltd.",
+    "sector": "Power",
+    "subindustry": "Power",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "NMDC",
+    "name": "NMDC Ltd.",
+    "sector": "Metals & Mining",
+    "subindustry": "Metals & Mining",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "NTPC",
+    "name": "NTPC Ltd.",
+    "sector": "Power",
+    "subindustry": "Power",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "NATIONALUM",
+    "name": "National Aluminium Co. Ltd.",
+    "sector": "Metals & Mining",
+    "subindustry": "Metals & Mining",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "NESTLEIND",
+    "name": "Nestle India Ltd.",
+    "sector": "Fast Moving Consumer Goods",
+    "subindustry": "Fast Moving Consumer Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "OBEROIRLTY",
+    "name": "Oberoi Realty Ltd.",
+    "sector": "Realty",
+    "subindustry": "Realty",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ONGC",
+    "name": "Oil & Natural Gas Corporation Ltd.",
+    "sector": "Oil Gas & Consumable Fuels",
+    "subindustry": "Oil Gas & Consumable Fuels",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "OIL",
+    "name": "Oil India Ltd.",
+    "sector": "Oil Gas & Consumable Fuels",
+    "subindustry": "Oil Gas & Consumable Fuels",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PAYTM",
+    "name": "One 97 Communications Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "OFSS",
+    "name": "Oracle Financial Services Software Ltd.",
+    "sector": "Information Technology",
+    "subindustry": "Information Technology",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "POLICYBZR",
+    "name": "PB Fintech Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PIIND",
+    "name": "PI Industries Ltd.",
+    "sector": "Chemicals",
+    "subindustry": "Chemicals",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PAGEIND",
+    "name": "Page Industries Ltd.",
+    "sector": "Textiles",
+    "subindustry": "Textiles",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PATANJALI",
+    "name": "Patanjali Foods Ltd.",
+    "sector": "Fast Moving Consumer Goods",
+    "subindustry": "Fast Moving Consumer Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PERSISTENT",
+    "name": "Persistent Systems Ltd.",
+    "sector": "Information Technology",
+    "subindustry": "Information Technology",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PHOENIXLTD",
+    "name": "Phoenix Mills Ltd.",
+    "sector": "Realty",
+    "subindustry": "Realty",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PIDILITIND",
+    "name": "Pidilite Industries Ltd.",
+    "sector": "Chemicals",
+    "subindustry": "Chemicals",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "POLYCAB",
+    "name": "Polycab India Ltd.",
+    "sector": "Capital Goods",
+    "subindustry": "Capital Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PFC",
+    "name": "Power Finance Corporation Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "POWERGRID",
+    "name": "Power Grid Corporation of India Ltd.",
+    "sector": "Power",
+    "subindustry": "Power",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PREMIERENE",
+    "name": "Premier Energies Ltd.",
+    "sector": "Capital Goods",
+    "subindustry": "Capital Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PRESTIGE",
+    "name": "Prestige Estates Projects Ltd.",
+    "sector": "Realty",
+    "subindustry": "Realty",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "PNB",
+    "name": "Punjab National Bank",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "RECLTD",
+    "name": "REC Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "RADICO",
+    "name": "Radico Khaitan Ltd",
+    "sector": "Fast Moving Consumer Goods",
+    "subindustry": "Fast Moving Consumer Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "RVNL",
+    "name": "Rail Vikas Nigam Ltd.",
+    "sector": "Construction",
+    "subindustry": "Construction",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "RELIANCE",
+    "name": "Reliance Industries Ltd.",
+    "sector": "Oil Gas & Consumable Fuels",
+    "subindustry": "Oil Gas & Consumable Fuels",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SBICARD",
+    "name": "SBI Cards and Payment Services Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SBILIFE",
+    "name": "SBI Life Insurance Company Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SRF",
+    "name": "SRF Ltd.",
+    "sector": "Chemicals",
+    "subindustry": "Chemicals",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "MOTHERSON",
+    "name": "Samvardhana Motherson International Ltd.",
+    "sector": "Automobile and Auto Components",
+    "subindustry": "Automobile and Auto Components",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SHREECEM",
+    "name": "Shree Cement Ltd.",
+    "sector": "Construction Materials",
+    "subindustry": "Construction Materials",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SHRIRAMFIN",
+    "name": "Shriram Finance Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ENRIN",
+    "name": "Siemens Energy India Ltd.",
+    "sector": "Capital Goods",
+    "subindustry": "Capital Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SIEMENS",
+    "name": "Siemens Ltd.",
+    "sector": "Capital Goods",
+    "subindustry": "Capital Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SOLARINDS",
+    "name": "Solar Industries India Ltd.",
+    "sector": "Chemicals",
+    "subindustry": "Chemicals",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SBIN",
+    "name": "State Bank of India",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SAIL",
+    "name": "Steel Authority of India Ltd.",
+    "sector": "Metals & Mining",
+    "subindustry": "Metals & Mining",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SUNPHARMA",
+    "name": "Sun Pharmaceutical Industries Ltd.",
+    "sector": "Healthcare",
+    "subindustry": "Healthcare",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SUPREMEIND",
+    "name": "Supreme Industries Ltd.",
+    "sector": "Capital Goods",
+    "subindustry": "Capital Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SUZLON",
+    "name": "Suzlon Energy Ltd.",
+    "sector": "Capital Goods",
+    "subindustry": "Capital Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "SWIGGY",
+    "name": "Swiggy Ltd.",
+    "sector": "Consumer Services",
+    "subindustry": "Consumer Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TVSMOTOR",
+    "name": "TVS Motor Company Ltd.",
+    "sector": "Automobile and Auto Components",
+    "subindustry": "Automobile and Auto Components",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TATACAP",
+    "name": "Tata Capital Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TATACOMM",
+    "name": "Tata Communications Ltd.",
+    "sector": "Telecommunication",
+    "subindustry": "Telecommunication",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TCS",
+    "name": "Tata Consultancy Services Ltd.",
+    "sector": "Information Technology",
+    "subindustry": "Information Technology",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TATACONSUM",
+    "name": "Tata Consumer Products Ltd.",
+    "sector": "Fast Moving Consumer Goods",
+    "subindustry": "Fast Moving Consumer Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TATAELXSI",
+    "name": "Tata Elxsi Ltd.",
+    "sector": "Information Technology",
+    "subindustry": "Information Technology",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TATAINVEST",
+    "name": "Tata Investment Corporation Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TMCV",
+    "name": "Tata Motors Ltd.",
+    "sector": "Capital Goods",
+    "subindustry": "Capital Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TMPV",
+    "name": "Tata Motors Passenger Vehicles Ltd.",
+    "sector": "Automobile and Auto Components",
+    "subindustry": "Automobile and Auto Components",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TATAPOWER",
+    "name": "Tata Power Co. Ltd.",
+    "sector": "Power",
+    "subindustry": "Power",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TATASTEEL",
+    "name": "Tata Steel Ltd.",
+    "sector": "Metals & Mining",
+    "subindustry": "Metals & Mining",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TECHM",
+    "name": "Tech Mahindra Ltd.",
+    "sector": "Information Technology",
+    "subindustry": "Information Technology",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TITAN",
+    "name": "Titan Company Ltd.",
+    "sector": "Consumer Durables",
+    "subindustry": "Consumer Durables",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TORNTPHARM",
+    "name": "Torrent Pharmaceuticals Ltd.",
+    "sector": "Healthcare",
+    "subindustry": "Healthcare",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TRENT",
+    "name": "Trent Ltd.",
+    "sector": "Consumer Services",
+    "subindustry": "Consumer Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "TIINDIA",
+    "name": "Tube Investments of India Ltd.",
+    "sector": "Automobile and Auto Components",
+    "subindustry": "Automobile and Auto Components",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "UPL",
+    "name": "UPL Ltd.",
+    "sector": "Chemicals",
+    "subindustry": "Chemicals",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ULTRACEMCO",
+    "name": "UltraTech Cement Ltd.",
+    "sector": "Construction Materials",
+    "subindustry": "Construction Materials",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "UNIONBANK",
+    "name": "Union Bank of India",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "UNITDSPR",
+    "name": "United Spirits Ltd.",
+    "sector": "Fast Moving Consumer Goods",
+    "subindustry": "Fast Moving Consumer Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "VBL",
+    "name": "Varun Beverages Ltd.",
+    "sector": "Fast Moving Consumer Goods",
+    "subindustry": "Fast Moving Consumer Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "VEDL",
+    "name": "Vedanta Ltd.",
+    "sector": "Metals & Mining",
+    "subindustry": "Metals & Mining",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "VMM",
+    "name": "Vishal Mega Mart Ltd.",
+    "sector": "Consumer Services",
+    "subindustry": "Consumer Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "IDEA",
+    "name": "Vodafone Idea Ltd.",
+    "sector": "Telecommunication",
+    "subindustry": "Telecommunication",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "VOLTAS",
+    "name": "Voltas Ltd.",
+    "sector": "Consumer Durables",
+    "subindustry": "Consumer Durables",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "WAAREEENER",
+    "name": "Waaree Energies Ltd.",
+    "sector": "Capital Goods",
+    "subindustry": "Capital Goods",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "WIPRO",
+    "name": "Wipro Ltd.",
+    "sector": "Information Technology",
+    "subindustry": "Information Technology",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "YESBANK",
+    "name": "Yes Bank Ltd.",
+    "sector": "Financial Services",
+    "subindustry": "Financial Services",
+    "market_cap_bucket": "unknown"
+  },
+  {
+    "ticker": "ZYDUSLIFE",
+    "name": "Zydus Lifesciences Ltd.",
+    "sector": "Healthcare",
+    "subindustry": "Healthcare",
+    "market_cap_bucket": "unknown"
+  }
+]
