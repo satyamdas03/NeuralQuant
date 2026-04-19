@@ -22,10 +22,13 @@ export default function SignupPage() {
       email,
       password,
       options: {
-        emailRedirectTo:
-          typeof window !== "undefined"
-            ? `${window.location.origin}/auth/callback`
-            : undefined,
+        emailRedirectTo: (() => {
+          const envUrl = process.env.NEXT_PUBLIC_SITE_URL;
+          const base =
+            envUrl ||
+            (typeof window !== "undefined" ? window.location.origin : "");
+          return base ? `${base}/auth/callback` : undefined;
+        })(),
       },
     });
     setLoading(false);
@@ -34,7 +37,7 @@ export default function SignupPage() {
       return;
     }
     if (data.session) {
-      router.push("/watchlist");
+      router.push("/dashboard");
       router.refresh();
     } else {
       setInfo("Check your inbox to confirm your email.");

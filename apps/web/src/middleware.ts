@@ -8,7 +8,9 @@ const PROTECTED = [
   /^\/watchlist(\/|$)/,
   /^\/dashboard(\/|$)/,
   /^\/ask(\/|$)/,
+  /^\/query(\/|$)/,
   /^\/screener(\/|$)/,
+  /^\/stocks(\/|$)/,
   /^\/analyst(\/|$)/,
   /^\/account(\/|$)/,
 ];

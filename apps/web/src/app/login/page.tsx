@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const nextPath = params.get("next") || "/watchlist";
+  const nextPath = params.get("next") || "/dashboard";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

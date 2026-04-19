@@ -21,7 +21,7 @@ export default function NavAuth() {
         <Link href="/login" className="text-white/70 hover:text-white">Sign in</Link>
         <Link
           href="/signup"
-          className="rounded-md bg-emerald-500 px-3 py-1.5 font-medium text-black hover:bg-emerald-400"
+          className="rounded-md bg-violet-600 px-3 py-1.5 font-medium text-white hover:bg-violet-500"
         >
           Sign up
         </Link>
@@ -29,10 +29,11 @@ export default function NavAuth() {
     );
   }
   return (
-    <div className="flex items-center gap-3 text-sm">
-      <Link href="/watchlist" className="text-white/70 hover:text-white">
-        Watchlist
-      </Link>
+    <div className="flex items-center gap-4 text-sm">
+      <Link href="/dashboard" className="text-white/70 hover:text-white">Dashboard</Link>
+      <Link href="/screener" className="text-white/70 hover:text-white">Screener</Link>
+      <Link href="/query" className="text-white/70 hover:text-white">Ask AI</Link>
+      <Link href="/watchlist" className="text-white/70 hover:text-white">Watchlist</Link>
       <span className="text-white/40">{email}</span>
       <form action="/auth/sign-out" method="POST">
         <button className="text-white/60 hover:text-white">Sign out</button>

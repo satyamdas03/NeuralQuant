@@ -21,8 +21,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               NeuralQuant
             </Link>
             <div className="flex gap-6 text-sm text-gray-400 items-center">
-              <Link href="/screener" className="hover:text-white transition-colors">Screener</Link>
-              <Link href="/query"    className="hover:text-white transition-colors">Ask AI</Link>
               <NavAuth />
             </div>
           </div>
