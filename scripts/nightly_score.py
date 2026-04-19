@@ -18,6 +18,8 @@ sys.path.insert(0, str(ROOT / "apps" / "api" / "src"))
 sys.path.insert(0, str(ROOT / "packages" / "signals" / "src"))
 sys.path.insert(0, str(ROOT / "packages" / "data" / "src"))
 
+import math
+import pandas as pd  # noqa: E402
 from nq_api.universe import UNIVERSE_FULL  # noqa: E402
 from nq_api.data_builder import build_real_snapshot  # noqa: E402
 from nq_api.deps import get_signal_engine  # noqa: E402
@@ -27,6 +29,19 @@ from nq_api.cache import score_cache  # noqa: E402
 
 CHUNK = 50
 SLEEP_BETWEEN_CHUNKS = 2.0  # seconds, respect yfinance rate limit
+
+
+def _f(v, default: float = 0.0) -> float:
+    """Coerce to finite float; NaN/None/inf → default. Supabase JSON can't carry NaN."""
+    try:
+        if v is None or (isinstance(v, float) and not math.isfinite(v)):
+            return float(default)
+        if pd.isna(v):
+            return float(default)
+        f = float(v)
+        return f if math.isfinite(f) else float(default)
+    except (TypeError, ValueError):
+        return float(default)
 
 
 def run_market(market: str) -> int:
@@ -49,19 +64,19 @@ def run_market(market: str) -> int:
                 all_results.append({
                     "ticker": str(row["ticker"]),
                     "market": market,
-                    "sector": str(row.get("sector", "Unknown")),
-                    "composite_score": float(row.get("composite_score", 0)),
-                    "value_percentile": float(row.get("value_percentile", 0.5)),
-                    "momentum_percentile": float(row.get("momentum_percentile", 0.5)),
-                    "quality_percentile": float(row.get("quality_percentile", 0.5)),
-                    "low_vol_percentile": float(row.get("low_vol_percentile", 0.5)),
-                    "short_interest_percentile": float(row.get("short_interest_percentile", 0.5)),
-                    "current_price": float(row.get("current_price", 0) or 0),
-                    "analyst_target": float(row.get("analyst_target", 0) or 0),
-                    "pe_ttm": float(row.get("pe_ttm", 0) or 0),
-                    "market_cap": float(row.get("market_cap", 0) or 0),
-                    "week52_high": float(row.get("week52_high", 0) or 0),
-                    "week52_low": float(row.get("week52_low", 0) or 0),
+                    "sector": str(row.get("sector", "Unknown") or "Unknown"),
+                    "composite_score": _f(row.get("composite_score"), 0.0),
+                    "value_percentile": _f(row.get("value_percentile"), 0.5),
+                    "momentum_percentile": _f(row.get("momentum_percentile"), 0.5),
+                    "quality_percentile": _f(row.get("quality_percentile"), 0.5),
+                    "low_vol_percentile": _f(row.get("low_vol_percentile"), 0.5),
+                    "short_interest_percentile": _f(row.get("short_interest_percentile"), 0.5),
+                    "current_price": _f(row.get("current_price")),
+                    "analyst_target": _f(row.get("analyst_target")),
+                    "pe_ttm": _f(row.get("pe_ttm")),
+                    "market_cap": _f(row.get("market_cap")),
+                    "week52_high": _f(row.get("week52_high")),
+                    "week52_low": _f(row.get("week52_low")),
                 })
         except Exception as exc:
             print(f"[{market}] chunk failed: {exc}", file=sys.stderr)
