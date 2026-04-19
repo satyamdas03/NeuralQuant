@@ -562,7 +562,7 @@ export default function Home() {
       .catch(() => {})
       .finally(() => setSectorsLoading(false));
 
-    api.runScreener({ market: "US", max_results: 8 })
+    api.getScreenerPreview("US", 8)
       .then((d) => { setTopStocks(d.results); setRegime(d.regime_label); })
       .catch(() => {})
       .finally(() => setStocksLoading(false));

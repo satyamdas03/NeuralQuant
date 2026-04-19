@@ -68,6 +68,10 @@ export const api = {
       body: JSON.stringify(body),
     }),
 
+  // Public cache-only top-N; no auth, no quota (dashboard preview).
+  getScreenerPreview: (market: Market = "US", n = 8) =>
+    apiFetch<ScreenerResponse>(`/screener/preview?market=${market}&n=${n}`),
+
   runAnalyst: (body: AnalystRequest) =>
     authedFetch<AnalystResponse>("/analyst", {
       method: "POST",

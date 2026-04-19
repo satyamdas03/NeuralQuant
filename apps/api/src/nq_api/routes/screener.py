@@ -15,6 +15,26 @@ from nq_api.cache import score_cache
 router = APIRouter()
 
 
+@router.get("/preview", response_model=ScreenerResponse)
+def screener_preview(market: str = "US", n: int = 8) -> ScreenerResponse:
+    """Public, cache-only top-N. No auth, no quota. Used by dashboard preview."""
+    rows = score_cache.read_top(market, n=n, max_age_seconds=86400 * 2)
+    if not rows:
+        return ScreenerResponse(regime_label="Unknown", regime_id=1, results=[], total=0)
+    try:
+        macro = fetch_real_macro()
+        regime_id = int(macro.regime_id) if hasattr(macro, "regime_id") else 1
+    except Exception:
+        regime_id = 1
+    ai_scores = _cache_rows_to_ai_scores(rows, market, regime_id)
+    return ScreenerResponse(
+        regime_label=REGIME_LABELS.get(regime_id, "Unknown"),
+        regime_id=regime_id,
+        results=ai_scores,
+        total=len(ai_scores),
+    )
+
+
 def _cache_rows_to_ai_scores(rows: list[dict], market: str, regime_id: int) -> list:
     """Build AIScore list from cached rows. Ranks within the batch."""
     if not rows:
