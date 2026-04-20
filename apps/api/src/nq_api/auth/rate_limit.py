@@ -8,11 +8,14 @@ enforce_tier_quota(endpoint) -> FastAPI dep that:
   4. Inserts usage_log row on pass; raises 429 on cap.
 """
 from __future__ import annotations
+import logging
 from datetime import datetime, timezone
 from fastapi import Depends, HTTPException, status
 
 from .deps import get_current_user, _supabase_service_client
 from .models import User, TIER_LIMITS
+
+log = logging.getLogger(__name__)
 
 
 def _cap_for(tier: str, endpoint: str) -> int:
@@ -53,13 +56,21 @@ def enforce_tier_quota(endpoint: str):
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,
                 detail=f"{endpoint} not available on {user.tier} tier — upgrade required",
             )
-        used = _today_count(user.id, endpoint)
+        try:
+            used = _today_count(user.id, endpoint)
+        except Exception as exc:
+            log.exception("rate_limit _today_count failed")
+            raise HTTPException(500, f"quota check failed: {exc}") from exc
         if used >= cap:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=f"daily cap reached ({used}/{cap}) on {user.tier} tier — upgrade or retry tomorrow",
             )
-        _record(user.id, endpoint)
+        try:
+            _record(user.id, endpoint)
+        except Exception as exc:
+            log.exception("rate_limit _record failed")
+            raise HTTPException(500, f"usage log insert failed: {exc}") from exc
         return user
 
     return _dep
