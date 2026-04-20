@@ -65,7 +65,7 @@ def main() -> int:
     user_id = r.json().get("id")
     print(f"  created user id={user_id}")
 
-    # Password grant → access token
+    # Password grant -> access token
     r = requests.post(
         f"{sb_url}/auth/v1/token?grant_type=password",
         headers={"apikey": anon, "Content-Type": "application/json"},
@@ -142,9 +142,28 @@ def main() -> int:
     hit("POST /query", "POST", "/query",
         {"question": "Is the S&P 500 bullish?"})
 
-    # --- backtest ---
-    hit("POST /backtest", "POST", "/backtest",
-        {"ticker": "AAPL", "market": "US", "fast": 20, "slow": 50, "period": "1y"})
+    # --- backtest (free tier blocked, expect 402) ---
+    hit("POST /backtest (free tier -> 402)", "POST", "/backtest",
+        {"ticker": "AAPL", "market": "US", "fast": 20, "slow": 50, "period": "1y"},
+        expect=(402,))
+
+    # Upgrade user to investor tier and re-try (should return 200)
+    try:
+        requests.patch(
+            f"{sb_url}/rest/v1/users?id=eq.{user_id}",
+            headers={
+                "apikey": service,
+                "Authorization": f"Bearer {service}",
+                "Content-Type": "application/json",
+                "Prefer": "return=minimal",
+            },
+            json={"tier": "investor"},
+            timeout=20,
+        )
+        hit("POST /backtest (investor tier -> 200)", "POST", "/backtest",
+            {"ticker": "AAPL", "market": "US", "fast": 20, "slow": 50, "period": "1y"})
+    except Exception as exc:
+        print(f"  upgrade-tier step failed: {exc}")
 
     # --- cleanup: delete test user ---
     try:
