@@ -37,6 +37,18 @@ function BacktestForm() {
 
   const beatBH = result && result.total_return_pct > result.buy_hold_return_pct;
 
+  const tickerValid = /^[A-Z0-9.\-]{1,10}$/.test(ticker.trim());
+  const numsValid = Number.isFinite(fast) && Number.isFinite(slow) && fast >= 2 && slow >= 5 && fast <= 200 && slow <= 400;
+  const crossoverValid = fast < slow;
+  const canRun = tickerValid && numsValid && crossoverValid && !loading;
+  const validationMsg = !tickerValid
+    ? "Ticker must be 1-10 chars (A-Z, 0-9, . or -)."
+    : !numsValid
+    ? "Fast SMA 2-200, Slow SMA 5-400."
+    : !crossoverValid
+    ? "Fast SMA must be less than Slow SMA."
+    : null;
+
   return (
     <div className="space-y-6">
       <div>
@@ -76,12 +88,12 @@ function BacktestForm() {
         </div>
         <button
           onClick={run}
-          disabled={loading || !ticker || fast >= slow}
+          disabled={!canRun}
           className="px-6 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 rounded-lg text-sm font-medium transition-colors"
         >
           {loading ? "Running…" : "Run backtest"}
         </button>
-        {fast >= slow && <p className="text-xs text-amber-400">Fast SMA must be less than Slow SMA.</p>}
+        {validationMsg && <p className="text-xs text-amber-400">{validationMsg}</p>}
         {error && <p className="text-sm text-red-400">{error}</p>}
       </div>
 
@@ -151,7 +163,10 @@ function NumberInput({ label, value, onChange, min, max }: {
         value={value}
         min={min}
         max={max}
-        onChange={(e) => onChange(Number(e.target.value))}
+        onChange={(e) => {
+          const n = Number(e.target.value);
+          onChange(Number.isFinite(n) ? n : 0);
+        }}
         className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-violet-500 tabular-nums"
       />
     </label>
