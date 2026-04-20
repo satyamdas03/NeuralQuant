@@ -95,7 +95,7 @@ def main() -> int:
     n = len(body.get("results", [])) if isinstance(body, dict) else 0
     check("/screener/preview IN", ok and n > 0, code, el, f"{n} results")
 
-    ok, code, body, el = _hit(base, "GET", "/stocks/AAPL?market=US")
+    ok, code, body, el = _hit(base, "GET", "/stocks/AAPL?market=US", timeout=90)
     score = body.get("score_1_10", "?") if isinstance(body, dict) else "?"
     check("/stocks/AAPL", ok, code, el, f"score={score}")
 
