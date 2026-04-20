@@ -4,6 +4,7 @@ import type {
   QueryRequest, QueryResponse,
   MarketOverview, MarketNews, MarketSectors,
   MarketMovers, StockChart, StockMeta,
+  SentimentResponse, BacktestRequest, BacktestResponse,
 } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -92,4 +93,17 @@ export const api = {
     apiFetch<StockChart>(`/stocks/${ticker}/chart?period=${period}&market=${market}`),
   getStockMeta: (ticker: string, market: Market = "US") =>
     apiFetch<StockMeta>(`/stocks/${ticker}/meta?market=${market}`),
+
+  // Pillar C: sentiment (public, free, cached at edge by client)
+  getSentiment: (ticker: string, market: Market = "US", limit = 15) =>
+    apiFetch<SentimentResponse>(`/sentiment/${ticker}?market=${market}&limit=${limit}`),
+};
+
+// Authed — counts against backtest_per_day tier cap
+export const authedBacktest = {
+  run: (body: BacktestRequest) =>
+    authedFetch<BacktestResponse>("/backtest", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };

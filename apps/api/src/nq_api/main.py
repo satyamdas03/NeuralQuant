@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from nq_api.routes import stocks, screener, analyst, query, market, auth, watchlists
+from nq_api.routes import stocks, screener, analyst, query, market, auth, watchlists, sentiment, backtest
 
 
 @asynccontextmanager
@@ -47,6 +47,8 @@ app.include_router(query.router,    prefix="/query",     tags=["query"])
 app.include_router(market.router,   prefix="/market",   tags=["market"])
 app.include_router(auth.router)         # /auth/me
 app.include_router(watchlists.router)   # /watchlist
+app.include_router(sentiment.router, prefix="/sentiment", tags=["sentiment"])
+app.include_router(backtest.router,  prefix="/backtest",  tags=["backtest"])
 
 
 @app.get("/health")

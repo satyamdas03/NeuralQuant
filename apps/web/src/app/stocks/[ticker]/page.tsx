@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState, use } from "react";
 import { api } from "@/lib/api";
-import type { AIScore, AnalystResponse, StockMeta, Market } from "@/lib/types";
+import Link from "next/link";
+import type { AIScore, AnalystResponse, StockMeta, Market, SentimentResponse } from "@/lib/types";
 import { AIScoreCard } from "@/components/AIScoreCard";
 import { ScoreBreakdown } from "@/components/ScoreBreakdown";
 import { FeatureAttribution } from "@/components/FeatureAttribution";
@@ -24,6 +25,7 @@ export default function StockPage({
   const [score, setScore] = useState<AIScore | null>(null);
   const [meta, setMeta] = useState<StockMeta | null>(null);
   const [report, setReport] = useState<AnalystResponse | null>(null);
+  const [sentiment, setSentiment] = useState<SentimentResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [analysing, setAnalysing] = useState(false);
   const [watchlisted, setWatchlisted] = useState(false);
@@ -32,6 +34,7 @@ export default function StockPage({
     setWatchlisted(isWatchlisted(ticker.toUpperCase()));
     api.getStock(ticker, market).then(setScore).finally(() => setLoading(false));
     api.getStockMeta(ticker, market).then(setMeta).catch(() => {});
+    api.getSentiment(ticker, market, 12).then(setSentiment).catch(() => {});
   }, [ticker, market]);
 
   const runDebate = async () => {
@@ -92,6 +95,12 @@ export default function StockPage({
       {/* Price Chart */}
       <PriceChart ticker={ticker.toUpperCase()} market={market} />
 
+      {/* Sentiment + Backtest row */}
+      <div className="grid md:grid-cols-2 gap-5">
+        <SentimentCard s={sentiment} ticker={ticker.toUpperCase()} />
+        <BacktestCTA ticker={ticker.toUpperCase()} market={market} />
+      </div>
+
       {/* PARA-DEBATE */}
       {!report ? (
         <div className="text-center py-10">
@@ -116,6 +125,75 @@ export default function StockPage({
       ) : (
         <AgentDebatePanel report={report} />
       )}
+    </div>
+  );
+}
+
+function SentimentCard({ s, ticker }: { s: SentimentResponse | null; ticker: string }) {
+  const color =
+    !s ? "text-gray-400"
+    : s.label === "Bullish" ? "text-emerald-400"
+    : s.label === "Bearish" ? "text-red-400"
+    : "text-yellow-400";
+  return (
+    <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-semibold text-sm text-gray-300 uppercase tracking-wide">News Sentiment</h3>
+        <span className="text-xs text-gray-500">VADER · {s?.n_headlines ?? 0} headlines</span>
+      </div>
+      {!s ? (
+        <div className="text-sm text-gray-500">Loading…</div>
+      ) : s.n_headlines === 0 ? (
+        <div className="text-sm text-gray-500">No recent headlines for {ticker}.</div>
+      ) : (
+        <>
+          <div className="flex items-baseline gap-3">
+            <span className={`text-3xl font-bold ${color}`}>{s.label}</span>
+            <span className="text-sm text-gray-500 tabular-nums">
+              {s.aggregate_score >= 0 ? "+" : ""}{s.aggregate_score.toFixed(2)}
+            </span>
+          </div>
+          <div className="mt-4 space-y-1.5 max-h-56 overflow-y-auto pr-1">
+            {s.headlines.slice(0, 6).map((h, i) => (
+              <a
+                key={i}
+                href={h.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-start justify-between gap-3 text-xs text-gray-400 hover:text-white"
+              >
+                <span className="leading-snug line-clamp-2">{h.title}</span>
+                <span
+                  className={`shrink-0 tabular-nums ${
+                    h.score > 0 ? "text-emerald-400" : h.score < 0 ? "text-red-400" : "text-gray-500"
+                  }`}
+                >
+                  {h.score >= 0 ? "+" : ""}{h.score.toFixed(2)}
+                </span>
+              </a>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function BacktestCTA({ ticker, market }: { ticker: string; market: Market }) {
+  return (
+    <div className="bg-gradient-to-br from-violet-600/10 to-cyan-600/10 border border-violet-500/20 rounded-xl p-5 flex flex-col justify-between">
+      <div>
+        <h3 className="font-semibold text-sm text-gray-300 uppercase tracking-wide">Strategy Backtest</h3>
+        <p className="text-sm text-gray-400 mt-2 leading-relaxed">
+          Test a moving-average crossover on {ticker} — see Sharpe, max drawdown, and how it compares to buy-and-hold.
+        </p>
+      </div>
+      <Link
+        href={`/backtest?ticker=${ticker}&market=${market}`}
+        className="mt-4 inline-block px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium w-fit transition-colors"
+      >
+        Run backtest →
+      </Link>
     </div>
   );
 }

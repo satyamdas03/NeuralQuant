@@ -11,6 +11,7 @@ const PROTECTED = [
   /^\/query(\/|$)/,
   /^\/screener(\/|$)/,
   /^\/stocks(\/|$)/,
+  /^\/backtest(\/|$)/,
   /^\/analyst(\/|$)/,
   /^\/account(\/|$)/,
 ];

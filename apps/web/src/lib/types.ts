@@ -171,3 +171,47 @@ export interface ConversationMessage {
   role: "user" | "assistant";
   content: string;
 }
+
+export interface SentimentHeadline {
+  title: string;
+  url: string;
+  publisher: string;
+  score: number;
+}
+
+export interface SentimentResponse {
+  ticker: string;
+  market: Market;
+  aggregate_score: number;
+  label: "Bullish" | "Bearish" | "Neutral";
+  n_headlines: number;
+  headlines: SentimentHeadline[];
+}
+
+export interface BacktestRequest {
+  ticker: string;
+  market?: Market;
+  strategy?: "sma_crossover";
+  fast?: number;
+  slow?: number;
+  period?: "1y" | "2y" | "5y" | "10y" | "max";
+  initial_capital?: number;
+}
+
+export interface BacktestPoint {
+  date: string;
+  equity: number;
+}
+
+export interface BacktestResponse {
+  ticker: string;
+  strategy: string;
+  final_equity: number;
+  total_return_pct: number;
+  buy_hold_return_pct: number;
+  sharpe: number;
+  max_drawdown_pct: number;
+  n_trades: number;
+  n_days: number;
+  equity_curve: BacktestPoint[];
+}

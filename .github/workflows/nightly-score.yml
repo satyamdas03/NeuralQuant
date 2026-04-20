@@ -25,7 +25,7 @@ jobs:
             "fastapi>=0.115" "pydantic>=2.8" "uvicorn" \
             "yfinance>=0.2.50" "pandas" "numpy" "requests" \
             "anthropic>=0.40" "pyjwt[crypto]>=2.9" "supabase>=2.8" \
-            "scipy" "hmmlearn>=0.3" "scikit-learn"
+            "scipy" "hmmlearn>=0.3" "scikit-learn" "vaderSentiment>=3.3.2"
           uv pip install --system -e packages/data -e packages/signals -e apps/api
 
       - name: Run nightly score builder

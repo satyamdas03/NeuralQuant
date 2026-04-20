@@ -33,6 +33,7 @@ export default function NavAuth() {
       <Link href="/dashboard" className="text-white/70 hover:text-white">Dashboard</Link>
       <Link href="/screener" className="text-white/70 hover:text-white">Screener</Link>
       <Link href="/query" className="text-white/70 hover:text-white">Ask AI</Link>
+      <Link href="/backtest" className="text-white/70 hover:text-white">Backtest</Link>
       <Link href="/watchlist" className="text-white/70 hover:text-white">Watchlist</Link>
       <span className="text-white/40">{email}</span>
       <form action="/auth/sign-out" method="POST">
