@@ -52,8 +52,7 @@ export default function StockPage({
     setWatchlisted(now);
   };
 
-  if (loading)
-    return <div className="text-gray-500 animate-pulse py-12 text-center">Loading AI score…</div>;
+  if (loading) return <StockPageSkeleton ticker={ticker.toUpperCase()} />;
   if (!score)
     return <div className="text-red-400 py-12 text-center">Stock not found: {ticker}</div>;
 
@@ -125,6 +124,37 @@ export default function StockPage({
       ) : (
         <AgentDebatePanel report={report} />
       )}
+    </div>
+  );
+}
+
+function StockPageSkeleton({ ticker }: { ticker: string }) {
+  return (
+    <div className="space-y-5 animate-pulse">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white">{ticker}</h1>
+          <p className="text-xs text-gray-500 mt-1">
+            Computing 5-factor score across reference universe — first load takes 10-30 s on cold start…
+          </p>
+        </div>
+        <div className="h-10 w-28 rounded-lg bg-gray-800/60" />
+      </div>
+      <div className="grid md:grid-cols-3 gap-5">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-40 rounded-xl bg-gray-900 border border-gray-800" />
+        ))}
+      </div>
+      <div className="h-16 rounded-xl bg-gray-900 border border-gray-800" />
+      <div className="h-64 rounded-xl bg-gray-900 border border-gray-800" />
+      <div className="grid md:grid-cols-2 gap-5">
+        <div className="h-48 rounded-xl bg-gray-900 border border-gray-800" />
+        <div className="h-48 rounded-xl bg-gray-900 border border-gray-800" />
+      </div>
+      <div className="flex items-center justify-center gap-2 text-sm text-gray-500 py-4">
+        <span className="w-3 h-3 rounded-full border-2 border-violet-500/30 border-t-violet-500 animate-spin" />
+        <span>Fetching AI score, meta, sentiment…</span>
+      </div>
     </div>
   );
 }
