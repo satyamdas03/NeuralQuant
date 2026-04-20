@@ -9,3 +9,10 @@ data/backtest/*.csv
 results/
 apps/web/.next/
 apps/web/node_modules/
+
+# local tooling artifacts — do not commit
+.graphify_*
+graphify-out/
+knowledgeGraph_NeuralQuant/
+docs/NeuralQuant_Report*.docx
+docs/~$*.docx
