@@ -30,7 +30,7 @@ def _today_count(user_id: str, endpoint: str) -> int:
         .select("id", count="exact")
         .eq("user_id", user_id)
         .eq("endpoint", endpoint)
-        .gte("called_at", f"{today}T00:00:00Z")
+        .gte("ts", f"{today}T00:00:00Z")
         .execute()
     )
     return resp.count or 0

@@ -1,0 +1,868 @@
+{
+  "communities": {
+    "0": [
+      "c_users_point_projects_stockpredictor_packages_data_src_nq_data_models_py",
+      "c_users_point_projects_stockpredictor_packages_data_src_nq_data_price_nse_bhavcopy_py",
+      "c_users_point_projects_stockpredictor_packages_data_src_nq_data_price_yfinance_connector_py",
+      "c_users_point_projects_stockpredictor_packages_data_src_nq_data_store_py",
+      "c_users_point_projects_stockpredictor_packages_data_tests_test_price_py",
+      "c_users_point_projects_stockpredictor_packages_data_tests_test_store_py",
+      "models_fundamentalsnapshot",
+      "models_macrosnapshot",
+      "models_newsitem",
+      "models_ohlcvbar",
+      "nse_bhavcopy_nsebhavcopyconnector",
+      "nse_bhavcopy_nsebhavcopyconnector_download_bhavcopy",
+      "nse_bhavcopy_nsebhavcopyconnector_parse_bhavcopy",
+      "nse_bhavcopy_nsebhavcopyconnector_safe_float",
+      "nse_bhavcopy_rationale_1",
+      "nse_bhavcopy_rationale_24",
+      "nse_bhavcopy_rationale_33",
+      "nse_bhavcopy_rationale_50",
+      "store_datastore",
+      "store_datastore_get_fundamentals",
+      "store_datastore_get_macro",
+      "store_datastore_get_ohlcv",
+      "store_datastore_init",
+      "store_datastore_upsert_fundamentals",
+      "store_datastore_upsert_macro",
+      "store_datastore_upsert_ohlcv",
+      "test_price_make_mock_yf_df",
+      "test_price_rationale_33",
+      "test_price_test_nse_bhavcopy_parses_csv",
+      "test_price_test_yfinance_appends_ns_suffix_for_india",
+      "test_price_test_yfinance_connector_returns_ohlcv_bars",
+      "test_store_rationale_50",
+      "test_store_test_store_deduplicates_ohlcv",
+      "test_store_test_store_fundamentals_deduplicates",
+      "test_store_test_store_fundamentals_round_trip",
+      "test_store_test_store_macro_deduplicates",
+      "test_store_test_store_macro_round_trip",
+      "test_store_test_store_ohlcv_round_trip",
+      "yfinance_connector_rationale_12",
+      "yfinance_connector_rationale_54",
+      "yfinance_connector_yfinanceconnector",
+      "yfinance_connector_yfinanceconnector_fetch",
+      "yfinance_connector_yfinanceconnector_fetch_batch"
+    ],
+    "1": [
+      "c_users_point_projects_stockpredictor_apps_api_src_nq_api_deps_py",
+      "c_users_point_projects_stockpredictor_packages_signals_src_nq_signals_engine_py",
+      "c_users_point_projects_stockpredictor_packages_signals_src_nq_signals_regime_hmm_detector_py",
+      "c_users_point_projects_stockpredictor_packages_signals_tests_test_hmm_py",
+      "c_users_point_projects_stockpredictor_packages_signals_tests_test_integration_py",
+      "deps_get_orchestrator",
+      "deps_get_signal_engine",
+      "deps_rationale_14",
+      "engine_rationale_1",
+      "engine_rationale_34",
+      "engine_rationale_52",
+      "engine_signalengine",
+      "engine_signalengine_compute",
+      "engine_signalengine_get_regime",
+      "engine_signalengine_init",
+      "hmm_detector_rationale_1",
+      "hmm_detector_rationale_113",
+      "hmm_detector_rationale_128",
+      "hmm_detector_rationale_58",
+      "hmm_detector_rationale_75",
+      "hmm_detector_regimedetector",
+      "hmm_detector_regimedetector_assign_semantic_regimes",
+      "hmm_detector_regimedetector_fit",
+      "hmm_detector_regimedetector_get_current_state",
+      "hmm_detector_regimedetector_init",
+      "hmm_detector_regimedetector_predict_proba",
+      "hmm_detector_regimestate",
+      "test_hmm_make_macro_df",
+      "test_hmm_rationale_7",
+      "test_hmm_test_regime_detector_fits_without_error",
+      "test_hmm_test_regime_detector_returns_soft_posteriors",
+      "test_hmm_test_regime_state_identifies_stress",
+      "test_integration_make_universe",
+      "test_integration_rationale_1",
+      "test_integration_rationale_40",
+      "test_integration_rationale_60",
+      "test_integration_rationale_75",
+      "test_integration_rationale_84",
+      "test_integration_test_composite_score_bounds",
+      "test_integration_test_full_signal_pipeline",
+      "test_integration_test_signal_engine_crash_protection",
+      "test_integration_test_signal_engine_with_small_universe"
+    ],
+    "2": [
+      "abc",
+      "adversarial_adversarialagent",
+      "adversarial_adversarialagent_build_user_message",
+      "base_baseanalystagent",
+      "base_baseanalystagent_init",
+      "base_baseanalystagent_neutral_fallback",
+      "base_baseanalystagent_parse_output",
+      "base_baseanalystagent_run",
+      "base_build_user_message",
+      "base_rationale_1",
+      "base_rationale_18",
+      "baseanalystagent",
+      "c_users_point_projects_stockpredictor_apps_api_src_nq_api_agents_adversarial_py",
+      "c_users_point_projects_stockpredictor_apps_api_src_nq_api_agents_base_py",
+      "c_users_point_projects_stockpredictor_apps_api_src_nq_api_agents_fundamental_py",
+      "c_users_point_projects_stockpredictor_apps_api_src_nq_api_agents_geopolitical_py",
+      "c_users_point_projects_stockpredictor_apps_api_src_nq_api_agents_macro_py",
+      "c_users_point_projects_stockpredictor_apps_api_src_nq_api_agents_orchestrator_py",
+      "c_users_point_projects_stockpredictor_apps_api_src_nq_api_agents_sentiment_py",
+      "c_users_point_projects_stockpredictor_apps_api_src_nq_api_agents_technical_py",
+      "c_users_point_projects_stockpredictor_apps_api_tests_test_agents_py",
+      "fundamental_fundamentalagent",
+      "fundamental_fundamentalagent_build_user_message",
+      "geopolitical_geopoliticalagent",
+      "geopolitical_geopoliticalagent_build_user_message",
+      "macro_macroagent",
+      "macro_macroagent_build_user_message",
+      "orchestrator_paradebateorchestrator",
+      "orchestrator_paradebateorchestrator_analyse",
+      "orchestrator_paradebateorchestrator_init",
+      "sentiment_sentimentagent",
+      "sentiment_sentimentagent_build_user_message",
+      "technical_technicalagent",
+      "technical_technicalagent_build_user_message",
+      "test_agents_mock_claude_response",
+      "test_agents_rationale_13",
+      "test_agents_test_agent_returns_valid_output",
+      "test_agents_test_macro_agent_defaults_neutral_on_parse_failure",
+      "test_agents_test_macro_agent_parses_output"
+    ],
+    "3": [
+      "c_users_point_projects_stockpredictor_apps_api_src_nq_api_data_builder_py",
+      "c_users_point_projects_stockpredictor_packages_data_src_nq_data_macro_fred_connector_py",
+      "data_builder_add_value_and_lowvol_percentiles",
+      "data_builder_build_real_snapshot",
+      "data_builder_fetch_fundamentals_batch",
+      "data_builder_fetch_one",
+      "data_builder_fetch_real_macro",
+      "data_builder_livemacro",
+      "data_builder_piotroski_from_info",
+      "data_builder_prewarm_cache",
+      "data_builder_rationale_1",
+      "data_builder_rationale_159",
+      "data_builder_rationale_177",
+      "data_builder_rationale_201",
+      "data_builder_rationale_297",
+      "data_builder_rationale_327",
+      "data_builder_rationale_356",
+      "data_builder_rationale_381",
+      "data_builder_safe",
+      "data_builder_synthetic_row",
+      "data_builder_yf_symbol",
+      "engine_universesnapshot",
+      "fred_connector_fredconnector",
+      "fred_connector_fredconnector_fetch",
+      "fred_connector_fredconnector_get_snapshot",
+      "fred_connector_fredconnector_init",
+      "fred_connector_rationale_27"
+    ],
+    "4": [
+      "5-factor-model",
+      "NeuralQuant",
+      "PARA-DEBATE",
+      "adversarial-agent-concept",
+      "askai-improvements",
+      "backtest-results",
+      "competitive-positioning",
+      "deployment-architecture",
+      "design-spec",
+      "fred-integration",
+      "go-to-market",
+      "hmm-regime",
+      "lgbm-ranker",
+      "live-data-pipeline",
+      "monetisation-strategy",
+      "neuralquant-report-doc",
+      "nse-india-coverage",
+      "phase1-foundation",
+      "phase2-ai-platform",
+      "phase4-roadmap",
+      "qa-deployment-spec",
+      "rank-normalised-scoring",
+      "self-aware-query-engine",
+      "target-markets",
+      "tech-moat"
+    ],
+    "5": [
+      "analyst_rationale_1",
+      "analyst_run_analyst",
+      "basemodel",
+      "c_users_point_projects_stockpredictor_apps_api_src_nq_api_routes_analyst_py",
+      "c_users_point_projects_stockpredictor_apps_api_src_nq_api_schemas_py",
+      "c_users_point_projects_stockpredictor_apps_api_src_nq_api_score_builder_py",
+      "schemas_agentoutput",
+      "schemas_aiscore",
+      "schemas_analystrequest",
+      "schemas_analystresponse",
+      "schemas_conversationmessage",
+      "schemas_featuredriver",
+      "schemas_screenerrequest",
+      "schemas_screenerresponse",
+      "schemas_subscores",
+      "score_builder_build_top_drivers",
+      "score_builder_confidence",
+      "score_builder_rank_scores_in_universe",
+      "score_builder_rationale_14",
+      "score_builder_rationale_21",
+      "score_builder_rationale_69",
+      "score_builder_row_to_ai_score",
+      "score_builder_score_to_1_10",
+      "test_analyst_route_rationale_29"
+    ],
+    "6": [
+      "c_users_point_projects_stockpredictor_packages_signals_src_nq_signals_ranker_lgbm_ranker_py",
+      "c_users_point_projects_stockpredictor_packages_signals_src_nq_signals_ranker_walk_forward_py",
+      "c_users_point_projects_stockpredictor_packages_signals_tests_test_lgbm_py",
+      "lgbm_ranker_feature_importances",
+      "lgbm_ranker_rationale_1",
+      "lgbm_ranker_rationale_31",
+      "lgbm_ranker_rationale_55",
+      "lgbm_ranker_signalranker",
+      "lgbm_ranker_signalranker_fit",
+      "lgbm_ranker_signalranker_init",
+      "lgbm_ranker_signalranker_predict",
+      "test_lgbm_make_synthetic_data",
+      "test_lgbm_rationale_43",
+      "test_lgbm_rationale_9",
+      "test_lgbm_test_compute_icir",
+      "test_lgbm_test_ic_is_positive_with_signal",
+      "test_lgbm_test_ranker_fits_and_predicts",
+      "walk_forward_compute_ic",
+      "walk_forward_compute_icir",
+      "walk_forward_rationale_1",
+      "walk_forward_rationale_13",
+      "walk_forward_rationale_29",
+      "walk_forward_rationale_39",
+      "walk_forward_walk_forward_validate"
+    ],
+    "7": [
+      "c_users_point_projects_stockpredictor_apps_api_src_nq_api_routes_query_py",
+      "query_detect_tickers_in_question",
+      "query_enrich_with_platform_data",
+      "query_fetch_dynamic_nse_stock",
+      "query_fetch_india_macro",
+      "query_fetch_relevant_news",
+      "query_parse_query_response",
+      "query_rationale_1",
+      "query_rationale_212",
+      "query_rationale_255",
+      "query_rationale_297",
+      "query_rationale_337",
+      "query_rationale_379",
+      "query_run_nl_query",
+      "schemas_queryrequest",
+      "schemas_queryresponse"
+    ],
+    "8": [
+      "broker_acquire",
+      "broker_databroker",
+      "broker_databroker_init",
+      "broker_rationale_32",
+      "broker_sourceconfig",
+      "broker_sourceconfig_deepcopy",
+      "broker_sourceconfig_wait_if_needed",
+      "c_users_point_projects_stockpredictor_packages_data_src_nq_data_broker_py",
+      "c_users_point_projects_stockpredictor_packages_data_tests_test_broker_py",
+      "test_broker_rationale_28",
+      "test_broker_rationale_7",
+      "test_broker_test_broker_enforces_rate_limit",
+      "test_broker_test_broker_raises_for_unknown_source",
+      "test_broker_test_broker_rate_limits_when_saturated"
+    ],
+    "9": [
+      "c_users_point_projects_stockpredictor_packages_data_src_nq_data_alt_signals_edgar_form4_py",
+      "c_users_point_projects_stockpredictor_packages_data_tests_test_alt_signals_py",
+      "edgar_form4_compute_insider_cluster_score",
+      "edgar_form4_form4connector",
+      "edgar_form4_form4connector_fetch_raw",
+      "edgar_form4_form4connector_get_insider_events",
+      "edgar_form4_rationale_1",
+      "edgar_form4_rationale_21",
+      "edgar_form4_rationale_50",
+      "edgar_form4_rationale_66",
+      "test_alt_signals_rationale_22",
+      "test_alt_signals_test_form4_cluster_signal",
+      "test_alt_signals_test_form4_returns_insider_events"
+    ],
+    "10": [
+      "c_users_point_projects_stockpredictor_docs_generate_report_js",
+      "generate_report_body",
+      "generate_report_bullet",
+      "generate_report_callout",
+      "generate_report_cell",
+      "generate_report_divider",
+      "generate_report_hcell",
+      "generate_report_heading1",
+      "generate_report_heading2",
+      "generate_report_maketable",
+      "generate_report_shading",
+      "generate_report_spacer"
+    ],
+    "11": [
+      "c_users_point_projects_stockpredictor_docs_generate_report_py",
+      "generate_report_b",
+      "generate_report_dark_background",
+      "generate_report_hr",
+      "generate_report_p",
+      "generate_report_rationale_1",
+      "generate_report_s",
+      "generate_report_section",
+      "generate_report_sub",
+      "generate_report_table"
+    ],
+    "12": [
+      "c_users_point_projects_stockpredictor_scripts_backtest_tests_test_backtest_py",
+      "test_backtest_make_v8_csv",
+      "test_backtest_rationale_1",
+      "test_backtest_rationale_24",
+      "test_backtest_rationale_54",
+      "test_backtest_rationale_73",
+      "test_backtest_rationale_94",
+      "test_backtest_test_backtest_runs_with_synthetic_data",
+      "test_backtest_test_load_and_map_v8_data",
+      "test_backtest_test_load_handles_mysql_null_in_return"
+    ],
+    "13": [
+      "c_users_point_projects_stockpredictor_apps_api_src_nq_api_routes_market_py",
+      "market_data_quality",
+      "market_market_movers",
+      "market_market_news",
+      "market_market_overview",
+      "market_market_sectors",
+      "market_pct_change",
+      "market_rationale_1",
+      "market_rationale_166"
+    ],
+    "14": [
+      "c_users_point_projects_stockpredictor_apps_api_src_nq_api_agents_head_analyst_py",
+      "head_analyst_headanalystagent",
+      "head_analyst_headanalystagent_build_user_message",
+      "head_analyst_headanalystagent_fallback_synthesis",
+      "head_analyst_headanalystagent_init",
+      "head_analyst_headanalystagent_parse_synthesis",
+      "head_analyst_headanalystagent_run_synthesis",
+      "head_analyst_rationale_17"
+    ],
+    "15": [
+      "c_users_point_projects_stockpredictor_packages_signals_src_nq_signals_factors_momentum_py",
+      "momentum_apply_crash_protection",
+      "momentum_compute_momentum_12_1",
+      "momentum_compute_momentum_cross_sectional",
+      "momentum_rationale_27",
+      "momentum_rationale_37",
+      "momentum_rationale_6"
+    ],
+    "16": [
+      "c_users_point_projects_stockpredictor_packages_signals_tests_test_momentum_py",
+      "test_momentum_make_price_series",
+      "test_momentum_rationale_32",
+      "test_momentum_test_crash_protection_disables_momentum_in_bear",
+      "test_momentum_test_crash_protection_off_in_bull",
+      "test_momentum_test_momentum_12_1_positive",
+      "test_momentum_test_momentum_12_1_skips_last_month"
+    ],
+    "17": [
+      "c_users_point_projects_stockpredictor_scripts_backtest_run_backtest_py",
+      "run_backtest_load_historical_data",
+      "run_backtest_load_v8_csv",
+      "run_backtest_main",
+      "run_backtest_rationale_1",
+      "run_backtest_rationale_43",
+      "run_backtest_rationale_74"
+    ],
+    "18": [
+      "c_users_point_projects_stockpredictor_apps_api_src_nq_api_routes_stocks_py",
+      "stocks_fmt_mcap",
+      "stocks_get_stock_chart",
+      "stocks_get_stock_meta",
+      "stocks_get_stock_score",
+      "stocks_yf_sym"
+    ],
+    "19": [
+      "c_users_point_projects_stockpredictor_apps_web_src_app_page_tsx",
+      "page_ask",
+      "page_clear",
+      "page_indexcard",
+      "page_indexskeleton",
+      "page_scorecolor"
+    ],
+    "20": [
+      "c_users_point_projects_stockpredictor_apps_web_src_lib_watchlist_ts",
+      "watchlist_addtowatchlist",
+      "watchlist_getwatchlist",
+      "watchlist_iswatchlisted",
+      "watchlist_removefromwatchlist",
+      "watchlist_togglewatchlist"
+    ],
+    "21": [
+      "c_users_point_projects_stockpredictor_packages_signals_src_nq_signals_factors_quality_py",
+      "quality_compute_piotroski_score",
+      "quality_compute_quality_composite",
+      "quality_rationale_1",
+      "quality_rationale_13",
+      "quality_rationale_34"
+    ],
+    "22": [
+      "c_users_point_projects_stockpredictor_packages_signals_tests_test_quality_py",
+      "test_quality_make_fundamental",
+      "test_quality_rationale_36",
+      "test_quality_test_piotroski_score_high_quality",
+      "test_quality_test_piotroski_score_low_quality",
+      "test_quality_test_quality_composite_cross_sectional_rank"
+    ],
+    "23": [
+      "c_users_point_projects_stockpredictor_scripts_backtest_report_py",
+      "report_main",
+      "report_print_ic_table",
+      "report_print_separator",
+      "report_rationale_1",
+      "report_rationale_20"
+    ],
+    "24": [
+      "c_users_point_projects_stockpredictor_apps_api_tests_test_analyst_route_py",
+      "test_analyst_route_mock_analyst_response",
+      "test_analyst_route_patch_analyst",
+      "test_analyst_route_test_analyst_post_returns_report",
+      "test_analyst_route_test_analyst_verdict_is_valid"
+    ],
+    "25": [
+      "c_users_point_projects_stockpredictor_apps_api_tests_test_orchestrator_py",
+      "test_orchestrator_make_agent_output",
+      "test_orchestrator_mock_all_agents",
+      "test_orchestrator_test_orchestrator_adversarial_is_always_bear",
+      "test_orchestrator_test_orchestrator_returns_analyst_response"
+    ],
+    "26": [
+      "c_users_point_projects_stockpredictor_apps_api_tests_test_stocks_route_py",
+      "test_stocks_route_mock_engine_result",
+      "test_stocks_route_rationale_10",
+      "test_stocks_route_test_get_stock_score_returns_ai_score",
+      "test_stocks_route_test_get_stock_score_unknown_ticker_returns_404"
+    ],
+    "27": [
+      "accordion_accordion",
+      "accordion_accordioncontent",
+      "accordion_accordionitem",
+      "accordion_accordiontrigger",
+      "c_users_point_projects_stockpredictor_apps_web_src_components_ui_accordion_tsx"
+    ],
+    "28": [
+      "c_users_point_projects_stockpredictor_apps_api_tests_test_screener_route_py",
+      "test_screener_route_mock_engine_for_universe",
+      "test_screener_route_test_screener_filters_by_min_score",
+      "test_screener_route_test_screener_returns_ranked_list"
+    ],
+    "29": [
+      "c_users_point_projects_stockpredictor_apps_api_src_nq_api_main_py",
+      "main_health",
+      "main_lifespan"
+    ],
+    "30": [
+      "c_users_point_projects_stockpredictor_apps_api_tests_test_health_py",
+      "test_health_test_cors_headers_present",
+      "test_health_test_health_returns_ok"
+    ],
+    "31": [
+      "c_users_point_projects_stockpredictor_apps_web_src_app_stocks_ticker_page_tsx",
+      "page_handlewatchlist",
+      "page_rundebate"
+    ],
+    "32": [
+      "aiscorecard_aiscorecard",
+      "aiscorecard_scorering",
+      "c_users_point_projects_stockpredictor_apps_web_src_components_aiscorecard_tsx"
+    ],
+    "33": [
+      "c_users_point_projects_stockpredictor_apps_web_src_components_nlquerybox_tsx",
+      "nlquerybox_ask",
+      "nlquerybox_clear"
+    ],
+    "34": [
+      "c_users_point_projects_stockpredictor_apps_web_src_components_ui_card_tsx",
+      "card_cardaction",
+      "card_cn"
+    ],
+    "35": [
+      "c_users_point_projects_stockpredictor_packages_signals_tests_test_engine_py",
+      "test_engine_make_mock_snapshot",
+      "test_engine_test_engine_returns_ranked_universe"
+    ],
+    "36": [
+      "c_users_point_projects_stockpredictor_apps_api_src_nq_api_routes_screener_py",
+      "screener_run_screener"
+    ],
+    "37": [
+      "c_users_point_projects_stockpredictor_apps_web_src_app_layout_tsx",
+      "layout_rootlayout"
+    ],
+    "38": [
+      "c_users_point_projects_stockpredictor_apps_web_src_app_query_page_tsx",
+      "page_querypage"
+    ],
+    "39": [
+      "c_users_point_projects_stockpredictor_apps_web_src_app_screener_page_tsx",
+      "page_load"
+    ],
+    "40": [
+      "c_users_point_projects_stockpredictor_apps_web_src_components_featureattribution_tsx",
+      "featureattribution_featureattribution"
+    ],
+    "41": [
+      "c_users_point_projects_stockpredictor_apps_web_src_components_pricechart_tsx",
+      "pricechart_customtooltip"
+    ],
+    "42": [
+      "c_users_point_projects_stockpredictor_apps_web_src_components_regimebadge_tsx",
+      "regimebadge_regimebadge"
+    ],
+    "43": [
+      "c_users_point_projects_stockpredictor_apps_web_src_components_scorebreakdown_tsx",
+      "scorebreakdown_scorebreakdown"
+    ],
+    "44": [
+      "c_users_point_projects_stockpredictor_apps_web_src_components_stockmetabar_tsx",
+      "stockmetabar_metaitem"
+    ],
+    "45": [
+      "badge_badge",
+      "c_users_point_projects_stockpredictor_apps_web_src_components_ui_badge_tsx"
+    ],
+    "46": [
+      "button_cn",
+      "c_users_point_projects_stockpredictor_apps_web_src_components_ui_button_tsx"
+    ],
+    "47": [
+      "c_users_point_projects_stockpredictor_apps_web_src_components_ui_input_tsx",
+      "input_input"
+    ],
+    "48": [
+      "c_users_point_projects_stockpredictor_apps_web_src_components_ui_skeleton_tsx",
+      "skeleton_skeleton"
+    ],
+    "49": [
+      "c_users_point_projects_stockpredictor_apps_web_src_components_ui_tabs_tsx",
+      "tabs_cn"
+    ],
+    "50": [
+      "api_apifetch",
+      "c_users_point_projects_stockpredictor_apps_web_src_lib_api_ts"
+    ],
+    "51": [
+      "c_users_point_projects_stockpredictor_apps_web_src_lib_utils_ts",
+      "utils_cn"
+    ],
+    "52": [
+      "c_users_point_projects_stockpredictor_packages_data_tests_conftest_py",
+      "conftest_tmp_store"
+    ],
+    "53": [
+      "c_users_point_projects_stockpredictor_packages_data_tests_test_macro_py",
+      "test_macro_test_fred_connector_builds_snapshot"
+    ],
+    "54": [
+      "c_users_point_projects_stockpredictor_apps_api_src_nq_api_universe_py"
+    ],
+    "55": [
+      "c_users_point_projects_stockpredictor_apps_api_src_nq_api_init_py"
+    ],
+    "56": [
+      "c_users_point_projects_stockpredictor_apps_api_src_nq_api_agents_init_py"
+    ],
+    "57": [
+      "c_users_point_projects_stockpredictor_apps_api_src_nq_api_routes_init_py"
+    ],
+    "58": [
+      "c_users_point_projects_stockpredictor_apps_api_tests_init_py"
+    ],
+    "59": [
+      "c_users_point_projects_stockpredictor_apps_web_next_env_d_ts"
+    ],
+    "60": [
+      "c_users_point_projects_stockpredictor_apps_web_next_config_ts"
+    ],
+    "61": [
+      "c_users_point_projects_stockpredictor_apps_web_src_components_agentdebatepanel_tsx"
+    ],
+    "62": [
+      "c_users_point_projects_stockpredictor_apps_web_src_components_hero_buttons_tsx"
+    ],
+    "63": [
+      "c_users_point_projects_stockpredictor_apps_web_src_components_screenertable_tsx"
+    ],
+    "64": [
+      "c_users_point_projects_stockpredictor_apps_web_src_lib_types_ts"
+    ],
+    "65": [
+      "c_users_point_projects_stockpredictor_packages_data_src_nq_data_init_py"
+    ],
+    "66": [
+      "c_users_point_projects_stockpredictor_packages_data_src_nq_data_alt_signals_init_py"
+    ],
+    "67": [
+      "c_users_point_projects_stockpredictor_packages_data_src_nq_data_macro_init_py"
+    ],
+    "68": [
+      "c_users_point_projects_stockpredictor_packages_data_src_nq_data_price_init_py"
+    ],
+    "69": [
+      "c_users_point_projects_stockpredictor_packages_signals_src_nq_signals_init_py"
+    ],
+    "70": [
+      "c_users_point_projects_stockpredictor_packages_signals_src_nq_signals_factors_init_py"
+    ],
+    "71": [
+      "c_users_point_projects_stockpredictor_packages_signals_src_nq_signals_ranker_init_py"
+    ],
+    "72": [
+      "c_users_point_projects_stockpredictor_packages_signals_src_nq_signals_regime_init_py"
+    ],
+    "73": [
+      "c_users_point_projects_stockpredictor_packages_signals_tests_conftest_py"
+    ],
+    "74": [
+      "c_users_point_projects_stockpredictor_packages_signals_tests_init_py"
+    ],
+    "75": [
+      "c_users_point_projects_stockpredictor_scripts_backtest_init_py"
+    ],
+    "76": [
+      "c_users_point_projects_stockpredictor_scripts_backtest_tests_init_py"
+    ],
+    "77": [
+      "svg-assets"
+    ],
+    "78": [
+      "knowledgegraph-vault"
+    ]
+  },
+  "cohesion": {
+    "0": 0.07,
+    "1": 0.07,
+    "2": 0.08,
+    "3": 0.16,
+    "4": 0.12,
+    "5": 0.16,
+    "6": 0.11,
+    "7": 0.26,
+    "8": 0.19,
+    "9": 0.17,
+    "10": 0.21,
+    "11": 0.27,
+    "12": 0.22,
+    "13": 0.28,
+    "14": 0.36,
+    "15": 0.29,
+    "16": 0.38,
+    "17": 0.38,
+    "18": 0.53,
+    "19": 0.33,
+    "20": 0.73,
+    "21": 0.33,
+    "22": 0.47,
+    "23": 0.53,
+    "24": 0.7,
+    "25": 0.6,
+    "26": 0.5,
+    "27": 0.4,
+    "28": 0.83,
+    "29": 0.67,
+    "30": 0.67,
+    "31": 0.67,
+    "32": 0.67,
+    "33": 0.67,
+    "34": 0.67,
+    "35": 1.0,
+    "36": 1.0,
+    "37": 1.0,
+    "38": 1.0,
+    "39": 1.0,
+    "40": 1.0,
+    "41": 1.0,
+    "42": 1.0,
+    "43": 1.0,
+    "44": 1.0,
+    "45": 1.0,
+    "46": 1.0,
+    "47": 1.0,
+    "48": 1.0,
+    "49": 1.0,
+    "50": 1.0,
+    "51": 1.0,
+    "52": 1.0,
+    "53": 1.0,
+    "54": 1.0,
+    "55": 1.0,
+    "56": 1.0,
+    "57": 1.0,
+    "58": 1.0,
+    "59": 1.0,
+    "60": 1.0,
+    "61": 1.0,
+    "62": 1.0,
+    "63": 1.0,
+    "64": 1.0,
+    "65": 1.0,
+    "66": 1.0,
+    "67": 1.0,
+    "68": 1.0,
+    "69": 1.0,
+    "70": 1.0,
+    "71": 1.0,
+    "72": 1.0,
+    "73": 1.0,
+    "74": 1.0,
+    "75": 1.0,
+    "76": 1.0,
+    "77": 1.0,
+    "78": 1.0
+  },
+  "gods": [
+    {
+      "id": "engine_universesnapshot",
+      "label": "UniverseSnapshot",
+      "edges": 17
+    },
+    {
+      "id": "base_baseanalystagent",
+      "label": "BaseAnalystAgent",
+      "edges": 14
+    },
+    {
+      "id": "orchestrator_paradebateorchestrator",
+      "label": "ParaDebateOrchestrator",
+      "edges": 14
+    },
+    {
+      "id": "fred_connector_fredconnector",
+      "label": "FREDConnector",
+      "edges": 14
+    },
+    {
+      "id": "models_ohlcvbar",
+      "label": "OHLCVBar",
+      "edges": 13
+    },
+    {
+      "id": "store_datastore",
+      "label": "DataStore",
+      "edges": 12
+    },
+    {
+      "id": "engine_signalengine",
+      "label": "SignalEngine",
+      "edges": 12
+    },
+    {
+      "id": "hmm_detector_regimedetector",
+      "label": "RegimeDetector",
+      "edges": 12
+    },
+    {
+      "id": "schemas_agentoutput",
+      "label": "AgentOutput",
+      "edges": 10
+    },
+    {
+      "id": "lgbm_ranker_signalranker",
+      "label": "SignalRanker",
+      "edges": 10
+    }
+  ],
+  "surprises": [
+    {
+      "source": "Base agent class for NeuralQuant PARA-DEBATE analyst team.",
+      "target": "AgentOutput",
+      "source_files": [
+        "C:\\Users\\point\\projects\\stockpredictor\\apps\\api\\src\\nq_api\\agents\\base.py",
+        "C:\\Users\\point\\projects\\stockpredictor\\apps\\api\\src\\nq_api\\schemas.py"
+      ],
+      "confidence": "INFERRED",
+      "relation": "uses",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities; peripheral node `Base agent class for NeuralQuant PARA-DEBATE analyst team.` unexpectedly reaches hub `AgentOutput`"
+    },
+    {
+      "source": "One analyst in the PARA-DEBATE panel.",
+      "target": "AgentOutput",
+      "source_files": [
+        "C:\\Users\\point\\projects\\stockpredictor\\apps\\api\\src\\nq_api\\agents\\base.py",
+        "C:\\Users\\point\\projects\\stockpredictor\\apps\\api\\src\\nq_api\\schemas.py"
+      ],
+      "confidence": "INFERRED",
+      "relation": "uses",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities; peripheral node `One analyst in the PARA-DEBATE panel.` unexpectedly reaches hub `AgentOutput`"
+    },
+    {
+      "source": "HEAD ANALYST \u2014 not a BaseAnalystAgent subclass (different run interface).",
+      "target": "AgentOutput",
+      "source_files": [
+        "C:\\Users\\point\\projects\\stockpredictor\\apps\\api\\src\\nq_api\\agents\\head_analyst.py",
+        "C:\\Users\\point\\projects\\stockpredictor\\apps\\api\\src\\nq_api\\schemas.py"
+      ],
+      "confidence": "INFERRED",
+      "relation": "uses",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities; peripheral node `HEAD ANALYST \u2014 not a BaseAnalystAgent subclass (different run interface).` unexpectedly reaches hub `AgentOutput`"
+    },
+    {
+      "source": "Fetch a single FRED series; returns None on any error (retired/missing series, e",
+      "target": "MacroSnapshot",
+      "source_files": [
+        "C:\\Users\\point\\projects\\stockpredictor\\packages\\data\\src\\nq_data\\macro\\fred_connector.py",
+        "C:\\Users\\point\\projects\\stockpredictor\\packages\\data\\src\\nq_data\\models.py"
+      ],
+      "confidence": "INFERRED",
+      "relation": "uses",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities; peripheral node `Fetch a single FRED series; returns None on any error (retired/missing series, e` unexpectedly reaches hub `MacroSnapshot`"
+    },
+    {
+      "source": "Lazy singleton for ParaDebateOrchestrator \u2014 avoids 7 agent instantiations per re",
+      "target": "ParaDebateOrchestrator",
+      "source_files": [
+        "C:\\Users\\point\\projects\\stockpredictor\\apps\\api\\src\\nq_api\\deps.py",
+        "C:\\Users\\point\\projects\\stockpredictor\\apps\\api\\src\\nq_api\\agents\\orchestrator.py"
+      ],
+      "confidence": "INFERRED",
+      "relation": "uses",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities"
+    }
+  ],
+  "questions": [
+    {
+      "type": "bridge_node",
+      "question": "Why does `MacroSnapshot` connect `Community 0` to `Community 3`, `Community 5`?",
+      "why": "High betweenness centrality (0.053) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `FREDConnector` connect `Community 3` to `Community 0`?",
+      "why": "High betweenness centrality (0.048) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `AgentOutput` connect `Community 5` to `Community 2`, `Community 14`?",
+      "why": "High betweenness centrality (0.048) - this node is a cross-community bridge."
+    },
+    {
+      "type": "verify_inferred",
+      "question": "Are the 16 inferred relationships involving `UniverseSnapshot` (e.g. with `_LiveMacro` and `Phase 3 real data builder \u2014 100% live data, zero synthetic fallbacks where avoid`) actually correct?",
+      "why": "`UniverseSnapshot` has 16 INFERRED edges - model-reasoned connections that need verification."
+    },
+    {
+      "type": "verify_inferred",
+      "question": "Are the 7 inferred relationships involving `BaseAnalystAgent` (e.g. with `AdversarialAgent` and `AgentOutput`) actually correct?",
+      "why": "`BaseAnalystAgent` has 7 INFERRED edges - model-reasoned connections that need verification."
+    },
+    {
+      "type": "verify_inferred",
+      "question": "Are the 11 inferred relationships involving `ParaDebateOrchestrator` (e.g. with `Lazy singleton for ParaDebateOrchestrator \u2014 avoids 7 agent instantiations per re` and `AgentOutput`) actually correct?",
+      "why": "`ParaDebateOrchestrator` has 11 INFERRED edges - model-reasoned connections that need verification."
+    },
+    {
+      "type": "verify_inferred",
+      "question": "Are the 10 inferred relationships involving `FREDConnector` (e.g. with `_LiveMacro` and `Phase 3 real data builder \u2014 100% live data, zero synthetic fallbacks where avoid`) actually correct?",
+      "why": "`FREDConnector` has 10 INFERRED edges - model-reasoned connections that need verification."
+    }
+  ]
+}
