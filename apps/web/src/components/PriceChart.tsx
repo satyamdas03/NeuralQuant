@@ -10,17 +10,18 @@ import type { ChartBar, Market } from "@/lib/types";
 const PERIODS = ["1d", "5d", "1mo", "3mo", "1y", "5y"] as const;
 type Period = typeof PERIODS[number];
 
-function CustomTooltip({ active, payload, label }: any) {
+function CustomTooltip({ active, payload, label, symbol }: any) {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-xs shadow-xl">
       <p className="text-gray-400 mb-1">{label}</p>
-      <p className="font-semibold text-white">${payload[0].value.toFixed(2)}</p>
+      <p className="font-semibold text-white">{symbol}{payload[0].value.toFixed(2)}</p>
     </div>
   );
 }
 
 export function PriceChart({ ticker, market = "US" }: { ticker: string; market?: Market }) {
+  const symbol = market === "IN" ? "\u20b9" : "$";
   const [period, setPeriod] = useState<Period>("1mo");
   const [data, setData] = useState<ChartBar[]>([]);
   const [pctChange, setPctChange] = useState(0);
@@ -50,7 +51,7 @@ export function PriceChart({ ticker, market = "US" }: { ticker: string; market?:
           {!loading && data.length > 0 && (
             <>
               <span className={`text-sm font-bold tabular-nums ${positive ? "text-emerald-400" : "text-red-400"}`}>
-                ${data[data.length - 1]?.close.toFixed(2)}
+                {symbol}{data[data.length - 1]?.close.toFixed(2)}
               </span>
               <span className={`text-xs px-2 py-0.5 rounded-full ${positive ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"}`}>
                 {positive ? "+" : ""}{pctChange.toFixed(2)}%
@@ -103,10 +104,10 @@ export function PriceChart({ ticker, market = "US" }: { ticker: string; market?:
               tick={{ fontSize: 10, fill: "#6b7280" }}
               axisLine={false}
               tickLine={false}
-              tickFormatter={v => `$${v}`}
+              tickFormatter={v => `${symbol}${v}`}
               width={50}
             />
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={<CustomTooltip symbol={symbol} />} />
             <Area
               type="monotone"
               dataKey="close"

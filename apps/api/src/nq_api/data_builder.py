@@ -161,6 +161,7 @@ def _synthetic_row(ticker: str) -> dict:
     rng = lambda seed: np.random.RandomState(seed)
     return {
         "gross_profit_margin":  float(rng(s).uniform(0.10, 0.85)),
+        "roe":                   float(rng(s + 9).uniform(0.03, 0.25)),
         "accruals_ratio":        float(rng(s + 1).uniform(-0.15, 0.15)),
         "piotroski":             int(rng(s + 2).randint(2, 9)),
         "momentum_raw":          float(rng(s + 3).uniform(-0.25, 0.55)),
@@ -215,6 +216,12 @@ def _fetch_one(ticker: str, market: str) -> dict:
         # ── Gross profit margin ───────────────────────────────────────
         gpm = _safe(info.get("grossMargins"),
                     np.random.RandomState(hash(ticker) % (2**31)).uniform(0.1, 0.9))
+
+        # ── Return on equity (sector-adjusted quality uses this for financials) ──
+        roe = _safe(info.get("returnOnEquity"),
+                    np.random.RandomState((hash(ticker) + 11) % (2**31)).uniform(0.05, 0.25))
+        # Clamp to sane band — yfinance occasionally returns 5.0 (i.e. 500%)
+        roe = max(-0.50, min(0.80, roe))
 
         # ── Short interest % of float ─────────────────────────────────
         si = _safe(info.get("shortPercentOfFloat"),
@@ -283,6 +290,7 @@ def _fetch_one(ticker: str, market: str) -> dict:
 
         result = {
             "gross_profit_margin": float(gpm),
+            "roe":                 float(roe),
             "accruals_ratio":       float(accruals),
             "piotroski":            int(piotroski),
             "momentum_raw":         float(momentum),

@@ -43,3 +43,39 @@ def test_quality_composite_cross_sectional_rank():
     # A should rank highest (high margin, negative accruals = quality, high piotroski)
     assert result.loc[result["ticker"] == "A", "quality_percentile"].values[0] > \
            result.loc[result["ticker"] == "B", "quality_percentile"].values[0]
+
+
+def test_quality_composite_financial_uses_roe():
+    """Financial firms must be ranked on ROE, not gross profit margin.
+
+    Bank B has a low gross margin (expected — banks don't have one in the
+    traditional sense) but a high ROE. Non-financial A has the opposite
+    pattern. B's quality score should therefore beat A's when sector info
+    is supplied, and the OPPOSITE should be true when it is omitted.
+    """
+    universe_with_sector = pd.DataFrame([
+        {"ticker": "BANK", "sector": "Financial Services",
+         "gross_profit_margin": 0.10, "roe": 0.30,
+         "accruals_ratio": -0.05, "piotroski": 8},
+        {"ticker": "TECH_A", "sector": "Technology",
+         "gross_profit_margin": 0.80, "roe": 0.15,
+         "accruals_ratio": 0.00, "piotroski": 6},
+        {"ticker": "TECH_B", "sector": "Technology",
+         "gross_profit_margin": 0.60, "roe": 0.05,
+         "accruals_ratio": 0.05, "piotroski": 6},
+    ])
+    result = compute_quality_composite(universe_with_sector)
+    bank_score   = result.loc[result["ticker"] == "BANK",   "quality_percentile"].values[0]
+    tech_a_score = result.loc[result["ticker"] == "TECH_A", "quality_percentile"].values[0]
+    # With sector-aware quality, BANK ranks on ROE (top) instead of gpm (bottom).
+    assert bank_score > tech_a_score, (
+        f"Expected BANK (top ROE) to beat TECH_A (top gpm) once sector-aware "
+        f"quality is applied; got bank={bank_score:.3f} tech_a={tech_a_score:.3f}"
+    )
+
+    # Without sector info, legacy logic applies: TECH_A wins on gpm rank.
+    universe_no_sector = universe_with_sector.drop(columns=["sector", "roe"])
+    result_legacy = compute_quality_composite(universe_no_sector)
+    bank_legacy   = result_legacy.loc[result_legacy["ticker"] == "BANK",   "quality_percentile"].values[0]
+    tech_a_legacy = result_legacy.loc[result_legacy["ticker"] == "TECH_A", "quality_percentile"].values[0]
+    assert tech_a_legacy > bank_legacy

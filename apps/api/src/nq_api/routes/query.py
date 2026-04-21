@@ -639,20 +639,32 @@ def run_nl_query(
 
 
 def _parse_query_response(raw: str) -> QueryResponse:
-    answer_match = re.search(r"ANSWER:\s*(.+?)(?=DATA_SOURCES:|\Z)", raw, re.I | re.S | re.M)
-    answer = answer_match.group(1).strip() if answer_match else raw[:8000]
+    # Strip markdown bold around section headers (Claude occasionally wraps
+    # `ANSWER:` as `**ANSWER:**`), which previously leaked `**` into the
+    # answer text and data_sources list. Normalize BEFORE regex splits.
+    norm = re.sub(r"\*\*\s*(ANSWER|DATA_SOURCES|FOLLOW_UP)\s*:\s*\*\*", r"\1:", raw, flags=re.I)
 
-    sources_match = re.search(r"DATA_SOURCES:\s*(.+?)(?=FOLLOW_UP:|\Z)", raw, re.I | re.S | re.M)
-    sources = [s.strip() for s in sources_match.group(1).split(",")] if sources_match else []
+    answer_match = re.search(r"ANSWER:\s*(.+?)(?=DATA_SOURCES:|\Z)", norm, re.I | re.S | re.M)
+    answer = answer_match.group(1).strip() if answer_match else norm[:8000]
 
-    followup_match = re.search(r"FOLLOW_UP:(.*)", raw, re.I | re.S | re.M)
-    followups = []
+    sources_match = re.search(r"DATA_SOURCES:\s*(.+?)(?=FOLLOW_UP:|\Z)", norm, re.I | re.S | re.M)
+    sources_raw = sources_match.group(1) if sources_match else ""
+    # Strip any leftover `**` from individual source tokens and drop empties.
+    sources = [
+        re.sub(r"\*+", "", s).strip()
+        for s in sources_raw.split(",")
+    ]
+    sources = [s for s in sources if s and s not in ("-", "*")]
+
+    followup_match = re.search(r"FOLLOW_UP:(.*)", norm, re.I | re.S | re.M)
+    followups: list[str] = []
     if followup_match:
         followups = [
-            re.sub(r"^[-*•]\s*|\d+\.\s*", "", q.strip()).strip()
+            re.sub(r"^[-*•]\s*|\d+\.\s*", "", q.strip()).strip().strip("*").strip()
             for q in followup_match.group(1).strip().splitlines()
             if q.strip() and q.strip() not in ("-", "*", "•")
         ]
+        followups = [q for q in followups if q]
 
     return QueryResponse(
         answer=answer[:8000],
