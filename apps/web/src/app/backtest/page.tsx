@@ -4,6 +4,11 @@ import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { authedBacktest } from "@/lib/api";
 import type { BacktestResponse, Market } from "@/lib/types";
+import GhostBorderCard from "@/components/ui/GhostBorderCard";
+import MetricCard from "@/components/ui/MetricCard";
+import GradientButton from "@/components/ui/GradientButton";
+import GlassPanel from "@/components/ui/GlassPanel";
+import { FlaskConical } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -35,8 +40,6 @@ function BacktestForm() {
     }
   }
 
-  const beatBH = result && result.total_return_pct > result.buy_hold_return_pct;
-
   const tickerValid = /^[A-Z0-9.\-]{1,10}$/.test(ticker.trim());
   const numsValid = Number.isFinite(fast) && Number.isFinite(slow) && fast >= 2 && slow >= 5 && fast <= 200 && slow <= 400;
   const crossoverValid = fast < slow;
@@ -50,26 +53,25 @@ function BacktestForm() {
     : null;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Strategy Backtest</h1>
-        <p className="text-sm text-gray-400 mt-1">
-          Vectorized SMA-crossover on daily closes. Fast MA &gt; Slow MA ⇒ long, else flat.
-          No slippage/commission modeled. Educational only.
-        </p>
+    <div className="space-y-5 p-4 lg:p-6">
+      <div className="flex items-center gap-3">
+        <FlaskConical size={20} className="text-secondary" />
+        <div>
+          <h1 className="font-headline text-xl font-bold text-on-surface">Strategy Backtest</h1>
+          <p className="text-xs text-on-surface-variant">
+            Vectorized SMA-crossover on daily closes. Educational only.
+          </p>
+        </div>
       </div>
 
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <GhostBorderCard>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
           <Input label="Ticker" value={ticker} onChange={(v) => setTicker(v.toUpperCase())} />
           <Select
             label="Market"
             value={market}
             onChange={(v) => setMarket(v as Market)}
-            options={[
-              { value: "US", label: "US" },
-              { value: "IN", label: "India" },
-            ]}
+            options={[{ value: "US", label: "US" }, { value: "IN", label: "India" }]}
           />
           <NumberInput label="Fast SMA" value={fast} onChange={setFast} min={2} max={200} />
           <NumberInput label="Slow SMA" value={slow} onChange={setSlow} min={5} max={400} />
@@ -86,52 +88,53 @@ function BacktestForm() {
             ]}
           />
         </div>
-        <button
-          onClick={run}
-          disabled={!canRun}
-          className="px-6 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 rounded-lg text-sm font-medium transition-colors"
-        >
-          {loading ? "Running…" : "Run backtest"}
-        </button>
-        {validationMsg && <p className="text-xs text-amber-400">{validationMsg}</p>}
-        {error && <p className="text-sm text-red-400">{error}</p>}
-      </div>
+        <div className="mt-4 flex items-center gap-4">
+          <GradientButton onClick={run} disabled={!canRun} size="md">
+            {loading ? "Running…" : "Run backtest"}
+          </GradientButton>
+          {validationMsg && <p className="text-xs text-primary">{validationMsg}</p>}
+          {error && <p className="text-sm text-error">{error}</p>}
+        </div>
+      </GhostBorderCard>
 
       {result && (
         <div className="space-y-5">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Metric
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <MetricCard
               label="Strategy Return"
               value={`${result.total_return_pct >= 0 ? "+" : ""}${result.total_return_pct.toFixed(2)}%`}
-              accent={result.total_return_pct >= 0 ? "emerald" : "red"}
+              accent={result.total_return_pct >= 0 ? "tertiary" : "error"}
             />
-            <Metric
+            <MetricCard
               label="Buy & Hold"
               value={`${result.buy_hold_return_pct >= 0 ? "+" : ""}${result.buy_hold_return_pct.toFixed(2)}%`}
-              accent={result.buy_hold_return_pct >= 0 ? "emerald" : "red"}
+              accent={result.buy_hold_return_pct >= 0 ? "tertiary" : "error"}
             />
-            <Metric label="Sharpe" value={result.sharpe.toFixed(2)} />
-            <Metric
+            <MetricCard label="Sharpe" value={result.sharpe.toFixed(2)} accent="secondary" />
+            <MetricCard
               label="Max Drawdown"
               value={`${result.max_drawdown_pct.toFixed(2)}%`}
-              accent="red"
+              accent="error"
             />
           </div>
 
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="font-semibold text-sm text-gray-300 uppercase tracking-wide">
+          <GlassPanel>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="font-headline text-sm font-semibold text-on-surface uppercase tracking-wide">
                 Equity curve · {result.ticker}
               </h2>
-              <span className="text-xs text-gray-500">
-                {result.n_trades} trades · {result.n_days} trading days
+              <span className="text-xs text-on-surface-variant">
+                {result.n_trades} trades · {result.n_days} days
               </span>
             </div>
             <EquityChart data={result.equity_curve} />
-            <p className="text-xs text-gray-500 mt-3">
-              {beatBH ? "Strategy beat buy-and-hold." : "Buy-and-hold outperformed the strategy."} Final equity: ${result.final_equity.toLocaleString()}.
+            <p className="mt-3 text-xs text-on-surface-variant">
+              {result.total_return_pct > result.buy_hold_return_pct
+                ? "Strategy beat buy-and-hold."
+                : "Buy-and-hold outperformed the strategy."}{" "}
+              Final equity: ${result.final_equity.toLocaleString()}.
             </p>
-          </div>
+          </GlassPanel>
         </div>
       )}
     </div>
@@ -141,12 +144,12 @@ function BacktestForm() {
 function Input({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <label className="block">
-      <span className="block text-xs text-gray-500 mb-1">{label}</span>
+      <span className="mb-1 block text-xs text-on-surface-variant">{label}</span>
       <input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-violet-500"
+        className="w-full rounded-lg bg-surface-high px-3 py-2 text-sm text-on-surface outline-none focus:ring-1 focus:ring-primary"
       />
     </label>
   );
@@ -157,7 +160,7 @@ function NumberInput({ label, value, onChange, min, max }: {
 }) {
   return (
     <label className="block">
-      <span className="block text-xs text-gray-500 mb-1">{label}</span>
+      <span className="mb-1 block text-xs text-on-surface-variant">{label}</span>
       <input
         type="number"
         value={value}
@@ -167,7 +170,7 @@ function NumberInput({ label, value, onChange, min, max }: {
           const n = Number(e.target.value);
           onChange(Number.isFinite(n) ? n : 0);
         }}
-        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-violet-500 tabular-nums"
+        className="w-full rounded-lg bg-surface-high px-3 py-2 text-sm text-on-surface outline-none focus:ring-1 focus:ring-primary tabular-nums"
       />
     </label>
   );
@@ -178,27 +181,17 @@ function Select({ label, value, onChange, options }: {
 }) {
   return (
     <label className="block">
-      <span className="block text-xs text-gray-500 mb-1">{label}</span>
+      <span className="mb-1 block text-xs text-on-surface-variant">{label}</span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-violet-500"
+        className="w-full rounded-lg bg-surface-high px-3 py-2 text-sm text-on-surface outline-none focus:ring-1 focus:ring-primary"
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>{o.label}</option>
         ))}
       </select>
     </label>
-  );
-}
-
-function Metric({ label, value, accent }: { label: string; value: string; accent?: "emerald" | "red" }) {
-  const color = accent === "emerald" ? "text-emerald-400" : accent === "red" ? "text-red-400" : "text-gray-100";
-  return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-      <div className="text-xs text-gray-500 uppercase tracking-wide">{label}</div>
-      <div className={`text-2xl font-bold mt-1 tabular-nums ${color}`}>{value}</div>
-    </div>
   );
 }
 
@@ -218,12 +211,13 @@ function EquityChart({ data }: { data: { date: string; equity: number }[] }) {
   const last = data[data.length - 1];
   const first = data[0];
   const up = last.equity >= first.equity;
+  const lineColor = up ? "#4edea3" : "#ffb4ab";
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto">
+    <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full">
       <defs>
         <linearGradient id="eq-fill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={up ? "#10b981" : "#ef4444"} stopOpacity="0.25" />
-          <stop offset="100%" stopColor={up ? "#10b981" : "#ef4444"} stopOpacity="0" />
+          <stop offset="0%" stopColor={lineColor} stopOpacity="0.25" />
+          <stop offset="100%" stopColor={lineColor} stopOpacity="0" />
         </linearGradient>
       </defs>
       <polyline
@@ -231,9 +225,9 @@ function EquityChart({ data }: { data: { date: string; equity: number }[] }) {
         fill="url(#eq-fill)"
         stroke="none"
       />
-      <polyline points={points} fill="none" stroke={up ? "#10b981" : "#ef4444"} strokeWidth="1.8" />
-      <text x={pad} y={H - 8} className="fill-gray-500" fontSize="10">{first.date}</text>
-      <text x={W - pad} y={H - 8} textAnchor="end" className="fill-gray-500" fontSize="10">{last.date}</text>
+      <polyline points={points} fill="none" stroke={lineColor} strokeWidth="1.8" />
+      <text x={pad} y={H - 8} className="fill-on-surface-variant" fontSize="10">{first.date}</text>
+      <text x={W - pad} y={H - 8} textAnchor="end" className="fill-on-surface-variant" fontSize="10">{last.date}</text>
     </svg>
   );
 }

@@ -12,17 +12,17 @@ export function ScoreBreakdown({ scores }: { scores: SubScores }) {
   ];
 
   return (
-    <div className="p-5 rounded-2xl border border-gray-800 bg-gray-900/60">
-      <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">
+    <div className="p-5 rounded-2xl ghost-border bg-surface-low/60">
+      <h3 className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-2">
         Factor Breakdown
       </h3>
       <ResponsiveContainer width="100%" height={220}>
         <RadarChart data={data}>
-          <PolarGrid stroke="#1f2937" />
-          <PolarAngleAxis dataKey="factor" tick={{ fill: "#9ca3af", fontSize: 12 }} />
+          <PolarGrid stroke="var(--surface-high)" />
+          <PolarAngleAxis dataKey="factor" tick={{ fill: "var(--on-surface-variant)", fontSize: 12 }} />
           <Radar
-            dataKey="value" fill="#7c3aed" fillOpacity={0.25}
-            stroke="#7c3aed" strokeWidth={2}
+            dataKey="value" fill="#c1c1ff" fillOpacity={0.2}
+            stroke="#c1c1ff" strokeWidth={2}
           />
         </RadarChart>
       </ResponsiveContainer>

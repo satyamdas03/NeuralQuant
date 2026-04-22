@@ -1,10 +1,14 @@
 "use client";
+
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { api } from "@/lib/api";
 import type { ScreenerResponse } from "@/lib/types";
 import { ScreenerTable } from "@/components/ScreenerTable";
-import { RegimeBadge } from "@/components/RegimeBadge";
+import RegimeBadge from "@/components/ui/RegimeBadge";
+import GlassPanel from "@/components/ui/GlassPanel";
+import GhostBorderCard from "@/components/ui/GhostBorderCard";
+import { ScanSearch } from "lucide-react";
 
 export default function ScreenerPage() {
   return (
@@ -16,9 +20,9 @@ export default function ScreenerPage() {
 
 function ScreenerSkeleton() {
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 p-4 lg:p-6">
       {Array.from({ length: 10 }).map((_, i) => (
-        <div key={i} className="h-12 bg-gray-900 rounded-lg animate-pulse" />
+        <div key={i} className="h-12 bg-surface-container rounded-lg animate-pulse" />
       ))}
     </div>
   );
@@ -29,7 +33,6 @@ function ScreenerInner() {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Respect ?market=IN (or =US) from URL on initial load + on any query change
   const urlMarket = (searchParams.get("market") === "IN" ? "IN" : "US") as "US" | "IN";
 
   const [data, setData] = useState<ScreenerResponse | null>(null);
@@ -38,12 +41,12 @@ function ScreenerInner() {
 
   const load = (m: "US" | "IN") => {
     setLoading(true);
-    api.runScreener({ market: m, max_results: 30 })
+    api
+      .runScreener({ market: m, max_results: 30 })
       .then(setData)
       .finally(() => setLoading(false));
   };
 
-  // Keep state in sync if URL changes (e.g. deep-link or back/forward)
   useEffect(() => {
     setMarket(urlMarket);
     load(urlMarket);
@@ -51,19 +54,23 @@ function ScreenerInner() {
 
   const switchMarket = (m: "US" | "IN") => {
     setMarket(m);
-    // Update URL so the choice is shareable / refresh-safe
     router.replace(`${pathname}?market=${m}`, { scroll: false });
     load(m);
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 p-4 lg:p-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">AI Screener</h1>
-          <p className="text-gray-400 mt-1">Stocks ranked by NeuralQuant composite AI score</p>
+        <div className="flex items-center gap-3">
+          <ScanSearch size={20} className="text-secondary" />
+          <div>
+            <h1 className="font-headline text-xl font-bold text-on-surface">AI Screener</h1>
+            <p className="text-xs text-on-surface-variant">
+              Stocks ranked by NeuralQuant composite AI score
+            </p>
+          </div>
         </div>
-        {data && <RegimeBadge label={data.regime_label} />}
+        {data && <RegimeBadge regime={data.regime_label} />}
       </div>
 
       <div className="flex gap-2">
@@ -71,8 +78,10 @@ function ScreenerInner() {
           <button
             key={m}
             onClick={() => switchMarket(m)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              market === m ? "bg-violet-600 text-white" : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+            className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+              market === m
+                ? "gradient-cta text-on-primary-container gradient-cta-shadow"
+                : "bg-surface-high text-on-surface-variant hover:bg-surface-highest hover:text-on-surface"
             }`}
           >
             {m === "US" ? "🇺🇸 US Stocks" : "🇮🇳 India (NSE)"}
@@ -83,7 +92,7 @@ function ScreenerInner() {
       {loading ? (
         <div className="space-y-2">
           {Array.from({ length: 10 }).map((_, i) => (
-            <div key={i} className="h-12 bg-gray-900 rounded-lg animate-pulse" />
+            <div key={i} className="h-12 bg-surface-container rounded-lg animate-pulse" />
           ))}
         </div>
       ) : data ? (

@@ -1,7 +1,12 @@
 "use client";
+
 import { useState, useRef, useEffect } from "react";
 import { api } from "@/lib/api";
 import type { ConversationMessage } from "@/lib/types";
+import AIResponseCard from "@/components/ui/AIResponseCard";
+import SuggestionChips from "@/components/ui/SuggestionChips";
+import ChatInputArea from "@/components/ui/ChatInputArea";
+import GlassPanel from "@/components/ui/GlassPanel";
 
 const EXAMPLES = [
   "What is the effect of Iran-US tensions on oil stocks?",
@@ -21,12 +26,10 @@ interface ChatMessage {
 }
 
 export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
-  const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [slowLoad, setSlowLoad] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
   const slowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -36,44 +39,34 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
   const ask = async (question: string) => {
     const q = question.trim();
     if (!q || loading) return;
-    setInput("");
     setSlowLoad(false);
 
     const userMsg: ChatMessage = { id: Date.now().toString(), role: "user", content: q };
-    const placeholderId = (Date.now() + 1).toString();
-    const placeholder: ChatMessage = { id: placeholderId, role: "assistant", content: "", loading: true };
+    const phId = (Date.now() + 1).toString();
+    const ph: ChatMessage = { id: phId, role: "assistant", content: "", loading: true };
 
-    setMessages(prev => [...prev, userMsg, placeholder]);
+    setMessages((prev) => [...prev, userMsg, ph]);
     setLoading(true);
-
-    // After 8s still loading → show cold-start warning
     slowTimer.current = setTimeout(() => setSlowLoad(true), 8000);
 
-    // Build conversation history from prior completed turns
     const history: ConversationMessage[] = messages
-      .filter(m => !m.loading)
-      .map(m => ({ role: m.role, content: m.content }));
+      .filter((m) => !m.loading)
+      .map((m) => ({ role: m.role, content: m.content }));
 
     try {
       const res = await api.runQuery({ question: q, ticker: defaultTicker, history });
-      setMessages(prev =>
-        prev.map(m =>
-          m.id === placeholderId
-            ? {
-                ...m,
-                content: res.answer,
-                sources: res.data_sources,
-                followUps: res.follow_up_questions,
-                loading: false,
-              }
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === phId
+            ? { ...m, content: res.answer, sources: res.data_sources, followUps: res.follow_up_questions, loading: false }
             : m
         )
       );
     } catch {
-      setMessages(prev =>
-        prev.map(m =>
-          m.id === placeholderId
-            ? { ...m, content: "Query failed — backend may be warming up. Please try again in 30 seconds.", loading: false }
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === phId
+            ? { ...m, content: "Query failed — backend may be warming up. Retry in 30s.", loading: false }
             : m
         )
       );
@@ -81,135 +74,73 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
       setLoading(false);
       setSlowLoad(false);
       if (slowTimer.current) clearTimeout(slowTimer.current);
-      setTimeout(() => inputRef.current?.focus(), 50);
     }
   };
 
-  const clear = () => { setMessages([]); setInput(""); };
+  const clear = () => setMessages([]);
 
   return (
-    <div className="flex flex-col h-full space-y-4">
-      {/* Cold-start banner */}
+    <GlassPanel strong className="flex flex-col space-y-4">
       {slowLoad && (
-        <div className="px-4 py-2.5 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-center gap-2">
-          <span className="text-amber-400 text-xs">⚡</span>
-          <span className="text-amber-300 text-xs">
-            Backend is warming up after inactivity — this may take 30–60 seconds. Please wait…
-          </span>
+        <div className="rounded-lg bg-primary/10 px-3 py-2 text-xs text-primary border border-primary/20">
+          Backend warming up — may take 30–60s. Please wait…
         </div>
       )}
 
-      {/* Chat history */}
       {messages.length > 0 ? (
-        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1 scroll-smooth">
-          {messages.map(msg => (
-            <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-              {msg.role === "user" ? (
-                <div className="max-w-[80%] bg-violet-600/20 border border-violet-500/20 rounded-2xl rounded-tr-sm px-4 py-2.5 text-sm text-gray-100">
+        <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-1 scroll-smooth">
+          {messages.map((msg) =>
+            msg.role === "user" ? (
+              <div key={msg.id} className="flex justify-end">
+                <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-primary/15 border border-primary/20 px-4 py-2.5 text-sm text-on-surface">
                   {msg.content}
                 </div>
-              ) : (
-                <div className="max-w-[90%] space-y-2">
-                  <div className="flex items-start gap-2">
-                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 flex-shrink-0 flex items-center justify-center mt-0.5">
-                      <span className="text-[10px] font-bold text-white">N</span>
-                    </div>
-                    <div className="bg-gray-900 border border-gray-800 rounded-2xl rounded-tl-sm px-4 py-3 text-sm text-gray-100 leading-relaxed">
-                      {msg.loading ? (
-                        <div className="flex gap-1.5 items-center py-1">
-                          {[0,1,2].map(i => (
-                            <span
-                              key={i}
-                              className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-bounce"
-                              style={{ animationDelay: `${i * 0.15}s` }}
-                            />
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="whitespace-pre-wrap">{msg.content}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Sources */}
-                  {!msg.loading && msg.sources && msg.sources.length > 0 && (
-                    <div className="ml-8 flex gap-1.5 flex-wrap">
-                      {msg.sources.map(s => (
-                        <span key={s} className="text-[10px] px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20">
-                          {s}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Follow-up suggestions */}
-                  {!msg.loading && msg.followUps && msg.followUps.length > 0 && (
-                    <div className="ml-8 flex flex-wrap gap-2">
-                      {msg.followUps.map(q => (
-                        <button
-                          key={q}
-                          onClick={() => ask(q)}
-                          className="text-xs px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white rounded-full transition-colors border border-gray-700 hover:border-gray-600"
-                        >
-                          {q}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
+              </div>
+            ) : msg.loading ? (
+              <div key={msg.id} className="flex gap-1.5 py-1">
+                {[0, 1, 2].map((i) => (
+                  <span
+                    key={i}
+                    className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce"
+                    style={{ animationDelay: `${i * 0.15}s` }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <AIResponseCard
+                key={msg.id}
+                answer={msg.content}
+                sources={msg.sources}
+              />
+            )
+          )}
+          {messages.length > 0 && !loading && messages[messages.length - 1].followUps && (
+            <SuggestionChips
+              suggestions={messages[messages.length - 1].followUps!}
+              onSelect={ask}
+            />
+          )}
           <div ref={bottomRef} />
         </div>
       ) : (
-        /* Empty state: example chips */
         <div className="space-y-3">
-          <p className="text-xs text-gray-500 uppercase tracking-wider">Try asking</p>
-          <div className="flex flex-wrap gap-2">
-            {EXAMPLES.map(q => (
-              <button
-                key={q}
-                onClick={() => ask(q)}
-                className="text-xs px-3 py-2 bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white rounded-full transition-colors border border-gray-700 hover:border-gray-600"
-              >
-                {q}
-              </button>
-            ))}
-          </div>
+          <p className="text-xs uppercase tracking-wider text-on-surface-variant">Try asking</p>
+          <SuggestionChips suggestions={EXAMPLES} onSelect={ask} />
         </div>
       )}
 
-      {/* Input bar */}
-      <div className="flex gap-2">
-        <input
-          ref={inputRef}
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => e.key === "Enter" && !e.shiftKey && ask(input)}
-          placeholder="Ask anything about markets, stocks, macro…"
-          className="flex-1 px-4 py-3 bg-gray-900 border border-gray-700 rounded-xl text-white placeholder:text-gray-500 focus:outline-none focus:border-violet-500 text-sm transition-colors"
-          disabled={loading}
-        />
-        <button
-          onClick={() => ask(input)}
-          disabled={loading || !input.trim()}
-          className="px-5 py-3 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 rounded-xl text-white font-medium transition-colors text-sm"
-        >
-          {loading ? (
-            <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin block" />
-          ) : "→"}
-        </button>
+      <div className="flex items-end gap-2">
+        <ChatInputArea onSubmit={ask} disabled={loading} />
         {messages.length > 0 && (
           <button
             onClick={clear}
-            className="px-3 py-3 text-gray-500 hover:text-gray-300 hover:bg-gray-800 rounded-xl transition-colors text-sm"
+            className="mb-0.5 rounded-xl px-3 py-2.5 text-on-surface-variant hover:bg-surface-high hover:text-on-surface transition-colors"
             title="Clear conversation"
           >
             ✕
           </button>
         )}
       </div>
-    </div>
+    </GlassPanel>
   );
 }

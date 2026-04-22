@@ -1,27 +1,28 @@
 "use client";
 import type { StockMeta } from "@/lib/types";
+import GhostBorderCard from "@/components/ui/GhostBorderCard";
 
 const REC_COLORS: Record<string, string> = {
-  "strong_buy": "text-emerald-400",
-  "buy":        "text-emerald-400",
-  "hold":       "text-yellow-400",
-  "underperform": "text-red-400",
-  "sell":       "text-red-400",
-  "strong_sell": "text-red-400",
+  "strong_buy": "text-tertiary",
+  "buy":        "text-tertiary",
+  "hold":       "text-secondary",
+  "underperform": "text-error",
+  "sell":       "text-error",
+  "strong_sell": "text-error",
 };
 
 function MetaItem({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div className="min-w-0">
-      <div className="text-[10px] font-medium text-gray-500 uppercase tracking-widest">{label}</div>
-      <div className={`text-sm font-semibold mt-0.5 truncate ${color || "text-gray-100"}`}>{value}</div>
+      <div className="text-[10px] font-medium text-on-surface-variant uppercase tracking-widest">{label}</div>
+      <div className={`text-sm font-semibold mt-0.5 truncate ${color || "text-on-surface"}`}>{value}</div>
     </div>
   );
 }
 
 export function StockMetaBar({ meta, market = "US" }: { meta: StockMeta; market?: string }) {
   const rec = meta.analyst_recommendation?.toLowerCase() ?? "";
-  const recColor = REC_COLORS[rec] ?? "text-gray-300";
+  const recColor = REC_COLORS[rec] ?? "text-on-surface";
   const recLabel = rec.replace(/_/g, " ").toUpperCase() || "—";
   const cur = market === "IN" ? "₹" : "$";
 
@@ -44,12 +45,12 @@ export function StockMetaBar({ meta, market = "US" }: { meta: StockMeta; market?
   ];
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+    <GhostBorderCard>
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-x-6 gap-y-3">
         {items.map(({ label, value, color }) => (
           <MetaItem key={label} label={label} value={value} color={color} />
         ))}
       </div>
-    </div>
+    </GhostBorderCard>
   );
 }

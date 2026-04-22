@@ -1,9 +1,12 @@
 import logging
 from typing import Literal
+import asyncio
+import json
 
 import httpx
 import yfinance as yf
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 
 log = logging.getLogger(__name__)
 
@@ -279,3 +282,41 @@ def get_stock_meta(ticker: str, market: str = Query("US")):
         }
     except Exception as exc:
         raise HTTPException(500, str(exc))
+
+
+@router.get("/{ticker}/stream")
+def stream_stock_score(
+    ticker: str,
+    market: Literal["US", "IN", "GLOBAL"] = Query("US"),
+    engine: SignalEngine = Depends(get_signal_engine),
+):
+    """SSE endpoint: emits score updates every 30 seconds for the given ticker.
+    Client connects with EventSource and receives events named 'score' with AIScore JSON payload.
+    """
+    import time
+
+    def event_generator():
+        last_score = None
+        while True:
+            try:
+                score_obj = get_stock_score(ticker, market, engine)
+                payload = score_obj.model_dump_json()
+                # Only emit if score changed or first event
+                if last_score != payload:
+                    yield f"event: score\ndata: {payload}\n\n"
+                    last_score = payload
+                else:
+                    yield f"event: heartbeat\ndata: {{}}\n\n"
+            except Exception as e:
+                yield f"event: error\ndata: {json.dumps({'detail': str(e)})}\n\n"
+            time.sleep(30)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )

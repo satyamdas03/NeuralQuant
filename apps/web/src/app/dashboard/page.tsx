@@ -4,95 +4,91 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import type { IndexData, NewsItem, SectorData, AIScore, Mover } from "@/lib/types";
+import MarketIndexCard from "@/components/ui/MarketIndexCard";
+import SectorHeatmapBlock from "@/components/ui/SectorHeatmapBlock";
+import GhostBorderCard from "@/components/ui/GhostBorderCard";
+import RegimeBadge from "@/components/ui/RegimeBadge";
+import SuggestionChips from "@/components/ui/SuggestionChips";
+import ChatInputArea from "@/components/ui/ChatInputArea";
+import AIResponseCard from "@/components/ui/AIResponseCard";
+import GlassPanel from "@/components/ui/GlassPanel";
+import MetricCard from "@/components/ui/MetricCard";
+import GradientButton from "@/components/ui/GradientButton";
+import { ArrowUpRight, ArrowDownRight, TrendingUp, Newspaper, Zap } from "lucide-react";
 
-// ─── Market Indices Bar ────────────────────────────────────────────────────────
+// ─── Index Bar ────────────────────────────────────────────────────────────────
 
-function IndexCard({ d }: { d: IndexData }) {
-  const up = d.change_pct >= 0;
+function IndexBar({ indices, loading }: { indices: IndexData[]; loading: boolean }) {
+  if (loading) {
+    return (
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-[72px] rounded-lg bg-surface-container animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+  if (!indices.length) {
+    return (
+      <GhostBorderCard className="text-center text-sm text-on-surface-variant">
+        Market indices unavailable — start the API backend.
+      </GhostBorderCard>
+    );
+  }
   return (
-    <div className="flex-1 min-w-[150px] bg-gray-900 border border-gray-800 rounded-xl p-4 hover:border-gray-700 transition-colors">
-      <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">{d.name}</div>
-      <div className="text-xl font-bold mt-1 tabular-nums">
-        {d.symbol === "^VIX"
-          ? d.price.toFixed(2)
-          : d.price.toLocaleString("en-US", { maximumFractionDigits: 2 })}
-      </div>
-      <div className={`text-sm font-medium mt-0.5 ${up ? "text-emerald-400" : "text-red-400"}`}>
-        {up ? "▲" : "▼"} {Math.abs(d.change_pct).toFixed(2)}%{" "}
-        <span className="text-gray-500 font-normal">
-          ({up ? "+" : ""}
-          {d.change_abs.toFixed(2)})
-        </span>
-      </div>
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      {indices.map((d) => (
+        <MarketIndexCard key={d.symbol} index={d} />
+      ))}
     </div>
   );
 }
 
-function IndexSkeleton() {
-  return (
-    <div className="flex-1 min-w-[150px] bg-gray-900 border border-gray-800 rounded-xl p-4">
-      <div className="text-xs text-gray-600">Loading…</div>
-      <div className="h-7 w-24 bg-gray-800 rounded animate-pulse mt-2" />
-      <div className="h-4 w-16 bg-gray-800 rounded animate-pulse mt-2" />
-    </div>
-  );
-}
+// ─── News Panel ────────────────────────────────────────────────────────────────
 
-// ─── News Section ─────────────────────────────────────────────────────────────
-
-function NewsSection({ news, loading }: { news: NewsItem[]; loading: boolean }) {
+function NewsPanel({ news, loading }: { news: NewsItem[]; loading: boolean }) {
   const [expanded, setExpanded] = useState<number | null>(0);
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-3 border-b border-gray-800">
-        <h2 className="font-semibold text-sm text-gray-300 uppercase tracking-wide">
-          Market Summary
-        </h2>
-        <span className="text-xs text-gray-500">
-          {news.length > 0 ? "Live via Yahoo Finance" : loading ? "Fetching…" : "Unavailable"}
+    <GhostBorderCard>
+      <div className="flex items-center justify-between pb-3 border-b border-ghost-border">
+        <div className="flex items-center gap-2">
+          <Newspaper size={14} className="text-secondary" />
+          <h2 className="font-headline text-sm font-semibold text-on-surface">
+            Market Summary
+          </h2>
+        </div>
+        <span className="text-[10px] text-on-surface-variant">
+          {news.length > 0 ? "Yahoo Finance" : loading ? "Fetching…" : "Unavailable"}
         </span>
       </div>
 
-      {loading && news.length === 0 ? (
-        <div className="p-5 space-y-3">
+      {loading && !news.length ? (
+        <div className="space-y-3 py-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-5 bg-gray-800 rounded animate-pulse" style={{ width: `${85 - i * 8}%` }} />
+            <div key={i} className="h-5 bg-surface-high rounded animate-pulse" style={{ width: `${85 - i * 8}%` }} />
           ))}
         </div>
-      ) : news.length === 0 ? (
-        <div className="px-5 py-8 text-center text-sm text-gray-600">
-          <p>Live news unavailable — backend may not be running.</p>
-          <p className="mt-1 text-xs">
-            Start the API:{" "}
-            <code className="bg-gray-800 px-2 py-0.5 rounded text-violet-400">
-              uvicorn nq_api.main:app --reload
-            </code>
-          </p>
-        </div>
+      ) : !news.length ? (
+        <p className="py-6 text-center text-sm text-on-surface-variant">
+          News unavailable — backend may not be running.
+        </p>
       ) : (
-        <div className="divide-y divide-gray-800">
+        <div className="divide-y divide-ghost-border/50">
           {news.map((item, i) => (
-            <div key={i} className="px-5 py-3">
-              <button className="w-full text-left" onClick={() => setExpanded(expanded === i ? null : i)}>
-                <div className="flex items-start justify-between gap-3">
-                  <span className="text-sm font-medium text-gray-100 hover:text-white leading-snug">
-                    {item.title}
-                  </span>
-                  <span className="text-gray-600 text-xs mt-0.5 shrink-0">{expanded === i ? "▲" : "▼"}</span>
-                </div>
+            <div key={i} className="py-2.5">
+              <button
+                onClick={() => setExpanded(expanded === i ? null : i)}
+                className="w-full text-left"
+              >
+                <span className="text-sm text-on-surface leading-snug">{item.title}</span>
               </button>
               {expanded === i && (
-                <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
-                  {item.publisher && <span className="text-violet-400">{item.publisher}</span>}
+                <div className="mt-1.5 flex items-center gap-3 text-xs text-on-surface-variant">
+                  {item.publisher && <span className="text-primary">{item.publisher}</span>}
                   {item.url && (
-                    <a
-                      href={item.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:text-gray-300 underline"
-                    >
-                      Read full article →
+                    <a href={item.url} target="_blank" rel="noopener noreferrer" className="hover:text-secondary underline">
+                      Read →
                     </a>
                   )}
                 </div>
@@ -101,60 +97,13 @@ function NewsSection({ news, loading }: { news: NewsItem[]; loading: boolean }) 
           ))}
         </div>
       )}
-    </div>
+    </GhostBorderCard>
   );
 }
 
-// ─── Sector Heatmap ───────────────────────────────────────────────────────────
+// ─── Inline Ask AI ─────────────────────────────────────────────────────────────
 
-function SectorHeatmap({ sectors, loading }: { sectors: SectorData[]; loading: boolean }) {
-  const max = Math.max(...sectors.map((s) => Math.abs(s.change_pct)), 1);
-
-  return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-      <div className="px-5 py-3 border-b border-gray-800">
-        <h2 className="font-semibold text-sm text-gray-300 uppercase tracking-wide">Equity Sectors</h2>
-      </div>
-      {loading && sectors.length === 0 ? (
-        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 p-4">
-          {[...Array(11)].map((_, i) => (
-            <div key={i} className="rounded-lg p-3 bg-gray-800 animate-pulse h-16" />
-          ))}
-        </div>
-      ) : sectors.length === 0 ? (
-        <div className="px-5 py-6 text-center text-sm text-gray-600">
-          Sector data unavailable. Check backend is running.
-        </div>
-      ) : (
-        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 p-4">
-          {sectors.map((s) => {
-            const pct = s.change_pct;
-            const intensity = Math.min(Math.abs(pct) / max, 1);
-            const bg =
-              pct > 0
-                ? `rgba(16,185,129,${0.12 + intensity * 0.35})`
-                : `rgba(239,68,68,${0.12 + intensity * 0.35})`;
-            return (
-              <div key={s.symbol} className="rounded-lg p-3 text-center" style={{ background: bg }}>
-                <div className="text-xs font-medium text-gray-200 truncate">{s.name}</div>
-                <div
-                  className={`text-sm font-bold mt-0.5 ${pct >= 0 ? "text-emerald-400" : "text-red-400"}`}
-                >
-                  {pct >= 0 ? "+" : ""}
-                  {pct.toFixed(2)}%
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Inline NL Query Box (full chat with history + cold-start banner) ─────────
-
-interface HomeChatMessage {
+interface ChatMsg {
   id: string;
   role: "user" | "assistant";
   content: string;
@@ -163,20 +112,18 @@ interface HomeChatMessage {
   loading?: boolean;
 }
 
-const HOME_EXAMPLES = [
+const EXAMPLES = [
   "What is the effect of Iran-US tensions on oil stocks?",
   "Should I invest in Trent right now?",
-  "I want to invest ₹10L in Indian stocks — which ones?",
-  "Give me a 1-month outlook for TCS",
+  "1-month outlook for TCS",
+  "Best Indian stocks for ₹10L investment",
 ];
 
-function HomeQueryBox() {
-  const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<HomeChatMessage[]>([]);
+function HomeAskAI() {
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [loading, setLoading] = useState(false);
   const [slowLoad, setSlowLoad] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
   const slowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -186,38 +133,34 @@ function HomeQueryBox() {
   const ask = async (question: string) => {
     const q = question.trim();
     if (!q || loading) return;
-    setInput("");
     setSlowLoad(false);
 
-    const userMsg: HomeChatMessage = { id: Date.now().toString(), role: "user", content: q };
-    const placeholderId = (Date.now() + 1).toString();
-    const placeholder: HomeChatMessage = { id: placeholderId, role: "assistant", content: "", loading: true };
+    const userMsg: ChatMsg = { id: Date.now().toString(), role: "user", content: q };
+    const phId = (Date.now() + 1).toString();
+    const ph: ChatMsg = { id: phId, role: "assistant", content: "", loading: true };
 
-    setMessages(prev => [...prev, userMsg, placeholder]);
+    setMessages((prev) => [...prev, userMsg, ph]);
     setLoading(true);
-
-    // After 8s still loading → show cold-start warning
     slowTimer.current = setTimeout(() => setSlowLoad(true), 8000);
 
-    // Build conversation history from prior completed turns
     const history = messages
-      .filter(m => !m.loading)
-      .map(m => ({ role: m.role as "user" | "assistant", content: m.content }));
+      .filter((m) => !m.loading)
+      .map((m) => ({ role: m.role, content: m.content }));
 
     try {
       const res = await api.runQuery({ question: q, history });
-      setMessages(prev =>
-        prev.map(m =>
-          m.id === placeholderId
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === phId
             ? { ...m, content: res.answer, sources: res.data_sources, followUps: res.follow_up_questions, loading: false }
             : m
         )
       );
     } catch {
-      setMessages(prev =>
-        prev.map(m =>
-          m.id === placeholderId
-            ? { ...m, content: "Failed — backend may be starting up. Please try again in 30 seconds.", loading: false }
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === phId
+            ? { ...m, content: "Failed — backend may be starting. Retry in 30s.", loading: false }
             : m
         )
       );
@@ -225,157 +168,100 @@ function HomeQueryBox() {
       setLoading(false);
       setSlowLoad(false);
       if (slowTimer.current) clearTimeout(slowTimer.current);
-      setTimeout(() => inputRef.current?.focus(), 50);
     }
   };
 
-  const clear = () => { setMessages([]); setInput(""); };
-
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-      <div className="px-5 py-3 border-b border-gray-800 flex items-center justify-between">
-        <h2 className="font-semibold text-sm text-gray-300 uppercase tracking-wide">
-          Ask anything about markets
-        </h2>
+    <GlassPanel strong>
+      <div className="flex items-center justify-between pb-3 border-b border-ghost-border">
+        <div className="flex items-center gap-2">
+          <Zap size={14} className="text-primary" />
+          <h2 className="font-headline text-sm font-semibold text-on-surface">
+            Ask anything about markets
+          </h2>
+        </div>
         {messages.length > 0 && (
-          <button onClick={clear} className="text-xs text-gray-600 hover:text-gray-400 transition-colors">
+          <button
+            onClick={() => setMessages([])}
+            className="text-xs text-on-surface-variant hover:text-on-surface transition-colors"
+          >
             Clear
           </button>
         )}
       </div>
 
-      {/* Cold-start banner */}
       {slowLoad && (
-        <div className="mx-4 mt-3 px-4 py-2.5 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-center gap-2">
-          <span className="text-amber-400 text-xs">⚡</span>
-          <span className="text-amber-300 text-xs">
-            Backend is warming up after inactivity — this may take 30–60 seconds. Please wait…
-          </span>
+        <div className="mt-3 rounded-lg bg-primary/10 px-3 py-2 text-xs text-primary border border-primary/20">
+          Backend warming up — may take 30–60s. Please wait…
         </div>
       )}
 
-      <div className="p-4 space-y-3">
-        {/* Chat history */}
+      <div className="mt-3 space-y-3">
         {messages.length > 0 ? (
-          <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1 scroll-smooth">
-            {messages.map(msg => (
-              <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                {msg.role === "user" ? (
-                  <div className="max-w-[80%] bg-violet-600/20 border border-violet-500/20 rounded-2xl rounded-tr-sm px-4 py-2.5 text-sm text-gray-100">
+          <div className="max-h-[50vh] space-y-3 overflow-y-auto pr-1 scroll-smooth">
+            {messages.map((msg) =>
+              msg.role === "user" ? (
+                <div key={msg.id} className="flex justify-end">
+                  <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-primary/15 border border-primary/20 px-4 py-2.5 text-sm text-on-surface">
                     {msg.content}
                   </div>
-                ) : (
-                  <div className="max-w-[95%] space-y-2">
-                    <div className="flex items-start gap-2">
-                      <div className="w-5 h-5 rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 flex-shrink-0 flex items-center justify-center mt-0.5">
-                        <span className="text-[9px] font-bold text-white">N</span>
-                      </div>
-                      <div className="bg-gray-800/60 border border-gray-700/50 rounded-2xl rounded-tl-sm px-4 py-3 text-sm text-gray-100 leading-relaxed">
-                        {msg.loading ? (
-                          <div className="flex gap-1.5 items-center py-1">
-                            {[0, 1, 2].map(i => (
-                              <span
-                                key={i}
-                                className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-bounce"
-                                style={{ animationDelay: `${i * 0.15}s` }}
-                              />
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="whitespace-pre-wrap">{msg.content}</p>
-                        )}
-                      </div>
-                    </div>
-                    {/* Sources */}
-                    {!msg.loading && msg.sources && msg.sources.length > 0 && (
-                      <div className="ml-7 flex gap-1.5 flex-wrap">
-                        {msg.sources.map(s => (
-                          <span key={s} className="text-[10px] px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20">
-                            {s}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    {/* Follow-up chips */}
-                    {!msg.loading && msg.followUps && msg.followUps.length > 0 && (
-                      <div className="ml-7 flex flex-wrap gap-1.5">
-                        {msg.followUps.map(q => (
-                          <button
-                            key={q}
-                            onClick={() => ask(q)}
-                            className="text-xs px-3 py-1 bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white rounded-full transition-colors border border-gray-700"
-                          >
-                            {q}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
+                </div>
+              ) : (
+                <AIResponseCard
+                  key={msg.id}
+                  answer={msg.loading ? "…" : msg.content}
+                  sources={msg.loading ? [] : msg.sources}
+                />
+              )
+            )}
+            {messages.some((m) => m.loading) && (
+              <div className="flex gap-1.5 py-1">
+                {[0, 1, 2].map((i) => (
+                  <span
+                    key={i}
+                    className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce"
+                    style={{ animationDelay: `${i * 0.15}s` }}
+                  />
+                ))}
               </div>
-            ))}
+            )}
+            {messages.length > 0 && !loading && messages[messages.length - 1].followUps && (
+              <SuggestionChips
+                suggestions={messages[messages.length - 1].followUps!}
+                onSelect={ask}
+              />
+            )}
             <div ref={bottomRef} />
           </div>
         ) : (
-          /* Empty state: example chips */
-          <div className="flex flex-wrap gap-2 pb-1">
-            {HOME_EXAMPLES.map(q => (
-              <button
-                key={q}
-                onClick={() => ask(q)}
-                className="text-xs px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white rounded-full transition-colors border border-gray-700"
-              >
-                {q}
-              </button>
-            ))}
-          </div>
+          <SuggestionChips suggestions={EXAMPLES} onSelect={ask} />
         )}
 
-        {/* Input bar */}
-        <div className="flex gap-2">
-          <input
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && ask(input)}
-            placeholder="Ask about any stock or market…"
-            className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors"
-            disabled={loading}
-          />
-          <button
-            onClick={() => ask(input)}
-            disabled={loading || !input.trim()}
-            className="px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 rounded-lg text-sm font-medium transition-colors"
-          >
-            {loading ? (
-              <span className="w-3.5 h-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin block" />
-            ) : "→"}
-          </button>
-        </div>
+        <ChatInputArea onSubmit={ask} disabled={loading} />
       </div>
-    </div>
+    </GlassPanel>
   );
 }
 
-// ─── Market Movers ────────────────────────────────────────────────────────────
+// ─── Market Movers ──────────────────────────────────────────────────────────────
 
-function MarketMoversPanel({ gainers, losers, active, loading }: {
+function MoversPanel({ gainers, losers, active, loading }: {
   gainers: Mover[]; losers: Mover[]; active: Mover[]; loading: boolean;
 }) {
   const [tab, setTab] = useState<"gainers" | "losers" | "active">("gainers");
   const rows = tab === "gainers" ? gainers : tab === "losers" ? losers : active;
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-      <div className="flex border-b border-gray-800">
-        {(["gainers", "losers", "active"] as const).map(t => (
+    <GhostBorderCard>
+      <div className="flex border-b border-ghost-border">
+        {(["gainers", "losers", "active"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`flex-1 py-2.5 text-xs font-semibold uppercase tracking-wider transition-colors ${
+            className={`flex-1 py-2 text-xs font-semibold uppercase tracking-wide transition-colors ${
               tab === t
-                ? "text-white border-b-2 border-violet-500 bg-gray-800/40"
-                : "text-gray-500 hover:text-gray-300"
+                ? "text-secondary border-b-2 border-secondary"
+                : "text-on-surface-variant hover:text-on-surface"
             }`}
           >
             {t}
@@ -383,156 +269,109 @@ function MarketMoversPanel({ gainers, losers, active, loading }: {
         ))}
       </div>
 
-      {loading && rows.length === 0 ? (
-        <div className="p-4 space-y-3">
-          {[...Array(5)].map((_, i) => (
+      {loading && !rows.length ? (
+        <div className="space-y-3 p-4">
+          {[1, 2, 3, 4, 5].map((i) => (
             <div key={i} className="flex justify-between">
-              <div className="h-4 w-16 bg-gray-800 rounded animate-pulse" />
-              <div className="h-4 w-16 bg-gray-800 rounded animate-pulse" />
+              <div className="h-4 w-16 bg-surface-high rounded animate-pulse" />
+              <div className="h-4 w-12 bg-surface-high rounded animate-pulse" />
             </div>
           ))}
         </div>
-      ) : rows.length === 0 ? (
-        <div className="px-4 py-6 text-center text-xs text-gray-600">Data unavailable</div>
+      ) : !rows.length ? (
+        <p className="py-6 text-center text-xs text-on-surface-variant">Data unavailable</p>
       ) : (
-        <div className="divide-y divide-gray-800">
-          {rows.map(m => (
+        <div className="divide-y divide-ghost-border/50">
+          {rows.map((m) => (
             <Link
               key={m.ticker}
               href={`/stocks/${m.ticker}`}
-              className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-800/50 transition-colors"
+              className="flex items-center justify-between px-4 py-2.5 hover:bg-surface-high transition-colors"
             >
               <div>
-                <div className="text-sm font-semibold text-gray-100">{m.ticker}</div>
-                <div className="text-xs text-gray-500 tabular-nums">${m.price.toLocaleString()}</div>
+                <div className="text-sm font-semibold text-on-surface">{m.ticker}</div>
+                <div className="tabular-nums text-xs text-on-surface-variant">
+                  ${m.price.toLocaleString()}
+                </div>
               </div>
-              <span className={`text-sm font-bold tabular-nums ${m.change_pct >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+              <span
+                className={`flex items-center gap-1 tabular-nums text-sm font-bold ${
+                  m.change_pct >= 0 ? "text-tertiary" : "text-error"
+                }`}
+              >
+                {m.change_pct >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
                 {m.change_pct >= 0 ? "+" : ""}{m.change_pct.toFixed(2)}%
               </span>
             </Link>
           ))}
         </div>
       )}
-    </div>
+    </GhostBorderCard>
   );
 }
 
-// ─── Top AI Picks Sidebar ─────────────────────────────────────────────────────
+// ─── Top AI Picks ───────────────────────────────────────────────────────────────
 
-function TopAIPicks({
-  stocks,
-  regime,
-  loading,
-}: {
-  stocks: AIScore[];
-  regime: string;
-  loading: boolean;
-}) {
-  const scoreColor = (s: number) =>
-    s >= 7 ? "text-emerald-400" : s >= 5 ? "text-yellow-400" : "text-red-400";
-
+function TopAIPicks({ stocks, regime, loading }: { stocks: AIScore[]; regime: string; loading: boolean }) {
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-      <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
-        <h2 className="font-semibold text-sm text-gray-300 uppercase tracking-wide">Top AI Picks</h2>
-        {regime && (
-          <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            {regime}
-          </span>
-        )}
+    <GhostBorderCard>
+      <div className="flex items-center justify-between pb-3 border-b border-ghost-border">
+        <div className="flex items-center gap-2">
+          <TrendingUp size={14} className="text-tertiary" />
+          <h2 className="font-headline text-sm font-semibold text-on-surface">Top AI Picks</h2>
+        </div>
+        {regime && <RegimeBadge label={regime as any} />}
       </div>
 
-      {loading && stocks.length === 0 ? (
-        <div className="p-4 space-y-3">
-          {[...Array(6)].map((_, i) => (
+      {loading && !stocks.length ? (
+        <div className="space-y-3 p-4">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
             <div key={i} className="flex gap-3">
-              <div className="h-4 w-4 bg-gray-800 rounded animate-pulse" />
-              <div className="flex-1 h-4 bg-gray-800 rounded animate-pulse" />
-              <div className="h-4 w-10 bg-gray-800 rounded animate-pulse" />
+              <div className="h-4 w-4 bg-surface-high rounded animate-pulse" />
+              <div className="flex-1 h-4 bg-surface-high rounded animate-pulse" />
+              <div className="h-4 w-10 bg-surface-high rounded animate-pulse" />
             </div>
           ))}
         </div>
       ) : (
         <>
-          <div className="divide-y divide-gray-800">
+          <div className="divide-y divide-ghost-border/50">
             {stocks.slice(0, 8).map((s, i) => (
               <Link
                 key={s.ticker}
                 href={`/stocks/${s.ticker}?market=${s.market}`}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-gray-800/60 transition-colors"
+                className="flex items-center gap-3 px-4 py-3 hover:bg-surface-high transition-colors"
               >
-                <span className="text-xs text-gray-600 w-4">{i + 1}</span>
+                <span className="text-xs text-on-surface-variant w-4">{i + 1}</span>
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-sm text-gray-100">{s.ticker}</div>
-                  <div className="text-xs text-gray-500">{s.market}</div>
+                  <div className="text-sm font-semibold text-on-surface">{s.ticker}</div>
+                  <div className="text-xs text-on-surface-variant">{s.market}</div>
                 </div>
                 <div className="text-right">
-                  <div className={`text-base font-bold tabular-nums ${scoreColor(s.score_1_10)}`}>
+                  <div className="tabular-nums text-base font-bold text-primary">
                     {s.score_1_10}
-                    <span className="text-xs text-gray-500">/10</span>
+                    <span className="text-xs text-on-surface-variant">/10</span>
                   </div>
-                  <div className="text-xs text-gray-500">{s.confidence}</div>
+                  <div className="text-[10px] text-on-surface-variant capitalize">{s.confidence}</div>
                 </div>
               </Link>
             ))}
           </div>
-          <div className="px-4 py-3 border-t border-gray-800">
-            <Link href="/screener" className="text-xs text-violet-400 hover:text-violet-300 transition-colors">
+          <div className="px-4 py-3 border-t border-ghost-border">
+            <Link href="/screener" className="text-xs text-secondary hover:text-primary transition-colors">
               View full screener →
             </Link>
           </div>
         </>
       )}
-    </div>
+    </GhostBorderCard>
   );
 }
 
-// ─── Sector List Sidebar ──────────────────────────────────────────────────────
+// ─── Main Page ─────────────────────────────────────────────────────────────────
 
-function SectorList({ sectors, loading }: { sectors: SectorData[]; loading: boolean }) {
-  const sorted = [...sectors].sort((a, b) => b.change_pct - a.change_pct);
-  return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-      <div className="px-4 py-3 border-b border-gray-800">
-        <h2 className="font-semibold text-sm text-gray-300 uppercase tracking-wide">Sector Performance</h2>
-      </div>
-      {loading && sectors.length === 0 ? (
-        <div className="p-4 space-y-2">
-          {[...Array(7)].map((_, i) => (
-            <div key={i} className="flex justify-between">
-              <div className="h-4 w-32 bg-gray-800 rounded animate-pulse" />
-              <div className="h-4 w-12 bg-gray-800 rounded animate-pulse" />
-            </div>
-          ))}
-        </div>
-      ) : sectors.length === 0 ? (
-        <div className="px-4 py-4 text-center text-xs text-gray-600">Sector data unavailable</div>
-      ) : (
-        <div className="divide-y divide-gray-800">
-          {sorted.map((s) => (
-            <div key={s.symbol} className="flex items-center justify-between px-4 py-2.5">
-              <span className="text-sm text-gray-300 truncate">{s.name}</span>
-              <span
-                className={`text-sm font-medium tabular-nums ${
-                  s.change_pct >= 0 ? "text-emerald-400" : "text-red-400"
-                }`}
-              >
-                {s.change_pct >= 0 ? "+" : ""}
-                {s.change_pct.toFixed(2)}%
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Main Page ────────────────────────────────────────────────────────────────
-
-export default function Home() {
+export default function DashboardPage() {
   const [indices, setIndices] = useState<IndexData[]>([]);
-  const [futures, setFutures] = useState<IndexData[]>([]);
   const [news, setNews] = useState<NewsItem[]>([]);
   const [sectors, setSectors] = useState<SectorData[]>([]);
   const [topStocks, setTopStocks] = useState<AIScore[]>([]);
@@ -548,7 +387,7 @@ export default function Home() {
 
   useEffect(() => {
     api.getMarketOverview()
-      .then((d) => { setIndices(d.indices); setFutures(d.futures ?? []); })
+      .then((d) => setIndices(d.indices))
       .catch(() => {})
       .finally(() => setIndicesLoading(false));
 
@@ -574,45 +413,41 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="space-y-5">
-      {/* Market Indices Bar */}
-      <div className="space-y-2">
-        <div className="flex flex-wrap gap-3">
-          {indicesLoading
-            ? [1, 2, 3, 4].map((i) => <IndexSkeleton key={i} />)
-            : indices.length > 0
-            ? indices.map((d) => <IndexCard key={d.symbol} d={d} />)
-            : (
-              <div className="w-full bg-gray-900 border border-gray-800 rounded-xl px-5 py-4 text-sm text-gray-500">
-                Live market indices unavailable.{" "}
-                <span className="text-gray-600">Restart the FastAPI backend to load real-time data.</span>
-              </div>
-            )}
-        </div>
-        {futures.length > 0 && (
-          <div className="flex flex-wrap gap-3 items-center">
-            <span className="text-xs text-gray-600 uppercase tracking-widest font-semibold px-1 min-w-[60px]">Futures</span>
-            {futures.map((d) => <IndexCard key={d.symbol} d={d} />)}
-          </div>
-        )}
-      </div>
+    <div className="space-y-5 p-4 lg:p-6">
+      {/* Market Indices */}
+      <IndexBar indices={indices} loading={indicesLoading} />
 
-      {/* Main grid */}
+      {/* Bento Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5">
         {/* Left column */}
         <div className="space-y-5">
-          <NewsSection news={news} loading={newsLoading} />
-          <HomeQueryBox />
-          <SectorHeatmap sectors={sectors} loading={sectorsLoading} />
+          <NewsPanel news={news} loading={newsLoading} />
+          <HomeAskAI />
+          <GhostBorderCard>
+            <div className="flex items-center gap-2 pb-3 border-b border-ghost-border">
+              <TrendingUp size={14} className="text-secondary" />
+              <h2 className="font-headline text-sm font-semibold text-on-surface">Equity Sectors</h2>
+            </div>
+            {sectorsLoading && !sectors.length ? (
+              <div className="grid grid-cols-3 gap-2 p-4 sm:grid-cols-4">
+                {[...Array(11)].map((_, i) => (
+                  <div key={i} className="h-16 rounded-lg bg-surface-high animate-pulse" />
+                ))}
+              </div>
+            ) : !sectors.length ? (
+              <p className="py-6 text-center text-sm text-on-surface-variant">Sector data unavailable</p>
+            ) : (
+              <div className="p-4">
+                <SectorHeatmapBlock sectors={sectors} />
+              </div>
+            )}
+          </GhostBorderCard>
         </div>
 
         {/* Right sidebar */}
         <div className="space-y-5">
-          <MarketMoversPanel
-            gainers={gainers} losers={losers} active={active} loading={moversLoading}
-          />
+          <MoversPanel gainers={gainers} losers={losers} active={active} loading={moversLoading} />
           <TopAIPicks stocks={topStocks} regime={regime} loading={stocksLoading} />
-          <SectorList sectors={sectors} loading={sectorsLoading} />
         </div>
       </div>
     </div>

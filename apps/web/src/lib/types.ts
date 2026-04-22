@@ -215,3 +215,26 @@ export interface BacktestResponse {
   n_days: number;
   equity_curve: BacktestPoint[];
 }
+
+export type AlertType = "score_change" | "regime_change" | "threshold";
+
+export interface AlertSubscription {
+  id: string;
+  ticker: string;
+  market: "US" | "IN";
+  alert_type: AlertType;
+  threshold: number | null;
+  min_delta: number;
+  last_triggered_at: string | null;
+  created_at: string;
+}
+
+export interface AlertDelivery {
+  id: string;
+  ticker: string;
+  market: "US" | "IN";
+  alert_type: AlertType;
+  old_value: number | null;
+  new_value: number | null;
+  delivered_at: string;
+}

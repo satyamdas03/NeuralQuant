@@ -1,45 +1,47 @@
 "use client";
 import { useState } from "react";
 import type { AgentOutput, AnalystResponse } from "@/lib/types";
+import GhostBorderCard from "@/components/ui/GhostBorderCard";
+import GlassPanel from "@/components/ui/GlassPanel";
 
-const STANCE_COLORS = {
-  BULL:    "text-green-400 bg-green-500/10 border-green-500/20",
-  BEAR:    "text-red-400 bg-red-500/10 border-red-500/20",
-  NEUTRAL: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20",
+const STANCE_COLORS: Record<string, string> = {
+  BULL:    "text-tertiary bg-tertiary/10 ghost-border",
+  BEAR:    "text-error bg-error/10 ghost-border",
+  NEUTRAL: "text-secondary bg-secondary/10 ghost-border",
 };
 
 const VERDICT_COLORS: Record<string, string> = {
-  "STRONG BUY":  "text-green-300 bg-green-500/20",
-  "BUY":         "text-green-400 bg-green-500/10",
-  "HOLD":        "text-yellow-400 bg-yellow-500/10",
-  "SELL":        "text-red-400 bg-red-500/10",
-  "STRONG SELL": "text-red-300 bg-red-500/20",
+  "STRONG BUY":  "text-tertiary bg-tertiary/20",
+  "BUY":         "text-tertiary bg-tertiary/10",
+  "HOLD":        "text-secondary bg-secondary/10",
+  "SELL":        "text-error bg-error/10",
+  "STRONG SELL": "text-error bg-error/20",
 };
 
 function AgentCard({ output }: { output: AgentOutput }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="border border-gray-800 rounded-xl overflow-hidden">
+    <div className="ghost-border rounded-xl overflow-hidden">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between p-4 hover:bg-gray-800/40 transition-colors"
+        className="w-full flex items-center justify-between p-4 hover:bg-surface-high transition-colors"
       >
         <div className="flex items-center gap-3">
-          <span className="font-mono text-xs text-gray-500 w-24">{output.agent}</span>
-          <span className={`text-xs px-2 py-0.5 rounded-full border ${STANCE_COLORS[output.stance]}`}>
+          <span className="font-mono text-xs text-on-surface-variant w-24">{output.agent}</span>
+          <span className={`text-xs px-2 py-0.5 rounded-full ${STANCE_COLORS[output.stance] ?? "text-on-surface-variant"}`}>
             {output.stance}
           </span>
-          <span className="text-xs text-gray-500">{output.conviction}</span>
+          <span className="text-xs text-on-surface-variant">{output.conviction}</span>
         </div>
-        <span className="text-gray-600 text-sm">{open ? "▲" : "▼"}</span>
+        <span className="text-on-surface-variant text-sm">{open ? "▲" : "▼"}</span>
       </button>
       {open && (
-        <div className="px-4 pb-4 space-y-3 bg-gray-900/30">
-          <p className="text-sm text-gray-300">{output.thesis}</p>
+        <div className="px-4 pb-4 space-y-3 bg-surface-container/30">
+          <p className="text-sm text-on-surface">{output.thesis}</p>
           <ul className="space-y-1">
             {output.key_points.map((p, i) => (
-              <li key={i} className="text-xs text-gray-400 flex gap-2">
-                <span className="text-violet-500 flex-shrink-0">—</span>{p}
+              <li key={i} className="text-xs text-on-surface-variant flex gap-2">
+                <span className="text-primary flex-shrink-0">—</span>{p}
               </li>
             ))}
           </ul>
@@ -52,31 +54,31 @@ function AgentCard({ output }: { output: AgentOutput }) {
 export function AgentDebatePanel({ report }: { report: AnalystResponse }) {
   return (
     <div className="space-y-4">
-      <div className="p-5 rounded-2xl border border-gray-800 bg-gray-900/60">
-        <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Head Analyst Verdict</p>
+      <GlassPanel>
+        <p className="text-xs text-on-surface-variant uppercase tracking-wider mb-2">Head Analyst Verdict</p>
         <div className={`inline-flex px-4 py-2 rounded-full text-lg font-bold mb-3 ${VERDICT_COLORS[report.head_analyst_verdict] ?? ""}`}>
           {report.head_analyst_verdict}
         </div>
-        <p className="text-sm text-gray-300">{report.investment_thesis}</p>
-      </div>
+        <p className="text-sm text-on-surface">{report.investment_thesis}</p>
+      </GlassPanel>
 
-      <div className="p-5 rounded-2xl border border-gray-800 bg-gray-900/60">
-        <p className="text-xs text-gray-500 uppercase tracking-wider mb-4">PARA-DEBATE Panel</p>
+      <GlassPanel>
+        <p className="text-xs text-on-surface-variant uppercase tracking-wider mb-4">PARA-DEBATE Panel</p>
         <div className="space-y-2">
           {report.agent_outputs.map((o) => <AgentCard key={o.agent} output={o} />)}
         </div>
-      </div>
+      </GlassPanel>
 
-      <div className="p-5 rounded-2xl border border-gray-800 bg-gray-900/60">
-        <p className="text-xs text-gray-500 uppercase tracking-wider mb-3">Risk Factors</p>
+      <GlassPanel>
+        <p className="text-xs text-on-surface-variant uppercase tracking-wider mb-3">Risk Factors</p>
         <ul className="space-y-2">
           {report.risk_factors.map((r, i) => (
-            <li key={i} className="flex gap-2 text-sm text-gray-300">
-              <span className="text-red-500 flex-shrink-0">⚠</span>{r}
+            <li key={i} className="flex gap-2 text-sm text-on-surface">
+              <span className="text-error flex-shrink-0">⚠</span>{r}
             </li>
           ))}
         </ul>
-      </div>
+      </GlassPanel>
     </div>
   );
 }

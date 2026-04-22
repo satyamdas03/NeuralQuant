@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from nq_api.routes import stocks, screener, analyst, query, market, auth, watchlists, sentiment, backtest
+from nq_api.routes import stocks, screener, analyst, query, market, auth, watchlists, sentiment, backtest, alerts
 
 
 @asynccontextmanager
@@ -26,7 +26,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="NeuralQuant API", version="4.0.0-dev", lifespan=lifespan)
+app = FastAPI(title="NeuralQuant API", version="4.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -49,8 +49,9 @@ app.include_router(auth.router)         # /auth/me
 app.include_router(watchlists.router)   # /watchlist
 app.include_router(sentiment.router, prefix="/sentiment", tags=["sentiment"])
 app.include_router(backtest.router,  prefix="/backtest",  tags=["backtest"])
+app.include_router(alerts.router)
 
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "version": "4.0.0-dev"}
+    return {"status": "ok", "version": "4.0.0"}

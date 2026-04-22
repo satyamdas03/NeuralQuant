@@ -12,6 +12,7 @@ dependencies = [
     "pyjwt[crypto]>=2.9",
     "supabase>=2.8",
     "vaderSentiment>=3.3.2",
+    "resend>=2.0",
     "nq-data",
     "nq-signals",
 ]

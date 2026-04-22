@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, use } from "react";
-import { api } from "@/lib/api";
+import { api, authedApi } from "@/lib/api";
 import Link from "next/link";
 import type { AIScore, AnalystResponse, StockMeta, Market, SentimentResponse } from "@/lib/types";
 import { AIScoreCard } from "@/components/AIScoreCard";
@@ -9,7 +9,11 @@ import { FeatureAttribution } from "@/components/FeatureAttribution";
 import { AgentDebatePanel } from "@/components/AgentDebatePanel";
 import { PriceChart } from "@/components/PriceChart";
 import { StockMetaBar } from "@/components/StockMetaBar";
-import { toggleWatchlist, isWatchlisted } from "@/lib/watchlist";
+import GhostBorderCard from "@/components/ui/GhostBorderCard";
+import GradientButton from "@/components/ui/GradientButton";
+import GlassPanel from "@/components/ui/GlassPanel";
+import RegimeBadge from "@/components/ui/RegimeBadge";
+import { Star, ArrowRight, Loader2 } from "lucide-react";
 
 export default function StockPage({
   params,
@@ -31,10 +35,24 @@ export default function StockPage({
   const [watchlisted, setWatchlisted] = useState(false);
 
   useEffect(() => {
-    setWatchlisted(isWatchlisted(ticker.toUpperCase()));
     api.getStock(ticker, market).then(setScore).finally(() => setLoading(false));
     api.getStockMeta(ticker, market).then(setMeta).catch(() => {});
     api.getSentiment(ticker, market, 12).then(setSentiment).catch(() => {});
+    authedApi.listWatchlist().then(r => {
+      setWatchlisted(r.items.some(i => i.ticker === ticker.toUpperCase()));
+    }).catch(() => {});
+  }, [ticker, market]);
+
+  // Live score updates via SSE
+  useEffect(() => {
+    const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+    const url = `${apiBase}/stocks/${ticker}/stream?market=${market}`;
+    const es = new EventSource(url);
+    es.addEventListener("score", (e) => {
+      try { setScore(JSON.parse(e.data)); } catch { /* ignore bad data */ }
+    });
+    es.addEventListener("error", () => { es.close(); });
+    return () => { es.close(); };
   }, [ticker, market]);
 
   const runDebate = async () => {
@@ -47,37 +65,49 @@ export default function StockPage({
     }
   };
 
-  const handleWatchlist = () => {
-    const now = toggleWatchlist(ticker.toUpperCase());
-    setWatchlisted(now);
+  const handleWatchlist = async () => {
+    try {
+      if (watchlisted) {
+        const r = await authedApi.listWatchlist();
+        const item = r.items.find(i => i.ticker === ticker.toUpperCase());
+        if (item) await authedApi.deleteWatchlist(item.id);
+        setWatchlisted(false);
+      } else {
+        await authedApi.addWatchlist({ ticker: ticker.toUpperCase(), market: market === "IN" ? "IN" : "US" });
+        setWatchlisted(true);
+      }
+    } catch {
+      // silently fail — non-critical
+    }
   };
 
   if (loading) return <StockPageSkeleton ticker={ticker.toUpperCase()} />;
   if (!score)
-    return <div className="text-red-400 py-12 text-center">Stock not found: {ticker}</div>;
+    return <div className="text-error py-12 text-center">Stock not found: {ticker}</div>;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 p-4 lg:p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">{ticker.toUpperCase()}</h1>
+          <h1 className="font-headline text-2xl font-bold text-on-surface">{ticker.toUpperCase()}</h1>
           {meta?.name && ticker.toUpperCase() !== meta.name && (
-            <p className="text-sm text-gray-400 mt-0.5">{meta.name}</p>
+            <p className="text-sm text-on-surface-variant mt-0.5">{meta.name}</p>
           )}
           {meta?.sector && (
-            <p className="text-xs text-gray-500 mt-0.5">{meta.sector} · {meta.industry}</p>
+            <p className="text-xs text-on-surface-variant mt-0.5">{meta.sector} · {meta.industry}</p>
           )}
         </div>
         <button
           onClick={handleWatchlist}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             watchlisted
-              ? "border-yellow-500/40 bg-yellow-500/10 text-yellow-400"
-              : "border-gray-700 text-gray-400 hover:text-white hover:border-gray-600"
+              ? "ghost-border bg-primary/10 text-primary"
+              : "ghost-border text-on-surface-variant hover:text-on-surface hover:bg-surface-high"
           }`}
         >
-          {watchlisted ? "★ Watching" : "☆ Watchlist"}
+          <Star size={14} className={watchlisted ? "fill-primary" : ""} />
+          {watchlisted ? "Watching" : "Watchlist"}
         </button>
       </div>
 
@@ -88,7 +118,7 @@ export default function StockPage({
         <FeatureAttribution drivers={score.top_drivers} />
       </div>
 
-      {/* Meta bar (fundamentals overview) */}
+      {/* Meta bar */}
       {meta && <StockMetaBar meta={meta} market={market} />}
 
       {/* Price Chart */}
@@ -96,28 +126,24 @@ export default function StockPage({
 
       {/* Sentiment + Backtest row */}
       <div className="grid md:grid-cols-2 gap-5">
-        <SentimentCard s={sentiment} ticker={ticker.toUpperCase()} />
+        <SentimentCard s={sentiment} ticker={ticker.toUpperCase()} market={market} />
         <BacktestCTA ticker={ticker.toUpperCase()} market={market} />
       </div>
 
       {/* PARA-DEBATE */}
       {!report ? (
         <div className="text-center py-10">
-          <button
-            onClick={runDebate}
-            disabled={analysing}
-            className="px-8 py-4 bg-gradient-to-r from-violet-600 to-cyan-600 hover:from-violet-500 hover:to-cyan-500 disabled:opacity-50 rounded-xl text-white font-semibold transition-all shadow-lg hover:shadow-violet-500/20"
-          >
+          <GradientButton onClick={runDebate} disabled={analysing} size="md">
             {analysing ? (
               <span className="flex items-center gap-2">
-                <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                <Loader2 size={16} className="animate-spin" />
                 7 analysts debating…
               </span>
             ) : (
               "Run PARA-DEBATE Analysis"
             )}
-          </button>
-          <p className="text-gray-500 text-sm mt-2">
+          </GradientButton>
+          <p className="text-on-surface-variant text-sm mt-2">
             7 Claude AI analysts debate the stock in parallel (~5–10 s)
           </p>
         </div>
@@ -130,56 +156,56 @@ export default function StockPage({
 
 function StockPageSkeleton({ ticker }: { ticker: string }) {
   return (
-    <div className="space-y-5 animate-pulse">
+    <div className="space-y-5 p-4 lg:p-6 animate-pulse">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">{ticker}</h1>
-          <p className="text-xs text-gray-500 mt-1">
-            Computing 5-factor score across reference universe — first load takes 10-30 s on cold start…
+          <h1 className="font-headline text-2xl font-bold text-on-surface">{ticker}</h1>
+          <p className="text-xs text-on-surface-variant mt-1">
+            Computing 5-factor score — first load takes 10-30 s on cold start…
           </p>
         </div>
-        <div className="h-10 w-28 rounded-lg bg-gray-800/60" />
+        <div className="h-10 w-28 rounded-lg bg-surface-container" />
       </div>
       <div className="grid md:grid-cols-3 gap-5">
         {[0, 1, 2].map((i) => (
-          <div key={i} className="h-40 rounded-xl bg-gray-900 border border-gray-800" />
+          <div key={i} className="h-40 rounded-2xl bg-surface-container" />
         ))}
       </div>
-      <div className="h-16 rounded-xl bg-gray-900 border border-gray-800" />
-      <div className="h-64 rounded-xl bg-gray-900 border border-gray-800" />
+      <div className="h-16 rounded-2xl bg-surface-container" />
+      <div className="h-64 rounded-2xl bg-surface-container" />
       <div className="grid md:grid-cols-2 gap-5">
-        <div className="h-48 rounded-xl bg-gray-900 border border-gray-800" />
-        <div className="h-48 rounded-xl bg-gray-900 border border-gray-800" />
+        <div className="h-48 rounded-2xl bg-surface-container" />
+        <div className="h-48 rounded-2xl bg-surface-container" />
       </div>
-      <div className="flex items-center justify-center gap-2 text-sm text-gray-500 py-4">
-        <span className="w-3 h-3 rounded-full border-2 border-violet-500/30 border-t-violet-500 animate-spin" />
+      <div className="flex items-center justify-center gap-2 text-sm text-on-surface-variant py-4">
+        <Loader2 size={14} className="animate-spin text-primary" />
         <span>Fetching AI score, meta, sentiment…</span>
       </div>
     </div>
   );
 }
 
-function SentimentCard({ s, ticker }: { s: SentimentResponse | null; ticker: string }) {
+function SentimentCard({ s, ticker, market }: { s: SentimentResponse | null; ticker: string; market: Market }) {
   const color =
-    !s ? "text-gray-400"
-    : s.label === "Bullish" ? "text-emerald-400"
-    : s.label === "Bearish" ? "text-red-400"
-    : "text-yellow-400";
+    !s ? "text-on-surface-variant"
+    : s.label === "Bullish" ? "text-tertiary"
+    : s.label === "Bearish" ? "text-error"
+    : "text-secondary";
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+    <GhostBorderCard>
       <div className="flex items-center justify-between mb-3">
-        <h3 className="font-semibold text-sm text-gray-300 uppercase tracking-wide">News Sentiment</h3>
-        <span className="text-xs text-gray-500">VADER · {s?.n_headlines ?? 0} headlines</span>
+        <h3 className="font-semibold text-xs text-on-surface-variant uppercase tracking-wide">News Sentiment</h3>
+        <span className="text-xs text-on-surface-variant">VADER · {s?.n_headlines ?? 0} headlines</span>
       </div>
       {!s ? (
-        <div className="text-sm text-gray-500">Loading…</div>
+        <div className="text-sm text-on-surface-variant">Loading…</div>
       ) : s.n_headlines === 0 ? (
-        <div className="text-sm text-gray-500">No recent headlines for {ticker}.</div>
+        <div className="text-sm text-on-surface-variant">No recent headlines for {ticker}.</div>
       ) : (
         <>
           <div className="flex items-baseline gap-3">
-            <span className={`text-3xl font-bold ${color}`}>{s.label}</span>
-            <span className="text-sm text-gray-500 tabular-nums">
+            <span className={`font-headline text-3xl font-bold ${color}`}>{s.label}</span>
+            <span className="text-sm text-on-surface-variant tabular-nums">
               {s.aggregate_score >= 0 ? "+" : ""}{s.aggregate_score.toFixed(2)}
             </span>
           </div>
@@ -190,12 +216,12 @@ function SentimentCard({ s, ticker }: { s: SentimentResponse | null; ticker: str
                 href={h.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-start justify-between gap-3 text-xs text-gray-400 hover:text-white"
+                className="flex items-start justify-between gap-3 text-xs text-on-surface-variant hover:text-on-surface transition-colors"
               >
                 <span className="leading-snug line-clamp-2">{h.title}</span>
                 <span
                   className={`shrink-0 tabular-nums ${
-                    h.score > 0 ? "text-emerald-400" : h.score < 0 ? "text-red-400" : "text-gray-500"
+                    h.score > 0 ? "text-tertiary" : h.score < 0 ? "text-error" : "text-on-surface-variant"
                   }`}
                 >
                   {h.score >= 0 ? "+" : ""}{h.score.toFixed(2)}
@@ -205,24 +231,24 @@ function SentimentCard({ s, ticker }: { s: SentimentResponse | null; ticker: str
           </div>
         </>
       )}
-    </div>
+    </GhostBorderCard>
   );
 }
 
 function BacktestCTA({ ticker, market }: { ticker: string; market: Market }) {
   return (
-    <div className="bg-gradient-to-br from-violet-600/10 to-cyan-600/10 border border-violet-500/20 rounded-xl p-5 flex flex-col justify-between">
+    <div className="bg-gradient-to-br from-primary/10 to-secondary/10 ghost-border rounded-2xl p-5 flex flex-col justify-between">
       <div>
-        <h3 className="font-semibold text-sm text-gray-300 uppercase tracking-wide">Strategy Backtest</h3>
-        <p className="text-sm text-gray-400 mt-2 leading-relaxed">
+        <h3 className="font-semibold text-xs text-on-surface-variant uppercase tracking-wide">Strategy Backtest</h3>
+        <p className="text-sm text-on-surface-variant mt-2 leading-relaxed">
           Test a moving-average crossover on {ticker} — see Sharpe, max drawdown, and how it compares to buy-and-hold.
         </p>
       </div>
       <Link
         href={`/backtest?ticker=${ticker}&market=${market}`}
-        className="mt-4 inline-block px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium w-fit transition-colors"
+        className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-primary/80 text-on-surface text-sm font-medium w-fit transition-colors"
       >
-        Run backtest →
+        Run backtest <ArrowRight size={14} />
       </Link>
     </div>
   );

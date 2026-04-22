@@ -39,6 +39,8 @@ _price_cache: dict[str, pd.Series] = {}
 _price_ts: dict[str, float] = {}
 _macro_cache: "_LiveMacro | None" = None
 _macro_ts: float = 0.0
+_macro_in_cache: "_LiveMacroIN | None" = None
+_macro_in_ts: float = 0.0
 
 FUND_TTL  = 4 * 3600   # 4 hours
 PRICE_TTL = 3600        # 1 hour
@@ -51,7 +53,7 @@ _insider_cache: dict[str, float] = {}
 _insider_ts: dict[str, float] = {}
 
 
-# ─── Live Macro dataclass ─────────────────────────────────────────────────────
+# ─── Live Macro dataclasses ────────────────────────────────────────────────────
 
 @dataclass
 class _LiveMacro:
@@ -69,6 +71,17 @@ class _LiveMacro:
     yield_2y: float = 4.1
     # metadata
     fred_sourced: bool = False
+
+
+@dataclass
+class _LiveMacroIN:
+    """India macro indicators — yfinance-sourced."""
+    india_vix: float = 15.0
+    nifty_vs_200ma: float = 0.02
+    nifty_return_1m: float = 0.01
+    inr_usd: float = 83.0
+    rbi_repo_rate: float = 6.50
+    sensex_close: float = 72000.0
 
 
 def _safe(val, default: float = 0.0) -> float:
@@ -155,6 +168,63 @@ def fetch_real_macro() -> _LiveMacro:
     with _lock:
         _macro_cache = m
         _macro_ts = time.time()
+    return m
+
+
+# ─── India Macro fetch ────────────────────────────────────────────────────────
+
+def fetch_real_macro_in() -> _LiveMacroIN:
+    """Fetch India-specific macro indicators from yfinance."""
+    global _macro_in_cache, _macro_in_ts
+    with _lock:
+        if _macro_in_cache is not None and time.time() - _macro_in_ts < MACRO_TTL:
+            return _macro_in_cache
+
+    m = _LiveMacroIN()
+
+    # India VIX
+    try:
+        h = yf.Ticker("^INDIAVIX").history(period="5d", auto_adjust=True)
+        if not h.empty:
+            m.india_vix = float(h["Close"].iloc[-1])
+    except Exception:
+        pass
+
+    # Nifty 50 — 200-day MA + 1-month return
+    try:
+        nifty = yf.Ticker("^NSEI").history(period="252d", auto_adjust=True)
+        if len(nifty) >= 200:
+            last = float(nifty["Close"].iloc[-1])
+            ma200 = float(nifty["Close"].tail(200).mean())
+            m.nifty_vs_200ma = (last - ma200) / ma200
+        if len(nifty) >= 22:
+            m.nifty_return_1m = (
+                float(nifty["Close"].iloc[-1]) / float(nifty["Close"].iloc[-22]) - 1
+            )
+            m.sensex_close = last
+    except Exception:
+        pass
+
+    # INR/USD
+    try:
+        inr = yf.Ticker("INRUSD=X").history(period="5d", auto_adjust=True)
+        if not inr.empty:
+            m.inr_usd = float(inr["Close"].iloc[-1])
+    except Exception:
+        pass
+
+    # RBI repo rate — not available via yfinance; use known current value
+    # Updated manually or via a future RBI API connector
+    m.rbi_repo_rate = float(os.environ.get("NQ_RBI_REPO_RATE", "6.50"))
+
+    log.info(
+        "IN macro loaded: IndiaVIX=%.1f Nifty200MA=%.2f%% 1m=%.2f%% INR/USD=%.2f RBI=%.2f%%",
+        m.india_vix, m.nifty_vs_200ma * 100, m.nifty_return_1m * 100, m.inr_usd, m.rbi_repo_rate,
+    )
+
+    with _lock:
+        _macro_in_cache = m
+        _macro_in_ts = time.time()
     return m
 
 
@@ -304,6 +374,7 @@ def _fetch_one(ticker: str, market: str) -> dict:
             "pb_ratio":             float(pb_ratio),
             "beta":                 float(beta),
             "realized_vol_1y":      float(realized_vol),
+            "delivery_pct":         None,  # filled by Bhavcopy for IN market
             "_is_real":             True,
             # Live price fields — used by query.py to inject accurate prices into LLM context
             "current_price":        float(current_price) if current_price else None,
@@ -454,6 +525,50 @@ def _add_value_and_lowvol_percentiles(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+# ─── NSE Bhavcopy enrichment ──────────────────────────────────────────────────
+
+_bhavcopy_cache: dict[str, float] = {}
+_bhavcopy_ts: float = 0.0
+BHAVCOPY_TTL = 6 * 3600  # 6 hours — EOD data doesn't change intraday
+
+
+def _enrich_with_bhavcopy(fundamentals: pd.DataFrame, tickers: list[str]) -> pd.DataFrame:
+    """Enrich IN fundamentals with delivery_pct from NSE Bhavcopy."""
+    global _bhavcopy_cache, _bhavcopy_ts
+
+    now = time.time()
+    if not _bhavcopy_cache or now - _bhavcopy_ts > BHAVCOPY_TTL:
+        try:
+            from nq_data.price.nse_bhavcopy import NSEBhavCopyConnector
+            from datetime import date, timedelta
+
+            conn = NSEBhavCopyConnector()
+            bars = []
+            for attempt in range(5):
+                d = date.today() - timedelta(days=attempt)
+                bars = conn.download_bhavcopy(d)
+                if bars:
+                    break
+
+            new_cache: dict[str, float] = {}
+            for bar in bars:
+                if bar.delivery_pct is not None:
+                    new_cache[bar.ticker] = bar.delivery_pct
+
+            if new_cache:
+                _bhavcopy_cache = new_cache
+                _bhavcopy_ts = now
+                log.info("Bhavcopy enriched %d tickers with delivery_pct", len(new_cache))
+        except Exception as exc:
+            log.warning("Bhavcopy fetch failed: %s — delivery_pct stays None", exc)
+
+    if _bhavcopy_cache and "delivery_pct" in fundamentals.columns:
+        fundamentals["delivery_pct"] = fundamentals["ticker"].map(
+            lambda t: _bhavcopy_cache.get(t)
+        )
+    return fundamentals
+
+
 # ─── Public API ───────────────────────────────────────────────────────────────
 
 def build_real_snapshot(tickers: list[str], market: str) -> UniverseSnapshot:
@@ -461,7 +576,10 @@ def build_real_snapshot(tickers: list[str], market: str) -> UniverseSnapshot:
     Build a UniverseSnapshot backed entirely by real data.
     Any ticker/field that fails falls back to deterministic synthetic values.
     """
-    macro    = fetch_real_macro()
+    if market == "IN":
+        macro = fetch_real_macro_in()
+    else:
+        macro = fetch_real_macro()
     fund_map = fetch_fundamentals_batch(tickers, market)
 
     from nq_api.universe import sector_of
@@ -474,6 +592,10 @@ def build_real_snapshot(tickers: list[str], market: str) -> UniverseSnapshot:
     fundamentals = pd.DataFrame(rows)
     fundamentals = _add_value_and_lowvol_percentiles(fundamentals)
     fundamentals = _add_insider_percentile(fundamentals, market)
+
+    # IN-specific: enrich with NSE Bhavcopy delivery_pct
+    if market == "IN":
+        fundamentals = _enrich_with_bhavcopy(fundamentals, tickers)
 
     return UniverseSnapshot(
         tickers=tickers,
