@@ -17,6 +17,7 @@ class SubScores(BaseModel):
     short_interest: float        # 0-1
     value: float                 # 0-1 (0.5 = neutral placeholder)
     low_vol: float               # 0-1 (0.5 = neutral placeholder)
+    insider: float = 0.5         # 0-1 (EDGAR Form 4 cluster score, US only)
 
 
 class AIScore(BaseModel):

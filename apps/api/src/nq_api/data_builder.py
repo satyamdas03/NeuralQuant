@@ -43,7 +43,12 @@ _macro_ts: float = 0.0
 FUND_TTL  = 4 * 3600   # 4 hours
 PRICE_TTL = 3600        # 1 hour
 MACRO_TTL = 3600        # 1 hour
+INSIDER_TTL = 24 * 3600  # 24 hours — EDGAR filings are daily anyway
 MAX_WORKERS = 12
+
+# Separate cache for insider scores (keyed by ticker — US-only)
+_insider_cache: dict[str, float] = {}
+_insider_ts: dict[str, float] = {}
 
 
 # ─── Live Macro dataclass ─────────────────────────────────────────────────────
@@ -350,6 +355,78 @@ def fetch_fundamentals_batch(tickers: list[str], market: str = "US") -> dict[str
 
 # ─── Cross-sectional factor percentiles ──────────────────────────────────────
 
+def _fetch_insider_score(ticker: str) -> float:
+    """Return a 0-1 insider-cluster score for a US-market ticker.
+
+    Thin wrapper around `nq_data.alt_signals.edgar_form4`. Any network
+    or parse failure collapses to a neutral 0.5 so the composite stays
+    valid. Cached for 24 h per ticker to stay well within EDGAR's
+    fair-use budget.
+    """
+    now = time.time()
+    with _lock:
+        if ticker in _insider_cache and now - _insider_ts.get(ticker, 0) < INSIDER_TTL:
+            return _insider_cache[ticker]
+    try:
+        from datetime import timedelta
+        from nq_data.alt_signals.edgar_form4 import (
+            Form4Connector,
+            compute_insider_cluster_score,
+        )
+        today = date.today()
+        events = Form4Connector().get_insider_events(
+            ticker, today - timedelta(days=90), today
+        )
+        score = compute_insider_cluster_score(events)
+    except Exception as exc:
+        log.debug("insider score fallback for %s: %s", ticker, exc)
+        score = 0.5
+    with _lock:
+        _insider_cache[ticker] = score
+        _insider_ts[ticker] = now
+    return score
+
+
+def _add_insider_percentile(df: pd.DataFrame, market: str) -> pd.DataFrame:
+    """Populate `insider_percentile` on the universe frame.
+
+    Form 4 is a US-only filing type (India uses BSE/NSE disclosures via
+    a different pipeline), so we only attempt live lookups when market
+    == 'US'. Everyone else defaults to 0.5 neutral.
+    """
+    if market != "US" or df.empty:
+        df["insider_percentile"] = 0.5
+        return df
+
+    # Hard budget: only fetch for tickers we don't already have cached,
+    # and cap the fan-out per request so a cold cache doesn't blow up
+    # EDGAR rate limits.
+    tickers = df["ticker"].tolist()
+    now = time.time()
+    uncached = [
+        t for t in tickers
+        if not (t in _insider_cache and now - _insider_ts.get(t, 0) < INSIDER_TTL)
+    ]
+    # Only kick off the network fan-out if there's a reasonable cache
+    # miss count — otherwise rely on cached values to stay snappy.
+    if uncached:
+        with ThreadPoolExecutor(max_workers=min(4, len(uncached))) as pool:
+            futures = {pool.submit(_fetch_insider_score, t): t for t in uncached[:20]}
+            for fut in as_completed(futures):
+                t = futures[fut]
+                try:
+                    fut.result()
+                except Exception:
+                    with _lock:
+                        _insider_cache[t] = 0.5
+                        _insider_ts[t] = now
+
+    df["insider_percentile"] = df["ticker"].map(
+        lambda t: _insider_cache.get(t, 0.5)
+    )
+    return df
+
+
 def _add_value_and_lowvol_percentiles(df: pd.DataFrame) -> pd.DataFrame:
     """
     Compute value_percentile and low_vol_percentile cross-sectionally.
@@ -396,6 +473,7 @@ def build_real_snapshot(tickers: list[str], market: str) -> UniverseSnapshot:
 
     fundamentals = pd.DataFrame(rows)
     fundamentals = _add_value_and_lowvol_percentiles(fundamentals)
+    fundamentals = _add_insider_percentile(fundamentals, market)
 
     return UniverseSnapshot(
         tickers=tickers,

@@ -14,6 +14,7 @@ _PERCENTILE_COLS = [
     "value_percentile",
     "low_vol_percentile",
     "short_interest_percentile",
+    "insider_percentile",
 ]
 
 

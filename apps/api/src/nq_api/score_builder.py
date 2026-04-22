@@ -14,6 +14,7 @@ _FEATURE_DISPLAY = {
     # NOTE: engine stores 1 - rank_pct, so HIGH value = GOOD (low short interest).
     # higher_is_better MUST be True here — the inversion already happened in the engine.
     "short_interest_percentile": ("Low Short Interest",  True),
+    "insider_percentile":        ("Insider Buying (Form 4)", True),
 }
 
 

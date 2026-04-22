@@ -11,11 +11,11 @@ from .factors.quality import compute_quality_composite
 from .factors.momentum import compute_momentum_cross_sectional, apply_crash_protection
 from .regime.hmm_detector import RegimeDetector, RegimeState, REGIME_WEIGHTS
 
-# Fixed allocation for short interest signal (regime-invariant for now).
-# Pulled proportionally from the remaining regime budget so the composite
-# weights always sum to exactly 1.0:
-#   regime_budget * sum(regime_weights) + SHORT_INT_WEIGHT = 0.85 * 1.0 + 0.15 = 1.0
-SHORT_INT_WEIGHT = 0.15
+# Fixed allocations for regime-invariant signals. Pulled from the remaining
+# regime budget so the composite weights always sum to exactly 1.0:
+#   regime_budget * sum(regime_weights) + SHORT_INT + INSIDER = 0.85 * 1.0 + 0.10 + 0.05 = 1.00
+SHORT_INT_WEIGHT = 0.10
+INSIDER_WEIGHT = 0.05
 
 
 @dataclass
@@ -79,19 +79,20 @@ class SignalEngine:
         momentum = df.get("momentum_percentile", pd.Series(0.5, index=df.index))
         short_int = df.get("short_interest_percentile", pd.Series(0.5, index=df.index))
 
-        # Scale regime weights to fill the remaining budget after short interest.
-        # This ensures composite weights sum to 1.0 regardless of regime.
-        regime_budget = 1.0 - SHORT_INT_WEIGHT  # 0.85
+        # Scale regime weights to fill the remaining budget after short interest + insider.
+        regime_budget = 1.0 - SHORT_INT_WEIGHT - INSIDER_WEIGHT  # 0.85
 
-        # Value and low_vol: use pre-computed percentiles if available (Phase 3+),
+        # Value, low_vol, insider: use pre-computed percentiles if available,
         # otherwise fall back to neutral 0.5.
-        value   = df.get("value_percentile",   pd.Series(0.5, index=df.index))
-        low_vol = df.get("low_vol_percentile", pd.Series(0.5, index=df.index))
+        value    = df.get("value_percentile",    pd.Series(0.5, index=df.index))
+        low_vol  = df.get("low_vol_percentile",  pd.Series(0.5, index=df.index))
+        insider  = df.get("insider_percentile",  pd.Series(0.5, index=df.index))
 
         df["composite_score"] = (
             quality   * w.get("quality",   0.25) * regime_budget +
             momentum  * w.get("momentum",  0.25) * regime_budget +
             short_int * SHORT_INT_WEIGHT +
+            insider   * INSIDER_WEIGHT +
             value     * w.get("value",     0.10) * regime_budget +
             low_vol   * w.get("low_vol",   0.15) * regime_budget
         )
