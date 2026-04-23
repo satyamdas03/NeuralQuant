@@ -32,8 +32,17 @@ async def lifespan(app: FastAPI):
         except Exception:
             pass
 
+    def _warm_news():
+        try:
+            import asyncio
+            from nq_api.routes.newsdesk import _refresh_news_cache
+            asyncio.run(_refresh_news_cache())
+        except Exception:
+            pass
+
     threading.Thread(target=_warm, daemon=True).start()
     threading.Thread(target=_warm_smart_money, daemon=True).start()
+    threading.Thread(target=_warm_news, daemon=True).start()
     yield
 
 

@@ -294,22 +294,29 @@ NEWS_TTL = 300  # 5 minutes
 # ---------------------------------------------------------------------------
 # Route
 # ---------------------------------------------------------------------------
-@router.get("/news")
-async def get_news_desk(n: int = 20) -> dict[str, Any]:
-    """Return enriched NewsDesk headlines, overall sentiment and trending topics."""
+# ---------------------------------------------------------------------------
+# Background refresh
+# ---------------------------------------------------------------------------
+async def _refresh_news_cache() -> None:
     global _news_cache, _news_ts
-    if _news_cache and time.time() - _news_ts < NEWS_TTL:
-        return _news_cache
-
-    # Pull from several broad-market / mega-cap tickers in parallel
     sources = ["^GSPC", "RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS"]
-    raw_batches = await asyncio.gather(
-        *[asyncio.to_thread(_fetch_yf_news, sym, 8) for sym in sources]
-    )
+    try:
+        raw_batches = await asyncio.wait_for(
+            asyncio.gather(
+                *[asyncio.to_thread(_fetch_yf_news, sym, 8) for sym in sources],
+                return_exceptions=True,
+            ),
+            timeout=20,
+        )
+    except asyncio.TimeoutError:
+        log.warning("NewsDesk refresh timed out")
+        return
 
     seen: set[str] = set()
     enriched: list[dict[str, Any]] = []
     for batch in raw_batches:
+        if isinstance(batch, Exception):
+            continue
         for item in batch:
             title = item.get("title", "")
             if not title or title in seen:
@@ -329,10 +336,7 @@ async def get_news_desk(n: int = 20) -> dict[str, Any]:
                 }
             )
 
-    # Sort by recency (yfinance already returns roughly newest-first) and cap
-    headlines = enriched[:n]
-
-    # Overall desk sentiment
+    headlines = enriched[:20]
     if headlines:
         avg = sum(h["_score"] for h in headlines) / len(headlines)
         overall = (
@@ -340,18 +344,33 @@ async def get_news_desk(n: int = 20) -> dict[str, Any]:
         )
     else:
         overall = "neutral"
-
-    # Strip internal field before returning
     for h in headlines:
         h.pop("_score", None)
 
-    trending = _compute_trending(headlines)
-
-    result = {
+    _news_cache = {
         "sentiment": overall,
         "headlines": headlines,
-        "trending": trending,
+        "trending": _compute_trending(headlines),
     }
-    _news_cache = result
     _news_ts = time.time()
-    return result
+    log.info("NewsDesk cache refreshed: %d headlines", len(headlines))
+
+
+@router.get("/news")
+async def get_news_desk(n: int = 20) -> dict[str, Any]:
+    """Return enriched NewsDesk headlines. Instant response; background refresh if stale."""
+    global _news_cache, _news_ts
+    if _news_cache and time.time() - _news_ts < NEWS_TTL:
+        return _news_cache
+
+    asyncio.create_task(_refresh_news_cache())
+
+    if _news_cache:
+        return {**_news_cache, "stale": True}
+
+    return {
+        "sentiment": "neutral",
+        "headlines": [],
+        "trending": [],
+        "loading": True,
+    }
