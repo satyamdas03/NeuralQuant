@@ -130,15 +130,25 @@ async def get_smart_money() -> dict[str, Any]:
     if _SMART_CACHE and time.time() - _SMART_TS < SMART_TTL:
         return _SMART_CACHE
 
-    # Fetch in parallel — EDGAR is slow, use small batch to be kind
-    batch = _SMART_MONEY_UNIVERSE[:12]  # cap to avoid hammering EDGAR
-    results = await asyncio.gather(
-        *[asyncio.to_thread(_fetch_insider_blocking, sym) for sym in batch]
-    )
+    # Fetch in parallel — EDGAR is slow; cap batch + enforce timeout
+    batch = _SMART_MONEY_UNIVERSE[:6]
+    try:
+        results = await asyncio.wait_for(
+            asyncio.gather(
+                *[asyncio.to_thread(_fetch_insider_blocking, sym) for sym in batch],
+                return_exceptions=True,
+            ),
+            timeout=20,
+        )
+    except asyncio.TimeoutError:
+        results = []
 
     all_events: list[dict[str, Any]] = []
-    for events in results:
-        all_events.extend(events)
+    for r in results:
+        if isinstance(r, list):
+            all_events.extend(r)
+        else:
+            log.warning("Smart-money batch error: %s", r)
 
     payload = _aggregate(all_events)
     _SMART_CACHE = payload
