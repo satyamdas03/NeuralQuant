@@ -16,3 +16,6 @@ graphify-out/
 knowledgeGraph_NeuralQuant/
 docs/NeuralQuant_Report*.docx
 docs/~$*.docx
+.next/
+INSPIRATIONS/
+NEURALQUANT_nextThings/

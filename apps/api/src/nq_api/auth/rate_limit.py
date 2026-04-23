@@ -9,6 +9,7 @@ enforce_tier_quota(endpoint) -> FastAPI dep that:
 """
 from __future__ import annotations
 import logging
+import os
 from datetime import datetime, timezone
 from fastapi import Depends, HTTPException, status
 
@@ -50,6 +51,9 @@ def enforce_tier_quota(endpoint: str):
     """Return a dep that enforces the daily cap on `endpoint` for the user."""
 
     def _dep(user: User = Depends(get_current_user)) -> User:
+        # Dev-mode bypass: skip tier gates entirely in development
+        if os.environ.get("ENVIRONMENT") == "development":
+            return user
         cap = _cap_for(user.tier, endpoint)
         if cap == 0:
             raise HTTPException(

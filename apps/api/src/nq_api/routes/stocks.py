@@ -4,6 +4,7 @@ import asyncio
 import json
 
 import httpx
+import pandas as pd
 import yfinance as yf
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
@@ -14,7 +15,8 @@ from nq_api.deps import get_signal_engine
 from nq_api.schemas import AIScore
 from nq_api.score_builder import row_to_ai_score, rank_scores_in_universe
 from nq_api.universe import UNIVERSE_BY_MARKET
-from nq_api.data_builder import build_real_snapshot, _fund_cache
+from nq_api.data_builder import build_real_snapshot, _fund_cache, fetch_real_macro
+from nq_api.cache import score_cache
 from nq_signals.engine import SignalEngine
 
 router = APIRouter()
@@ -55,6 +57,21 @@ def get_stock_score(
     engine: SignalEngine = Depends(get_signal_engine),
 ) -> AIScore:
     ticker_upper = ticker.upper()
+
+    # --- Fast path: read from Supabase score_cache (sub-100ms) ---
+    try:
+        cached = score_cache.read_one(ticker_upper, market, max_age_seconds=172800)
+    except Exception as e:
+        log.warning("score_cache.read_one failed: %s", e)
+        cached = None
+    if cached:
+        # Build AIScore from cache row — use regime_id from cache row itself
+        df = pd.DataFrame([cached])
+        if "regime_id" not in df.columns or pd.isna(df["regime_id"].iloc[0]):
+            df["regime_id"] = 1
+        return row_to_ai_score(df.iloc[0], market, score_1_10_override=_score_1_10_from_cache(cached))
+
+    # --- Slow path: live compute (fallback for cache miss) ---
     known_universe = list(UNIVERSE_BY_MARKET.get(market, UNIVERSE_BY_MARKET["US"]))
 
     # Always compute within full reference universe for meaningful percentile ranks
@@ -84,6 +101,12 @@ def get_stock_score(
     score_override = int(ranked_scores.iloc[ticker_idx]) if ticker_idx < len(ranked_scores) else None
 
     return row_to_ai_score(matching.iloc[0], market, score_1_10_override=score_override)
+
+
+def _score_1_10_from_cache(row: dict) -> int:
+    """Derive a 1-10 score from cached composite_score using the same stretching logic."""
+    from nq_api.score_builder import _score_to_1_10
+    return _score_to_1_10(float(row.get("composite_score", 0.5)))
 
 
 # Period → (yahoo-range, yahoo-interval) for direct chart API fallback
@@ -248,19 +271,28 @@ def get_stock_meta(ticker: str, market: str = Query("US")):
 
         mc = info.get("marketCap")
 
-        # Dividend yield normalization: recent yfinance versions return percent (0.94 = 0.94%),
-        # older versions return decimal (0.0094 = 0.94%). Heuristic: if raw value > 1, treat as
-        # already-percent. Also clamp to <30% (no legit stock exceeds that).
-        div_raw = info.get("dividendYield")
+        # Dividend yield: yfinance dividendYield is decimal (0.005 = 0.5%).
+        # Some versions return already-percent — cross-check with dividendRate / currentPrice.
         div_pct = None
-        if div_raw:
+        div_rate = info.get("dividendRate")
+        price_now = info.get("currentPrice") or info.get("regularMarketPrice")
+        if div_rate and price_now:
             try:
-                v = float(div_raw)
-                v = v if v > 1 else v * 100  # normalize to percent
-                if 0 < v < 30:
-                    div_pct = round(v, 2)
+                div_pct = round(float(div_rate) / float(price_now) * 100, 2)
+                if not (0 < div_pct < 20):
+                    div_pct = None
             except Exception:
                 pass
+        if div_pct is None:
+            div_raw = info.get("dividendYield")
+            if div_raw:
+                try:
+                    v = float(div_raw)
+                    v = v if v > 1 else v * 100
+                    if 0 < v < 20:
+                        div_pct = round(v, 2)
+                except Exception:
+                    pass
 
         return {
             "ticker":                  ticker.upper(),
@@ -285,23 +317,21 @@ def get_stock_meta(ticker: str, market: str = Query("US")):
 
 
 @router.get("/{ticker}/stream")
-def stream_stock_score(
+async def stream_stock_score(
     ticker: str,
     market: Literal["US", "IN", "GLOBAL"] = Query("US"),
     engine: SignalEngine = Depends(get_signal_engine),
 ):
-    """SSE endpoint: emits score updates every 30 seconds for the given ticker.
-    Client connects with EventSource and receives events named 'score' with AIScore JSON payload.
+    """SSE endpoint: emits score updates every 60 seconds for the given ticker.
+    Uses cache first, falls back to live compute only on cache miss.
     """
-    import time
-
-    def event_generator():
+    async def event_generator():
         last_score = None
         while True:
             try:
-                score_obj = get_stock_score(ticker, market, engine)
+                # Offload sync get_stock_score to thread pool so event loop stays free
+                score_obj = await asyncio.to_thread(get_stock_score, ticker, market, engine)
                 payload = score_obj.model_dump_json()
-                # Only emit if score changed or first event
                 if last_score != payload:
                     yield f"event: score\ndata: {payload}\n\n"
                     last_score = payload
@@ -309,7 +339,7 @@ def stream_stock_score(
                     yield f"event: heartbeat\ndata: {{}}\n\n"
             except Exception as e:
                 yield f"event: error\ndata: {json.dumps({'detail': str(e)})}\n\n"
-            time.sleep(30)
+            await asyncio.sleep(60)
 
     return StreamingResponse(
         event_generator(),

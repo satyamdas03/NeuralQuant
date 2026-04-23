@@ -38,12 +38,15 @@ function ScreenerInner() {
   const [data, setData] = useState<ScreenerResponse | null>(null);
   const [market, setMarket] = useState<"US" | "IN">(urlMarket);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const load = (m: "US" | "IN") => {
     setLoading(true);
+    setError(null);
     api
-      .runScreener({ market: m, max_results: 30 })
+      .getScreenerPreview(m, 50)
       .then(setData)
+      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load screener"))
       .finally(() => setLoading(false));
   };
 
@@ -95,6 +98,13 @@ function ScreenerInner() {
             <div key={i} className="h-12 bg-surface-container rounded-lg animate-pulse" />
           ))}
         </div>
+      ) : error ? (
+        <GhostBorderCard>
+          <div className="text-center py-8">
+            <p className="text-sm text-error">{error}</p>
+            <button onClick={() => load(market)} className="mt-3 text-xs text-primary hover:underline">Retry</button>
+          </div>
+        </GhostBorderCard>
       ) : data ? (
         <ScreenerTable stocks={data.results} />
       ) : null}

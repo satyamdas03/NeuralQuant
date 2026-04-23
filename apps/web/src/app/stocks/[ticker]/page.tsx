@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useState, use } from "react";
+import { useEffect, useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
 import { api, authedApi } from "@/lib/api";
 import Link from "next/link";
 import type { AIScore, AnalystResponse, StockMeta, Market, SentimentResponse } from "@/lib/types";
@@ -15,16 +16,11 @@ import GlassPanel from "@/components/ui/GlassPanel";
 import RegimeBadge from "@/components/ui/RegimeBadge";
 import { Star, ArrowRight, Loader2 } from "lucide-react";
 
-export default function StockPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ ticker: string }>;
-  searchParams: Promise<{ market?: string }>;
-}) {
-  const { ticker } = use(params);
-  const { market: marketParam } = use(searchParams);
-  const market = (marketParam ?? "US") as Market;
+export default function StockPage() {
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const ticker = (params.ticker as string) ?? "";
+  const market = (searchParams.get("market") ?? "US") as Market;
 
   const [score, setScore] = useState<AIScore | null>(null);
   const [meta, setMeta] = useState<StockMeta | null>(null);
@@ -35,12 +31,12 @@ export default function StockPage({
   const [watchlisted, setWatchlisted] = useState(false);
 
   useEffect(() => {
-    api.getStock(ticker, market).then(setScore).finally(() => setLoading(false));
+    api.getStock(ticker, market).then(setScore).catch((e) => console.error("getStock failed:", e)).finally(() => setLoading(false));
     api.getStockMeta(ticker, market).then(setMeta).catch(() => {});
     api.getSentiment(ticker, market, 12).then(setSentiment).catch(() => {});
     authedApi.listWatchlist().then(r => {
       setWatchlisted(r.items.some(i => i.ticker === ticker.toUpperCase()));
-    }).catch(() => {});
+    }).catch(() => {}); // Not logged in — non-critical
   }, [ticker, market]);
 
   // Live score updates via SSE
@@ -56,6 +52,17 @@ export default function StockPage({
   }, [ticker, market]);
 
   const runDebate = async () => {
+    // Check auth first
+    try {
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      const { data } = await supabase.auth.getSession();
+      if (!data.session?.access_token) {
+        setReport({ ticker: ticker.toUpperCase(), market, debate: [], consensus: "", verdict: "Sign in required to run PARA-DEBATE." } as any);
+        return;
+      }
+    } catch { /* proceed */ }
+
     setAnalysing(true);
     try {
       const r = await api.runAnalyst({ ticker, market });

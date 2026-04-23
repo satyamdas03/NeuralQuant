@@ -4,18 +4,26 @@ Reads JWT from Authorization header, verifies, then fetches/creates
 public.users row via Supabase service client.
 """
 from __future__ import annotations
+import logging
 import os
-from functools import lru_cache
+import threading
 
 from fastapi import Depends, Header, HTTPException, status
 
 from .jwt_verify import verify_supabase_jwt, JWTVerificationError
 from .models import User
 
+logger = logging.getLogger(__name__)
 
-@lru_cache(maxsize=1)
+_local = threading.local()
+
+
 def _supabase_service_client():
-    """Lazy singleton — avoid import cost when auth unused."""
+    """Thread-local lazy singleton — each thread gets its own client to avoid
+    httpx connection sharing across threads (causes RemoteProtocolError)."""
+    client = getattr(_local, "supabase_client", None)
+    if client is not None:
+        return client
     try:
         from supabase import create_client  # type: ignore
     except ImportError as exc:
@@ -25,7 +33,9 @@ def _supabase_service_client():
     key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
     if not url or not key:
         raise RuntimeError("SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY required")
-    return create_client(url, key)
+    client = create_client(url, key)
+    _local.supabase_client = client
+    return client
 
 
 def _extract_bearer(authorization: str | None) -> str | None:
@@ -45,9 +55,12 @@ def _load_user_row(user_id: str, email: str) -> dict:
     if rows:
         return rows[0]
     # Fallback — trigger normally creates this, but insert defensively
-    client.table("users").insert(
-        {"id": user_id, "email": email, "tier": "free"}
-    ).execute()
+    try:
+        client.table("users").insert(
+            {"id": user_id, "email": email, "tier": "free"}
+        ).execute()
+    except Exception:
+        pass  # FK constraint or duplicate — return minimal row
     return {"id": user_id, "email": email, "tier": "free"}
 
 

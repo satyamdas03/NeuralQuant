@@ -135,6 +135,24 @@ function HomeAskAI() {
     if (!q || loading) return;
     setSlowLoad(false);
 
+    // Check auth first to avoid redirect on 401
+    try {
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      const { data } = await supabase.auth.getSession();
+      if (!data.session?.access_token) {
+        const userMsg: ChatMsg = { id: Date.now().toString(), role: "user", content: q };
+        const authMsg: ChatMsg = {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: "Sign in required to ask questions.",
+          loading: false,
+        };
+        setMessages((prev) => [...prev, userMsg, authMsg]);
+        return;
+      }
+    } catch { /* proceed without check */ }
+
     const userMsg: ChatMsg = { id: Date.now().toString(), role: "user", content: q };
     const phId = (Date.now() + 1).toString();
     const ph: ChatMsg = { id: phId, role: "assistant", content: "", loading: true };
@@ -156,11 +174,14 @@ function HomeAskAI() {
             : m
         )
       );
-    } catch {
+    } catch (e) {
+      const errMsg = e instanceof Error && e.message.includes("auth required")
+        ? "Sign in required to ask questions."
+        : "Failed — backend may be starting. Retry in 30s.";
       setMessages((prev) =>
         prev.map((m) =>
           m.id === phId
-            ? { ...m, content: "Failed — backend may be starting. Retry in 30s.", loading: false }
+            ? { ...m, content: errMsg, loading: false }
             : m
         )
       );
@@ -204,6 +225,13 @@ function HomeAskAI() {
                 <div key={msg.id} className="flex justify-end">
                   <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-primary/15 border border-primary/20 px-4 py-2.5 text-sm text-on-surface">
                     {msg.content}
+                  </div>
+                </div>
+              ) : msg.content === "Sign in required to ask questions." ? (
+                <div key={msg.id} className="flex justify-start">
+                  <div className="max-w-[80%] rounded-2xl rounded-tl-sm bg-surface-container border border-ghost-border px-4 py-2.5 text-sm text-on-surface-variant">
+                    Sign in required to ask questions.{" "}
+                    <Link href="/login" className="text-primary hover:underline">Sign in →</Link>
                   </div>
                 </div>
               ) : (
@@ -388,27 +416,27 @@ export default function DashboardPage() {
   useEffect(() => {
     api.getMarketOverview()
       .then((d) => setIndices(d.indices))
-      .catch(() => {})
+      .catch((e) => console.error("market/overview failed:", e))
       .finally(() => setIndicesLoading(false));
 
     api.getMarketNews(8)
       .then((d) => setNews(d.news))
-      .catch(() => {})
+      .catch((e) => console.error("market/news failed:", e))
       .finally(() => setNewsLoading(false));
 
     api.getMarketSectors()
       .then((d) => setSectors(d.sectors))
-      .catch(() => {})
+      .catch((e) => console.error("market/sectors failed:", e))
       .finally(() => setSectorsLoading(false));
 
     api.getScreenerPreview("US", 8)
       .then((d) => { setTopStocks(d.results); setRegime(d.regime_label); })
-      .catch(() => {})
+      .catch((e) => console.error("screener/preview failed:", e))
       .finally(() => setStocksLoading(false));
 
     api.getMarketMovers()
       .then((d) => { setGainers(d.gainers); setLosers(d.losers); setActive(d.active); })
-      .catch(() => {})
+      .catch((e) => console.error("market/movers failed:", e))
       .finally(() => setMoversLoading(false));
   }, []);
 

@@ -1,6 +1,9 @@
 # apps/api/src/nq_api/main.py
+from pathlib import Path
 from dotenv import load_dotenv
-load_dotenv(override=True)   # always prefer .env values over stale system env vars
+# Load .env from apps/api/ regardless of CWD
+_env_path = Path(__file__).resolve().parents[2] / ".env"
+load_dotenv(_env_path, override=True)
 
 import threading
 from contextlib import asynccontextmanager
@@ -32,11 +35,12 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
+        "http://127.0.0.1:3000",
         "https://neuralquant.vercel.app",
-        "https://*.vercel.app",
     ],
     allow_origin_regex=r"https://.*\.vercel\.app",
     allow_methods=["*"],
+    allow_credentials=True,
     allow_headers=["Authorization", "Content-Type"],
 )
 

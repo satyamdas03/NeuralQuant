@@ -1,4 +1,7 @@
 # apps/api/src/nq_api/routes/screener.py
+import asyncio
+import logging
+
 import pandas as pd
 from fastapi import APIRouter, Depends
 
@@ -12,13 +15,20 @@ from nq_api.auth.rate_limit import enforce_tier_quota
 from nq_api.auth.models import User, TIER_LIMITS
 from nq_api.cache import score_cache
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
 
 
 @router.get("/preview", response_model=ScreenerResponse)
-def screener_preview(market: str = "US", n: int = 8) -> ScreenerResponse:
+async def screener_preview(market: str = "US", n: int = 8) -> ScreenerResponse:
     """Public, cache-only top-N. No auth, no quota. Used by dashboard preview."""
-    rows = score_cache.read_top(market, n=n, max_age_seconds=86400 * 2)
+    try:
+        rows = await asyncio.to_thread(score_cache.read_top, market, n=n, max_age_seconds=86400 * 7)
+        logger.info("screener_preview: %d rows from cache for market=%s", len(rows), market)
+    except Exception as exc:
+        logger.exception("screener_preview cache read failed for market=%s", market)
+        rows = []
     if not rows:
         return ScreenerResponse(regime_label="Unknown", regime_id=1, results=[], total=0)
     try:

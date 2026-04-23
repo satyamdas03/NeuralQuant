@@ -10,8 +10,8 @@ import anthropic
 from nq_api.schemas import AgentOutput
 
 logger = logging.getLogger(__name__)
-MODEL = "claude-sonnet-4-20250514"
-MAX_TOKENS = 1024
+MODEL = os.environ.get("ANTHROPIC_DEFAULT_SONNET_MODEL", "claude-sonnet-4-6-20250514")
+MAX_TOKENS = 4096
 
 
 class BaseAnalystAgent(ABC):
@@ -27,7 +27,7 @@ class BaseAnalystAgent(ABC):
                 "ANTHROPIC_API_KEY environment variable is not set. "
                 "Set it before instantiating any agent."
             )
-        self._client = anthropic.Anthropic(api_key=api_key)
+        self._client = anthropic.Anthropic(api_key=api_key, timeout=120.0)
 
     @abstractmethod
     def _build_user_message(self, ticker: str, context: dict) -> str:
@@ -42,7 +42,14 @@ class BaseAnalystAgent(ABC):
                 system=self.system_prompt,
                 messages=[{"role": "user", "content": user_msg}],
             )
-            raw = response.content[0].text
+            # Extract text from first text-type block (skip thinking blocks)
+            raw = ""
+            for block in response.content:
+                if block.type == "text":
+                    raw = block.text
+                    break
+            if not raw:
+                raw = response.content[0].text if hasattr(response.content[0], "text") else ""
             return self._parse_output(raw)
         except Exception as exc:
             logger.warning(

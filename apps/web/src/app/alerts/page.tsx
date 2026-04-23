@@ -4,35 +4,99 @@ import { authedApi } from "@/lib/api";
 import type { AlertSubscription, AlertDelivery, AlertType } from "@/lib/types";
 import GhostBorderCard from "@/components/ui/GhostBorderCard";
 import GradientButton from "@/components/ui/GradientButton";
-import { Bell, Plus, Trash2, Loader2, ArrowUpRight, ArrowDownRight, X } from "lucide-react";
+import { Bell, Plus, Trash2, Loader2, ArrowUpRight, ArrowDownRight, X, LogIn } from "lucide-react";
+import Link from "next/link";
 
 export default function AlertsPage() {
   const [subs, setSubs] = useState<AlertSubscription[]>([]);
   const [deliveries, setDeliveries] = useState<AlertDelivery[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+
+  const checkAuth = async () => {
+    try {
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      const { data } = await supabase.auth.getSession();
+      const loggedIn = !!data.session?.access_token;
+      setIsLoggedIn(loggedIn);
+      return loggedIn;
+    } catch {
+      setIsLoggedIn(false);
+      return false;
+    }
+  };
 
   const fetchAll = async () => {
     try {
+      setError(null);
       const [s, d] = await Promise.all([
         authedApi.listAlertSubscriptions(),
         authedApi.listAlertDeliveries(30),
       ]);
       setSubs(s.items);
       setDeliveries(d.items);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load alerts");
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => {
+    checkAuth().then((loggedIn) => {
+      if (loggedIn) {
+        fetchAll();
+      } else {
+        setLoading(false);
+      }
+    });
+  }, []);
 
   const deleteSub = async (id: string) => {
-    await authedApi.deleteAlertSubscription(id);
-    setSubs(prev => prev.filter(s => s.id !== id));
+    try {
+      await authedApi.deleteAlertSubscription(id);
+      setSubs(prev => prev.filter(s => s.id !== id));
+    } catch { /* non-critical */ }
   };
 
   if (loading) return <AlertsSkeleton />;
+
+  if (isLoggedIn === false) {
+    return (
+      <div className="space-y-6 p-4 lg:p-6">
+        <h1 className="font-headline text-2xl font-bold text-on-surface">Alerts</h1>
+        <GhostBorderCard>
+          <div className="text-center py-8">
+            <LogIn size={24} className="mx-auto text-on-surface-variant mb-2" />
+            <p className="text-sm text-on-surface-variant">Sign in to manage stock alerts</p>
+            <Link
+              href="/login"
+              className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-on-surface text-sm font-medium hover:bg-primary/80 transition-colors"
+            >
+              <LogIn size={14} /> Sign in
+            </Link>
+          </div>
+        </GhostBorderCard>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6 p-4 lg:p-6">
+        <h1 className="font-headline text-2xl font-bold text-on-surface">Alerts</h1>
+        <GhostBorderCard>
+          <div className="text-center py-8">
+            <p className="text-sm text-error">{error}</p>
+            <button onClick={fetchAll} className="mt-3 text-xs text-primary hover:underline">Retry</button>
+          </div>
+        </GhostBorderCard>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 p-4 lg:p-6">

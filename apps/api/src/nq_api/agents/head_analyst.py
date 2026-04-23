@@ -42,7 +42,7 @@ RISK_FACTORS:
             raise EnvironmentError(
                 "ANTHROPIC_API_KEY environment variable is not set."
             )
-        self._client = anthropic.Anthropic(api_key=api_key)
+        self._client = anthropic.Anthropic(api_key=api_key, timeout=120.0)
 
     def run_synthesis(
         self, ticker: str, agent_outputs: list[AgentOutput], composite_score: float
@@ -63,7 +63,14 @@ RISK_FACTORS:
                 system=self.system_prompt,
                 messages=[{"role": "user", "content": msg}],
             )
-            raw = response.content[0].text
+            # Extract text from first text-type block (skip thinking blocks)
+            raw = ""
+            for block in response.content:
+                if block.type == "text":
+                    raw = block.text
+                    break
+            if not raw:
+                raw = response.content[0].text if hasattr(response.content[0], "text") else ""
             return self._parse_synthesis(raw)
         except Exception as exc:
             logger.error("HEAD_ANALYST failed for %s: %s — using fallback", ticker, exc)

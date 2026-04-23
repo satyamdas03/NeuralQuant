@@ -1,4 +1,5 @@
 """POST /query — natural language financial query endpoint."""
+import asyncio
 import os
 import re
 from datetime import date
@@ -12,7 +13,7 @@ from nq_api.auth.models import User
 
 router = APIRouter()
 
-MODEL = "claude-sonnet-4-20250514"
+MODEL = os.environ.get("ANTHROPIC_DEFAULT_SONNET_MODEL", "claude-sonnet-4-6-20250514")
 
 _STOP_WORDS = {
     "WHAT", "WHEN", "WHERE", "WILL", "HAVE", "DOES", "WERE", "THAN",
@@ -219,6 +220,49 @@ _SCREENER_KEYWORDS = {
     "12 MONTH", "6 MONTH", "1 YEAR", "YEAR RETURN",
 }
 _INDIA_KEYWORDS = {"INDIA", "INDIAN", "NSE", "BSE", "NIFTY", "SENSEX", "RUPEE", "LAKH", "CRORE", "INR"}
+
+
+def _build_macro_context(question: str, market: str, today: str) -> str | None:
+    """Build market-aware macro context string (blocking I/O)."""
+    from nq_api.data_builder import fetch_real_macro
+    q_upper = question.upper()
+    is_india_query = any(k in q_upper for k in _INDIA_KEYWORDS) or market == "IN"
+
+    if is_india_query:
+        india_ctx = _fetch_india_macro()
+        macro_ctx = india_ctx or ""
+        try:
+            macro = fetch_real_macro()
+            global_note = (
+                f" | Global risk sentiment: US VIX={macro.vix:.1f}"
+                f", Fed funds={macro.fed_funds_rate:.2f}%"
+                f", CPI={macro.cpi_yoy:.1f}%"
+            )
+            macro_ctx = (macro_ctx + global_note).strip(" |")
+        except Exception:
+            pass
+        if macro_ctx:
+            macro_ctx = f"Market conditions (as of {today}): {macro_ctx}"
+        return macro_ctx if macro_ctx else None
+    else:
+        try:
+            macro = fetch_real_macro()
+            return (
+                f"Live market conditions (as of {today}): "
+                f"VIX={macro.vix:.1f}, "
+                f"SPX vs 200-MA={macro.spx_vs_200ma*100:+.1f}%, "
+                f"SPX 1-month return={macro.spx_return_1m*100:+.1f}%, "
+                f"HY spread={macro.hy_spread_oas:.0f}bps, "
+                f"10Y yield={macro.yield_10y:.2f}%, "
+                f"2Y yield={macro.yield_2y:.2f}%, "
+                f"2s10s spread={macro.yield_spread_2y10y*100:+.0f}bps, "
+                f"ISM PMI={macro.ism_pmi:.1f}, "
+                f"CPI YoY={macro.cpi_yoy:.1f}%, "
+                f"Fed funds rate={macro.fed_funds_rate:.2f}%"
+                + (" [FRED-sourced]" if macro.fred_sourced else " [partial]")
+            )
+        except Exception:
+            return None
 
 
 def _fetch_relevant_news(question: str, ticker: str | None, n: int = 8) -> list[str]:
@@ -531,7 +575,7 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
 
 
 @router.post("", response_model=QueryResponse)
-def run_nl_query(
+async def run_nl_query(
     req: QueryRequest,
     user: User = Depends(enforce_tier_quota("query")),
 ) -> QueryResponse:
@@ -549,57 +593,15 @@ def run_nl_query(
             data_sources=[],
             follow_up_questions=[],
         )
-    client = anthropic.Anthropic(api_key=api_key)
+    client = anthropic.Anthropic(api_key=api_key, timeout=120.0)
 
+    # ── Offload blocking I/O to thread pool ──────────────────────────────────
     today = date.today().strftime("%B %d, %Y")
-    headlines = _fetch_relevant_news(req.question, req.ticker)
-
-    # ── Market-aware macro context ──────────────────────────────────────────
-    from nq_api.data_builder import fetch_real_macro
-    q_upper = req.question.upper()
-    is_india_query = any(k in q_upper for k in _INDIA_KEYWORDS) or req.market == "IN"
-
-    macro_ctx: str | None = None
-    if is_india_query:
-        # India-focused: inject Indian market context, suppress heavy US macro
-        india_ctx = _fetch_india_macro()
-        macro_ctx = india_ctx or ""
-        # Add brief global risk sentiment (VIX + Fed only)
-        try:
-            macro = fetch_real_macro()
-            global_note = (
-                f" | Global risk sentiment: US VIX={macro.vix:.1f}"
-                f", Fed funds={macro.fed_funds_rate:.2f}%"
-                f", CPI={macro.cpi_yoy:.1f}%"
-            )
-            macro_ctx = (macro_ctx + global_note).strip(" |")
-        except Exception:
-            pass
-        if macro_ctx:
-            macro_ctx = f"Market conditions (as of {today}): {macro_ctx}"
-    else:
-        # US/Global query: full macro context
-        try:
-            macro = fetch_real_macro()
-            macro_ctx = (
-                f"Live market conditions (as of {today}): "
-                f"VIX={macro.vix:.1f}, "
-                f"SPX vs 200-MA={macro.spx_vs_200ma*100:+.1f}%, "
-                f"SPX 1-month return={macro.spx_return_1m*100:+.1f}%, "
-                f"HY spread={macro.hy_spread_oas:.0f}bps, "
-                f"10Y yield={macro.yield_10y:.2f}%, "
-                f"2Y yield={macro.yield_2y:.2f}%, "
-                f"2s10s spread={macro.yield_spread_2y10y*100:+.0f}bps, "
-                f"ISM PMI={macro.ism_pmi:.1f}, "
-                f"CPI YoY={macro.cpi_yoy:.1f}%, "
-                f"Fed funds rate={macro.fed_funds_rate:.2f}%"
-                + (" [FRED-sourced]" if macro.fred_sourced else " [partial]")
-            )
-        except Exception:
-            macro_ctx = None
-
-    # Inject NeuralQuant's own stock scores + dynamic NSE data
-    platform_ctx = _enrich_with_platform_data(req.question, req.market or "US")
+    headlines, macro_ctx, platform_ctx = await asyncio.gather(
+        asyncio.to_thread(_fetch_relevant_news, req.question, req.ticker),
+        asyncio.to_thread(_build_macro_context, req.question, req.market or "US", today),
+        asyncio.to_thread(_enrich_with_platform_data, req.question, req.market or "US"),
+    )
 
     context_parts = [
         f"Today's date: {today}",
@@ -619,20 +621,38 @@ def run_nl_query(
     user_msg = "\n".join(context_parts)
 
     try:
-        # Build message list — prepend up to 6 prior turns for multi-turn chat
-        messages = [{"role": m.role, "content": m.content} for m in (req.history or [])[-6:]]
+        # Build message list — keep up to 4 prior turns; truncate long messages
+        messages = []
+        for m in (req.history or [])[-4:]:
+            content = m.content[:1500] if len(m.content) > 1500 else m.content
+            messages.append({"role": m.role, "content": content})
         messages.append({"role": "user", "content": user_msg})
-        response = client.messages.create(
+
+        response = await asyncio.to_thread(
+            client.messages.create,
             model=MODEL,
             max_tokens=4000,
             system=_SYSTEM,
             messages=messages,
         )
-        raw = response.content[0].text
+        # Extract text from first text-type block (skip thinking blocks)
+        raw = ""
+        for block in response.content:
+            if block.type == "text":
+                raw = block.text
+                break
+        if not raw:
+            raw = response.content[0].text if hasattr(response.content[0], "text") else ""
         return _parse_query_response(raw)
+    except anthropic.APITimeoutError:
+        return QueryResponse(
+            answer="Query timed out — the AI took too long to respond. Try a shorter question.",
+            data_sources=[],
+            follow_up_questions=[],
+        )
     except Exception as exc:
         return QueryResponse(
-            answer=f"Query failed: {str(exc)[:100]}",
+            answer=f"Query failed: {str(exc)[:200]}",
             data_sources=[],
             follow_up_questions=[],
         )
