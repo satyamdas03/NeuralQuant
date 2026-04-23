@@ -10,10 +10,11 @@ import { FeatureAttribution } from "@/components/FeatureAttribution";
 import { AgentDebatePanel } from "@/components/AgentDebatePanel";
 import { PriceChart } from "@/components/PriceChart";
 import { StockMetaBar } from "@/components/StockMetaBar";
+import { RegimeContextPanel } from "@/components/RegimeContextPanel";
+import { TransparencyPanel } from "@/components/TransparencyPanel";
 import GhostBorderCard from "@/components/ui/GhostBorderCard";
 import GradientButton from "@/components/ui/GradientButton";
 import GlassPanel from "@/components/ui/GlassPanel";
-import RegimeBadge from "@/components/ui/RegimeBadge";
 import { Star, ArrowRight, Loader2 } from "lucide-react";
 
 export default function StockPage() {
@@ -118,12 +119,18 @@ export default function StockPage() {
         </button>
       </div>
 
+      {/* Regime Context */}
+      <RegimeContextPanel regime={score.regime_label} />
+
       {/* AI Score Cards */}
       <div className="grid md:grid-cols-3 gap-5">
         <AIScoreCard data={score} />
         <ScoreBreakdown scores={score.sub_scores} />
         <FeatureAttribution drivers={score.top_drivers} />
       </div>
+
+      {/* Transparency Layer */}
+      <TransparencyPanel score={score} report={report} />
 
       {/* Meta bar */}
       {meta && <StockMetaBar meta={meta} market={market} />}

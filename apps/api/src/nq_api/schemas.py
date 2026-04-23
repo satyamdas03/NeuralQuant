@@ -88,3 +88,4 @@ class QueryResponse(BaseModel):
     answer: str
     data_sources: list[str]      # which data was used to answer
     follow_up_questions: list[str]  # 3 suggested follow-ups
+    route: Literal["SNAP", "REACT", "DEEP"] = "REACT"

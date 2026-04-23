@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends
 from nq_api.schemas import QueryRequest, QueryResponse
 from nq_api.auth.rate_limit import enforce_tier_quota
 from nq_api.auth.models import User
+import nq_api.dart_router as dart
 
 router = APIRouter()
 
@@ -584,6 +585,7 @@ async def run_nl_query(
             answer="Please enter a question (at least 3 characters).",
             data_sources=[],
             follow_up_questions=["What is the current Nifty level?", "Which Indian stocks rank highest?", "What is the Fed funds rate?"],
+            route="REACT",
         )
 
     api_key = os.environ.get("ANTHROPIC_API_KEY")
@@ -592,13 +594,25 @@ async def run_nl_query(
             answer="Query service unavailable: ANTHROPIC_API_KEY not configured.",
             data_sources=[],
             follow_up_questions=[],
+            route="REACT",
         )
+
+    # ── DART routing ──────────────────────────────────────────────────────────
+    route = dart.classify_query(req.question, req.ticker)
+
+    if route == "SNAP":
+        return await dart.handle_snap(req)
+
+    if route == "DEEP":
+        return await dart.handle_deep(req)
+
+    # REACT: existing LLM-powered logic with optimized context
     client = anthropic.Anthropic(api_key=api_key, timeout=120.0)
 
     # ── Offload blocking I/O to thread pool ──────────────────────────────────
     today = date.today().strftime("%B %d, %Y")
     headlines, macro_ctx, platform_ctx = await asyncio.gather(
-        asyncio.to_thread(_fetch_relevant_news, req.question, req.ticker),
+        asyncio.to_thread(_fetch_relevant_news, req.question, req.ticker, 5),
         asyncio.to_thread(_build_macro_context, req.question, req.market or "US", today),
         asyncio.to_thread(_enrich_with_platform_data, req.question, req.market or "US"),
     )
@@ -631,7 +645,7 @@ async def run_nl_query(
         response = await asyncio.to_thread(
             client.messages.create,
             model=MODEL,
-            max_tokens=4000,
+            max_tokens=3000,
             system=_SYSTEM,
             messages=messages,
         )
@@ -643,22 +657,24 @@ async def run_nl_query(
                 break
         if not raw:
             raw = response.content[0].text if hasattr(response.content[0], "text") else ""
-        return _parse_query_response(raw)
+        return _parse_query_response(raw, route="REACT")
     except anthropic.APITimeoutError:
         return QueryResponse(
             answer="Query timed out — the AI took too long to respond. Try a shorter question.",
             data_sources=[],
             follow_up_questions=[],
+            route="REACT",
         )
     except Exception as exc:
         return QueryResponse(
             answer=f"Query failed: {str(exc)[:200]}",
             data_sources=[],
             follow_up_questions=[],
+            route="REACT",
         )
 
 
-def _parse_query_response(raw: str) -> QueryResponse:
+def _parse_query_response(raw: str, route: str = "REACT") -> QueryResponse:
     # Strip markdown bold around section headers (Claude occasionally wraps
     # `ANSWER:` as `**ANSWER:**`), which previously leaked `**` into the
     # answer text and data_sources list. Normalize BEFORE regex splits.
@@ -690,4 +706,5 @@ def _parse_query_response(raw: str) -> QueryResponse:
         answer=answer[:8000],
         data_sources=sources[:5],
         follow_up_questions=followups[:3],
+        route=route,
     )

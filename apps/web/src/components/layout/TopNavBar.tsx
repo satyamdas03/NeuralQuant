@@ -6,9 +6,11 @@ import { useState } from "react";
 
 const PAGE_TITLES: Record<string, string> = {
   "/dashboard": "Dashboard",
+  "/news": "NewsDesk",
   "/screener": "AI Screener",
   "/query": "Ask AI",
   "/backtest": "Strategy Backtest",
+  "/smart-money": "Smart Money Tracker",
   "/watchlist": "Watchlist",
   "/stocks": "Stock Detail",
   "/login": "Sign In",

@@ -18,6 +18,7 @@ export interface SubScores {
   short_interest: number;
   value: number;
   low_vol: number;
+  insider?: number;
 }
 
 export interface AIScore {
@@ -132,6 +133,22 @@ export interface MarketMovers {
   active: Mover[];
 }
 
+export interface NewsDeskItem {
+  title: string;
+  publisher: string;
+  url: string;
+  time: string;
+  category: "us_markets" | "india" | "earnings" | "macro" | "insider";
+  tickers: string[];
+  sentiment: "bullish" | "bearish" | "neutral";
+}
+
+export interface NewsDeskResponse {
+  sentiment: "bullish" | "bearish" | "neutral";
+  headlines: NewsDeskItem[];
+  trending: string[];
+}
+
 export interface ChartBar {
   date: string;
   close: number;
@@ -237,4 +254,30 @@ export interface AlertDelivery {
   old_value: number | null;
   new_value: number | null;
   delivered_at: string;
+}
+
+export interface SmartMoneyTransaction {
+  id: string;
+  ticker: string;
+  insider_name: string;
+  insider_title: string;
+  transaction_type: "Buy" | "Sell";
+  shares: number;
+  price: number;
+  date: string;
+  sentiment_score: number;
+}
+
+export interface SmartMoneyAggregate {
+  ticker: string;
+  total_shares: number;
+  total_value: number;
+  transactions: number;
+}
+
+export interface SmartMoneyData {
+  transactions: SmartMoneyTransaction[];
+  most_bought: SmartMoneyAggregate[];
+  most_sold: SmartMoneyAggregate[];
+  last_updated: string;
 }

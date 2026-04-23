@@ -7,15 +7,19 @@ import {
   ScanSearch,
   MessageSquareText,
   FlaskConical,
+  Briefcase,
+  Newspaper,
   Star,
   Bell,
 } from "lucide-react";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/news", label: "NewsDesk", icon: Newspaper },
   { href: "/screener", label: "Screener", icon: ScanSearch },
   { href: "/query", label: "Ask AI", icon: MessageSquareText, center: true },
   { href: "/backtest", label: "Backtest", icon: FlaskConical },
+  { href: "/smart-money", label: "Smart Money", icon: Briefcase },
   { href: "/watchlist", label: "Watchlist", icon: Star },
   { href: "/alerts", label: "Alerts", icon: Bell },
 ];

@@ -5,7 +5,7 @@ import type {
   MarketOverview, MarketNews, MarketSectors,
   MarketMovers, StockChart, StockMeta,
   SentimentResponse, BacktestRequest, BacktestResponse,
-  AlertSubscription, AlertDelivery,
+  AlertSubscription, AlertDelivery, NewsDeskResponse,
 } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -103,6 +103,7 @@ export const api = {
     }),
 
   getMarketOverview: () => apiFetch<MarketOverview>("/market/overview"),
+  getNewsDesk: () => apiFetch<NewsDeskResponse>("/news"),
   getMarketNews: (n = 8) => apiFetch<MarketNews>(`/market/news?n=${n}`),
   getMarketSectors: () => apiFetch<MarketSectors>("/market/sectors"),
   getMarketMovers: () => apiFetch<MarketMovers>("/market/movers"),
