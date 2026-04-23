@@ -59,7 +59,7 @@ def test_analyst_post_returns_report():
 
 def test_analyst_verdict_is_valid():
     with _patch_analyst("TSLA"):
-        response = client.post("/analyst", json={"ticker": "TSLA"})
+        response = client.post("/analyst", json={"ticker": "TSLA", "market": "US"})
         assert response.status_code == 200
         data = response.json()
         assert data["head_analyst_verdict"] in (

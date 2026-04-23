@@ -1,5 +1,5 @@
 from fastapi.testclient import TestClient
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 import pandas as pd
 from nq_api.main import app
 from nq_api.deps import get_signal_engine
@@ -18,12 +18,17 @@ def _mock_engine_result():
     }])
 
 
+def _mock_snapshot(*args, **kwargs):
+    return []
+
+
 def test_get_stock_score_returns_ai_score():
     engine = MagicMock()
     engine.compute.return_value = _mock_engine_result()
     app.dependency_overrides[get_signal_engine] = lambda: engine
     try:
-        response = client.get("/stocks/AAPL?market=US")
+        with patch("nq_api.routes.stocks.build_real_snapshot", side_effect=_mock_snapshot):
+            response = client.get("/stocks/AAPL?market=US")
         assert response.status_code == 200
         data = response.json()
         assert data["ticker"] == "AAPL"
@@ -40,7 +45,8 @@ def test_get_stock_score_unknown_ticker_returns_404():
     engine.compute.return_value = pd.DataFrame()
     app.dependency_overrides[get_signal_engine] = lambda: engine
     try:
-        response = client.get("/stocks/FAKE999?market=US")
+        with patch("nq_api.routes.stocks.build_real_snapshot", side_effect=_mock_snapshot):
+            response = client.get("/stocks/FAKE999?market=US")
         assert response.status_code == 404
     finally:
         app.dependency_overrides.pop(get_signal_engine, None)

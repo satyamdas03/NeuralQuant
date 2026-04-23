@@ -1,6 +1,6 @@
 # apps/api/tests/test_screener_route.py
 from fastapi.testclient import TestClient
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 import pandas as pd
 import numpy as np
 from nq_api.main import app
@@ -22,12 +22,17 @@ def _mock_engine_for_universe(n_tickers: int):
     } for t in tickers])
 
 
+def _mock_snapshot(*args, **kwargs):
+    return []
+
+
 def test_screener_returns_ranked_list():
     engine = MagicMock()
     engine.compute.return_value = _mock_engine_for_universe(10)
     app.dependency_overrides[get_signal_engine] = lambda: engine
     try:
-        response = client.post("/screener", json={"market": "US", "max_results": 5})
+        with patch("nq_api.routes.screener.build_real_snapshot", side_effect=_mock_snapshot):
+            response = client.post("/screener", json={"market": "US", "max_results": 5})
         assert response.status_code == 200
 
         data = response.json()
@@ -45,7 +50,8 @@ def test_screener_filters_by_min_score():
     engine.compute.return_value = _mock_engine_for_universe(10)
     app.dependency_overrides[get_signal_engine] = lambda: engine
     try:
-        response = client.post("/screener", json={"market": "US", "min_score": 0.8})
+        with patch("nq_api.routes.screener.build_real_snapshot", side_effect=_mock_snapshot):
+            response = client.post("/screener", json={"market": "US", "min_score": 0.8})
         assert response.status_code == 200
 
         data = response.json()
