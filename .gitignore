@@ -19,3 +19,4 @@ docs/~$*.docx
 .next/
 INSPIRATIONS/
 NEURALQUANT_nextThings/
+.claude/

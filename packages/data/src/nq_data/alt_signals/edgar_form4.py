@@ -137,6 +137,12 @@ class Form4Connector:
                 if (rel.findtext("isDirector") or "").strip() in ("1", "true"):
                     officer_title = "DIRECTOR"
 
+        # Insider name
+        insider_name = ""
+        owner_id = root.find(".//reportingOwner/reportingOwnerId")
+        if owner_id is not None:
+            insider_name = (owner_id.findtext("rptOwnerName") or "").strip()
+
         acquired = 0.0
         disposed = 0.0
         price_sum = 0.0
@@ -185,6 +191,7 @@ class Form4Connector:
             "shares": abs(net),
             "price": (price_sum / price_shares) if price_shares else 0.0,
             "officer_title": officer_title,
+            "insider_name": insider_name,
         }
 
     def get_insider_events(self, ticker: str, start: date, end: date) -> list[dict]:
