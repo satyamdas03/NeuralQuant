@@ -25,7 +25,15 @@ async def lifespan(app: FastAPI):
         except Exception:
             pass
 
+    def _warm_smart_money():
+        try:
+            from nq_api.routes.smart_money import refresh_cache_in_thread
+            refresh_cache_in_thread()
+        except Exception:
+            pass
+
     threading.Thread(target=_warm, daemon=True).start()
+    threading.Thread(target=_warm_smart_money, daemon=True).start()
     yield
 
 

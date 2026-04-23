@@ -1,13 +1,14 @@
 """GET /smart-money — live insider trading tracker.
 
-Aggregates SEC EDGAR Form 4 filings across a rotating watch-list of
-large/mid-cap US tickers.  Returns recent transactions, most-bought
-and most-sold tables, and an overall Smart-Money sentiment gauge.
+Aggregates SEC EDGAR Form 4 filings across large/mid-cap US tickers.
+Returns cached data immediately; if stale/missing, returns empty
+placeholder and refreshes cache in background.
 """
 from __future__ import annotations
 
 import asyncio
 import logging
+import threading
 import time
 from datetime import date, timedelta
 from typing import Any
@@ -21,37 +22,26 @@ log = logging.getLogger(__name__)
 # Config
 # ---------------------------------------------------------------------------
 _SMART_MONEY_UNIVERSE = [
-    "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA",
-    "BRK-B", "JPM", "V", "MA", "UNH", "XOM", "JNJ", "HD",
-    "COST", "ABBV", "LLY", "CVX", "BAC", "NFLX", "ORCL",
-    "ADBE", "CRM", "AMD", "AVGO", "WMT", "MCD", "PFE",
-    "ISRG", "PLTR",
+    "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META",
+    "TSLA", "JPM", "V", "UNH", "XOM", "LLY",
 ]
 _LOOKBACK_DAYS = 90
 _SMART_CACHE: dict[str, Any] | None = None
 _SMART_TS: float = 0.0
 SMART_TTL = 600  # 10 minutes
+_REFRESH_LOCK = asyncio.Lock()
 
 
 def _fetch_insider_blocking(ticker: str) -> list[dict[str, Any]]:
-    """Blocking fetch of Form 4 events for a single ticker."""
     try:
         from nq_data.alt_signals.edgar_form4 import Form4Connector
         end = date.today()
         start = end - timedelta(days=_LOOKBACK_DAYS)
         events = Form4Connector().get_insider_events(ticker, start, end)
-        # Enrich each event
         for e in events:
             e["ticker"] = ticker
-            # Ensure price is float
-            try:
-                e["price"] = float(e.get("price") or 0.0)
-            except (ValueError, TypeError):
-                e["price"] = 0.0
-            try:
-                e["shares"] = float(e.get("shares") or 0.0)
-            except (ValueError, TypeError):
-                e["shares"] = 0.0
+            e["price"] = float(e.get("price") or 0.0)
+            e["shares"] = float(e.get("shares") or 0.0)
             e["officer_title"] = e.get("officer_title") or "Officer"
             e["insider_name"] = e.get("insider_name") or "Unknown"
             e["value"] = e["price"] * e["shares"]
@@ -61,9 +51,6 @@ def _fetch_insider_blocking(ticker: str) -> list[dict[str, Any]]:
         return []
 
 
-# ---------------------------------------------------------------------------
-# Aggregation helpers
-# ---------------------------------------------------------------------------
 def _aggregate(all_events: list[dict[str, Any]]) -> dict[str, Any]:
     transactions = sorted(
         [e for e in all_events if e.get("is_purchase") is not None],
@@ -71,7 +58,6 @@ def _aggregate(all_events: list[dict[str, Any]]) -> dict[str, Any]:
         reverse=True,
     )[:50]
 
-    # Most bought / sold by ticker
     ticker_buy: dict[str, float] = {}
     ticker_sell: dict[str, float] = {}
     for e in all_events:
@@ -93,7 +79,6 @@ def _aggregate(all_events: list[dict[str, Any]]) -> dict[str, Any]:
         if v > 0
     ]
 
-    # Overall sentiment gauge
     buy_val = sum(ticker_buy.values())
     sell_val = sum(ticker_sell.values())
     total = buy_val + sell_val
@@ -103,12 +88,9 @@ def _aggregate(all_events: list[dict[str, Any]]) -> dict[str, Any]:
     else:
         ratio = buy_val / total
         sentiment_score = ratio
-        if ratio >= 0.6:
-            sentiment = "bullish"
-        elif ratio <= 0.4:
-            sentiment = "bearish"
-        else:
-            sentiment = "neutral"
+        sentiment = (
+            "bullish" if ratio >= 0.6 else "bearish" if ratio <= 0.4 else "neutral"
+        )
 
     return {
         "sentiment": sentiment,
@@ -121,36 +103,69 @@ def _aggregate(all_events: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# Background refresh (fire-and-forget)
+# ---------------------------------------------------------------------------
+async def _refresh_cache() -> None:
+    global _SMART_CACHE, _SMART_TS
+    if _REFRESH_LOCK.locked():
+        return
+    async with _REFRESH_LOCK:
+        batch = _SMART_MONEY_UNIVERSE[:6]
+        try:
+            results = await asyncio.wait_for(
+                asyncio.gather(
+                    *[asyncio.to_thread(_fetch_insider_blocking, sym) for sym in batch],
+                    return_exceptions=True,
+                ),
+                timeout=25,
+            )
+        except asyncio.TimeoutError:
+            results = []
+
+        all_events: list[dict[str, Any]] = []
+        for r in results:
+            if isinstance(r, list):
+                all_events.extend(r)
+
+        payload = _aggregate(all_events)
+        _SMART_CACHE = payload
+        _SMART_TS = time.time()
+        log.info("Smart-money cache refreshed: %d transactions", len(payload.get("transactions", [])))
+
+
+def refresh_cache_in_thread() -> None:
+    """Blocking entry-point for background threads."""
+    try:
+        asyncio.run(_refresh_cache())
+    except Exception as exc:
+        log.warning("Smart-money background refresh failed: %s", exc)
+
+
+# ---------------------------------------------------------------------------
 # Route
 # ---------------------------------------------------------------------------
 @router.get("/smart-money")
 async def get_smart_money() -> dict[str, Any]:
-    """Return aggregated insider trading data across the US universe."""
+    """Return cached insider data immediately; refresh in background if stale."""
     global _SMART_CACHE, _SMART_TS
+
+    # Cache hit → fast path
     if _SMART_CACHE and time.time() - _SMART_TS < SMART_TTL:
         return _SMART_CACHE
 
-    # Fetch in parallel — EDGAR is slow; cap batch + enforce timeout
-    batch = _SMART_MONEY_UNIVERSE[:6]
-    try:
-        results = await asyncio.wait_for(
-            asyncio.gather(
-                *[asyncio.to_thread(_fetch_insider_blocking, sym) for sym in batch],
-                return_exceptions=True,
-            ),
-            timeout=20,
-        )
-    except asyncio.TimeoutError:
-        results = []
+    # Cache miss → return placeholder immediately + trigger background refresh
+    asyncio.create_task(_refresh_cache())
 
-    all_events: list[dict[str, Any]] = []
-    for r in results:
-        if isinstance(r, list):
-            all_events.extend(r)
-        else:
-            log.warning("Smart-money batch error: %s", r)
+    # Return stale cache if any, otherwise empty but valid JSON
+    if _SMART_CACHE:
+        return {**_SMART_CACHE, "stale": True}
 
-    payload = _aggregate(all_events)
-    _SMART_CACHE = payload
-    _SMART_TS = time.time()
-    return payload
+    return {
+        "sentiment": "neutral",
+        "sentiment_score": 0.5,
+        "transactions": [],
+        "most_bought": [],
+        "most_sold": [],
+        "last_updated": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "loading": True,
+    }
