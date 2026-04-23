@@ -14,7 +14,7 @@ import nq_api.dart_router as dart
 
 router = APIRouter()
 
-MODEL = os.environ.get("ANTHROPIC_DEFAULT_SONNET_MODEL", "claude-sonnet-4-6-20250514")
+MODEL = os.environ.get("ANTHROPIC_DEFAULT_SONNET_MODEL", "claude-sonnet-4-20250514")
 
 _STOP_WORDS = {
     "WHAT", "WHEN", "WHERE", "WILL", "HAVE", "DOES", "WERE", "THAN",
