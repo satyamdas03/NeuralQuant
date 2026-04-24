@@ -93,3 +93,222 @@ def send_alert_email(
     except Exception:
         logger.exception("Failed to send alert email to %s", to)
         return False
+
+
+# ---------------------------------------------------------------------------
+# Welcome / onboarding email sequence
+# ---------------------------------------------------------------------------
+
+_NQ_BRAND_HEAD = """
+<div style="font-family: system-ui, -apple-system, sans-serif; max-width: 520px;
+            margin: 0 auto; background: #0f0f1a; color: #e0e0e0;
+            border-radius: 12px; overflow: hidden;">
+  <div style="padding: 28px 32px; background: linear-gradient(135deg, #c1c1ff 0%, #bdf4ff 100%);
+              color: #0e0e0e;">
+    <h1 style="margin: 0; font-size: 22px; letter-spacing: -0.3px;">NeuralQuant</h1>
+  </div>
+"""
+
+_NQ_BRAND_FOOT = """
+  <div style="padding: 20px 32px; border-top: 1px solid #1e1e30;">
+    <p style="margin: 0; font-size: 12px; color: #a0a0b0;">
+      NeuralQuant · AI-powered stock intelligence<br>
+      <a href="https://neuralquant.vercel.app" style="color: #bdf4ff;">neuralquant.vercel.app</a>
+       · <a href="https://neuralquant.vercel.app/pricing" style="color: #bdf4ff;">Upgrade</a>
+    </p>
+  </div>
+</div>
+"""
+
+_NQ_CTA = """<a href="{url}" style="display: inline-block; margin-top: 20px; padding: 12px 28px;
+           background: linear-gradient(135deg, #c1c1ff, #bdf4ff);
+           color: #0e0e0e; border-radius: 8px; text-decoration: none;
+           font-weight: 600; font-size: 15px;">{label}</a>"""
+
+
+def send_welcome_email(to: str, name: str | None = None) -> bool:
+    """Day-0 welcome email with quickstart links."""
+    greeting = f"Hi {name}" if name else "Hi there"
+    subject = "Welcome to NeuralQuant — here's your first analysis"
+
+    html = f"""
+    {_NQ_BRAND_HEAD}
+    <div style="padding: 28px 32px;">
+      <p style="font-size: 18px; margin: 0 0 8px;">{greeting}, welcome aboard!</p>
+      <p style="font-size: 14px; color: #a0a0b0; margin: 0 0 24px;">
+        NeuralQuant scores 1 000+ stocks every night so you can act with confidence.
+        Here's what you can do right now:
+      </p>
+
+      <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
+        <tr>
+          <td style="padding: 8px 0; color: #c1c1ff;">📊</td>
+          <td style="padding: 8px 0;"><strong>5-Factor Scoring</strong> — composite score across valuation, momentum, quality, growth &amp; sentiment</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; color: #c1c1ff;">🎭</td>
+          <td style="padding: 8px 0;"><strong>PARA-DEBATE</strong> — watch 6 AI analysts argue over any stock</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; color: #c1c1ff;">💰</td>
+          <td style="padding: 8px 0;"><strong>Smart Money Signals</strong> — track what the big money is doing</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; color: #c1c1ff;">🔍</td>
+          <td style="padding: 8px 0;"><strong>Screener &amp; Watchlists</strong> — filter, sort and save your top picks</td>
+        </tr>
+      </table>
+
+      <p style="font-size: 14px; margin: 24px 0 4px; color: #a0a0b0;">
+        Start with two popular names:
+      </p>
+
+      <div style="margin: 8px 0 0;">
+        <a href="https://neuralquant.vercel.app/stocks/RELIANCE.NS?market=IN"
+           style="display: inline-block; padding: 8px 16px; margin-right: 8px;
+                  background: #1e1e30; border-radius: 6px; color: #c1c1ff;
+                  text-decoration: none; font-weight: 600;">
+          RELIANCE.NS →
+        </a>
+        <a href="https://neuralquant.vercel.app/stocks/AAPL?market=US"
+           style="display: inline-block; padding: 8px 16px;
+                  background: #1e1e30; border-radius: 6px; color: #c1c1ff;
+                  text-decoration: none; font-weight: 600;">
+          AAPL →
+        </a>
+      </div>
+    </div>
+    {_NQ_BRAND_FOOT}
+    """
+
+    resend = _resend_client()
+    if not resend or not os.environ.get("RESEND_API_KEY"):
+        logger.info("RESEND_API_KEY not set — logging welcome email: %s -> %s", subject, to)
+        return True
+
+    try:
+        resend.Emails.send({"from": RESEND_FROM, "to": to, "subject": subject, "html": html})
+        logger.info("Welcome email sent to %s", to)
+        return True
+    except Exception:
+        logger.exception("Failed to send welcome email to %s", to)
+        return False
+
+
+def send_debate_demo_email(to: str) -> bool:
+    """Day-1 PARA-DEBATE demo email."""
+    subject = "Watch 6 AI analysts debate RELIANCE"
+
+    html = f"""
+    {_NQ_BRAND_HEAD}
+    <div style="padding: 28px 32px;">
+      <p style="font-size: 18px; margin: 0 0 12px;">Ever seen analysts fight over a stock?</p>
+      <p style="font-size: 14px; color: #a0a0b0; margin: 0 0 16px; line-height: 1.6;">
+        NeuralQuant's <strong style="color: #bdf4ff;">PARA-DEBATE</strong> engine runs
+        <strong>6 AI personas</strong> — Bull, Bear, Quant, Fundamentalist, Technician &amp;
+        Sentiment Analyst — each arguing their case on any stock you pick.
+        <br><br>
+        They challenge each other's assumptions, expose blind spots, and deliver a final
+        verdict so you see <em>both</em> sides before you trade.
+      </p>
+
+      {_NQ_CTA.format(url="https://neuralquant.vercel.app/query", label="Try PARA-DEBATE now →")}
+    </div>
+    {_NQ_BRAND_FOOT}
+    """
+
+    resend = _resend_client()
+    if not resend or not os.environ.get("RESEND_API_KEY"):
+        logger.info("RESEND_API_KEY not set — logging debate demo email: %s -> %s", subject, to)
+        return True
+
+    try:
+        resend.Emails.send({"from": RESEND_FROM, "to": to, "subject": subject, "html": html})
+        logger.info("Debate demo email sent to %s", to)
+        return True
+    except Exception:
+        logger.exception("Failed to send debate demo email to %s", to)
+        return False
+
+
+def send_screener_email(to: str) -> bool:
+    """Day-3 screener intro email."""
+    subject = "Find top-rated stocks in seconds"
+
+    html = f"""
+    {_NQ_BRAND_HEAD}
+    <div style="padding: 28px 32px;">
+      <p style="font-size: 18px; margin: 0 0 12px;">1 000+ stocks. Scored nightly. Filtered your way.</p>
+      <p style="font-size: 14px; color: #a0a0b0; margin: 0 0 16px; line-height: 1.6;">
+        NeuralQuant's <strong style="color: #bdf4ff;">Screener</strong> lets you sort by any
+        factor — valuation, momentum, quality, growth, sentiment, or the composite score — and
+        save results to watchlists for quick check-ins.
+        <br><br>
+        Whether you're hunting deep-value picks or momentum leaders, the Screener surfaces
+        them in seconds.
+      </p>
+
+      {_NQ_CTA.format(url="https://neuralquant.vercel.app/screener", label="Open Screener →")}
+    </div>
+    {_NQ_BRAND_FOOT}
+    """
+
+    resend = _resend_client()
+    if not resend or not os.environ.get("RESEND_API_KEY"):
+        logger.info("RESEND_API_KEY not set — logging screener email: %s -> %s", subject, to)
+        return True
+
+    try:
+        resend.Emails.send({"from": RESEND_FROM, "to": to, "subject": subject, "html": html})
+        logger.info("Screener email sent to %s", to)
+        return True
+    except Exception:
+        logger.exception("Failed to send screener email to %s", to)
+        return False
+
+
+def send_upgrade_email(to: str) -> bool:
+    """Day-7 upgrade prompt email."""
+    subject = "Unlock 100 queries/day — Investor tier"
+
+    html = f"""
+    {_NQ_BRAND_HEAD}
+    <div style="padding: 28px 32px;">
+      <p style="font-size: 18px; margin: 0 0 12px;">You've been using NeuralQuant for a week!</p>
+      <p style="font-size: 14px; color: #a0a0b0; margin: 0 0 16px; line-height: 1.6;">
+        The free tier gives you <strong>10 queries per day</strong> — great for getting started.
+        But if you're checking multiple stocks, running debates, and using the screener daily,
+        you might be hitting that limit more often than you'd like.
+      </p>
+
+      <table style="width: 100%; font-size: 14px; border-collapse: collapse;
+                     background: #1a1a2e; border-radius: 8px; overflow: hidden;">
+        <tr style="border-bottom: 1px solid #2a2a40;">
+          <td style="padding: 12px 16px; color: #a0a0b0;">Free tier</td>
+          <td style="padding: 12px 16px; text-align: right; color: #a0a0b0;">10 queries / day</td>
+        </tr>
+        <tr>
+          <td style="padding: 12px 16px; color: #c1c1ff; font-weight: 600;">Investor tier</td>
+          <td style="padding: 12px 16px; text-align: right; color: #bdf4ff; font-weight: 600;">
+            100 queries / day · 25 watchlists
+          </td>
+        </tr>
+      </table>
+
+      {_NQ_CTA.format(url="https://neuralquant.vercel.app/pricing", label="See Investor plan →")}
+    </div>
+    {_NQ_BRAND_FOOT}
+    """
+
+    resend = _resend_client()
+    if not resend or not os.environ.get("RESEND_API_KEY"):
+        logger.info("RESEND_API_KEY not set — logging upgrade email: %s -> %s", subject, to)
+        return True
+
+    try:
+        resend.Emails.send({"from": RESEND_FROM, "to": to, "subject": subject, "html": html})
+        logger.info("Upgrade email sent to %s", to)
+        return True
+    except Exception:
+        logger.exception("Failed to send upgrade email to %s", to)
+        return False

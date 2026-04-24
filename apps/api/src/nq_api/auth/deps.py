@@ -61,6 +61,13 @@ def _load_user_row(user_id: str, email: str) -> dict:
         ).execute()
     except Exception:
         pass  # FK constraint or duplicate — return minimal row
+    else:
+        # New user — send welcome email (best-effort, never blocks)
+        try:
+            from nq_api.notify import send_welcome_email
+            send_welcome_email(email)
+        except Exception:
+            logger.debug("Welcome email dispatch failed for %s (non-fatal)", email, exc_info=True)
     return {"id": user_id, "email": email, "tier": "free"}
 
 
