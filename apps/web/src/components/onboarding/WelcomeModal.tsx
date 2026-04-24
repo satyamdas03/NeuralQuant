@@ -1,19 +1,25 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { authedApi } from "@/lib/api";
 
-const POPULAR_STOCKS = [
-  { ticker: "RELIANCE.NS", name: "Reliance" },
-  { ticker: "TCS.NS", name: "TCS" },
-  { ticker: "HDFCBANK.NS", name: "HDFC Bank" },
-  { ticker: "INFY.NS", name: "Infosys" },
-  { ticker: "AAPL", name: "Apple" },
-  { ticker: "MSFT", name: "Microsoft" },
-  { ticker: "GOOGL", name: "Alphabet" },
-  { ticker: "NVDA", name: "Nvidia" },
-  { ticker: "ICICIBANK.NS", name: "ICICI Bank" },
-  { ticker: "BHARTIARTL.NS", name: "Bharti Airtel" },
+type StockOption = {
+  ticker: string;  // canonical (no .NS suffix)
+  name: string;
+  market: "US" | "IN";
+};
+
+const POPULAR_STOCKS: StockOption[] = [
+  { ticker: "RELIANCE",   name: "Reliance",      market: "IN" },
+  { ticker: "TCS",        name: "TCS",           market: "IN" },
+  { ticker: "HDFCBANK",   name: "HDFC Bank",     market: "IN" },
+  { ticker: "INFY",       name: "Infosys",       market: "IN" },
+  { ticker: "AAPL",       name: "Apple",         market: "US" },
+  { ticker: "MSFT",       name: "Microsoft",     market: "US" },
+  { ticker: "GOOGL",      name: "Alphabet",      market: "US" },
+  { ticker: "NVDA",       name: "Nvidia",        market: "US" },
+  { ticker: "ICICIBANK",  name: "ICICI Bank",    market: "IN" },
+  { ticker: "BHARTIARTL", name: "Bharti Airtel", market: "IN" },
 ];
 
 interface WelcomeModalProps {
@@ -23,6 +29,7 @@ interface WelcomeModalProps {
 export default function WelcomeModal({ onClose }: WelcomeModalProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const toggle = (ticker: string) => {
     setSelected((prev) => {
@@ -43,28 +50,43 @@ export default function WelcomeModal({ onClose }: WelcomeModalProps) {
     }
 
     setCreating(true);
+    setError(null);
     try {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      // De-duplicate against existing watchlist so re-opened onboarding
+      // doesn't fail with 409 for already-saved tickers.
+      let existing: Array<{ ticker: string; market: "US" | "IN" }> = [];
+      try {
+        const list = await authedApi.listWatchlist();
+        existing = list.items.map((i) => ({ ticker: i.ticker, market: i.market }));
+      } catch {
+        // If listing fails (e.g. first-ever login race), proceed with adds anyway.
+      }
 
-      if (user) {
-        const { error } = await supabase.from("watchlists").insert({
-          name: "My Watchlist",
-          user_id: user.id,
-          tickers: Array.from(selected),
-        });
+      const isDup = (t: string, m: "US" | "IN") =>
+        existing.some((e) => e.ticker === t && e.market === m);
 
-        if (error) {
-          console.error("Failed to create watchlist:", error);
+      const picks = POPULAR_STOCKS.filter((s) => selected.has(s.ticker));
+      // Serial inserts: backend enforces a unique (user_id,ticker,market) index;
+      // concurrent inserts would race. Serial is plenty fast for ≤5 items.
+      for (const s of picks) {
+        if (isDup(s.ticker, s.market)) continue;
+        try {
+          await authedApi.addWatchlist({ ticker: s.ticker, market: s.market });
+        } catch (err: unknown) {
+          // 409 (already exists) is benign; surface anything else.
+          const msg = err instanceof Error ? err.message : String(err);
+          if (!msg.includes("409")) {
+            console.error("watchlist add failed", s.ticker, msg);
+            setError(`Couldn't add ${s.ticker}. Some stocks were saved.`);
+          }
         }
       }
     } catch (err) {
       console.error("Failed to create watchlist:", err);
+      setError("Couldn't save your watchlist. Please try again.");
     } finally {
       setCreating(false);
-      onClose();
+      if (!error) onClose();
     }
   };
 
@@ -98,11 +120,17 @@ export default function WelcomeModal({ onClose }: WelcomeModalProps) {
                 }`}
               >
                 <span className="block text-sm">{stock.name}</span>
-                <span className="block text-xs opacity-60">{stock.ticker}</span>
+                <span className="block text-xs opacity-60">
+                  {stock.ticker}{stock.market === "IN" ? " · NSE" : ""}
+                </span>
               </button>
             );
           })}
         </div>
+
+        {error && (
+          <p className="mt-4 text-xs text-error">{error}</p>
+        )}
 
         <div className="mt-6 flex items-center justify-between">
           <button

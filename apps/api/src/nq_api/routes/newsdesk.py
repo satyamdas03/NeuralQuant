@@ -358,15 +358,27 @@ async def _refresh_news_cache() -> None:
 
 @router.get("/news")
 async def get_news_desk(n: int = 20) -> dict[str, Any]:
-    """Return enriched NewsDesk headlines. Instant response; background refresh if stale."""
+    """Return enriched NewsDesk headlines. Instant response if warm; on cold
+    start, block (with a hard 20s cap) for the first refresh so the UI isn't
+    stuck with ``headlines: []`` after a Render deploy."""
     global _news_cache, _news_ts
     if _news_cache and time.time() - _news_ts < NEWS_TTL:
         return _news_cache
 
-    asyncio.create_task(_refresh_news_cache())
+    # Warm cache: refresh in the background, serve stale immediately.
+    if _news_cache:
+        asyncio.create_task(_refresh_news_cache())
+        return {**_news_cache, "stale": True}
+
+    # Cold cache: block on first fill so the UI gets real headlines, not
+    # ``loading: true`` + "0 headlines, 0 bullish, 0 bearish".
+    try:
+        await asyncio.wait_for(_refresh_news_cache(), timeout=20.0)
+    except (asyncio.TimeoutError, Exception) as exc:
+        log.warning("NewsDesk cold-start refresh failed: %s", exc)
 
     if _news_cache:
-        return {**_news_cache, "stale": True}
+        return _news_cache
 
     return {
         "sentiment": "neutral",

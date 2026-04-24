@@ -59,8 +59,12 @@ async def get_stock_score(
     ticker_upper = ticker.upper()
 
     # --- Fast path: read from Supabase score_cache (sub-100ms) ---
+    # Widened to 7d to match screener/preview — nightly GHA refreshes cache,
+    # but Render/yfinance rate-limits make live recompute unsafe.
     try:
-        cached = await asyncio.to_thread(score_cache.read_one, ticker_upper, market, max_age_seconds=172800)
+        cached = await asyncio.to_thread(
+            score_cache.read_one, ticker_upper, market, max_age_seconds=86400 * 7
+        )
     except Exception as e:
         log.warning("score_cache.read_one failed: %s", e)
         cached = None
@@ -71,14 +75,23 @@ async def get_stock_score(
             df["regime_id"] = 1
         return row_to_ai_score(df.iloc[0], market, score_1_10_override=_score_1_10_from_cache(cached))
 
-    # --- Slow path: live compute (fallback for cache miss) ---
-    # Compute ONLY this ticker's data, not the whole universe.
-    # This is much faster than building the entire universe snapshot.
+    # --- Slow path: live compute with hard timeout (cache miss fallback) ---
+    # yfinance can hang for minutes when Render IP is rate-limited.
+    # Cap at 25s so the user gets a fast 504 rather than a frozen request.
     try:
-        snapshot = await asyncio.to_thread(build_real_snapshot, [ticker_upper], market)
+        snapshot = await asyncio.wait_for(
+            asyncio.to_thread(build_real_snapshot, [ticker_upper], market),
+            timeout=25.0,
+        )
+    except asyncio.TimeoutError:
+        log.warning("build_real_snapshot timed out for %s", ticker_upper)
+        raise HTTPException(
+            status_code=504,
+            detail=f"Score cache miss for {ticker_upper}; upstream data source is rate-limited. Please retry in ~60s.",
+        )
     except Exception as e:
         log.error("build_real_snapshot failed for %s: %s", ticker_upper, e)
-        raise HTTPException(status_code=504, detail=f"Data fetch timed out for {ticker_upper}. Try again in 30s.")
+        raise HTTPException(status_code=504, detail=f"Data fetch failed for {ticker_upper}. Try again in 30s.")
 
     if snapshot is None or snapshot.empty:
         raise HTTPException(status_code=404, detail=f"No data for {ticker}")
@@ -259,10 +272,140 @@ async def get_stock_chart(
 
 @router.get("/{ticker}/meta")
 async def get_stock_meta(ticker: str, market: str = Query("US")):
-    result = await asyncio.to_thread(_fetch_stock_meta, ticker.upper(), market)
+    # Primary path: yfinance (fails with "Too Many Requests" from Render IP
+    # under rate-limit pressure). On failure, fall back to Yahoo quoteSummary v10.
+    t_up = ticker.upper()
+    result = await asyncio.to_thread(_fetch_stock_meta, t_up, market)
     if isinstance(result, dict):
         return result
-    raise HTTPException(500, str(result))
+    log.warning("meta yfinance path failed for %s (%s) — trying Yahoo quoteSummary fallback: %s",
+                t_up, market, result)
+    fallback = await asyncio.to_thread(_fetch_stock_meta_yahoo_direct, t_up, market)
+    if isinstance(fallback, dict):
+        return fallback
+    # Last resort: return 200 with whatever minimal info we have rather than 500
+    # so the stock detail page renders instead of showing "data unavailable".
+    return {
+        "ticker": t_up,
+        "name": t_up,
+        "market_cap": None, "market_cap_fmt": None,
+        "pe_ttm": None, "pb_ratio": None, "beta": None,
+        "week_52_high": None, "week_52_low": None,
+        "earnings_date": None, "analyst_target": None, "analyst_recommendation": None,
+        "sector": None, "industry": None, "dividend_yield": None,
+        "current_price": None,
+    }
+
+
+def _fetch_stock_meta_yahoo_direct(ticker: str, market: str) -> dict | Exception:
+    """Yahoo quoteSummary v10 — direct HTTP fallback when yfinance is rate-limited.
+    Returns a dict with the same shape as `_fetch_stock_meta`, or an Exception."""
+    sym = _yf_sym(ticker, market)
+    modules = (
+        "summaryDetail,defaultKeyStatistics,financialData,"
+        "assetProfile,calendarEvents,price"
+    )
+    url = f"https://query1.finance.yahoo.com/v10/finance/quoteSummary/{sym}"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                      "AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "application/json,text/plain,*/*",
+    }
+    try:
+        with httpx.Client(timeout=10.0, follow_redirects=True) as client:
+            r = client.get(url, params={"modules": modules}, headers=headers)
+            r.raise_for_status()
+            j = r.json()
+    except Exception as exc:
+        return exc
+
+    try:
+        result = j["quoteSummary"]["result"][0]
+    except Exception as exc:
+        return exc
+
+    def _raw(d, *path):
+        cur = d
+        for p in path:
+            if not isinstance(cur, dict) or p not in cur:
+                return None
+            cur = cur[p]
+        if isinstance(cur, dict) and "raw" in cur:
+            return cur["raw"]
+        return cur
+
+    summary = result.get("summaryDetail", {})
+    stats   = result.get("defaultKeyStatistics", {})
+    fin     = result.get("financialData", {})
+    prof    = result.get("assetProfile", {})
+    cal     = result.get("calendarEvents", {})
+    price   = result.get("price", {})
+
+    mc        = _raw(price, "marketCap") or _raw(summary, "marketCap")
+    pe_ttm    = _raw(summary, "trailingPE")
+    pb_ratio  = _raw(stats, "priceToBook")
+    beta_v    = _raw(summary, "beta") or _raw(stats, "beta")
+    hi_52     = _raw(summary, "fiftyTwoWeekHigh")
+    lo_52     = _raw(summary, "fiftyTwoWeekLow")
+    tgt_mean  = _raw(fin, "targetMeanPrice")
+    rec       = fin.get("recommendationKey") if isinstance(fin, dict) else None
+    sector    = prof.get("sector") if isinstance(prof, dict) else None
+    industry  = prof.get("industry") if isinstance(prof, dict) else None
+    cur_price = _raw(price, "regularMarketPrice") or _raw(fin, "currentPrice")
+    long_name = price.get("longName") or price.get("shortName") or ticker
+
+    # Earnings date
+    earnings_date = None
+    try:
+        ed_list = cal.get("earnings", {}).get("earningsDate", []) if isinstance(cal, dict) else []
+        if ed_list:
+            ts = ed_list[0].get("raw") if isinstance(ed_list[0], dict) else None
+            if ts:
+                import datetime as _dt
+                earnings_date = _dt.datetime.utcfromtimestamp(int(ts)).date().isoformat()
+    except Exception:
+        pass
+
+    # Dividend yield
+    div_pct = None
+    div_rate = _raw(summary, "dividendRate")
+    if div_rate and cur_price:
+        try:
+            v = float(div_rate) / float(cur_price) * 100
+            if 0 < v < 20:
+                div_pct = round(v, 2)
+        except Exception:
+            pass
+    if div_pct is None:
+        div_raw = _raw(summary, "dividendYield")
+        if div_raw:
+            try:
+                v = float(div_raw)
+                v = v if v > 1 else v * 100
+                if 0 < v < 20:
+                    div_pct = round(v, 2)
+            except Exception:
+                pass
+
+    return {
+        "ticker":                  ticker,
+        "name":                    long_name,
+        "market_cap":              mc,
+        "market_cap_fmt":          _fmt_mcap(float(mc), market) if mc else None,
+        "pe_ttm":                  round(float(pe_ttm), 1)  if pe_ttm   is not None else None,
+        "pb_ratio":                round(float(pb_ratio), 2) if pb_ratio is not None else None,
+        "beta":                    round(float(beta_v), 2)  if beta_v  is not None else None,
+        "week_52_high":            hi_52,
+        "week_52_low":             lo_52,
+        "earnings_date":           earnings_date,
+        "analyst_target":          tgt_mean,
+        "analyst_recommendation":  rec,
+        "sector":                  sector,
+        "industry":                industry,
+        "dividend_yield":          div_pct,
+        "current_price":           cur_price,
+    }
 
 
 def _fetch_stock_meta(ticker: str, market: str) -> dict | Exception:
