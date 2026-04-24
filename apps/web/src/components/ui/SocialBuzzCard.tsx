@@ -11,7 +11,8 @@ interface SocialData {
   stocktwits_bullish_pct: number | null;
   stocktwits_mentions: number;
   total_mentions: number;
-  trending_topics: string[];
+  topics: string[];
+  loading?: boolean;
 }
 
 export default function SocialBuzzCard() {
@@ -22,7 +23,23 @@ export default function SocialBuzzCard() {
     fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/sentiment/social`)
       .then((r) => r.json())
       .then((d) => {
-        setData(d.sentiment || []);
+        const items: SocialData[] = d.tickers || [];
+        // If all items are loading placeholders, keep loading state
+        if (items.length > 0 && items.every((i) => i.loading)) {
+          setLoading(true);
+          // Retry after a short delay for background fetch to complete
+          setTimeout(() => {
+            fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/sentiment/social`)
+              .then((r2) => r2.json())
+              .then((d2) => {
+                setData(d2.tickers || []);
+                setLoading(false);
+              })
+              .catch(() => setLoading(false));
+          }, 8000);
+          return;
+        }
+        setData(items);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -36,7 +53,10 @@ export default function SocialBuzzCard() {
     );
   }
 
-  if (!data.length) {
+  // Filter out loading placeholders
+  const realData = data.filter((d) => !d.loading);
+
+  if (!realData.length) {
     return (
       <GhostBorderCard>
         <p className="text-xs text-on-surface-variant">Social sentiment unavailable</p>
@@ -44,7 +64,7 @@ export default function SocialBuzzCard() {
     );
   }
 
-  const topMentioned = [...data].sort((a, b) => b.total_mentions - a.total_mentions).slice(0, 5);
+  const topMentioned = [...realData].sort((a, b) => b.total_mentions - a.total_mentions).slice(0, 5);
 
   return (
     <GhostBorderCard>

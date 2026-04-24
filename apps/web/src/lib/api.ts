@@ -114,7 +114,7 @@ export const api = {
 
   // Pillar C: sentiment (public, free, cached at edge by client)
   getSentiment: (ticker: string, market: Market = "US", limit = 15) =>
-    apiFetch<SentimentResponse>(`/sentiment/${ticker}?market=${market}&limit=${limit}`),
+    apiFetch<SentimentResponse>(`/sentiment/news/${ticker}?market=${market}&limit=${limit}`),
 };
 
 // Authed — counts against backtest_per_day tier cap
