@@ -20,3 +20,5 @@ docs/~$*.docx
 INSPIRATIONS/
 NEURALQUANT_nextThings/
 .claude/
+*.duckdb
+*.duckdb.wal
