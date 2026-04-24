@@ -15,6 +15,7 @@ import GlassPanel from "@/components/ui/GlassPanel";
 import MetricCard from "@/components/ui/MetricCard";
 import GradientButton from "@/components/ui/GradientButton";
 import { ArrowUpRight, ArrowDownRight, TrendingUp, Newspaper, Zap, Swords } from "lucide-react";
+import SocialBuzzCard from "@/components/ui/SocialBuzzCard";
 
 // ─── Index Bar ────────────────────────────────────────────────────────────────
 
@@ -479,6 +480,7 @@ export default function DashboardPage() {
         <div className="space-y-5">
           <MoversPanel gainers={gainers} losers={losers} active={active} loading={moversLoading} />
           <TopAIPicks stocks={topStocks} regime={regime} loading={stocksLoading} />
+          <SocialBuzzCard />
         </div>
       </div>
     </div>
