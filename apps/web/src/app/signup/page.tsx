@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import GradientButton from "@/components/ui/GradientButton";
 
 export default function SignupPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -20,10 +21,12 @@ export default function SignupPage() {
     setInfo(null);
     setLoading(true);
     const supabase = createClient();
+    const refCode = searchParams.get("ref");
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
+        data: refCode ? { referral_code: refCode } : undefined,
         emailRedirectTo: (() => {
           const envUrl = process.env.NEXT_PUBLIC_SITE_URL;
           const base =

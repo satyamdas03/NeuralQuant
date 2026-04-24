@@ -97,6 +97,7 @@ def get_current_user(
         stripe_customer_id=row.get("stripe_customer_id"),
         stripe_subscription_id=row.get("stripe_subscription_id"),
         subscription_status=row.get("subscription_status"),
+        referral_bonus_queries=row.get("referral_bonus_queries", 0),
     )
 
 

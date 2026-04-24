@@ -14,6 +14,7 @@ class User(BaseModel):
     stripe_customer_id: str | None = None
     stripe_subscription_id: str | None = None
     subscription_status: str | None = None
+    referral_bonus_queries: int = 0
 
 
 class TierLimits(BaseModel):
