@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import GradientButton from "@/components/ui/GradientButton";
+import CitationCard from "@/components/ui/CitationCard";
 
 export const dynamic = "force-dynamic";
 
@@ -88,6 +89,55 @@ export default async function Landing() {
           <Feature
             title="Transparent Sources"
             body="Every answer cites the data it used — yfinance, FRED, SEC filings, analyst consensus. No black boxes."
+          />
+        </div>
+      </section>
+
+      {/* Built on Published Research */}
+      <section className="max-w-6xl mx-auto px-6 py-20 border-t border-surface-container">
+        <h2 className="font-headline text-3xl md:text-4xl font-bold tracking-tight mb-3">
+          Built on published research
+        </h2>
+        <p className="text-on-surface-variant max-w-2xl mb-10">
+          Every NeuralQuant factor is grounded in peer-reviewed finance research —
+          not hype.
+        </p>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <CitationCard
+            title="Returns to Buying Winners and Selling Losers"
+            authors="Jegadeesh & Titman"
+            year={1993}
+            application="Momentum factor — 12-1 month return ranking"
+          />
+          <CitationCard
+            title="Value Investing: The Use of Historical Financial Statement Information"
+            authors="Piotroski"
+            year={2000}
+            application="F-Score quality metric in our quality factor"
+          />
+          <CitationCard
+            title="A New Approach to Filtering and Smoothing"
+            authors="Hamilton"
+            year={1989}
+            application="Regime-switching HMM for bull/bear classification"
+          />
+          <CitationCard
+            title="Contrarian Investment, Extrapolation, and Risk"
+            authors="Lakonishok, Shleifer & Vishny"
+            year={1994}
+            application="Value factor — P/E and P/B cross-sectional ranking"
+          />
+          <CitationCard
+            title="The Cross-Section of Volatility and Expected Returns"
+            authors="Ang, Hodrick, Xing & Zhang"
+            year={2006}
+            application="Low-volatility factor — inverse of realized volatility and beta"
+          />
+          <CitationCard
+            title="Insider Trading and the Information Content of Earnings Announcements"
+            authors="Lakonishok & Lee"
+            year={2001}
+            application="Insider cluster score from SEC Form 4 filings"
           />
         </div>
       </section>
