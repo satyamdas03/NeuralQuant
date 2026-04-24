@@ -25,7 +25,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 // Authed variant — attaches Supabase access token for /auth/* and /watchlist/*
-async function authedFetch<T>(path: string, options?: RequestInit): Promise<T> {
+async function authedFetch<T>(path: string, options?: RequestInit & { signal?: AbortSignal }): Promise<T> {
   const { createClient } = await import("./supabase/client");
   const supabase = createClient();
   const { data } = await supabase.auth.getSession();
@@ -33,7 +33,7 @@ async function authedFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const headers = new Headers(options?.headers || {});
   headers.set("Content-Type", "application/json");
   if (token) headers.set("Authorization", `Bearer ${token}`);
-  const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  const response = await fetch(`${API_BASE}${path}`, { ...options, headers, signal: options?.signal });
   if (response.status === 401) {
     throw new Error("auth required");
   }
@@ -96,10 +96,11 @@ export const api = {
       body: JSON.stringify(body),
     }),
 
-  runQuery: (body: QueryRequest) =>
+  runQuery: (body: QueryRequest, signal?: AbortSignal) =>
     authedFetch<QueryResponse>("/query", {
       method: "POST",
       body: JSON.stringify(body),
+      signal,
     }),
 
   getMarketOverview: () => apiFetch<MarketOverview>("/market/overview"),

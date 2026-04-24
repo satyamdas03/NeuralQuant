@@ -20,7 +20,7 @@ export default function SocialBuzzCard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/sentiment/social`)
+    fetch(`/api/sentiment/social`)
       .then((r) => r.json())
       .then((d) => {
         const items: SocialData[] = d.tickers || [];
@@ -29,7 +29,7 @@ export default function SocialBuzzCard() {
           setLoading(true);
           // Retry after a short delay for background fetch to complete
           setTimeout(() => {
-            fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/sentiment/social`)
+            fetch(`/api/sentiment/social`)
               .then((r2) => r2.json())
               .then((d2) => {
                 setData(d2.tickers || []);

@@ -40,16 +40,37 @@ export default function StockPage() {
     }).catch(() => {}); // Not logged in — non-critical
   }, [ticker, market]);
 
-  // Live score updates via SSE
+  // Live score updates via SSE — route through Next.js /api proxy to avoid CORS.
+  // Next.js rewrites don't support SSE, so we use a dedicated API route.
   useEffect(() => {
-    const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-    const url = `${apiBase}/stocks/${ticker}/stream?market=${market}`;
-    const es = new EventSource(url);
-    es.addEventListener("score", (e) => {
-      try { setScore(JSON.parse(e.data)); } catch { /* ignore bad data */ }
-    });
-    es.addEventListener("error", () => { es.close(); });
-    return () => { es.close(); };
+    const url = `/api/stocks/${ticker}/stream?market=${market}`;
+    let cancelled = false;
+
+    const connect = () => {
+      if (cancelled) return;
+      const es = new EventSource(url);
+      es.addEventListener("score", (e) => {
+        try { setScore(JSON.parse(e.data)); } catch { /* ignore bad data */ }
+      });
+      es.addEventListener("error", () => { es.close(); });
+    };
+
+    // SSE through Next.js rewrites is unreliable (proxy buffering).
+    // Fallback: poll every 30s for live score via REST.
+    const poll = async () => {
+      if (cancelled) return;
+      try {
+        const s = await api.getStock(ticker, market);
+        if (!cancelled) setScore(s);
+      } catch { /* ignore */ }
+    };
+    poll();
+    const interval = setInterval(poll, 30_000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [ticker, market]);
 
   const runDebate = async () => {

@@ -53,8 +53,12 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
       .filter((m) => !m.loading)
       .map((m) => ({ role: m.role, content: m.content }));
 
+    // AbortController with 120s timeout — prevents infinite hangs
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 120_000);
+
     try {
-      const res = await api.runQuery({ question: q, ticker: defaultTicker, history });
+      const res = await api.runQuery({ question: q, ticker: defaultTicker, history }, controller.signal);
       setMessages((prev) =>
         prev.map((m) =>
           m.id === phId
@@ -62,15 +66,19 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
             : m
         )
       );
-    } catch {
+    } catch (err) {
+      const msg = err instanceof DOMException && err.name === "AbortError"
+        ? "Query timed out after 2 minutes. Try a shorter question or retry."
+        : "Query failed — backend may be warming up. Retry in 30s.";
       setMessages((prev) =>
         prev.map((m) =>
           m.id === phId
-            ? { ...m, content: "Query failed — backend may be warming up. Retry in 30s.", loading: false }
+            ? { ...m, content: msg, loading: false }
             : m
         )
       );
     } finally {
+      clearTimeout(timeout);
       setLoading(false);
       setSlowLoad(false);
       if (slowTimer.current) clearTimeout(slowTimer.current);

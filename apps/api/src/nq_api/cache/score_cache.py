@@ -59,7 +59,9 @@ def _supabase_rest(
                 return None
             r.raise_for_status()
             return r.json() if r.content else None
-    except Exception:
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Supabase REST call failed for table=%s: %s", table, e)
         return None
 
 

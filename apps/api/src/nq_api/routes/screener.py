@@ -30,7 +30,9 @@ async def screener_preview(market: str = "US", n: int = 8) -> ScreenerResponse:
         logger.exception("screener_preview cache read failed for market=%s", market)
         rows = []
     if not rows:
-        return ScreenerResponse(regime_label="Unknown", regime_id=1, results=[], total=0)
+        # Live-compute fallback when cache is empty (cold start / nightly job missed)
+        logger.info("screener_preview: cache empty, falling back to live compute for market=%s", market)
+        return await _preview_live_fallback(market, n)
     try:
         macro = fetch_real_macro()
         regime_id = int(macro.regime_id) if hasattr(macro, "regime_id") else 1
@@ -43,6 +45,35 @@ async def screener_preview(market: str = "US", n: int = 8) -> ScreenerResponse:
         results=ai_scores,
         total=len(ai_scores),
     )
+
+
+async def _preview_live_fallback(market: str, n: int) -> ScreenerResponse:
+    """Compute top-N scores live when cache is empty. Slower but always returns data."""
+    engine = get_signal_engine()
+    tickers = UNIVERSE_BY_MARKET.get(market, UNIVERSE_BY_MARKET["US"])[:n]
+    try:
+        snapshot = await asyncio.to_thread(build_real_snapshot, tickers, market)
+        if snapshot is None or snapshot.empty:
+            return ScreenerResponse(regime_label="Unknown", regime_id=1, results=[], total=0)
+        result_df = await asyncio.to_thread(engine.compute, snapshot)
+        if result_df is None or result_df.empty:
+            return ScreenerResponse(regime_label="Unknown", regime_id=1, results=[], total=0)
+        ranked = rank_scores_in_universe(result_df).reset_index(drop=True)
+        result_df = result_df.reset_index(drop=True).head(n)
+        regime_id = int(result_df["regime_id"].iloc[0]) if "regime_id" in result_df.columns else 1
+        ai_scores = [
+            row_to_ai_score(row, market, score_1_10_override=int(ranked.iloc[i]))
+            for i, (_, row) in enumerate(result_df.iterrows())
+        ]
+        return ScreenerResponse(
+            regime_label=REGIME_LABELS.get(regime_id, "Unknown"),
+            regime_id=regime_id,
+            results=ai_scores,
+            total=len(ai_scores),
+        )
+    except Exception as exc:
+        logger.exception("screener_preview live fallback failed for market=%s", market)
+        return ScreenerResponse(regime_label="Unknown", regime_id=1, results=[], total=0)
 
 
 def _cache_rows_to_ai_scores(rows: list[dict], market: str, regime_id: int) -> list:

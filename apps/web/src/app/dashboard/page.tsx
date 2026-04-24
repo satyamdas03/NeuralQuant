@@ -366,6 +366,10 @@ function TopAIPicks({ stocks, regime, loading }: { stocks: AIScore[]; regime: st
             </div>
           ))}
         </div>
+      ) : !stocks.length ? (
+        <div className="p-4 text-center text-sm text-on-surface-variant">
+          Scores are computing — refresh in a minute.
+        </div>
       ) : (
         <>
           <div className="divide-y divide-ghost-border/50">
