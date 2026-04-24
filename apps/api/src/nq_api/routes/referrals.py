@@ -43,5 +43,5 @@ async def get_my_code(user: User = Depends(get_current_user)):
         code=code,
         link=link,
         total_referred=total_referred,
-        bonus_queries=user.referral_bonus_queries if hasattr(user, "referral_bonus_queries") else 0,
+        bonus_queries=user.referral_bonus_queries,
     )

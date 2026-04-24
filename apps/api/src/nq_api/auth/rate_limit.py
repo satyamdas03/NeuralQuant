@@ -54,7 +54,7 @@ def enforce_tier_quota(endpoint: str):
         # Dev-mode bypass: skip tier gates entirely in development
         if os.environ.get("ENVIRONMENT") == "development":
             return user
-        cap = _cap_for(user.tier, endpoint) + getattr(user, "referral_bonus_queries", 0)
+        cap = _cap_for(user.tier, endpoint) + user.referral_bonus_queries
         if cap == 0:
             raise HTTPException(
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,

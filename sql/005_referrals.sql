@@ -34,7 +34,7 @@ DECLARE
   ref_code TEXT;
   ref_row RECORD;
 BEGIN
-  ref_code := NEW.raw_user_meta->>'referral_code';
+  ref_code := NEW.raw_user_meta_data->>'referral_code';
 
   IF ref_code IS NOT NULL THEN
     SELECT * INTO ref_row FROM public.referrals WHERE code = ref_code AND status = 'active';
