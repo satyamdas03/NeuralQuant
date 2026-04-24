@@ -8,7 +8,9 @@ import type {
   AlertSubscription, AlertDelivery, NewsDeskResponse,
 } from "./types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+// Route all requests through Next.js /api/ rewrite proxy to avoid CORS issues.
+// next.config.ts rewrites /api/:path* → NEXT_PUBLIC_API_URL/:path*
+const API_BASE = "/api";
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
@@ -32,10 +34,8 @@ async function authedFetch<T>(path: string, options?: RequestInit): Promise<T> {
   headers.set("Content-Type", "application/json");
   if (token) headers.set("Authorization", `Bearer ${token}`);
   const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
-  if (response.status === 401 && typeof window !== "undefined") {
-    const nextUrl = window.location.pathname + window.location.search;
-    window.location.href = `/login?next=${encodeURIComponent(nextUrl)}`;
-    throw new Error("auth required — redirecting to login");
+  if (response.status === 401) {
+    throw new Error("auth required");
   }
   if (!response.ok) {
     const error = await response.text();
