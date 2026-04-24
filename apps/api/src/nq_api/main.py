@@ -5,8 +5,12 @@ from dotenv import load_dotenv
 _env_path = Path(__file__).resolve().parents[2] / ".env"
 load_dotenv(_env_path, override=True)
 
+import logging
 import threading
+import time
 from contextlib import asynccontextmanager
+
+log = logging.getLogger(__name__)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,33 +23,71 @@ from nq_api.routes.referrals import router as referral_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Pre-warm real-data cache in a background thread so first requests are fast
-    def _warm():
-        try:
-            from nq_api.data_builder import prewarm_cache
-            from nq_api.universe import US_DEFAULT
-            prewarm_cache(US_DEFAULT, "US")
-        except Exception:
-            pass
+    import os
+    # On Render, skip heavy prewarm — caches populate lazily on first request.
+    # Prewarm threads with yfinance + asyncio.run() cause OOM/crash on cold starts.
+    on_render = bool(os.environ.get("RENDER"))
 
-    def _warm_smart_money():
-        try:
-            from nq_api.routes.smart_money import refresh_cache_in_thread
-            refresh_cache_in_thread()
-        except Exception:
-            pass
+    if not on_render:
+        def _warm():
+            try:
+                from nq_api.data_builder import prewarm_cache
+                from nq_api.universe import US_DEFAULT
+                prewarm_cache(US_DEFAULT, "US")
+            except Exception as exc:
+                log.warning("Cache prewarm failed: %s", exc)
 
-    def _warm_news():
-        try:
-            import asyncio
-            from nq_api.routes.newsdesk import _refresh_news_cache
-            asyncio.run(_refresh_news_cache())
-        except Exception:
-            pass
+        def _warm_smart_money():
+            try:
+                from nq_api.routes.smart_money import refresh_cache_in_thread
+                refresh_cache_in_thread()
+            except Exception as exc:
+                log.warning("Smart-money prewarm failed: %s", exc)
 
-    threading.Thread(target=_warm, daemon=True).start()
-    threading.Thread(target=_warm_smart_money, daemon=True).start()
-    threading.Thread(target=_warm_news, daemon=True).start()
+        def _warm_news():
+            try:
+                from nq_api.routes.newsdesk import _fetch_yf_news, _sentiment_score, _sentiment_label, _category, _extract_tickers, _relative_time, _compute_trending
+                import nq_api.routes.newsdesk as _nd
+                sources = ["^GSPC", "RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS"]
+                all_items = []
+                for sym in sources:
+                    try:
+                        all_items.extend(_fetch_yf_news(sym, 8))
+                    except Exception:
+                        pass
+                if all_items and _nd._news_cache is None:
+                    enriched = []
+                    for item in all_items[:20]:
+                        title = item.get("title", "")
+                        if not title:
+                            continue
+                        score = _sentiment_score(title)
+                        enriched.append({
+                            "title": title,
+                            "publisher": item.get("publisher", ""),
+                            "url": item.get("url", ""),
+                            "time": _relative_time(item.get("time")),
+                            "category": _category(title),
+                            "tickers": _extract_tickers(title),
+                            "sentiment": _sentiment_label(score),
+                        })
+                    if enriched:
+                        avg = sum(_sentiment_score(h["title"]) for h in enriched) / len(enriched)
+                        _nd._news_cache = {
+                            "sentiment": "bullish" if avg >= 0.25 else "bearish" if avg <= -0.25 else "neutral",
+                            "headlines": enriched[:20],
+                            "trending": _compute_trending(enriched),
+                        }
+                        _nd._news_ts = time.time()
+                        log.info("News prewarm: %d headlines cached", len(enriched))
+            except Exception as exc:
+                log.warning("News prewarm failed: %s", exc)
+
+        threading.Thread(target=_warm, daemon=True).start()
+        threading.Timer(10.0, _warm_smart_money).start()
+        threading.Timer(20.0, _warm_news).start()
+    else:
+        log.info("Render detected — skipping prewarm, caches will populate lazily")
     yield
 
 

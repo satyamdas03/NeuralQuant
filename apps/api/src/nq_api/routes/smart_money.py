@@ -134,9 +134,19 @@ async def _refresh_cache() -> None:
 
 
 def refresh_cache_in_thread() -> None:
-    """Blocking entry-point for background threads."""
+    """Blocking entry-point for background threads — runs without asyncio.run()."""
+    global _SMART_CACHE, _SMART_TS
     try:
-        asyncio.run(_refresh_cache())
+        all_events: list[dict[str, Any]] = []
+        for sym in _SMART_MONEY_UNIVERSE[:6]:
+            try:
+                all_events.extend(_fetch_insider_blocking(sym))
+            except Exception:
+                pass
+        payload = _aggregate(all_events)
+        _SMART_CACHE = payload
+        _SMART_TS = time.time()
+        log.info("Smart-money prewarm: %d transactions", len(payload.get("transactions", [])))
     except Exception as exc:
         log.warning("Smart-money background refresh failed: %s", exc)
 
