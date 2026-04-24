@@ -11,6 +11,8 @@ import {
   Bell,
   Briefcase,
   Newspaper,
+  Database,
+  GitCompareArrows,
   LogIn,
 } from "lucide-react";
 import GradientButton from "@/components/ui/GradientButton";
@@ -22,6 +24,8 @@ const NAV = [
   { href: "/query", label: "Ask AI", icon: MessageSquareText },
   { href: "/backtest", label: "Backtest", icon: FlaskConical },
   { href: "/smart-money", label: "Smart Money", icon: Briefcase },
+  { href: "/sources", label: "Data Sources", icon: Database },
+  { href: "/compare", label: "Compare", icon: GitCompareArrows },
   { href: "/watchlist", label: "Watchlist", icon: Star },
   { href: "/alerts", label: "Alerts", icon: Bell },
 ];
