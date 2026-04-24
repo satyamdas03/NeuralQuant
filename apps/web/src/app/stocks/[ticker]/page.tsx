@@ -95,6 +95,18 @@ export default function StockPage() {
 
   return (
     <div className="space-y-5 p-4 lg:p-6">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "FinancialProduct",
+            name: ticker,
+            description: `NeuralQuant AI analysis for ${ticker}`,
+            url: `https://neuralquant.vercel.app/stocks/${ticker}`,
+          }),
+        }}
+      />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
