@@ -12,6 +12,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from nq_api.routes import stocks, screener, analyst, query, market, auth, watchlists, sentiment, backtest, alerts, newsdesk, smart_money
+from nq_api.routes.checkout import router as checkout_router
+from nq_api.routes.webhooks_stripe import router as stripe_webhook_router
 
 
 @asynccontextmanager
@@ -73,6 +75,8 @@ app.include_router(backtest.router,  prefix="/backtest",  tags=["backtest"])
 app.include_router(alerts.router)
 app.include_router(newsdesk.router)
 app.include_router(smart_money.router)
+app.include_router(checkout_router)
+app.include_router(stripe_webhook_router)
 
 
 @app.get("/health")
