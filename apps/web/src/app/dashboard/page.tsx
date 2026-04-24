@@ -14,7 +14,7 @@ import AIResponseCard from "@/components/ui/AIResponseCard";
 import GlassPanel from "@/components/ui/GlassPanel";
 import MetricCard from "@/components/ui/MetricCard";
 import GradientButton from "@/components/ui/GradientButton";
-import { ArrowUpRight, ArrowDownRight, TrendingUp, Newspaper, Zap } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, TrendingUp, Newspaper, Zap, Swords } from "lucide-react";
 
 // ─── Index Bar ────────────────────────────────────────────────────────────────
 
@@ -200,6 +200,9 @@ function HomeAskAI() {
           <h2 className="font-headline text-sm font-semibold text-on-surface">
             Ask anything about markets
           </h2>
+          <Link href="/screener" className="inline-flex items-center gap-2 text-sm text-secondary hover:underline">
+            <Swords size={16} /> Debate a stock
+          </Link>
         </div>
         {messages.length > 0 && (
           <button
@@ -346,7 +349,7 @@ function TopAIPicks({ stocks, regime, loading }: { stocks: AIScore[]; regime: st
       <div className="flex items-center justify-between pb-3 border-b border-ghost-border">
         <div className="flex items-center gap-2">
           <TrendingUp size={14} className="text-tertiary" />
-          <h2 className="font-headline text-sm font-semibold text-on-surface">Top AI Picks</h2>
+          <h2 className="font-headline text-sm font-semibold text-on-surface">Top ForeCast Picks</h2>
         </div>
         {regime && <RegimeBadge label={regime as any} />}
       </div>

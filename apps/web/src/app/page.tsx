@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import GradientButton from "@/components/ui/GradientButton";
 import CitationCard from "@/components/ui/CitationCard";
+import DebateShowcase from "@/components/ui/DebateShowcase";
 
 export const dynamic = "force-dynamic";
 
@@ -56,40 +57,26 @@ export default async function Landing() {
         </div>
       </section>
 
-      {/* What it does */}
+      {/* PARA-DEBATE Showcase */}
       <section className="max-w-6xl mx-auto px-6 py-20 border-t border-surface-container">
-        <h2 className="font-headline text-3xl md:text-4xl font-bold tracking-tight mb-3">
-          Stop guessing. Start debating.
-        </h2>
-        <p className="text-on-surface-variant max-w-2xl">
-          Four independent AI analysts argue every thesis. You see the verdict,
-          the dissent, and the numbers behind both.
-        </p>
-        <div className="grid md:grid-cols-2 gap-4 mt-10">
-          <Feature
-            title="PARA-DEBATE Engine"
-            body="Bull, Bear, Skeptic, and Macro agents run in parallel on the same question. A Judge agent synthesizes the ruling with sources cited."
-          />
-          <Feature
-            title="5-Factor Quant Core"
-            body="Value, Momentum, Quality, Low-Vol, Short-Interest percentiles — computed nightly across 1000+ tickers with sector-adjusted ranking."
-          />
-          <Feature
-            title="Regime Detection"
-            body="HMM-driven bull/bear/choppy classification reweights factors dynamically. Momentum in uptrends, quality in drawdowns."
-          />
-          <Feature
-            title="Portfolio Construction"
-            body="Ask in plain English: '₹10L across Indian midcaps' or 'low-vol US dividend names.' Get a sized basket with return bands."
-          />
-          <Feature
-            title="Watchlist + Alerts"
-            body="Track tickers across US and India. Price, score, and thesis updates in one pane. Nightly recomputed."
-          />
-          <Feature
-            title="Transparent Sources"
-            body="Every answer cites the data it used — yfinance, FRED, SEC filings, analyst consensus. No black boxes."
-          />
+        <div className="text-center mb-10">
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-tertiary/10 text-tertiary text-xs font-medium mb-4">
+            PARA-DEBATE™
+          </span>
+          <h2 className="font-headline text-3xl md:text-4xl font-bold tracking-tight mb-3">
+            6 AI analysts debate your stock.
+          </h2>
+          <p className="text-on-surface-variant max-w-2xl mx-auto">
+            Before you invest, 6 specialist agents argue every angle — macro, fundamentals,
+            technicals, sentiment, geopolitics, and an adversarial devil&apos;s advocate.
+            A Head Analyst delivers the final verdict.
+          </p>
+        </div>
+        <DebateShowcase />
+        <div className="mt-8 text-center">
+          <GradientButton href="/query" size="md">
+            Watch them debate →
+          </GradientButton>
         </div>
       </section>
 
