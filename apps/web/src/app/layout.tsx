@@ -17,6 +17,18 @@ const spaceGrotesk = Space_Grotesk({
 export const metadata: Metadata = {
   title: "NeuralQuant — AI Stock Intelligence",
   description: "Institutional-grade AI stock analysis at retail prices",
+  manifest: "/manifest.json",
+  icons: {
+    icon: "/icons/icon-512.png",
+    apple: "/icons/icon-192.png",
+  },
+};
+
+export const viewport = {
+  themeColor: "#6366f1",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
