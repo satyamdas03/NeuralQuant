@@ -8,6 +8,7 @@ Gated by tier quota (backtest_per_day).
 """
 from __future__ import annotations
 from typing import Any, Literal
+import asyncio
 import math
 
 import numpy as np
@@ -73,26 +74,34 @@ def _metrics(equity: pd.Series, signal: pd.Series) -> dict[str, float]:
 
 
 @router.post("", response_model=BacktestResponse)
-def run_backtest(
+async def run_backtest(
     req: BacktestRequest,
     user: User = Depends(enforce_tier_quota("backtest")),
 ) -> BacktestResponse:
-    import yfinance as yf
-
     if req.fast >= req.slow:
         raise HTTPException(status_code=400, detail="fast must be < slow")
+
+    result = await asyncio.to_thread(_run_backtest_sync, req)
+    if isinstance(result, HTTPException):
+        raise result
+    return result
+
+
+def _run_backtest_sync(req: BacktestRequest) -> BacktestResponse | HTTPException:
+    """Blocking backtest compute — runs in thread pool."""
+    import yfinance as yf
 
     yf_symbol = f"{req.ticker.upper()}.NS" if req.market == "IN" else req.ticker.upper()
     df = yf.download(yf_symbol, period=req.period, progress=False, auto_adjust=True)
     if df is None or df.empty:
-        raise HTTPException(status_code=404, detail=f"no price data for {req.ticker}")
+        return HTTPException(status_code=404, detail=f"no price data for {req.ticker}")
 
     # yfinance may return MultiIndex cols when multiple tickers; flatten.
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = [c[0] if isinstance(c, tuple) else c for c in df.columns]
     close = df["Close"].dropna()
     if len(close) < req.slow + 10:
-        raise HTTPException(status_code=400, detail=f"insufficient price history ({len(close)} days)")
+        return HTTPException(status_code=400, detail=f"insufficient price history ({len(close)} days)")
 
     signal = _sma_crossover(close, req.fast, req.slow)
     daily_ret = close.pct_change().fillna(0)

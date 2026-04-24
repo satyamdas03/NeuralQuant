@@ -1,4 +1,5 @@
 """GET /market — live market data via yfinance."""
+import asyncio
 import time
 from fastapi import APIRouter
 import yfinance as yf
@@ -58,7 +59,12 @@ def _pct_change(sym: str) -> dict:
 
 
 @router.get("/overview")
-def market_overview():
+async def market_overview():
+    data = await asyncio.to_thread(_market_overview_sync)
+    return data
+
+
+def _market_overview_sync():
     indices = []
     for sym, name in _INDICES.items():
         d = _pct_change(sym)
@@ -71,7 +77,11 @@ def market_overview():
 
 
 @router.get("/news")
-def market_news(n: int = 8):
+async def market_news(n: int = 8):
+    return await asyncio.to_thread(_market_news_sync, n)
+
+
+def _market_news_sync(n: int = 8):
     try:
         items = yf.Ticker("^GSPC").news or []
         result = []
@@ -98,7 +108,11 @@ def market_news(n: int = 8):
 
 
 @router.get("/sectors")
-def market_sectors():
+async def market_sectors():
+    return await asyncio.to_thread(_market_sectors_sync)
+
+
+def _market_sectors_sync():
     sectors = []
     for sym, name in _SECTORS.items():
         d = _pct_change(sym)
@@ -118,11 +132,16 @@ MOVERS_TTL = 600  # 10 minutes
 
 
 @router.get("/movers")
-def market_movers():
+async def market_movers():
     global _movers_cache, _movers_ts
     if _movers_cache and time.time() - _movers_ts < MOVERS_TTL:
         return _movers_cache
 
+    return await asyncio.to_thread(_market_movers_sync)
+
+
+def _market_movers_sync():
+    global _movers_cache, _movers_ts
     try:
         raw = yf.download(
             _MOVERS_UNIVERSE, period="2d", progress=False,
@@ -162,7 +181,7 @@ def market_movers():
 
 
 @router.get("/data-quality")
-def data_quality():
+async def data_quality():
     """Shows live data quality: how many tickers are real vs synthetic, full macro snapshot."""
     from nq_api.data_builder import _fund_cache, _fund_ts, _macro_cache, _macro_ts, FUND_TTL
     import os

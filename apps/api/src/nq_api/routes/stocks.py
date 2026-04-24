@@ -51,7 +51,7 @@ def _fmt_mcap(mc: float, market: str = "US") -> str:
 
 
 @router.get("/{ticker}", response_model=AIScore)
-def get_stock_score(
+async def get_stock_score(
     ticker: str,
     market: Literal["US", "IN", "GLOBAL"] = Query("US"),
     engine: SignalEngine = Depends(get_signal_engine),
@@ -60,7 +60,7 @@ def get_stock_score(
 
     # --- Fast path: read from Supabase score_cache (sub-100ms) ---
     try:
-        cached = score_cache.read_one(ticker_upper, market, max_age_seconds=172800)
+        cached = await asyncio.to_thread(score_cache.read_one, ticker_upper, market, max_age_seconds=172800)
     except Exception as e:
         log.warning("score_cache.read_one failed: %s", e)
         cached = None
@@ -72,19 +72,22 @@ def get_stock_score(
         return row_to_ai_score(df.iloc[0], market, score_1_10_override=_score_1_10_from_cache(cached))
 
     # --- Slow path: live compute (fallback for cache miss) ---
-    known_universe = list(UNIVERSE_BY_MARKET.get(market, UNIVERSE_BY_MARKET["US"]))
+    # Compute ONLY this ticker's data, not the whole universe.
+    # This is much faster than building the entire universe snapshot.
+    try:
+        snapshot = await asyncio.to_thread(build_real_snapshot, [ticker_upper], market)
+    except Exception as e:
+        log.error("build_real_snapshot failed for %s: %s", ticker_upper, e)
+        raise HTTPException(status_code=504, detail=f"Data fetch timed out for {ticker_upper}. Try again in 30s.")
 
-    # Always compute within full reference universe for meaningful percentile ranks
-    universe = known_universe.copy()
-    if ticker_upper not in universe:
-        universe = [ticker_upper] + universe[:19]
+    if snapshot is None or snapshot.empty:
+        raise HTTPException(status_code=404, detail=f"No data for {ticker}")
 
-    snapshot = build_real_snapshot(universe, market)
-    result_df = engine.compute(snapshot)
+    result_df = await asyncio.to_thread(engine.compute, snapshot)
 
-    # BUG-001 fix: reject tickers that yfinance couldn't find (synthetic fallback + not in known universe)
+    # BUG-001 fix: reject tickers that yfinance couldn't find
     fund_data = _fund_cache.get(f"{ticker_upper}:{market}", {})
-    if not fund_data.get("_is_real") and ticker_upper not in known_universe:
+    if not fund_data.get("_is_real") and ticker_upper not in UNIVERSE_BY_MARKET.get(market, UNIVERSE_BY_MARKET["US"]):
         raise HTTPException(
             status_code=404,
             detail=f"Ticker '{ticker_upper}' not found in {market} market. "
@@ -95,7 +98,6 @@ def get_stock_score(
     if matching.empty:
         raise HTTPException(status_code=404, detail=f"No data for {ticker}")
 
-    # Use rank-based 1-10 within the reference universe for consistent spread
     ranked_scores = rank_scores_in_universe(result_df)
     ticker_idx = matching.index[0]
     score_override = int(ranked_scores.iloc[ticker_idx]) if ticker_idx < len(ranked_scores) else None
@@ -187,7 +189,7 @@ def _fetch_chart_yahoo_direct(sym: str, period: str) -> list[dict]:
 
 
 @router.get("/{ticker}/chart")
-def get_stock_chart(
+async def get_stock_chart(
     ticker: str,
     period: str = Query("1mo"),
     market: str = Query("US"),
@@ -196,36 +198,40 @@ def get_stock_chart(
     sym = _yf_sym(ticker.upper(), market)
     data: list[dict] = []
 
-    # Primary path: yfinance. Wrap EVERYTHING so no uncaught exceptions ever reach FastAPI.
-    try:
-        hist = yf.Ticker(sym).history(period=yf_period, interval=interval, auto_adjust=True)
-        if hist is not None and not hist.empty:
-            for idx, row in hist.iterrows():
-                try:
-                    if period in ("1d", "5d"):
-                        date_str = idx.strftime("%m/%d %H:%M")
-                    else:
-                        date_str = idx.strftime("%b %d")
-                    data.append({
-                        "date":   date_str,
-                        "close":  round(float(row["Close"]), 2),
-                        "open":   round(float(row["Open"]),  2),
-                        "high":   round(float(row["High"]),  2),
-                        "low":    round(float(row["Low"]),   2),
-                        "volume": int(row.get("Volume") or 0),
-                    })
-                except Exception as row_exc:
-                    log.debug("chart row parse failed for %s: %s", sym, row_exc)
-                    continue
-    except Exception as exc:
-        log.warning("yfinance chart failed for %s (%s) — will try Yahoo direct: %s",
-                    sym, period, exc)
+    # Primary path: yfinance (offloaded to thread pool)
+    def _fetch_chart():
+        d: list[dict] = []
+        try:
+            hist = yf.Ticker(sym).history(period=yf_period, interval=interval, auto_adjust=True)
+            if hist is not None and not hist.empty:
+                for idx, row in hist.iterrows():
+                    try:
+                        if period in ("1d", "5d"):
+                            date_str = idx.strftime("%m/%d %H:%M")
+                        else:
+                            date_str = idx.strftime("%b %d")
+                        d.append({
+                            "date":   date_str,
+                            "close":  round(float(row["Close"]), 2),
+                            "open":   round(float(row["Open"]),  2),
+                            "high":   round(float(row["High"]),  2),
+                            "low":    round(float(row["Low"]),   2),
+                            "volume": int(row.get("Volume") or 0),
+                        })
+                    except Exception as row_exc:
+                        log.debug("chart row parse failed for %s: %s", sym, row_exc)
+                        continue
+        except Exception as exc:
+            log.warning("yfinance chart failed for %s (%s) — will try Yahoo direct: %s",
+                        sym, period, exc)
+        return d
 
-    # Fallback: hit Yahoo chart API directly. Critical for NSE stocks on Render where
-    # yfinance's scraping path often fails with "Expecting value" / rate-limit errors.
+    data = await asyncio.to_thread(_fetch_chart)
+
+    # Fallback: hit Yahoo chart API directly.
     if not data:
         log.info("chart fallback: yahoo-direct for %s (%s)", sym, period)
-        data = _fetch_chart_yahoo_direct(sym, period)
+        data = await asyncio.to_thread(_fetch_chart_yahoo_direct, sym, period)
 
     if not data:
         # Return valid empty-shape JSON rather than 500 so the UI can display
@@ -252,8 +258,16 @@ def get_stock_chart(
 
 
 @router.get("/{ticker}/meta")
-def get_stock_meta(ticker: str, market: str = Query("US")):
-    sym = _yf_sym(ticker.upper(), market)
+async def get_stock_meta(ticker: str, market: str = Query("US")):
+    result = await asyncio.to_thread(_fetch_stock_meta, ticker.upper(), market)
+    if isinstance(result, dict):
+        return result
+    raise HTTPException(500, str(result))
+
+
+def _fetch_stock_meta(ticker: str, market: str) -> dict | Exception:
+    """Blocking yfinance calls — run in thread pool."""
+    sym = _yf_sym(ticker, market)
     try:
         t = yf.Ticker(sym)
         info = t.info or {}
@@ -295,7 +309,7 @@ def get_stock_meta(ticker: str, market: str = Query("US")):
                     pass
 
         return {
-            "ticker":                  ticker.upper(),
+            "ticker":                  ticker,
             "name":                    info.get("longName") or info.get("shortName") or ticker,
             "market_cap":              mc,
             "market_cap_fmt":          _fmt_mcap(float(mc), market) if mc else None,
@@ -313,7 +327,7 @@ def get_stock_meta(ticker: str, market: str = Query("US")):
             "current_price":           info.get("currentPrice") or info.get("regularMarketPrice"),
         }
     except Exception as exc:
-        raise HTTPException(500, str(exc))
+        return exc
 
 
 @router.get("/{ticker}/stream")

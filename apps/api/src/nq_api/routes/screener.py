@@ -91,7 +91,7 @@ def _cache_rows_to_ai_scores(rows: list[dict], market: str, regime_id: int) -> l
 
 
 @router.post("", response_model=ScreenerResponse)
-def run_screener(
+async def run_screener(
     req: ScreenerRequest,
     engine: SignalEngine = Depends(get_signal_engine),
     user: User = Depends(enforce_tier_quota("screener")),
@@ -100,7 +100,7 @@ def run_screener(
     custom_tickers = bool(req.tickers)
     if not custom_tickers:
         max_age = TIER_LIMITS[user.tier].screener_refresh_seconds or 86400
-        cached = score_cache.read_top(req.market, n=max(100, req.max_results * 3), max_age_seconds=max_age)
+        cached = await asyncio.to_thread(score_cache.read_top, req.market, n=max(100, req.max_results * 3), max_age_seconds=max_age)
         cached = [r for r in cached if (r.get("composite_score") or 0) >= req.min_score]
         if cached:
             # regime: compute cheaply from macro (static across batch)
@@ -119,6 +119,11 @@ def run_screener(
             )
 
     # Live compute fallback (cache miss or custom tickers)
+    return await asyncio.to_thread(_run_screener_sync, req, engine)
+
+
+def _run_screener_sync(req: ScreenerRequest, engine: SignalEngine) -> ScreenerResponse:
+    """Blocking screener compute — runs in thread pool."""
     tickers = req.tickers or UNIVERSE_BY_MARKET.get(req.market, UNIVERSE_BY_MARKET["US"])
     snapshot = build_real_snapshot(tickers, req.market)
     result_df = engine.compute(snapshot)

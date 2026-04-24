@@ -50,8 +50,13 @@ def _label(score: float) -> str:
 
 
 @router.get("/news/{ticker}")
-def get_sentiment(ticker: str, market: str = "US", limit: int = 15) -> dict[str, Any]:
+async def get_sentiment(ticker: str, market: str = "US", limit: int = 15) -> dict[str, Any]:
     """Compute aggregate news sentiment for a ticker."""
+    return await asyncio.to_thread(_get_sentiment_sync, ticker, market, limit)
+
+
+def _get_sentiment_sync(ticker: str, market: str, limit: int) -> dict[str, Any]:
+    """Blocking sentiment compute — runs in thread pool."""
     try:
         import yfinance as yf
     except ImportError as e:
