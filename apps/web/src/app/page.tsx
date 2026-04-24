@@ -149,9 +149,12 @@ export default async function Landing() {
           <Stat num="5" label="ForeCast™ factors, sector-adjusted" />
           <Stat num="4" label="AI analysts debate every thesis" />
         </div>
-        <div className="mt-6">
+        <div className="mt-6 flex flex-col gap-2">
           <Link href="/sources" className="text-sm text-secondary hover:underline">
             View all 15+ data sources →
+          </Link>
+          <Link href="/compare" className="text-sm text-secondary hover:underline">
+            See how NeuralQuant compares to ChatGPT, Claude & Grok →
           </Link>
         </div>
       </section>
