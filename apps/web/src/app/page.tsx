@@ -149,6 +149,11 @@ export default async function Landing() {
           <Stat num="5" label="ForeCast™ factors, sector-adjusted" />
           <Stat num="4" label="AI analysts debate every thesis" />
         </div>
+        <div className="mt-6">
+          <Link href="/sources" className="text-sm text-secondary hover:underline">
+            View all 15+ data sources →
+          </Link>
+        </div>
       </section>
 
       {/* CTA */}
