@@ -108,7 +108,7 @@ export function TransparencyPanel({ score, report }: TransparencyPanelProps) {
             </h3>
           </div>
           <p className="text-xs text-on-surface-variant">
-            How the AI score is constructed and what data feeds it.
+            How the ForeCast Score is constructed and what data feeds it.
           </p>
         </div>
 

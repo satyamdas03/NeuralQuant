@@ -122,7 +122,7 @@ export default function StockPage() {
       {/* Regime Context */}
       <RegimeContextPanel regime={score.regime_label} />
 
-      {/* AI Score Cards */}
+      {/* ForeCast Score Cards */}
       <div className="grid md:grid-cols-3 gap-5">
         <AIScoreCard data={score} />
         <ScoreBreakdown scores={score.sub_scores} />
@@ -193,7 +193,7 @@ function StockPageSkeleton({ ticker }: { ticker: string }) {
       </div>
       <div className="flex items-center justify-center gap-2 text-sm text-on-surface-variant py-4">
         <Loader2 size={14} className="animate-spin text-primary" />
-        <span>Fetching AI score, meta, sentiment…</span>
+        <span>Fetching ForeCast Score, meta, sentiment…</span>
       </div>
     </div>
   );

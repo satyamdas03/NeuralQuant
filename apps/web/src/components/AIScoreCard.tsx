@@ -44,7 +44,7 @@ export function AIScoreCard({ data }: { data: AIScore }) {
         <ScoreRing score={data.score_1_10} />
         <div className="flex flex-col gap-1">
           <p className="font-headline text-4xl font-bold text-on-surface">{data.score_1_10}<span className="text-xl text-on-surface-variant">/10</span></p>
-          <p className="text-on-surface-variant text-sm">AI Score</p>
+          <p className="text-on-surface-variant text-sm">ForeCast Score™</p>
           <span className={`text-xs mt-1 font-medium ${
             data.confidence === "high" ? "text-tertiary" :
             data.confidence === "medium" ? "text-secondary" : "text-error"

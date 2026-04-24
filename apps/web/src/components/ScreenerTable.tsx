@@ -10,7 +10,7 @@ export function ScreenerTable({ stocks }: { stocks: AIScore[] }) {
           <thead className="bg-surface-low text-on-surface-variant text-xs uppercase tracking-wider">
             <tr>
               <th className="px-4 py-3 text-left">Ticker</th>
-              <th className="px-4 py-3 text-center">AI Score</th>
+              <th className="px-4 py-3 text-center">ForeCast Score</th>
               <th className="px-4 py-3 text-center">Quality</th>
               <th className="px-4 py-3 text-center">Momentum</th>
               <th className="px-4 py-3 text-center">Regime</th>

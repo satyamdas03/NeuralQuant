@@ -96,7 +96,7 @@ export default async function Landing() {
       <section className="max-w-6xl mx-auto px-6 py-20 border-t border-surface-container">
         <div className="grid md:grid-cols-3 gap-8">
           <Stat num="1000+" label="US + Indian tickers scored nightly" />
-          <Stat num="5" label="Quant factors, sector-adjusted" />
+          <Stat num="5" label="ForeCast™ factors, sector-adjusted" />
           <Stat num="4" label="AI analysts debate every thesis" />
         </div>
       </section>

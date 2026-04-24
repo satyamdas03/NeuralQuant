@@ -17,12 +17,12 @@ export default function AIResponseCard({
   return (
     <div className="rounded-xl bg-surface-container ghost-border p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-secondary">NeuralQuant AI</span>
+        <span className="text-xs font-medium text-secondary">NeuralQuant ForeCast</span>
         <div className="flex items-center gap-2">
           {regime && <RegimeBadge regime={regime} />}
           {score !== undefined && (
             <span className="tabular-nums text-xs text-on-surface-variant">
-              Score: {score.toFixed(1)}/10
+              ForeCast: {score.toFixed(1)}/10
             </span>
           )}
         </div>
