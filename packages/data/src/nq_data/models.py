@@ -50,3 +50,11 @@ class NewsItem(BaseModel):
     published_at: datetime
     sentiment_score: Optional[float] = None  # -1.0 to 1.0
     url: Optional[str] = None
+
+class SocialSentiment(BaseModel):
+    ticker: str
+    source: Literal["reddit", "stocktwits"]
+    bullish_pct: float = 0.0
+    mention_count: int = 0
+    top_topics: list[str] = Field(default_factory=list)
+    fetched_at: datetime

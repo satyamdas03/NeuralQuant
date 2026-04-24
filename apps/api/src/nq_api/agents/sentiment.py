@@ -27,6 +27,15 @@ class SentimentAgent(BaseAnalystAgent):
     system_prompt = _SYSTEM
 
     def _build_user_message(self, ticker: str, context: dict) -> str:
+        social_ctx = ""
+        social = context.get("social_sentiment")
+        if social:
+            social_ctx = f"""
+Social Sentiment Data:
+- Reddit: {social.get('reddit_mentions', 0)} mentions, {social.get('reddit_bullish_pct', 'N/A')}% bullish
+- StockTwits: {social.get('stocktwits_mentions', 0)} mentions, {social.get('stocktwits_bullish_pct', 'N/A')}% bullish
+- Trending topics: {', '.join(social.get('trending_topics', [])[:3])}
+"""
         return f"""Analyse sentiment signals for {ticker}.
 
 Sentiment data:
@@ -35,5 +44,5 @@ Sentiment data:
 - Insider cluster score: {context.get('insider_cluster_score', 'N/A')} (0=bearish, 1=strong buy)
 - News sentiment (30d): {context.get('news_sentiment', 'N/A')}
 - Market regime: {context.get('regime_label', 'N/A')}
-
+{social_ctx}
 Provide your sentiment stance on {ticker}."""

@@ -5,6 +5,7 @@ Pulls headlines from yfinance Ticker.news (free, no API key).
 """
 from __future__ import annotations
 from typing import Any
+import json
 import logging
 
 from fastapi import APIRouter, HTTPException
@@ -88,4 +89,125 @@ def get_sentiment(ticker: str, market: str = "US", limit: int = 15) -> dict[str,
         "label": _label(agg),
         "n_headlines": len(items),
         "headlines": items,
+    }
+
+
+# ---------- Social Sentiment Endpoints ----------
+
+from nq_data.social import RedditConnector, StockTwitsConnector
+from nq_data.store import DataStore
+
+_social_store: DataStore | None = None
+
+
+def _get_social_store() -> DataStore:
+    global _social_store
+    if _social_store is None:
+        _social_store = DataStore()
+    return _social_store
+
+
+def _fetch_social(tickers: list[str]) -> dict[str, Any]:
+    """Fetch social sentiment from cache or live sources."""
+    store = _get_social_store()
+    reddit = RedditConnector()
+    st = StockTwitsConnector()
+
+    # Fetch fresh data
+    reddit_items = reddit.fetch(tickers)
+    st_items = st.fetch(tickers)
+
+    # Upsert into cache
+    all_items = reddit_items + st_items
+    if all_items:
+        store.upsert_social_sentiment(all_items)
+
+    # Aggregate by ticker
+    agg: dict[str, dict] = {}
+    for item in all_items:
+        t = item.ticker
+        if t not in agg:
+            agg[t] = {"reddit_bullish_pct": None, "reddit_mentions": 0,
+                      "stocktwits_bullish_pct": None, "stocktwits_mentions": 0,
+                      "total_mentions": 0, "topics": []}
+        if item.source == "reddit":
+            agg[t]["reddit_bullish_pct"] = item.bullish_pct
+            agg[t]["reddit_mentions"] = item.mention_count
+        elif item.source == "stocktwits":
+            agg[t]["stocktwits_bullish_pct"] = item.bullish_pct
+            agg[t]["stocktwits_mentions"] = item.mention_count
+        agg[t]["total_mentions"] += item.mention_count
+        for topic in item.top_topics:
+            if topic not in agg[t]["topics"]:
+                agg[t]["topics"].append(topic)
+
+    return agg
+
+
+@router.get("/social")
+def get_social_sentiment_all(tickers: str = "AAPL,MSFT,GOOGL,TSLA,NVDA") -> dict[str, Any]:
+    """Return aggregated social sentiment for top tickers."""
+    ticker_list = [t.strip().upper() for t in tickers.split(",") if t.strip()]
+    agg = _fetch_social(ticker_list)
+    results = []
+    for t, data in agg.items():
+        results.append({
+            "ticker": t,
+            **data,
+            "topics": data["topics"][:5],
+        })
+    return {"tickers": results, "count": len(results)}
+
+
+@router.get("/social/{ticker}")
+def get_social_sentiment_ticker(ticker: str) -> dict[str, Any]:
+    """Return social sentiment for a specific ticker."""
+    t = ticker.upper()
+    store = _get_social_store()
+
+    # Check cache first (4-hour TTL)
+    cached = store.get_social_sentiment(t, max_age_hours=4)
+    if cached:
+        reddit_data = None
+        st_data = None
+        for row in cached:
+            source = row[1]
+            if source == "reddit":
+                reddit_data = row
+            elif source == "stocktwits":
+                st_data = row
+        return {
+            "ticker": t,
+            "reddit": {
+                "bullish_pct": reddit_data[2] if reddit_data else None,
+                "mentions": reddit_data[3] if reddit_data else 0,
+                "topics": json.loads(reddit_data[4]) if reddit_data and reddit_data[4] else [],
+            } if reddit_data else None,
+            "stocktwits": {
+                "bullish_pct": st_data[2] if st_data else None,
+                "mentions": st_data[3] if st_data else 0,
+                "topics": json.loads(st_data[4]) if st_data and st_data[4] else [],
+            } if st_data else None,
+            "cached": True,
+        }
+
+    # Fresh fetch if no cache
+    agg = _fetch_social([t])
+    if t not in agg:
+        return {"ticker": t, "reddit": None, "stocktwits": None, "cached": False}
+
+    data = agg[t]
+    return {
+        "ticker": t,
+        "reddit": {
+            "bullish_pct": data.get("reddit_bullish_pct"),
+            "mentions": data.get("reddit_mentions", 0),
+            "topics": [t for t in data.get("topics", [])[:5]],
+        } if data.get("reddit_bullish_pct") is not None else None,
+        "stocktwits": {
+            "bullish_pct": data.get("stocktwits_bullish_pct"),
+            "mentions": data.get("stocktwits_mentions", 0),
+            "topics": [t for t in data.get("topics", [])[:5]],
+        } if data.get("stocktwits_bullish_pct") is not None else None,
+        "cached": False,
     }

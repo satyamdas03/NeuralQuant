@@ -1,6 +1,7 @@
+import json
 import threading
 import duckdb
-from datetime import date
+from datetime import date, datetime, timezone, timedelta
 from .models import OHLCVBar, FundamentalSnapshot, MacroSnapshot
 
 _SCHEMA = """
@@ -33,6 +34,15 @@ CREATE TABLE IF NOT EXISTS macro (
     yield_spread_2y10y DOUBLE, hy_spread_oas DOUBLE,
     ism_pmi DOUBLE, cpi_yoy DOUBLE, fed_funds_rate DOUBLE,
     spx_vs_200ma DOUBLE
+);
+CREATE TABLE IF NOT EXISTS social_sentiment (
+    ticker VARCHAR NOT NULL,
+    source VARCHAR NOT NULL,
+    bullish_pct DOUBLE,
+    mention_count INTEGER,
+    top_topics JSON,
+    fetched_at TIMESTAMP,
+    PRIMARY KEY (ticker, source)
 );
 """
 
@@ -104,3 +114,22 @@ class DataStore:
                 "net_margin","revenue_growth_yoy","fcf_yield","debt_equity",
                 "piotroski_score","accruals_ratio","beneish_m_score"]
         return [FundamentalSnapshot(**dict(zip(cols, r))) for r in rows]
+
+    def upsert_social_sentiment(self, items: list) -> None:
+        with self._lock:
+            for item in items:
+                self._conn.execute(
+                    """INSERT OR REPLACE INTO social_sentiment
+                       (ticker, source, bullish_pct, mention_count, top_topics, fetched_at)
+                       VALUES (?, ?, ?, ?, ?, ?)""",
+                    [item.ticker, item.source, item.bullish_pct, item.mention_count,
+                     json.dumps(item.top_topics), item.fetched_at.isoformat()],
+                )
+
+    def get_social_sentiment(self, ticker: str, max_age_hours: int = 4) -> list:
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=max_age_hours)).isoformat()
+        with self._lock:
+            return self._conn.execute(
+                "SELECT * FROM social_sentiment WHERE ticker = ? AND fetched_at > ?",
+                [ticker, cutoff],
+            ).fetchall()
