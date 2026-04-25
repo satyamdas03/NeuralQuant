@@ -327,7 +327,7 @@ def _fetch_one(ticker: str, market: str) -> dict:
             cached_prices = _price_cache.get(cache_key)
             prices_fresh  = time.time() - _price_ts.get(cache_key, 0) < PRICE_TTL
 
-        if cached_prices is not None and prices_fresh and len(cached_prices) >= 252:
+        if cached_prices is not None and prices_fresh and len(cached_prices) >= 253:
             hist_close = cached_prices
         else:
             hist = t.history(period="14mo", auto_adjust=True)
@@ -336,9 +336,11 @@ def _fetch_one(ticker: str, market: str) -> dict:
                 _price_cache[cache_key] = hist_close
                 _price_ts[cache_key]    = time.time()
 
-        # 12-1 month momentum
-        if len(hist_close) >= 252:
-            p1m  = float(hist_close.iloc[-22])
+        # 12-1 month momentum (Jegadeesh & Titman 1993: skip most-recent 21 trading
+        # days to avoid short-term reversal contamination).
+        # Minimum 253 bars: 252 lookback + 1 current price (matching momentum.py).
+        if len(hist_close) >= 253:
+            p1m  = float(hist_close.iloc[-21])   # T-21 trading days (≈1 month ago)
             p12m = float(hist_close.iloc[-252])
             momentum = (p1m - p12m) / p12m if p12m else 0.0
         else:

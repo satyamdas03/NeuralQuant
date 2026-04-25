@@ -140,23 +140,32 @@ class SignalEngine:
         low_vol  = df.get("low_vol_percentile",  pd.Series(0.5, index=df.index))
         insider  = df.get("insider_percentile",  pd.Series(0.5, index=df.index))
 
+        # REGIME_WEIGHTS includes a "growth" factor that is not yet computed.
+        # Normalize the 4 active factors so they fill the regime_budget slot
+        # entirely, preventing systematic score compression.
+        # Formula: scale = regime_budget / sum(active_factor_weights)
+        # → composite always sums to 1.0 regardless of which factors are active.
+        _active_keys = ["quality", "momentum", "value", "low_vol"]
+        _used_w = sum(w.get(k, 0.0) for k in _active_keys)
+        _scale = regime_budget / _used_w if _used_w > 0 else regime_budget
+
         if snapshot.market == "IN":
             df["composite_score"] = (
-                quality   * w.get("quality",   0.25) * regime_budget +
-                momentum  * w.get("momentum",  0.25) * regime_budget +
+                quality   * w.get("quality",   0.25) * _scale +
+                momentum  * w.get("momentum",  0.25) * _scale +
                 delivery  * DELIVERY_WEIGHT +
                 insider   * INSIDER_WEIGHT +
-                value     * w.get("value",     0.10) * regime_budget +
-                low_vol   * w.get("low_vol",   0.15) * regime_budget
+                value     * w.get("value",     0.10) * _scale +
+                low_vol   * w.get("low_vol",   0.15) * _scale
             )
         else:
             df["composite_score"] = (
-                quality   * w.get("quality",   0.25) * regime_budget +
-                momentum  * w.get("momentum",  0.25) * regime_budget +
+                quality   * w.get("quality",   0.25) * _scale +
+                momentum  * w.get("momentum",  0.25) * _scale +
                 short_int * SHORT_INT_WEIGHT +
                 insider   * INSIDER_WEIGHT +
-                value     * w.get("value",     0.10) * regime_budget +
-                low_vol   * w.get("low_vol",   0.15) * regime_budget
+                value     * w.get("value",     0.10) * _scale +
+                low_vol   * w.get("low_vol",   0.15) * _scale
             )
 
         df["regime_id"] = regime.regime_id

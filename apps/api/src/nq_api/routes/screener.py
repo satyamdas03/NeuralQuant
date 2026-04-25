@@ -20,6 +20,19 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _get_live_regime_id(market: str = "US") -> int:
+    """Detect current regime via SignalEngine._get_regime().
+    BUG-004 fix: _LiveMacro has no regime_id field so hasattr() always fails.
+    Use the engine directly instead of reading a non-existent attribute."""
+    try:
+        macro = fetch_real_macro()
+        engine = get_signal_engine()
+        regime = engine._get_regime(macro, market)
+        return regime.regime_id
+    except Exception:
+        return 1
+
+
 @router.get("/preview", response_model=ScreenerResponse)
 async def screener_preview(market: str = "US", n: int = 8) -> ScreenerResponse:
     """Public, cache-only top-N. No auth, no quota. Used by dashboard preview."""
@@ -33,11 +46,7 @@ async def screener_preview(market: str = "US", n: int = 8) -> ScreenerResponse:
         # Live-compute fallback when cache is empty (cold start / nightly job missed)
         logger.info("screener_preview: cache empty, falling back to live compute for market=%s", market)
         return await _preview_live_fallback(market, n)
-    try:
-        macro = fetch_real_macro()
-        regime_id = int(macro.regime_id) if hasattr(macro, "regime_id") else 1
-    except Exception:
-        regime_id = 1
+    regime_id = _get_live_regime_id(market)
     ai_scores = _cache_rows_to_ai_scores(rows, market, regime_id)
     return ScreenerResponse(
         regime_label=REGIME_LABELS.get(regime_id, "Unknown"),
@@ -104,11 +113,7 @@ async def run_screener(
         cached = [r for r in cached if (r.get("composite_score") or 0) >= req.min_score]
         if cached:
             # regime: compute cheaply from macro (static across batch)
-            try:
-                macro = fetch_real_macro()
-                regime_id = int(macro.regime_id) if hasattr(macro, "regime_id") else 1
-            except Exception:
-                regime_id = 1
+            regime_id = _get_live_regime_id(req.market)
             cached = cached[: req.max_results]
             ai_scores = _cache_rows_to_ai_scores(cached, req.market, regime_id)
             return ScreenerResponse(

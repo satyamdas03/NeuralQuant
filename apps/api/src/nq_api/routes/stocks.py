@@ -111,9 +111,12 @@ async def get_stock_score(
     if matching.empty:
         raise HTTPException(status_code=404, detail=f"No data for {ticker}")
 
-    ranked_scores = rank_scores_in_universe(result_df)
-    ticker_idx = matching.index[0]
-    score_override = int(ranked_scores.iloc[ticker_idx]) if ticker_idx < len(ranked_scores) else None
+    # BUG-002 fix: rank_scores_in_universe on a 1-row DataFrame always returns
+    # percentile=1.0 → score=10 regardless of quality. Use _score_to_1_10
+    # (absolute composite → 1-10 mapping) so live-path scores are meaningful.
+    from nq_api.score_builder import _score_to_1_10 as _s2t
+    composite = float(matching.iloc[0]["composite_score"])
+    score_override = _s2t(composite)
 
     return row_to_ai_score(matching.iloc[0], market, score_1_10_override=score_override)
 

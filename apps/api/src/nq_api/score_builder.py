@@ -18,11 +18,13 @@ _FEATURE_DISPLAY = {
 }
 
 
-def _score_to_1_10(score: float, universe_min: float = 0.35, universe_max: float = 0.65) -> int:
+def _score_to_1_10(score: float, universe_min: float = 0.30, universe_max: float = 0.75) -> int:
     """
     Map composite score to 1-10.
-    Stretches score across the expected universe range (0.35–0.65) so that
+    Stretches score across the expected universe range (0.30–0.75) so that
     the full integer scale is used rather than everyone clustering at 5.
+    Range updated after BUG-001 fix (growth weight renormalization) which raised
+    typical composites from 0.35-0.57 → 0.32-0.75.
     """
     clamped = max(universe_min, min(universe_max, score))
     relative = (clamped - universe_min) / (universe_max - universe_min)  # 0–1
