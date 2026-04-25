@@ -28,6 +28,18 @@ async def lifespan(app: FastAPI):
     # Prewarm threads with yfinance + asyncio.run() cause OOM/crash on cold starts.
     on_render = bool(os.environ.get("RENDER"))
 
+    # Lightweight prewarm: fetch macro data (2 yfinance calls) even on Render
+    # so first analyst request isn't slow. Full universe prewarm is still skipped.
+    def _warm_macro():
+        try:
+            from nq_api.data_builder import fetch_real_macro
+            fetch_real_macro()
+            log.info("Macro prewarm complete")
+        except Exception as exc:
+            log.warning("Macro prewarm failed: %s", exc)
+
+    threading.Thread(target=_warm_macro, daemon=True).start()
+
     if not on_render:
         def _warm():
             try:

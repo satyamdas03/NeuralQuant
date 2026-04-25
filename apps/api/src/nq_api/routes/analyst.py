@@ -15,7 +15,7 @@ from nq_api.schemas import AnalystRequest, AnalystResponse, AgentOutput
 from nq_api.agents.orchestrator import ParaDebateOrchestrator
 from nq_api.deps import get_signal_engine
 from nq_api.universe import UNIVERSE_BY_MARKET
-from nq_api.data_builder import build_real_snapshot, fetch_real_macro
+from nq_api.data_builder import build_real_snapshot
 from nq_api.auth.rate_limit import enforce_tier_quota
 from nq_api.auth.models import User
 from nq_api.cache import score_cache
@@ -26,24 +26,32 @@ router = APIRouter()
 # Hard timeouts — ensures customers never wait >2min total
 PHASE1_TIMEOUT = 60  # context building (yfinance + macro fetch)
 PHASE2_TIMEOUT = 55  # 7-agent PARA-DEBATE
+MACRO_FETCH_TIMEOUT = 15  # max seconds for fetch_real_macro()
 
 
-def _build_analyst_context(ticker: str, market: str, engine) -> dict:
-    """Synchronous context builder — runs in a thread pool."""
-    universe = list(UNIVERSE_BY_MARKET.get(market, UNIVERSE_BY_MARKET["US"]))
-    if ticker not in universe:
-        universe = [ticker] + universe[:19]
+def _fetch_macro_with_timeout() -> dict:
+    """Fetch macro data with a hard timeout — returns defaults on failure."""
+    import concurrent.futures
+    from nq_api.data_builder import fetch_real_macro
 
-    snapshot = build_real_snapshot(universe, market)
-    result_df = engine.compute(snapshot)
-    macro = fetch_real_macro()
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(fetch_real_macro)
+            macro = future.result(timeout=MACRO_FETCH_TIMEOUT)
+    except (concurrent.futures.TimeoutError, Exception) as exc:
+        log.warning("Macro fetch timed out or failed (%s), using defaults", exc)
+        macro = None
 
-    regime_id = int(result_df["regime_id"].iloc[0]) if not result_df.empty else 1
-    regime_labels = {1: "Risk-On", 2: "Late-Cycle", 3: "Bear", 4: "Recovery"}
+    if macro is None:
+        # Sensible defaults — better than crashing the whole analyst request
+        return {
+            "vix": 18.0, "spx_return_1m": 0.01, "spx_vs_200ma": 0.02,
+            "hy_spread_oas": 350.0, "ism_pmi": 51.0,
+            "yield_spread_2y10y": 0.10, "yield_10y": 4.2, "yield_2y": 4.1,
+            "cpi_yoy": 3.0, "fed_funds_rate": 5.25, "fred_sourced": False,
+        }
 
-    context = {
-        "market": market,
-        "regime_label": regime_labels.get(regime_id, "Risk-On"),
+    return {
         "vix": round(macro.vix, 2),
         "spx_return_1m": round(macro.spx_return_1m * 100, 2),
         "spx_vs_200ma": round(macro.spx_vs_200ma * 100, 2),
@@ -55,6 +63,26 @@ def _build_analyst_context(ticker: str, market: str, engine) -> dict:
         "cpi_yoy": round(macro.cpi_yoy, 2),
         "fed_funds_rate": round(macro.fed_funds_rate, 2),
         "fred_sourced": macro.fred_sourced,
+    }
+
+
+def _build_analyst_context(ticker: str, market: str, engine) -> dict:
+    """Synchronous context builder — runs in a thread pool."""
+    universe = list(UNIVERSE_BY_MARKET.get(market, UNIVERSE_BY_MARKET["US"]))
+    if ticker not in universe:
+        universe = [ticker] + universe[:19]
+
+    snapshot = build_real_snapshot(universe, market)
+    result_df = engine.compute(snapshot)
+    macro = _fetch_macro_with_timeout()
+
+    regime_id = int(result_df["regime_id"].iloc[0]) if not result_df.empty else 1
+    regime_labels = {1: "Risk-On", 2: "Late-Cycle", 3: "Bear", 4: "Recovery"}
+
+    context = {
+        "market": market,
+        "regime_label": regime_labels.get(regime_id, "Risk-On"),
+        **macro,
     }
 
     matching = result_df[result_df["ticker"] == ticker]
@@ -89,25 +117,14 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
         return None
 
     try:
-        from nq_api.data_builder import fetch_real_macro
-        macro = fetch_real_macro()
+        macro = _fetch_macro_with_timeout()
         regime_id = cached.get("regime_id", 1)
         regime_labels = {1: "Risk-On", 2: "Late-Cycle", 3: "Bear", 4: "Recovery"}
 
         context = {
             "market": market,
             "regime_label": regime_labels.get(regime_id, "Risk-On"),
-            "vix": round(macro.vix, 2),
-            "spx_return_1m": round(macro.spx_return_1m * 100, 2),
-            "spx_vs_200ma": round(macro.spx_vs_200ma * 100, 2),
-            "hy_spread_oas": round(macro.hy_spread_oas, 1),
-            "ism_pmi": round(macro.ism_pmi, 1),
-            "yield_spread_2y10y": round(macro.yield_spread_2y10y, 3),
-            "yield_10y": round(macro.yield_10y, 2),
-            "yield_2y": round(macro.yield_2y, 2),
-            "cpi_yoy": round(macro.cpi_yoy, 2),
-            "fed_funds_rate": round(macro.fed_funds_rate, 2),
-            "fred_sourced": macro.fred_sourced,
+            **macro,
             "composite_score":           round(float(cached.get("composite_score", 0.5)), 4),
             "quality_percentile":        round(float(cached.get("quality_percentile", 0.5)), 3),
             "momentum_percentile":       round(float(cached.get("momentum_percentile", 0.5)), 3),
