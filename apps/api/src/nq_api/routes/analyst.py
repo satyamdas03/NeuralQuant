@@ -23,8 +23,8 @@ from nq_api.cache import score_cache
 log = logging.getLogger(__name__)
 router = APIRouter()
 
-# Hard timeouts — ensures customers never wait >90s total
-PHASE1_TIMEOUT = 30  # context building (yfinance calls)
+# Hard timeouts — ensures customers never wait >2min total
+PHASE1_TIMEOUT = 60  # context building (yfinance + macro fetch)
 PHASE2_TIMEOUT = 55  # 7-agent PARA-DEBATE
 
 
