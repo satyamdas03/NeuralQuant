@@ -24,7 +24,7 @@ log = logging.getLogger(__name__)
 router = APIRouter()
 
 # Hard timeouts — ensures customers never wait >2min total
-PHASE1_TIMEOUT = 60  # context building (yfinance + macro fetch)
+PHASE1_TIMEOUT = 90  # context building (yfinance + macro fetch) — needs headroom on cold start
 PHASE2_TIMEOUT = 55  # 7-agent PARA-DEBATE
 MACRO_FETCH_TIMEOUT = 15  # max seconds for fetch_real_macro()
 
