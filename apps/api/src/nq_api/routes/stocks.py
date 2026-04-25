@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Literal
 import asyncio
 import json
@@ -18,6 +19,10 @@ from nq_api.universe import UNIVERSE_BY_MARKET
 from nq_api.data_builder import build_real_snapshot, _fund_cache, fetch_real_macro
 from nq_api.cache import score_cache
 from nq_signals.engine import SignalEngine
+
+# In-memory TTL cache for stock meta — serves stale data when Yahoo rate-limits
+_META_CACHE: dict[str, tuple[dict, float]] = {}
+_META_CACHE_TTL = 3600  # 1 hour
 
 router = APIRouter()
 
@@ -275,19 +280,34 @@ async def get_stock_chart(
 
 @router.get("/{ticker}/meta")
 async def get_stock_meta(ticker: str, market: str = Query("US")):
-    # Primary path: yfinance (fails with "Too Many Requests" from Render IP
-    # under rate-limit pressure). On failure, fall back to Yahoo quoteSummary v10.
     t_up = ticker.upper()
+    cache_key = f"{t_up}:{market}"
+
+    # Serve from cache if fresh
+    cached = _META_CACHE.get(cache_key)
+    if cached and (time.monotonic() - cached[1]) < _META_CACHE_TTL:
+        return cached[0]
+
+    # Primary: yfinance
     result = await asyncio.to_thread(_fetch_stock_meta, t_up, market)
     if isinstance(result, dict):
+        _META_CACHE[cache_key] = (result, time.monotonic())
         return result
-    log.warning("meta yfinance path failed for %s (%s) — trying Yahoo quoteSummary fallback: %s",
+
+    # Fallback: Yahoo quoteSummary v10
+    log.warning("meta yfinance failed for %s (%s) — trying Yahoo fallback: %s",
                 t_up, market, result)
     fallback = await asyncio.to_thread(_fetch_stock_meta_yahoo_direct, t_up, market)
     if isinstance(fallback, dict):
+        _META_CACHE[cache_key] = (fallback, time.monotonic())
         return fallback
-    # Last resort: return 200 with whatever minimal info we have rather than 500
-    # so the stock detail page renders instead of showing "data unavailable".
+
+    # Both failed — serve stale cache if available, else minimal response
+    if cached:
+        log.warning("meta both paths failed for %s — serving stale cache", t_up)
+        return cached[0]
+
+    log.error("meta all sources failed for %s and no cache", t_up)
     return {
         "ticker": t_up,
         "name": t_up,
