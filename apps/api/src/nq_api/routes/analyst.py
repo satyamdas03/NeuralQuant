@@ -13,9 +13,6 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from nq_api.schemas import AnalystRequest, AnalystResponse, AgentOutput
 from nq_api.agents.orchestrator import ParaDebateOrchestrator
-from nq_api.deps import get_signal_engine
-from nq_api.universe import UNIVERSE_BY_MARKET
-from nq_api.data_builder import build_real_snapshot
 from nq_api.auth.rate_limit import enforce_tier_quota
 from nq_api.auth.models import User
 from nq_api.cache import score_cache
@@ -24,7 +21,7 @@ log = logging.getLogger(__name__)
 router = APIRouter()
 
 # Hard timeouts — ensures customers never wait >2min total
-PHASE1_TIMEOUT = 90  # context building (yfinance + macro fetch) — needs headroom on cold start
+PHASE1_TIMEOUT = 30  # context building — only 1 ticker now, not full universe
 PHASE2_TIMEOUT = 55  # 7-agent PARA-DEBATE
 MACRO_FETCH_TIMEOUT = 15  # max seconds for fetch_real_macro()
 
@@ -66,43 +63,66 @@ def _fetch_macro_with_timeout() -> dict:
     }
 
 
-def _build_analyst_context(ticker: str, market: str, engine) -> dict:
-    """Synchronous context builder — runs in a thread pool."""
-    universe = list(UNIVERSE_BY_MARKET.get(market, UNIVERSE_BY_MARKET["US"]))
-    if ticker not in universe:
-        universe = [ticker] + universe[:19]
+def _build_analyst_context(ticker: str, market: str) -> dict:
+    """Fast context builder: fetch data for ONE ticker only, not the full universe.
 
-    snapshot = build_real_snapshot(universe, market)
-    result_df = engine.compute(snapshot)
+    On cold start, building the full 503-ticker universe takes 2-5 minutes.
+    The analysts only need the target ticker's fundamentals + macro data,
+    so we fetch just that ticker (1-3 yfinance calls, ~2-5s total).
+    Percentiles are estimated from raw values since we don't have the universe.
+    """
+    from nq_api.data_builder import _fetch_one
+
+    # 1. Macro data (cached after first call; 15s timeout handled by caller)
     macro = _fetch_macro_with_timeout()
 
-    regime_id = int(result_df["regime_id"].iloc[0]) if not result_df.empty else 1
-    regime_labels = {1: "Risk-On", 2: "Late-Cycle", 3: "Bear", 4: "Recovery"}
+    # 2. Fundamentals for just the requested ticker (1-3 yfinance calls, ~2-5s)
+    fund = _fetch_one(ticker, market)
+
+    # 3. Regime from macro (VIX-based heuristic)
+    vix = macro.get("vix", 18.0)
+    if vix < 20:
+        regime_label = "Risk-On"
+    elif vix < 30:
+        regime_label = "Late-Cycle"
+    else:
+        regime_label = "Bear"
+
+    # 4. Build context from the single ticker's data
+    # Percentiles are estimated from raw values since we don't rank the full universe.
+    gpm = float(fund.get("gross_profit_margin", 0.5))
+    mom = float(fund.get("momentum_raw", 0.0))
+    vol = float(fund.get("realized_vol_1y", 0.20))
+    si  = float(fund.get("short_interest_pct", 0.02))
+
+    # Rough composite: quality 30%, momentum 25%, value 20%, low-vol 15%, short-int 10%
+    quality_p = min(1.0, max(0.0, gpm))  # gross margin ≈ quality percentile
+    momentum_p = min(1.0, max(0.0, 0.5 + mom * 0.5))  # map momentum to 0-1
+    value_p = 1.0 / max(0.5, float(fund.get("pe_ttm", 20.0)) / 20.0)  # lower PE = higher value
+    lowvol_p = 1.0 / max(0.5, vol / 0.15)  # lower vol = higher low-vol score
+    shortint_p = 1.0 - min(1.0, si * 5)  # lower SI = higher score
+
+    composite = (0.30 * quality_p + 0.25 * momentum_p + 0.20 * value_p
+                 + 0.15 * lowvol_p + 0.10 * shortint_p)
 
     context = {
         "market": market,
-        "regime_label": regime_labels.get(regime_id, "Risk-On"),
+        "regime_label": regime_label,
         **macro,
+        "composite_score":           round(composite, 4),
+        "quality_percentile":        round(quality_p, 3),
+        "momentum_percentile":       round(momentum_p, 3),
+        "value_percentile":          round(value_p, 3),
+        "low_vol_percentile":        round(lowvol_p, 3),
+        "short_interest_percentile": round(shortint_p, 3),
+        "momentum_raw":              round(mom, 4),
+        "gross_profit_margin":       round(gpm, 3),
+        "piotroski":                 int(fund.get("piotroski", 5)),
+        "pe_ttm":                    round(float(fund.get("pe_ttm", 20.0)), 1),
+        "pb_ratio":                  round(float(fund.get("pb_ratio", 2.0)), 2),
+        "beta":                      round(float(fund.get("beta", 1.0)), 2),
+        "realized_vol_1y":           round(vol, 3),
     }
-
-    matching = result_df[result_df["ticker"] == ticker]
-    if not matching.empty:
-        row = matching.iloc[0]
-        context.update({
-            "composite_score":           round(float(row.get("composite_score", 0.5)), 4),
-            "quality_percentile":        round(float(row.get("quality_percentile", 0.5)), 3),
-            "momentum_percentile":       round(float(row.get("momentum_percentile", 0.5)), 3),
-            "value_percentile":          round(float(row.get("value_percentile", 0.5)), 3),
-            "low_vol_percentile":        round(float(row.get("low_vol_percentile", 0.5)), 3),
-            "short_interest_percentile": round(float(row.get("short_interest_percentile", 0.5)), 3),
-            "momentum_raw":              round(float(row.get("momentum_raw", 0.0)), 4),
-            "gross_profit_margin":       round(float(row.get("gross_profit_margin", 0.0)), 3),
-            "piotroski":                 int(row.get("piotroski", 5)),
-            "pe_ttm":                    round(float(row.get("pe_ttm", 20.0)), 1),
-            "pb_ratio":                  round(float(row.get("pb_ratio", 2.0)), 2),
-            "beta":                      round(float(row.get("beta", 1.0)), 2),
-            "realized_vol_1y":           round(float(row.get("realized_vol_1y", 0.20)), 3),
-        })
 
     return context
 
@@ -150,15 +170,14 @@ async def run_analyst(
     req: AnalystRequest,
     user: User = Depends(enforce_tier_quota("analyst")),
 ) -> AnalystResponse:
-    engine = get_signal_engine()
     ticker = req.ticker.upper()
 
     # Cache-first: try building context from score_cache (fast, avoids blocking event loop)
     context = await asyncio.to_thread(_build_context_from_cache, ticker, req.market)
 
     if context is None:
-        # Slow path: offload blocking I/O to thread pool so event loop stays free
-        context = await asyncio.to_thread(_build_analyst_context, ticker, req.market, engine)
+        # Slow path: fetch just the one ticker's data (2-5s, not 503 tickers)
+        context = await asyncio.to_thread(_build_analyst_context, ticker, req.market)
 
     orch = ParaDebateOrchestrator()
     return await orch.analyse(ticker=ticker, market=req.market, context=context)
@@ -182,7 +201,6 @@ async def run_analyst_stream(
       data: {"status":"error","message":"..."}
       data: [DONE]                 — stream closed
     """
-    engine = get_signal_engine()
     ticker = req.ticker.upper()
     market = req.market
 
@@ -198,7 +216,7 @@ async def run_analyst_stream(
             try:
                 ctx = await asyncio.to_thread(_build_context_from_cache, ticker, market)
                 if ctx is None:
-                    ctx = await asyncio.to_thread(_build_analyst_context, ticker, market, engine)
+                    ctx = await asyncio.to_thread(_build_analyst_context, ticker, market)
                 context = ctx
             except Exception as exc:
                 log.exception("PARA-DEBATE context build failed for %s", ticker)
