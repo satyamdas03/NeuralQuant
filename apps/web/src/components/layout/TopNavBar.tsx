@@ -10,7 +10,6 @@ const PAGE_TITLES: Record<string, string> = {
   "/screener": "AI Screener",
   "/query": "Ask AI",
   "/backtest": "Strategy Backtest",
-  "/smart-money": "Smart Money Tracker",
   "/sources": "Data Sources",
   "/compare": "Compare",
   "/watchlist": "Watchlist",

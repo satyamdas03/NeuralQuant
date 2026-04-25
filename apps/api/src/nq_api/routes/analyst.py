@@ -149,9 +149,10 @@ async def run_analyst_stream(
 ) -> StreamingResponse:
     """SSE variant of /analyst.
 
-    Sends keep-alive pings every 10 s while the 7-agent debate runs
-    (typically 60–120 s) so Render's idle-connection timeout never fires.
-    The frontend reads the stream and renders the result when status=done.
+    Sends keep-alive pings every 8 s from the very first byte — including
+    while context is being built — so Render's 30 s idle-connection timeout
+    never fires.  The frontend reads the stream and renders the result when
+    status=done.
 
     SSE event format:
       data: {"status":"running"}   — keep-alive tick (ignored by UI)
@@ -161,12 +162,46 @@ async def run_analyst_stream(
     """
     engine = get_signal_engine()
     ticker = req.ticker.upper()
-
-    context = await asyncio.to_thread(_build_context_from_cache, ticker, req.market)
-    if context is None:
-        context = await asyncio.to_thread(_build_analyst_context, ticker, req.market, engine)
+    market = req.market
 
     async def generate():
+        # ── Phase 1: build context while streaming keep-alive pings ──
+        # This prevents Render's proxy from dropping the connection during
+        # the 10-30 s context-building phase (yfinance calls for 20+ tickers).
+        context: dict | None = None
+        context_error: str | None = None
+
+        async def _build():
+            nonlocal context, context_error
+            try:
+                ctx = await asyncio.to_thread(_build_context_from_cache, ticker, market)
+                if ctx is None:
+                    ctx = await asyncio.to_thread(_build_analyst_context, ticker, market, engine)
+                context = ctx
+            except Exception as exc:
+                log.exception("PARA-DEBATE context build failed for %s", ticker)
+                context_error = str(exc)
+
+        build_task = asyncio.create_task(_build())
+
+        while not build_task.done():
+            yield 'data: {"status":"running"}\n\n'
+            try:
+                await asyncio.wait_for(asyncio.shield(build_task), timeout=8.0)
+            except asyncio.TimeoutError:
+                pass
+
+        if context_error:
+            yield f'data: {json.dumps({"status": "error", "message": context_error})}\n\n'
+            yield "data: [DONE]\n\n"
+            return
+
+        if context is None:
+            yield f'data: {json.dumps({"status": "error", "message": "Failed to build context"})}\n\n'
+            yield "data: [DONE]\n\n"
+            return
+
+        # ── Phase 2: run 7-agent debate while streaming keep-alive pings ──
         result_holder: dict = {}
         done_event = asyncio.Event()
 
@@ -174,7 +209,7 @@ async def run_analyst_stream(
             try:
                 orch = ParaDebateOrchestrator()
                 result_holder["result"] = await orch.analyse(
-                    ticker=ticker, market=req.market, context=context
+                    ticker=ticker, market=market, context=context
                 )
             except Exception as exc:
                 log.exception("PARA-DEBATE stream failed for %s", ticker)
@@ -184,11 +219,10 @@ async def run_analyst_stream(
 
         asyncio.create_task(_run_debate())
 
-        # Emit keep-alive pings every 10 s; stops as soon as debate is done.
         while not done_event.is_set():
             yield 'data: {"status":"running"}\n\n'
             try:
-                await asyncio.wait_for(asyncio.shield(done_event.wait()), timeout=10.0)
+                await asyncio.wait_for(asyncio.shield(done_event.wait()), timeout=8.0)
             except asyncio.TimeoutError:
                 pass
 
@@ -204,7 +238,7 @@ async def run_analyst_stream(
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",   # Disable Render/nginx response buffering
+            "X-Accel-Buffering": "no",
             "Connection": "keep-alive",
         },
     )

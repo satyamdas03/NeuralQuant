@@ -109,7 +109,11 @@ export const api = {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (token) headers["Authorization"] = `Bearer ${token}`;
 
-    const response = await fetch(`${API_BASE}/analyst/stream`, {
+    // SSE CANNOT go through the Next.js /api rewrite proxy — Vercel's
+    // serverless function timeout (10–30 s) drops long-lived streams.
+    // Hit Render directly instead.
+    const sseBase = process.env.NEXT_PUBLIC_API_URL || "https://neuralquant.onrender.com";
+    const response = await fetch(`${sseBase}/analyst/stream`, {
       method: "POST",
       headers,
       body: JSON.stringify(body),
