@@ -610,11 +610,22 @@ async def run_nl_query(
     client = anthropic.Anthropic(api_key=api_key, timeout=120.0)
 
     # ── Offload blocking I/O to thread pool ──────────────────────────────────
+    # Each task gets a hard cap so the total context-build phase completes in
+    # ≤ 25 s — leaving ample headroom for the 120 s Anthropic timeout.
+    # Note: wait_for cancels the asyncio task on timeout but the underlying
+    # thread may still run; this is a resource trade-off vs correct behaviour.
     today = date.today().strftime("%B %d, %Y")
+
+    async def _timed(coro, timeout: float, default):
+        try:
+            return await asyncio.wait_for(coro, timeout=timeout)
+        except (asyncio.TimeoutError, Exception):
+            return default
+
     headlines, macro_ctx, platform_ctx = await asyncio.gather(
-        asyncio.to_thread(_fetch_relevant_news, req.question, req.ticker, 5),
-        asyncio.to_thread(_build_macro_context, req.question, req.market or "US", today),
-        asyncio.to_thread(_enrich_with_platform_data, req.question, req.market or "US"),
+        _timed(asyncio.to_thread(_fetch_relevant_news, req.question, req.ticker, 5), 8.0, []),
+        _timed(asyncio.to_thread(_build_macro_context, req.question, req.market or "US", today), 10.0, None),
+        _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, req.market or "US"), 22.0, None),
     )
 
     context_parts = [

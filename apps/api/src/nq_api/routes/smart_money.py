@@ -163,19 +163,26 @@ async def get_smart_money() -> dict[str, Any]:
     if _SMART_CACHE and time.time() - _SMART_TS < SMART_TTL:
         return _SMART_CACHE
 
-    # Cache miss → return placeholder immediately + trigger background refresh
+    # Cold cache (first ever call after Render cold-start): block until filled.
+    # Render skips prewarm (RENDER env var), so without this the first visitor
+    # always sees empty transactions.
+    if _SMART_CACHE is None:
+        try:
+            await asyncio.wait_for(_refresh_cache(), timeout=28.0)
+        except (asyncio.TimeoutError, Exception) as exc:
+            log.warning("Smart-money cold-start fill failed: %s", exc)
+        if _SMART_CACHE:
+            return _SMART_CACHE
+        return {
+            "sentiment": "neutral",
+            "sentiment_score": 0.5,
+            "transactions": [],
+            "most_bought": [],
+            "most_sold": [],
+            "last_updated": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "loading": True,
+        }
+
+    # Stale cache → return immediately + background refresh
     asyncio.create_task(_refresh_cache())
-
-    # Return stale cache if any, otherwise empty but valid JSON
-    if _SMART_CACHE:
-        return {**_SMART_CACHE, "stale": True}
-
-    return {
-        "sentiment": "neutral",
-        "sentiment_score": 0.5,
-        "transactions": [],
-        "most_bought": [],
-        "most_sold": [],
-        "last_updated": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "loading": True,
-    }
+    return {**_SMART_CACHE, "stale": True}
