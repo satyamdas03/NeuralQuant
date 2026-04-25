@@ -8,9 +8,10 @@
 import asyncio
 import json
 import logging
+import time
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
-from nq_api.schemas import AnalystRequest, AnalystResponse
+from nq_api.schemas import AnalystRequest, AnalystResponse, AgentOutput
 from nq_api.agents.orchestrator import ParaDebateOrchestrator
 from nq_api.deps import get_signal_engine
 from nq_api.universe import UNIVERSE_BY_MARKET
@@ -21,6 +22,10 @@ from nq_api.cache import score_cache
 
 log = logging.getLogger(__name__)
 router = APIRouter()
+
+# Hard timeouts — ensures customers never wait >90s total
+PHASE1_TIMEOUT = 30  # context building (yfinance calls)
+PHASE2_TIMEOUT = 55  # 7-agent PARA-DEBATE
 
 
 def _build_analyst_context(ticker: str, market: str, engine) -> dict:
@@ -183,9 +188,15 @@ async def run_analyst_stream(
                 context_error = str(exc)
 
         build_task = asyncio.create_task(_build())
+        phase1_start = time.monotonic()
 
         while not build_task.done():
             yield 'data: {"status":"running"}\n\n'
+            elapsed = time.monotonic() - phase1_start
+            if elapsed > PHASE1_TIMEOUT:
+                build_task.cancel()
+                context_error = f"Context build timed out after {PHASE1_TIMEOUT}s"
+                break
             try:
                 await asyncio.wait_for(asyncio.shield(build_task), timeout=8.0)
             except asyncio.TimeoutError:
@@ -208,9 +219,13 @@ async def run_analyst_stream(
         async def _run_debate() -> None:
             try:
                 orch = ParaDebateOrchestrator()
-                result_holder["result"] = await orch.analyse(
-                    ticker=ticker, market=market, context=context
+                result_holder["result"] = await asyncio.wait_for(
+                    orch.analyse(ticker=ticker, market=market, context=context),
+                    timeout=PHASE2_TIMEOUT,
                 )
+            except asyncio.TimeoutError:
+                log.warning("PARA-DEBATE timed out after %ds for %s", PHASE2_TIMEOUT, ticker)
+                result_holder["timeout"] = True
             except Exception as exc:
                 log.exception("PARA-DEBATE stream failed for %s", ticker)
                 result_holder["error"] = str(exc)
@@ -218,19 +233,44 @@ async def run_analyst_stream(
                 done_event.set()
 
         asyncio.create_task(_run_debate())
+        phase2_start = time.monotonic()
 
         while not done_event.is_set():
             yield 'data: {"status":"running"}\n\n'
+            # Hard cap: if Phase 2 exceeds PHASE2_TIMEOUT + 10s buffer, give up
+            elapsed = time.monotonic() - phase2_start
+            if elapsed > PHASE2_TIMEOUT + 10:
+                done_event.set()
+                result_holder.setdefault("timeout", True)
+                break
             try:
                 await asyncio.wait_for(asyncio.shield(done_event.wait()), timeout=8.0)
             except asyncio.TimeoutError:
                 pass
 
-        if "error" in result_holder:
+        if result_holder.get("timeout"):
+            # Return a partial/fallback result so the UI shows something useful
+            partial = AnalystResponse(
+                ticker=ticker,
+                head_analyst_verdict="TIMEOUT",
+                investment_thesis=f"PARA-DEBATE timed out after {PHASE2_TIMEOUT}s. "
+                                 "Market context was built but the multi-agent debate "
+                                 "could not complete in time. Try again or use AI Score for a quick read.",
+                bull_case="Analysis incomplete — review AI Score pillars instead.",
+                bear_case="Debate did not finish — risk factors may be understated.",
+                risk_factors=["Partial analysis — treat with caution."],
+                agent_outputs=[],
+                consensus_score=float(context.get("composite_score", 0.5)),
+            )
+            yield f'data: {json.dumps({"status": "done", "result": partial.model_dump()})}\n\n'
+        elif "error" in result_holder:
             yield f'data: {json.dumps({"status": "error", "message": result_holder["error"]})}\n\n'
         else:
-            resp: AnalystResponse = result_holder["result"]
-            yield f'data: {json.dumps({"status": "done", "result": resp.model_dump()})}\n\n'
+            resp: AnalystResponse = result_holder.get("result")
+            if resp:
+                yield f'data: {json.dumps({"status": "done", "result": resp.model_dump()})}\n\n'
+            else:
+                yield f'data: {json.dumps({"status": "error", "message": "No result produced"})}\n\n'
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(

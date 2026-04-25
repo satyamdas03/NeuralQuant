@@ -90,16 +90,11 @@ export const api = {
   getScreenerPreview: (market: Market = "US", n = 8) =>
     apiFetch<ScreenerResponse>(`/screener/preview?market=${market}&n=${n}`),
 
-  runAnalyst: (body: AnalystRequest) =>
-    authedFetch<AnalystResponse>("/analyst", {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
-
   /**
-   * SSE-based analyst: streams keep-alive pings every 10 s from the backend
-   * so Render's idle-connection timeout never fires during the 60–120 s debate.
+   * SSE-based analyst: streams keep-alive pings every 8 s from the backend
+   * so Render's idle-connection timeout never fires during the debate.
    * Resolves with the full AnalystResponse when the debate is complete.
+   * Client-side AbortController caps total wait at 100 s.
    */
   runAnalystStream: async (body: AnalystRequest): Promise<AnalystResponse> => {
     const { createClient } = await import("./supabase/client");
@@ -113,42 +108,49 @@ export const api = {
     // serverless function timeout (10–30 s) drops long-lived streams.
     // Hit Render directly instead.
     const sseBase = process.env.NEXT_PUBLIC_API_URL || "https://neuralquant.onrender.com";
-    const response = await fetch(`${sseBase}/analyst/stream`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(body),
-    });
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error(`API ${response.status}: ${err}`);
-    }
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 100_000); // 100s hard cap
+    try {
+      const response = await fetch(`${sseBase}/analyst/stream`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        const err = await response.text();
+        throw new Error(`API ${response.status}: ${err}`);
+      }
 
-    const reader = response.body!.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
 
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() ?? "";           // keep incomplete last line
-      for (const line of lines) {
-        if (!line.startsWith("data: ")) continue;
-        const payload = line.slice(6).trim();
-        if (payload === "[DONE]") return Promise.reject(new Error("Stream closed without result"));
-        try {
-          const evt = JSON.parse(payload);
-          if (evt.status === "done") return evt.result as AnalystResponse;
-          if (evt.status === "error") throw new Error(evt.message ?? "PARA-DEBATE failed");
-          // status === "running": ignore keep-alive ticks
-        } catch (e) {
-          if (e instanceof SyntaxError) continue; // malformed line, skip
-          throw e;
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";           // keep incomplete last line
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const payload = line.slice(6).trim();
+          if (payload === "[DONE]") return Promise.reject(new Error("Stream closed without result"));
+          try {
+            const evt = JSON.parse(payload);
+            if (evt.status === "done") return evt.result as AnalystResponse;
+            if (evt.status === "error") throw new Error(evt.message ?? "PARA-DEBATE failed");
+            // status === "running": ignore keep-alive ticks
+          } catch (e) {
+            if (e instanceof SyntaxError) continue; // malformed line, skip
+            throw e;
+          }
         }
       }
+      throw new Error("SSE stream ended without result");
+    } finally {
+      clearTimeout(timeout);
     }
-    throw new Error("SSE stream ended without result");
   },
 
   runQuery: (body: QueryRequest, signal?: AbortSignal) =>

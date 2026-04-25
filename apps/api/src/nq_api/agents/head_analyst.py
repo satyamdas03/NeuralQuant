@@ -42,7 +42,7 @@ RISK_FACTORS:
             raise EnvironmentError(
                 "ANTHROPIC_API_KEY environment variable is not set."
             )
-        self._client = anthropic.Anthropic(api_key=api_key, timeout=120.0)
+        self._client = anthropic.Anthropic(api_key=api_key, timeout=45.0)
 
     def run_synthesis(
         self, ticker: str, agent_outputs: list[AgentOutput], composite_score: float
