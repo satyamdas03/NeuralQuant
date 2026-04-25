@@ -1,7 +1,15 @@
-"""POST /analyst — runs PARA-DEBATE and returns full analyst report."""
+"""POST /analyst — runs PARA-DEBATE and returns full analyst report.
+
+/analyst        — standard JSON response (for backward compat; legacy path)
+/analyst/stream — Server-Sent Events streaming response (preferred)
+                  Sends keep-alive pings every 10s so Render never drops the
+                  idle connection during the 60–120 s multi-agent debate.
+"""
 import asyncio
+import json
 import logging
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 from nq_api.schemas import AnalystRequest, AnalystResponse
 from nq_api.agents.orchestrator import ParaDebateOrchestrator
 from nq_api.deps import get_signal_engine
@@ -132,3 +140,71 @@ async def run_analyst(
 
     orch = ParaDebateOrchestrator()
     return await orch.analyse(ticker=ticker, market=req.market, context=context)
+
+
+@router.post("/stream")
+async def run_analyst_stream(
+    req: AnalystRequest,
+    user: User = Depends(enforce_tier_quota("analyst")),
+) -> StreamingResponse:
+    """SSE variant of /analyst.
+
+    Sends keep-alive pings every 10 s while the 7-agent debate runs
+    (typically 60–120 s) so Render's idle-connection timeout never fires.
+    The frontend reads the stream and renders the result when status=done.
+
+    SSE event format:
+      data: {"status":"running"}   — keep-alive tick (ignored by UI)
+      data: {"status":"done","result":{...AnalystResponse...}}
+      data: {"status":"error","message":"..."}
+      data: [DONE]                 — stream closed
+    """
+    engine = get_signal_engine()
+    ticker = req.ticker.upper()
+
+    context = await asyncio.to_thread(_build_context_from_cache, ticker, req.market)
+    if context is None:
+        context = await asyncio.to_thread(_build_analyst_context, ticker, req.market, engine)
+
+    async def generate():
+        result_holder: dict = {}
+        done_event = asyncio.Event()
+
+        async def _run_debate() -> None:
+            try:
+                orch = ParaDebateOrchestrator()
+                result_holder["result"] = await orch.analyse(
+                    ticker=ticker, market=req.market, context=context
+                )
+            except Exception as exc:
+                log.exception("PARA-DEBATE stream failed for %s", ticker)
+                result_holder["error"] = str(exc)
+            finally:
+                done_event.set()
+
+        asyncio.create_task(_run_debate())
+
+        # Emit keep-alive pings every 10 s; stops as soon as debate is done.
+        while not done_event.is_set():
+            yield 'data: {"status":"running"}\n\n'
+            try:
+                await asyncio.wait_for(asyncio.shield(done_event.wait()), timeout=10.0)
+            except asyncio.TimeoutError:
+                pass
+
+        if "error" in result_holder:
+            yield f'data: {json.dumps({"status": "error", "message": result_holder["error"]})}\n\n'
+        else:
+            resp: AnalystResponse = result_holder["result"]
+            yield f'data: {json.dumps({"status": "done", "result": resp.model_dump()})}\n\n'
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",   # Disable Render/nginx response buffering
+            "Connection": "keep-alive",
+        },
+    )

@@ -54,8 +54,23 @@ export default function StockPage() {
 
     setAnalysing(true);
     try {
-      const r = await api.runAnalyst({ ticker, market });
+      // Use SSE streaming variant so Render's 30 s idle-connection timeout
+      // never fires during the 60–120 s multi-agent debate.
+      const r = await api.runAnalystStream({ ticker, market });
       setReport(r);
+    } catch (err) {
+      console.error("PARA-DEBATE failed:", err);
+      // Surface a minimal error report so the button disappears
+      setReport({
+        ticker: ticker.toUpperCase(),
+        head_analyst_verdict: "ERROR",
+        investment_thesis: "PARA-DEBATE analysis failed. Please try again in a moment.",
+        bull_case: "",
+        bear_case: "",
+        risk_factors: [],
+        agent_outputs: [],
+        consensus_score: 0,
+      } as any);
     } finally {
       setAnalysing(false);
     }

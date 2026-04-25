@@ -96,6 +96,57 @@ export const api = {
       body: JSON.stringify(body),
     }),
 
+  /**
+   * SSE-based analyst: streams keep-alive pings every 10 s from the backend
+   * so Render's idle-connection timeout never fires during the 60–120 s debate.
+   * Resolves with the full AnalystResponse when the debate is complete.
+   */
+  runAnalystStream: async (body: AnalystRequest): Promise<AnalystResponse> => {
+    const { createClient } = await import("./supabase/client");
+    const supabase = createClient();
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    const response = await fetch(`${API_BASE}/analyst/stream`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error(`API ${response.status}: ${err}`);
+    }
+
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";           // keep incomplete last line
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const payload = line.slice(6).trim();
+        if (payload === "[DONE]") return Promise.reject(new Error("Stream closed without result"));
+        try {
+          const evt = JSON.parse(payload);
+          if (evt.status === "done") return evt.result as AnalystResponse;
+          if (evt.status === "error") throw new Error(evt.message ?? "PARA-DEBATE failed");
+          // status === "running": ignore keep-alive ticks
+        } catch (e) {
+          if (e instanceof SyntaxError) continue; // malformed line, skip
+          throw e;
+        }
+      }
+    }
+    throw new Error("SSE stream ended without result");
+  },
+
   runQuery: (body: QueryRequest, signal?: AbortSignal) =>
     authedFetch<QueryResponse>("/query", {
       method: "POST",

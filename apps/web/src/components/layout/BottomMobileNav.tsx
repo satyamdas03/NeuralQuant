@@ -7,7 +7,6 @@ import {
   ScanSearch,
   MessageSquareText,
   FlaskConical,
-  Briefcase,
   Newspaper,
   Star,
   Database,
@@ -21,7 +20,6 @@ const NAV = [
   { href: "/query", label: "Ask AI", icon: MessageSquareText, center: true },
   { href: "/sources", label: "Sources", icon: Database },
   { href: "/compare", label: "Compare", icon: GitCompareArrows },
-  { href: "/smart-money", label: "Smart Money", icon: Briefcase },
   { href: "/watchlist", label: "Watchlist", icon: Star },
 ];
 
