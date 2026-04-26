@@ -16,6 +16,8 @@ dependencies = [
     "nq-data",
     "nq-signals",
     "stripe>=15.1.0",
+    "slack-bolt>=1.18",
+    "slack-sdk>=3.21",
 ]
 
 [project.optional-dependencies]

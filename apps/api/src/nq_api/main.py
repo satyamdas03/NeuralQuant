@@ -16,6 +16,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from nq_api.routes import stocks, screener, analyst, query, market, auth, watchlists, sentiment, backtest, alerts, newsdesk, smart_money
+from nq_api.slack.router import router as slack_router
 from nq_api.routes.checkout import router as checkout_router
 from nq_api.routes.webhooks_stripe import router as stripe_webhook_router
 from nq_api.routes.referrals import router as referral_router
@@ -100,7 +101,24 @@ async def lifespan(app: FastAPI):
         threading.Timer(20.0, _warm_news).start()
     else:
         log.info("Render detected — skipping prewarm, caches will populate lazily")
+
+    # Start Slack agent system (graceful: no crash if tokens missing)
+    from nq_api.slack.app import start_slack_handler, stop_slack_handler
+    from nq_api.slack.scheduler import start_scheduler, stop_scheduler
+    try:
+        await start_slack_handler()
+        await start_scheduler()
+    except Exception as exc:
+        log.warning("Slack agent system startup failed (non-fatal): %s", exc)
+
     yield
+
+    # Shutdown Slack handler and scheduler
+    try:
+        await stop_scheduler()
+        await stop_slack_handler()
+    except Exception as exc:
+        log.warning("Slack agent system shutdown error (non-fatal): %s", exc)
 
 
 app = FastAPI(title="NeuralQuant API", version="4.0.0", lifespan=lifespan)
@@ -133,6 +151,7 @@ app.include_router(smart_money.router)
 app.include_router(checkout_router)
 app.include_router(stripe_webhook_router)
 app.include_router(referral_router)
+app.include_router(slack_router)
 
 
 @app.get("/health")

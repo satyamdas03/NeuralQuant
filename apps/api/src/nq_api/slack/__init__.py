@@ -1,0 +1,1 @@
+"""NeuralQuant Slack Agent System — 8 AI agents operating in Slack channels."""
