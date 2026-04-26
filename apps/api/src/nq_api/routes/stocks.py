@@ -22,7 +22,7 @@ from nq_signals.engine import SignalEngine
 
 # In-memory TTL cache for stock meta — serves stale data when Yahoo rate-limits
 _META_CACHE: dict[str, tuple[dict, float]] = {}
-_META_CACHE_TTL = 3600  # 1 hour
+_META_CACHE_TTL = 86400  # 24 hours — reduces Yahoo API calls significantly
 
 router = APIRouter()
 
@@ -283,23 +283,48 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
     t_up = ticker.upper()
     cache_key = f"{t_up}:{market}"
 
-    # Serve from cache if fresh
+    # Serve from in-memory cache if fresh
     cached = _META_CACHE.get(cache_key)
     if cached and (time.monotonic() - cached[1]) < _META_CACHE_TTL:
         return cached[0]
+
+    # Try Supabase persistent cache first (survives cold starts)
+    from nq_api.cache.score_cache import _supabase_rest
+    supa = _supabase_rest(
+        "stock_meta",
+        method="GET",
+        query={
+            "select": "data",
+            "ticker": f"eq.{t_up}",
+            "market": f"eq.{market}",
+            "order": "fetched_at.desc",
+            "limit": "1",
+        },
+    )
+    if isinstance(supa, list) and supa:
+        import json as _json
+        try:
+            meta = _json.loads(supa[0]["data"]) if isinstance(supa[0]["data"], str) else supa[0]["data"]
+            _META_CACHE[cache_key] = (meta, time.monotonic())
+            return meta
+        except Exception:
+            log.warning("meta Supabase cache parse failed for %s", t_up)
 
     # Primary: yfinance
     result = await asyncio.to_thread(_fetch_stock_meta, t_up, market)
     if isinstance(result, dict):
         _META_CACHE[cache_key] = (result, time.monotonic())
+        # Persist to Supabase for cold-start resilience
+        _persist_meta(t_up, market, result)
         return result
 
-    # Fallback: Yahoo quoteSummary v10
+    # Fallback: Yahoo quoteSummary v10 (with 1 retry)
     log.warning("meta yfinance failed for %s (%s) — trying Yahoo fallback: %s",
                 t_up, market, result)
     fallback = await asyncio.to_thread(_fetch_stock_meta_yahoo_direct, t_up, market)
     if isinstance(fallback, dict):
         _META_CACHE[cache_key] = (fallback, time.monotonic())
+        _persist_meta(t_up, market, fallback)
         return fallback
 
     # Both failed — serve stale cache if available, else minimal response
@@ -320,6 +345,34 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
     }
 
 
+def _persist_meta(ticker: str, market: str, data: dict) -> None:
+    """Persist stock meta to Supabase for cold-start resilience."""
+    import json as _json
+    from nq_api.cache.score_cache import _supabase_rest
+    from datetime import datetime, timezone
+
+    try:
+        row = {
+            "ticker": ticker,
+            "market": market,
+            "data": _json.dumps(data),
+            "fetched_at": datetime.now(timezone.utc).isoformat(),
+        }
+        # Upsert: insert new or update existing for this ticker+market
+        _supabase_rest(
+            "stock_meta",
+            method="PATCH",
+            body=[row],
+            query={"ticker": f"eq.{ticker}", "market": f"eq.{market}"},
+        )
+    except Exception:
+        # Try INSERT if PATCH fails (row doesn't exist yet)
+        try:
+            _supabase_rest("stock_meta", method="POST", body=[row])
+        except Exception:
+            log.debug("meta persist to Supabase failed (non-critical)")
+
+
 def _fetch_stock_meta_yahoo_direct(ticker: str, market: str) -> dict | Exception:
     """Yahoo quoteSummary v10 — direct HTTP fallback when yfinance is rate-limited.
     Returns a dict with the same shape as `_fetch_stock_meta`, or an Exception."""
@@ -335,13 +388,22 @@ def _fetch_stock_meta_yahoo_direct(ticker: str, market: str) -> dict | Exception
                       "Chrome/120.0.0.0 Safari/537.36",
         "Accept": "application/json,text/plain,*/*",
     }
-    try:
-        with httpx.Client(timeout=10.0, follow_redirects=True) as client:
-            r = client.get(url, params={"modules": modules}, headers=headers)
-            r.raise_for_status()
-            j = r.json()
-    except Exception as exc:
-        return exc
+    last_exc: Exception | None = None
+    for attempt in range(2):  # 2 attempts: initial + 1 retry
+        try:
+            with httpx.Client(timeout=15.0, follow_redirects=True) as client:
+                r = client.get(url, params={"modules": modules}, headers=headers)
+                r.raise_for_status()
+                j = r.json()
+                break  # success — exit retry loop
+        except Exception as exc:
+            last_exc = exc
+            if attempt < 1:
+                import time as _t
+                _t.sleep(1)  # brief pause before retry
+    else:
+        # Both attempts failed
+        return last_exc or Exception("Yahoo direct fallback failed")
 
     try:
         result = j["quoteSummary"]["result"][0]

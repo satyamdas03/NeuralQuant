@@ -109,7 +109,7 @@ export const api = {
     // Hit Render directly instead.
     const sseBase = process.env.NEXT_PUBLIC_API_URL || "https://neuralquant.onrender.com";
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 100_000); // 100s hard cap
+    const timeout = setTimeout(() => controller.abort(), 130_000); // 130s hard cap (90s debate + 30s context + buffer)
     try {
       const response = await fetch(`${sseBase}/analyst/stream`, {
         method: "POST",

@@ -22,7 +22,7 @@ router = APIRouter()
 
 # Hard timeouts — ensures customers never wait >2min total
 PHASE1_TIMEOUT = 30  # context building — only 1 ticker now, not full universe
-PHASE2_TIMEOUT = 55  # 7-agent PARA-DEBATE
+PHASE2_TIMEOUT = 90  # 7-agent PARA-DEBATE (increased from 55 — Sonnet synthesis needs more time)
 MACRO_FETCH_TIMEOUT = 15  # max seconds for fetch_real_macro()
 
 
