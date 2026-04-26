@@ -1,10 +1,9 @@
 services:
   - type: web
     name: nq-api
-    runtime: python
-    rootDir: apps/api
-    buildCommand: pip install uv && uv pip install -e ../../packages/data -e ../../packages/signals -e . --system && pip install "slack-bolt>=1.18" "slack-sdk>=3.21"
-    startCommand: pip install "slack-bolt>=1.18" "slack-sdk>=3.21" && uvicorn nq_api.main:app --host 0.0.0.0 --port $PORT
+    runtime: docker
+    rootDir: .
+    dockerfilePath: apps/api/Dockerfile
     envVars:
       - key: ANTHROPIC_API_KEY
         sync: false
@@ -12,4 +11,22 @@ services:
         sync: false
       - key: ENVIRONMENT
         value: production
+      - key: PORT
+        value: "10000"
+      - key: SLACK_BOT_TOKEN
+        sync: false
+      - key: SLACK_APP_TOKEN
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
     plan: free
