@@ -3,7 +3,7 @@ services:
     name: nq-api
     runtime: python
     rootDir: apps/api
-    buildCommand: pip install uv && uv pip install -e ../../packages/data -e ../../packages/signals -e . --system
+    buildCommand: pip install uv && uv pip install -e ../../packages/data -e ../../packages/signals -e . --system && pip install slack-bolt>=1.18 slack-sdk>=3.21
     startCommand: uvicorn nq_api.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: ANTHROPIC_API_KEY
