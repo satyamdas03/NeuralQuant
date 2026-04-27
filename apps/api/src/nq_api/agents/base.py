@@ -12,7 +12,7 @@ from nq_api.schemas import AgentOutput
 logger = logging.getLogger(__name__)
 MODEL = os.environ.get("ANTHROPIC_DEFAULT_SONNET_MODEL", "claude-sonnet-4-6")
 # Fast model for 5 specialist + adversarial agents (2-5s vs 10-30s Sonnet)
-FAST_MODEL = os.environ.get("NQ_FAST_MODEL", "claude-haiku-4-5-20251001")
+FAST_MODEL = os.environ.get("NQ_FAST_MODEL", os.environ.get("ANTHROPIC_DEFAULT_HAIKU_MODEL", "claude-3-5-haiku-20241022"))
 MAX_TOKENS = 4096
 
 
