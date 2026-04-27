@@ -8,6 +8,7 @@
 import asyncio
 import json
 import logging
+import os
 import time
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
@@ -23,10 +24,20 @@ from nq_api.data_builder import _yf_symbol
 log = logging.getLogger(__name__)
 router = APIRouter()
 
+def _is_ollama() -> bool:
+    """Runtime Ollama detection — avoids module-level env var issues in uvicorn."""
+    url = os.environ.get("ANTHROPIC_BASE_URL", "")
+    return "127.0.0.1:11434" in url or "localhost:11434" in url
+
+
 # Hard timeouts — ensures customers never wait >2min total
-PHASE1_TIMEOUT = 30  # context building — only 1 ticker now, not full universe
-PHASE2_TIMEOUT = 90  # 7-agent PARA-DEBATE (increased from 55 — Sonnet synthesis needs more time)
-MACRO_FETCH_TIMEOUT = 15  # max seconds for fetch_real_macro()
+# Longer when using Ollama (local models are slower than Anthropic API)
+# Evaluated at runtime, not import time, so load_dotenv works correctly
+def _phase_timeouts():
+    if _is_ollama():
+        return 60, 420  # 7 agents sequentially at ~60s each
+    return 30, 90
+MACRO_FETCH_TIMEOUT = 15
 
 
 def _fetch_macro_with_timeout() -> dict:
@@ -269,6 +280,7 @@ async def run_analyst_stream(
 
         build_task = asyncio.create_task(_build())
         phase1_start = time.monotonic()
+        PHASE1_TIMEOUT, PHASE2_TIMEOUT = _phase_timeouts()
 
         while not build_task.done():
             yield 'data: {"status":"running"}\n\n'
@@ -317,9 +329,9 @@ async def run_analyst_stream(
 
         while not done_event.is_set():
             yield 'data: {"status":"running"}\n\n'
-            # Hard cap: if Phase 2 exceeds PHASE2_TIMEOUT + 10s buffer, give up
+            # Hard cap: if Phase 2 exceeds PHASE2_TIMEOUT + 30s buffer, give up
             elapsed = time.monotonic() - phase2_start
-            if elapsed > PHASE2_TIMEOUT + 10:
+            if elapsed > PHASE2_TIMEOUT + 30:
                 done_event.set()
                 result_holder.setdefault("timeout", True)
                 break
@@ -362,3 +374,18 @@ async def run_analyst_stream(
             "Connection": "keep-alive",
         },
     )
+
+
+@router.get("/envcheck")
+async def envcheck():
+    """Runtime check: confirms Ollama detection and model config at request time."""
+    from nq_api.agents.base import FAST_MODEL, MODEL, _is_ollama as _base_is_ollama
+    from nq_api.agents.orchestrator import _is_ollama as _orch_is_ollama
+    return {
+        "ANTHROPIC_BASE_URL": os.environ.get("ANTHROPIC_BASE_URL", "NOT SET"),
+        "NQ_FAST_MODEL": os.environ.get("NQ_FAST_MODEL", "NOT SET"),
+        "FAST_MODEL": FAST_MODEL,
+        "MODEL": MODEL,
+        "BASE_IS_OLLAMA": _base_is_ollama(),
+        "ORCH_IS_OLLAMA": _orch_is_ollama(),
+    }

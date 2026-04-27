@@ -7,7 +7,7 @@ import re
 
 import anthropic
 
-from nq_api.agents.base import MODEL, MAX_TOKENS
+from nq_api.agents.base import MODEL, MAX_TOKENS, FAST_MODEL, _is_ollama
 from nq_api.schemas import AgentOutput
 
 logger = logging.getLogger(__name__)
@@ -49,7 +49,9 @@ RISK_FACTORS:
             raise EnvironmentError(
                 "ANTHROPIC_API_KEY environment variable is not set."
             )
-        self._client = anthropic.Anthropic(api_key=api_key, timeout=45.0)
+        # Longer timeout for Ollama (local models + synthesis of 6+ agents)
+        client_timeout = 120.0 if _is_ollama() else 45.0
+        self._client = anthropic.Anthropic(api_key=api_key, timeout=client_timeout)
 
     def run_synthesis(
         self, ticker: str, agent_outputs: list[AgentOutput], composite_score: float,
@@ -80,8 +82,10 @@ RISK_FACTORS:
         msg = self._build_user_message(ticker, context)
 
         try:
+            # Use fast model when running locally through Ollama (cloud model too slow)
+            head_model = FAST_MODEL if _is_ollama() else MODEL
             response = self._client.messages.create(
-                model=MODEL,
+                model=head_model,
                 max_tokens=MAX_TOKENS * 2,
                 system=self.system_prompt,
                 messages=[{"role": "user", "content": msg}],

@@ -3,6 +3,7 @@
 from __future__ import annotations
 import asyncio
 import logging
+import os
 
 from nq_api.schemas import AgentOutput, AnalystResponse
 
@@ -18,12 +19,25 @@ from nq_api.agents.head_analyst import HeadAnalystAgent
 STANCE_SCORE = {"BULL": 1.0, "NEUTRAL": 0.5, "BEAR": 0.0}
 CONVICTION_MULT = {"HIGH": 1.0, "MEDIUM": 0.7, "LOW": 0.4}
 
+def _is_ollama() -> bool:
+    """Runtime Ollama detection — avoids module-level env var issues in uvicorn."""
+    url = os.environ.get("ANTHROPIC_BASE_URL", "")
+    return "127.0.0.1:11434" in url or "localhost:11434" in url
+
 
 class ParaDebateOrchestrator:
-    # Per-agent timeout (seconds) — prevents one slow call from consuming the budget
-    SPECIALIST_TIMEOUT = 25
-    ADVERSARIAL_TIMEOUT = 20
-    HEAD_ANALYST_TIMEOUT = 35
+    # Per-agent timeout (seconds) — evaluated at runtime, not import time
+    @property
+    def SPECIALIST_TIMEOUT(self):
+        return 60 if _is_ollama() else 25
+
+    @property
+    def ADVERSARIAL_TIMEOUT(self):
+        return 45 if _is_ollama() else 20
+
+    @property
+    def HEAD_ANALYST_TIMEOUT(self):
+        return 80 if _is_ollama() else 35
 
     def __init__(self):
         self._specialists = [
@@ -39,7 +53,7 @@ class ParaDebateOrchestrator:
     async def analyse(
         self, ticker: str, market: str, context: dict
     ) -> AnalystResponse:
-        # Step 1: run 5 specialists in parallel with per-agent timeout
+        # Step 1: run 5 specialists — sequentially if Ollama (can't parallelise), else parallel
         async def _run_one(agent, timeout: float):
             try:
                 return await asyncio.wait_for(
@@ -50,14 +64,30 @@ class ParaDebateOrchestrator:
                 log.warning("%s agent timed out after %ds for %s", agent.agent_name, int(timeout), ticker)
                 return agent._neutral_fallback()
 
-        raw_results = await asyncio.gather(
-            *[_run_one(a, self.SPECIALIST_TIMEOUT) for a in self._specialists],
-        )
-        specialist_outputs: list[AgentOutput] = [
-            r if isinstance(r, AgentOutput)
-            else agent._neutral_fallback()
-            for r, agent in zip(raw_results, self._specialists)
-        ]
+        if _is_ollama():
+            # Ollama processes one request at a time — run sequentially with retries
+            specialist_outputs: list[AgentOutput] = []
+            for agent in self._specialists:
+                try:
+                    result = await asyncio.wait_for(
+                        asyncio.to_thread(agent.run_with_retry, ticker, context, 3),
+                        timeout=self.SPECIALIST_TIMEOUT,
+                    )
+                    specialist_outputs.append(
+                        result if isinstance(result, AgentOutput) else agent._neutral_fallback()
+                    )
+                except asyncio.TimeoutError:
+                    log.warning("%s agent timed out after %ds for %s", agent.agent_name, int(self.SPECIALIST_TIMEOUT), ticker)
+                    specialist_outputs.append(agent._neutral_fallback())
+        else:
+            raw_results = await asyncio.gather(
+                *[_run_one(a, self.SPECIALIST_TIMEOUT) for a in self._specialists],
+            )
+            specialist_outputs = [
+                r if isinstance(r, AgentOutput)
+                else agent._neutral_fallback()
+                for r, agent in zip(raw_results, self._specialists)
+            ]
 
         # Step 2: build bull thesis summary for adversarial to stress-test
         bull_summary = "; ".join(

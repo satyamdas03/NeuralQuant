@@ -3,6 +3,9 @@ import type { NextConfig } from "next";
 const TEAM_HUB_URL = process.env.NEXT_PUBLIC_TEAM_HUB_URL ?? "https://team-iota-neon.vercel.app";
 
 const nextConfig: NextConfig = {
+  experimental: {
+    proxyTimeout: 1000 * 180, // 180s — PARA-DEBATE + AskAI need 30-120s
+  },
   async redirects() {
     return [
       {
