@@ -15,6 +15,7 @@ import yfinance as yf
 from nq_api.schemas import AnalystRequest, AnalystResponse, AgentOutput
 from nq_api.agents.orchestrator import ParaDebateOrchestrator
 from nq_api.auth.rate_limit import enforce_tier_quota
+from nq_api.auth.deps import get_current_user_optional
 from nq_api.auth.models import User
 from nq_api.cache import score_cache
 from nq_api.data_builder import _yf_symbol
@@ -212,7 +213,7 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
 @router.post("", response_model=AnalystResponse)
 async def run_analyst(
     req: AnalystRequest,
-    user: User = Depends(enforce_tier_quota("analyst")),
+    user: User | None = Depends(get_current_user_optional),
 ) -> AnalystResponse:
     ticker = req.ticker.upper()
 
@@ -230,7 +231,7 @@ async def run_analyst(
 @router.post("/stream")
 async def run_analyst_stream(
     req: AnalystRequest,
-    user: User = Depends(enforce_tier_quota("analyst")),
+    user: User | None = Depends(get_current_user_optional),
 ) -> StreamingResponse:
     """SSE variant of /analyst.
 

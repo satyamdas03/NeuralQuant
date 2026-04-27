@@ -14,6 +14,7 @@ from nq_api.schemas import QueryRequest, QueryResponse, StructuredQueryResponse,
 log = logging.getLogger(__name__)
 from nq_api.auth.rate_limit import enforce_tier_quota
 from nq_api.auth.models import User
+from nq_api.auth.deps import get_current_user_optional
 import nq_api.dart_router as dart
 
 router = APIRouter()
@@ -655,7 +656,7 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
 @router.post("", response_model=QueryResponse)
 async def run_nl_query(
     req: QueryRequest,
-    user: User = Depends(enforce_tier_quota("query")),
+    user: User | None = Depends(get_current_user_optional),
 ) -> QueryResponse:
     if not req.question or len(req.question.strip()) < 3:
         return QueryResponse(
@@ -859,7 +860,7 @@ def _extract_json_from_llm(text: str) -> dict | None:
 @router.post("/v2", response_model=StructuredQueryResponse)
 async def run_nl_query_v2(
     req: QueryRequest,
-    user: User = Depends(enforce_tier_quota("query")),
+    user: User | None = Depends(get_current_user_optional),
 ) -> StructuredQueryResponse:
     """Structured output version of /query. Returns typed JSON with reasoning blocks."""
     from pydantic import ValidationError
