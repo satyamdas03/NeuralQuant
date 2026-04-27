@@ -6,6 +6,7 @@ import type {
   MarketMovers, StockChart, StockMeta,
   SentimentResponse, BacktestRequest, BacktestResponse,
   AlertSubscription, AlertDelivery, NewsDeskResponse,
+  TeamTask, TeamStandup,
 } from "./types";
 
 // Route all requests through Next.js /api/ rewrite proxy to avoid CORS issues.
