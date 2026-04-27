@@ -200,14 +200,25 @@ def migrate_team_hub() -> dict:
 def test_db_connection() -> dict:
     """Test database connectivity for debugging."""
     urls = _build_db_urls()
+    # Mask passwords for safe display
+    masked_urls = []
+    for u in urls:
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(u)
+            masked = f"{parsed.scheme}://{parsed.username}:***@{parsed.hostname}:{parsed.port}{parsed.path}"
+        except Exception:
+            masked = u[:20] + "***"
+        masked_urls.append(masked)
+
     if not urls:
-        return {"status": "error", "detail": "No DB URLs available (SUPABASE_DB_URL and SUPABASE_URL not set)"}
+        return {"status": "error", "detail": "No DB URLs available", "supabase_url_set": bool(os.environ.get("SUPABASE_URL")), "supabase_db_url_set": bool(os.environ.get("SUPABASE_DB_URL"))}
 
     import psycopg2
 
-    last_err = ""
+    errors = []
     for i, url in enumerate(urls):
-        url_type = "direct" if i == 0 else "pooler"
+        url_type = "direct" if i == 0 else f"pooler-{('session' if ':5432/' in url else 'transaction')}"
         try:
             conn = psycopg2.connect(url, sslmode="require", connect_timeout=10)
             cur = conn.cursor()
@@ -219,9 +230,9 @@ def test_db_connection() -> dict:
             enums = [r[0] for r in cur.fetchall()]
             cur.close()
             conn.close()
-            return {"status": "ok", "url_type": url_type, "postgres_version": version, "tables_found": tables, "enums_found": enums}
+            return {"status": "ok", "url_type": url_type, "postgres_version": version, "tables_found": tables, "enums_found": enums, "tried_urls": masked_urls}
         except Exception as exc:
-            last_err = f"{url_type}: {exc}"
+            errors.append(f"{url_type}: {exc}")
             continue
 
-    return {"status": "error", "detail": f"All connection methods failed. {last_err}"}
+    return {"status": "error", "errors": errors, "tried_urls": masked_urls}
