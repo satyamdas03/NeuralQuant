@@ -19,34 +19,27 @@ log = logging.getLogger(__name__)
 
 
 def _run_sql(sql: str) -> dict:
-    """Execute SQL via Supabase REST API using the pg_net extension or direct PostgREST."""
-    url = os.environ.get("SUPABASE_URL", "")
-    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+    """Execute DDL SQL via direct PostgreSQL connection."""
     db_url = os.environ.get("SUPABASE_DB_URL", "")
 
-    if not url or not key:
-        raise HTTPException(status_code=503, detail="Supabase not configured")
+    if not db_url:
+        raise HTTPException(status_code=503, detail="SUPABASE_DB_URL not configured")
 
-    # Try direct PostgreSQL connection first (works on Render/Linux)
     try:
         import psycopg2
 
-        conn = psycopg2.connect(db_url, sslmode="require", connect_timeout=10)
+        conn = psycopg2.connect(db_url, sslmode="require", connect_timeout=15)
         conn.autocommit = True
         cur = conn.cursor()
         cur.execute(sql)
+        rowcount = cur.rowcount if hasattr(cur, "rowcount") else -1
         result = cur.fetchall() if cur.description else []
         cur.close()
         conn.close()
-        return {"method": "psycopg2", "rows_affected": cur.rowcount if hasattr(cur, "rowcount") else -1}
-    except Exception as pg_err:
-        log.warning("psycopg2 failed: %s, trying alternative", pg_err)
-
-    # Fallback: try PostgREST (only works for DML, not DDL)
-    raise HTTPException(
-        status_code=500,
-        detail=f"Migration requires direct DB access. psycopg2 error: {pg_err}",
-    )
+        return {"method": "psycopg2", "rows_affected": rowcount, "result": result}
+    except Exception as exc:
+        log.exception("psycopg2 migration failed")
+        raise HTTPException(status_code=500, detail=f"Migration failed: {exc}")
 
 
 MIGRATION_SQL = """
