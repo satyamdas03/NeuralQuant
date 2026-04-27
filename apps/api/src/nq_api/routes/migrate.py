@@ -145,3 +145,32 @@ def migrate_team_hub() -> dict:
     except Exception as exc:
         log.exception("Migration failed")
         raise HTTPException(status_code=500, detail=f"Migration failed: {exc}")
+
+
+@router.get("/test-db")
+def test_db_connection() -> dict:
+    """Test database connectivity for debugging."""
+    db_url = os.environ.get("SUPABASE_DB_URL", "")
+    if not db_url:
+        return {"status": "error", "detail": "SUPABASE_DB_URL not set"}
+
+    # Mask password
+    masked = db_url.split("@")[0].rsplit(":", 1)[0] + ":***@" + db_url.split("@")[1] if "@" in db_url else db_url
+
+    try:
+        import psycopg2
+        conn = psycopg2.connect(db_url, sslmode="require", connect_timeout=15)
+        cur = conn.cursor()
+        cur.execute("SELECT version()")
+        version = cur.fetchone()[0]
+        # Check if tables exist
+        cur.execute("SELECT tablename FROM pg_tables WHERE tablename IN ('team_tasks', 'team_standups')")
+        tables = [r[0] for r in cur.fetchall()]
+        # Check if enums exist
+        cur.execute("SELECT typname FROM pg_type WHERE typname IN ('agent_role', 'task_status', 'task_priority')")
+        enums = [r[0] for r in cur.fetchall()]
+        cur.close()
+        conn.close()
+        return {"status": "ok", "postgres_version": version, "tables_found": tables, "enums_found": enums}
+    except Exception as exc:
+        return {"status": "error", "detail": str(exc), "db_url_masked": masked}
