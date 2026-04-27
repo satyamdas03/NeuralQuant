@@ -22,22 +22,19 @@ def _build_db_urls() -> list[str]:
     """Build ordered list of PostgreSQL connection URLs to try.
 
     1. SUPABASE_DB_URL env var (direct connection)
-    2. Session pooler (IPv4-compatible, port 5432)
-    3. Transaction pooler (IPv4-compatible, port 6543)
+    2. Session poolers (multiple regions, port 5432)
+    3. Transaction poolers (multiple regions, port 6543)
     """
     urls: list[str] = []
     direct = os.environ.get("SUPABASE_DB_URL", "")
     if direct:
         urls.append(direct)
 
-    # Derive pooler URLs from SUPABASE_URL if available
     supabase_url = os.environ.get("SUPABASE_URL", "")
     if supabase_url:
-        # Extract project ref: https://ajkhyayrbqiuvnsmqrdz.supabase.co -> ajkhyayrbqiuvnsmqrdz
         ref = supabase_url.replace("https://", "").split(".")[0]
         db_password = os.environ.get("SUPABASE_DB_PASSWORD", "")
         if not db_password and direct:
-            # Extract password from direct URL: postgresql://postgres:PASS@host/db
             try:
                 from urllib.parse import urlparse, unquote
                 parsed = urlparse(direct)
@@ -45,16 +42,26 @@ def _build_db_urls() -> list[str]:
             except Exception:
                 pass
         if db_password:
-            # Session pooler (supports DDL, port 5432)
-            urls.append(
-                f"postgresql://postgres.{ref}:{_url_encode(db_password)}"
-                f"@aws-0-us-east-1.pooler.supabase.com:5432/postgres"
-            )
-            # Transaction pooler (fallback, port 6543)
-            urls.append(
-                f"postgresql://postgres.{ref}:{_url_encode(db_password)}"
-                f"@aws-0-us-east-1.pooler.supabase.com:6543/postgres"
-            )
+            pw = _url_encode(db_password)
+            # Try multiple pooler regions — project region varies
+            pooler_regions = [
+                "aws-0-us-east-1",   # US East (N. Virginia)
+                "aws-1-us-east-2",   # US East (Ohio)
+                "aws-0-ap-southeast-1",  # Asia Pacific (Singapore)
+                "aws-0-eu-west-1",   # EU West (Ireland)
+            ]
+            for region in pooler_regions:
+                # Session pooler (supports DDL, port 5432)
+                urls.append(
+                    f"postgresql://postgres.{ref}:{pw}"
+                    f"@{region}.pooler.supabase.com:5432/postgres"
+                )
+            for region in pooler_regions:
+                # Transaction pooler (fallback, port 6543)
+                urls.append(
+                    f"postgresql://postgres.{ref}:{pw}"
+                    f"@{region}.pooler.supabase.com:6543/postgres"
+                )
     return urls
 
 
@@ -72,7 +79,8 @@ def _run_sql(sql: str) -> dict:
     import psycopg2
 
     last_err: Exception | None = None
-    for url in urls:
+    for i, url in enumerate(urls):
+        url_label = "direct" if i == 0 else f"pooler-{i}"
         try:
             conn = psycopg2.connect(url, sslmode="require", connect_timeout=10)
             conn.autocommit = True
@@ -82,10 +90,10 @@ def _run_sql(sql: str) -> dict:
             result = cur.fetchall() if cur.description else []
             cur.close()
             conn.close()
-            return {"method": "psycopg2", "url_type": "direct" if url == urls[0] else "pooler", "rows_affected": rowcount, "result": result}
+            return {"method": "psycopg2", "url_type": url_label, "rows_affected": rowcount, "result": result}
         except Exception as exc:
             last_err = exc
-            log.warning("DB connection failed for URL type: %s", "direct" if url == urls[0] else "pooler")
+            log.warning("DB connection failed for %s: %s", url_label, exc)
             continue
 
     raise HTTPException(status_code=500, detail=f"Migration failed: all connection methods exhausted. Last error: {last_err}")
@@ -218,7 +226,7 @@ def test_db_connection() -> dict:
 
     errors = []
     for i, url in enumerate(urls):
-        url_type = "direct" if i == 0 else f"pooler-{('session' if ':5432/' in url else 'transaction')}"
+        url_label = "direct" if i == 0 else f"pooler-{i}"
         try:
             conn = psycopg2.connect(url, sslmode="require", connect_timeout=10)
             cur = conn.cursor()
@@ -230,9 +238,9 @@ def test_db_connection() -> dict:
             enums = [r[0] for r in cur.fetchall()]
             cur.close()
             conn.close()
-            return {"status": "ok", "url_type": url_type, "postgres_version": version, "tables_found": tables, "enums_found": enums, "tried_urls": masked_urls}
+            return {"status": "ok", "url_type": url_label, "postgres_version": version, "tables_found": tables, "enums_found": enums, "tried_urls": masked_urls}
         except Exception as exc:
-            errors.append(f"{url_type}: {exc}")
+            errors.append(f"{url_label}: {exc}")
             continue
 
     return {"status": "error", "errors": errors, "tried_urls": masked_urls}
