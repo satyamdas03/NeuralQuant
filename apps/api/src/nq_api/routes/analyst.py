@@ -11,11 +11,13 @@ import logging
 import time
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
+import yfinance as yf
 from nq_api.schemas import AnalystRequest, AnalystResponse, AgentOutput
 from nq_api.agents.orchestrator import ParaDebateOrchestrator
 from nq_api.auth.rate_limit import enforce_tier_quota
 from nq_api.auth.models import User
 from nq_api.cache import score_cache
+from nq_api.data_builder import _yf_symbol
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -105,6 +107,12 @@ def _build_analyst_context(ticker: str, market: str) -> dict:
     composite = (0.30 * quality_p + 0.25 * momentum_p + 0.20 * value_p
                  + 0.15 * lowvol_p + 0.10 * shortint_p)
 
+    # Additional stock-specific fields agents reference
+    try:
+        info = yf.Ticker(_yf_symbol(ticker, market)).info or {}
+    except Exception:
+        info = {}
+
     context = {
         "market": market,
         "regime_label": regime_label,
@@ -115,13 +123,28 @@ def _build_analyst_context(ticker: str, market: str) -> dict:
         "value_percentile":          round(value_p, 3),
         "low_vol_percentile":        round(lowvol_p, 3),
         "short_interest_percentile": round(shortint_p, 3),
+        "short_interest_pct":        round(si * 100, 2),
         "momentum_raw":              round(mom, 4),
         "gross_profit_margin":       round(gpm, 3),
+        "roe":                       round(float(fund.get("roe", 0.12)), 3),
+        "accruals_ratio":            round(float(fund.get("accruals_ratio", 0.0)), 3),
         "piotroski":                 int(fund.get("piotroski", 5)),
         "pe_ttm":                    round(float(fund.get("pe_ttm", 20.0)), 1),
         "pb_ratio":                  round(float(fund.get("pb_ratio", 2.0)), 2),
         "beta":                      round(float(fund.get("beta", 1.0)), 2),
         "realized_vol_1y":           round(vol, 3),
+        # Price / valuation fields agents reference
+        "price":                     fund.get("current_price"),
+        "change_pct":                fund.get("change_pct", 0.0),
+        "market_cap":                fund.get("market_cap"),
+        "sector":                    info.get("sector", ""),
+        "week52_high":               fund.get("week52_high"),
+        "week52_low":                fund.get("week52_low"),
+        "analyst_target_mean":       fund.get("analyst_target"),
+        # Adversarial / enrichment fields
+        "debt_equity":               round(float(info.get("debtToEquity", 1.0)), 2) if info.get("debtToEquity") else None,
+        "revenue_growth":            round(float(info.get("revenueGrowth", 0.0)) * 100, 1) if info.get("revenueGrowth") else None,
+        "insider_cluster_score":      round(float(fund.get("short_interest_pct", 0.02)) * 100, 1),
     }
 
     return context
@@ -141,6 +164,14 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
         regime_id = cached.get("regime_id", 1)
         regime_labels = {1: "Risk-On", 2: "Late-Cycle", 3: "Bear", 4: "Recovery"}
 
+        # Enrich cache data with yfinance info for fields agents reference
+        from nq_api.data_builder import _fetch_one
+        fund = _fetch_one(ticker, market)
+        try:
+            info = yf.Ticker(_yf_symbol(ticker, market)).info or {}
+        except Exception:
+            info = {}
+
         context = {
             "market": market,
             "regime_label": regime_labels.get(regime_id, "Risk-On"),
@@ -151,13 +182,26 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
             "value_percentile":          round(float(cached.get("value_percentile", 0.5)), 3),
             "low_vol_percentile":        round(float(cached.get("low_vol_percentile", 0.5)), 3),
             "short_interest_percentile": round(float(cached.get("short_interest_percentile", 0.5)), 3),
+            "short_interest_pct":        round(float(cached.get("short_interest_percentile", 0.02)) * 100, 2),
             "momentum_raw":              round(float(cached.get("momentum_raw", 0.0)), 4),
             "gross_profit_margin":       round(float(cached.get("gross_profit_margin", 0.0)), 3),
+            "roe":                       round(float(fund.get("roe", 0.12)), 3),
+            "accruals_ratio":            round(float(fund.get("accruals_ratio", 0.0)), 3),
             "piotroski":                 int(cached.get("piotroski", 5)),
             "pe_ttm":                    round(float(cached.get("pe_ttm", 20.0)), 1),
             "pb_ratio":                  round(float(cached.get("pb_ratio", 2.0)), 2),
             "beta":                      round(float(cached.get("beta", 1.0)), 2),
             "realized_vol_1y":           round(float(cached.get("realized_vol_1y", 0.20)), 3),
+            "price":                     fund.get("current_price"),
+            "change_pct":                fund.get("change_pct", 0.0),
+            "market_cap":                fund.get("market_cap"),
+            "sector":                    info.get("sector", ""),
+            "week52_high":               fund.get("week52_high"),
+            "week52_low":                fund.get("week52_low"),
+            "analyst_target_mean":       fund.get("analyst_target"),
+            "debt_equity":               round(float(info.get("debtToEquity", 1.0)), 2) if info.get("debtToEquity") else None,
+            "revenue_growth":            round(float(info.get("revenueGrowth", 0.0)) * 100, 1) if info.get("revenueGrowth") else None,
+            "insider_cluster_score":      round(float(fund.get("short_interest_pct", 0.02)) * 100, 1),
         }
         return context
     except Exception as e:

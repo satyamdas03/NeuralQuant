@@ -155,7 +155,7 @@ export const api = {
   },
 
   runQuery: (body: QueryRequest, signal?: AbortSignal) =>
-    authedFetch<StructuredQueryResponse>("/v2/query", {
+    authedFetch<StructuredQueryResponse>("/query/v2", {
       method: "POST",
       body: JSON.stringify(body),
       signal,

@@ -117,6 +117,16 @@ function ScreenerInner() {
 
       <ScreenerPresets active={activePreset} onSelect={handlePresetSelect} />
 
+      {activePreset && (() => {
+        const preset = PRESETS.find(p => p.id === activePreset);
+        if (!preset) return null;
+        return (
+          <div className="rounded-lg bg-primary/10 border border-primary/20 px-4 py-2.5 text-xs text-on-surface leading-relaxed">
+            <span className="font-semibold text-primary">{preset.name}:</span> {preset.description}
+          </div>
+        );
+      })()}
+
       {loading ? (
         <div className="space-y-2">
           {Array.from({ length: 10 }).map((_, i) => (

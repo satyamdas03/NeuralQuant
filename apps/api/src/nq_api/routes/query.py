@@ -856,7 +856,7 @@ def _extract_json_from_llm(text: str) -> dict | None:
     return None
 
 
-@router.post("/v2/query", response_model=StructuredQueryResponse)
+@router.post("/v2", response_model=StructuredQueryResponse)
 async def run_nl_query_v2(
     req: QueryRequest,
     user: User = Depends(enforce_tier_quota("query")),
