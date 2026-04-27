@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { api } from "@/lib/api";
-import type { ConversationMessage } from "@/lib/types";
+import type { ConversationMessage, StructuredQueryResponse } from "@/lib/types";
 import AIResponseCard from "@/components/ui/AIResponseCard";
 import SuggestionChips from "@/components/ui/SuggestionChips";
 import ChatInputArea from "@/components/ui/ChatInputArea";
@@ -23,6 +23,7 @@ interface ChatMessage {
   sources?: string[];
   followUps?: string[];
   loading?: boolean;
+  structured?: StructuredQueryResponse | null;
 }
 
 export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
@@ -53,7 +54,6 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
       .filter((m) => !m.loading)
       .map((m) => ({ role: m.role, content: m.content }));
 
-    // AbortController with 120s timeout — prevents infinite hangs
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 120_000);
 
@@ -62,7 +62,14 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
       setMessages((prev) =>
         prev.map((m) =>
           m.id === phId
-            ? { ...m, content: res.answer, sources: res.data_sources, followUps: res.follow_up_questions, loading: false }
+            ? {
+                ...m,
+                content: res.summary || "",
+                sources: res.data_sources,
+                followUps: res.follow_up_questions,
+                loading: false,
+                structured: res,
+              }
             : m
         )
       );
@@ -119,6 +126,7 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
                 key={msg.id}
                 answer={msg.content}
                 sources={msg.sources}
+                structured={msg.structured}
               />
             )
           )}

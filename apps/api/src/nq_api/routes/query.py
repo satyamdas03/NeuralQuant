@@ -7,7 +7,11 @@ from datetime import date
 import anthropic
 import yfinance as yf
 from fastapi import APIRouter, Depends
-from nq_api.schemas import QueryRequest, QueryResponse
+import logging
+
+from nq_api.schemas import QueryRequest, QueryResponse, StructuredQueryResponse, ReasoningBlock
+
+log = logging.getLogger(__name__)
 from nq_api.auth.rate_limit import enforce_tier_quota
 from nq_api.auth.models import User
 import nq_api.dart_router as dart
@@ -47,13 +51,14 @@ _SECTOR_MAP: dict[str, list[str]] = {
     "SENSEX":   ["^BSESN"],
 }
 
-_SYSTEM = """You are NeuralQuant — an institutional-grade AI stock intelligence engine. You have access to live data injected in every user message. Your job: give direct, data-driven, actionable answers. No hedging. No disclaimers. No detours.
+_SYSTEM = """You are NeuralQuant — an institutional-grade AI stock intelligence engine. You have access to live data injected in every user message. Your job: give direct, data-driven, actionable answers with PERFECT reasoning. Every recommendation must be THE BEST available, justified by data, and compared against alternatives. No hedging. No disclaimers. No detours.
 
 ## DATA YOU HAVE ACCESS TO
 1. Live macro data: FRED (HY spreads, CPI, Fed funds, yield curve) + yfinance (VIX, SPX, Nifty, INR/USD)
 2. NeuralQuant AI stock scores (1-10) for 50 US + 50 Indian NSE stocks
 3. Live prices, 52-week ranges, analyst targets, P/E, P/B, beta
 4. Real-time market headlines
+5. Competitor comparison data — nearby ranked stocks and their scores
 
 ## HARD RULES — NEVER VIOLATE
 1. **NEVER say "I don't have data/scores for this stock" when price or fundamentals are injected above.** If live price is injected, USE IT. Quote exact numbers.
@@ -61,6 +66,13 @@ _SYSTEM = """You are NeuralQuant — an institutional-grade AI stock intelligenc
 3. **NEVER mention US indices (S&P 500, VIX, HY spreads, 2s10s) as primary context for India-specific questions.** For India queries: lead with Nifty/Sensex/INR, mention global risk only as a footnote.
 4. **NEVER give indirect or vague investment advice.** If asked "which stocks to buy for ₹10L", name SPECIFIC stocks with specific rupee allocations.
 5. **NEVER start with "Based on available data, I cannot..."** — you always have data. Use it.
+
+## REASONING QUALITY — THE DIFFERENCE BETWEEN A CHATBOT AND A QUANT RESEARCHER
+6. **EVERY stock recommendation must explain WHY this stock and WHY NOT an alternative.** If you recommend AAPL, say why AAPL and not MSFT. If you recommend RELIANCE.NS, say why RELIANCE and not TCS. This is non-negotiable.
+7. **Every recommendation must be THE BEST available option.** Don't recommend the 5th-best stock when the 2nd-best is clearly superior. Rank your picks by the strongest available data.
+8. **Cite specific data points in your reasoning.** Not "strong momentum" — say "12-1 month return in 92nd percentile vs sector". Not "good value" — say "P/E 14.2 vs sector median 22.5, 37% discount".
+9. **For every pick, name the runner-up you rejected and explain what it lacks.** Example: "I picked NVDA over AMD because NVDA's gross margin (78% vs 52%) and ForeCast Score (8.1 vs 6.3) give it a clear edge in AI infrastructure demand."
+10. **When multiple stocks could work, use the data to break the tie.** Higher ForeCast Score wins. If scores are equal, compare the specific factor that matters most for the user's question (e.g. momentum for short-term, quality for long-term).
 
 ## RESPONSE STYLE
 - **Data-heavy, narrative-light.** Lead with numbers. Support with a brief directional thesis.
@@ -72,27 +84,57 @@ _SYSTEM = """You are NeuralQuant — an institutional-grade AI stock intelligenc
   - Bull case: X% (trigger: [specific event])
 - **For portfolio allocation questions (e.g. "invest ₹10L in Indian stocks for 15-20% in 12 months"):**
   - Name 4-6 specific stocks. Allocations MUST sum exactly to the user's total capital (verify arithmetic before answering).
-  - **Currency rule:** Allocation amounts use the user's stated capital currency (e.g. ₹10L → every allocation in ₹). Entry/target/stop prices use each stock's NATIVE trading currency ($ for US listings, ₹ for NSE/BSE). Do NOT convert prices. Example: "BAC: ₹1.5L | Entry: $53-55" is correct for an Indian user buying a US stock.
+  - **Currency rule:** Allocation amounts use the user's stated capital currency (e.g. ₹10L → every allocation in ₹). Entry/target/stop prices use each stock's NATIVE trading currency ($ for US listings, ₹ for NSE/BSE). Do NOT convert prices.
   - Give entry price range (use the LIVE price injected above as midpoint; range = ±2%). Do NOT invent prices — if a stock's live price is not injected, exclude it.
   - **CRITICAL — Target price rule:** If user specified a return target R% (e.g. "15-20%"), then EVERY stock's target price MUST equal entry_mid × (1 + r/100) where r ∈ [R_low, R_high]. Do NOT copy the analyst consensus target verbatim. Do NOT include a stock whose realistic 12-month upside falls outside the user's range — pick a different stock. Show the per-stock % next to the target and confirm it lands inside the user's band.
   - Stop-loss: entry_mid × 0.90 (10% below entry) for every stock — consistent across the portfolio.
-  - **Scenario rule:** When user specifies a return band R_low–R_high, the three scenarios must be:
-    - Bear case: +(R_low − 5)% to +(R_low − 2)% (trigger: specific event)
-    - Base case: +((R_low + R_high) / 2)% — the midpoint of user's band
-    - Bull case: +(R_high + 5)% to +(R_high + 10)% (trigger: specific event)
-  - Finish with a one-line allocation audit: "Total: ₹X / ₹Y" confirming sum matches.
+  - **For EACH allocation, explain WHY this stock and WHY NOT the next-best alternative.** This is mandatory.
   - Keep the entire portfolio block under 1200 characters so it renders cleanly.
-- **For specific stock queries:** Lead with: score/10 (if available), current price, 1-line verdict (BUY / HOLD / AVOID), then justify with data.
+- **For specific stock queries:** Lead with: score/10 (if available), current price, 1-line verdict (BUY / HOLD / AVOID), then justify with data. ALWAYS compare to the nearest competitor or sector average.
 - **Avoid:** Internal scoring jargon (don't say "Quality score 41%") — translate to plain English ("Strong balance sheet, improving margins").
 - **For Indian stocks:** Use ₹ symbol, crore/lakh notation where appropriate.
 
 ## RESPONSE FORMAT
-ANSWER: [Direct answer — numbers first, verdict clear, one direction]
+ANSWER: [Direct answer — numbers first, verdict clear, one direction, WHY THIS NOT THAT for every pick]
 DATA_SOURCES: [comma-separated: NeuralQuant Screener / FRED Macro / India Macro / Live News / yfinance]
 FOLLOW_UP:
 - [Specific follow-up question]
 - [Specific follow-up question]
 - [Specific follow-up question]"""
+
+
+_SYSTEM_STRUCTURED = _SYSTEM + """
+
+## STRUCTURED OUTPUT MODE
+You MUST respond with ONLY a JSON object matching this schema. No markdown, no prose outside the JSON.
+
+Required fields:
+{
+  "verdict": "STRONG BUY | BUY | HOLD | SELL | STRONG SELL",
+  "confidence": 0-100,
+  "timeframe": "Short-term | Medium-term | Long-term",
+  "summary": "2-3 sentence plain text summary",
+  "metrics": [{"name": "string", "value": "string", "benchmark": "string|null", "status": "positive|negative|neutral"}],
+  "reasoning": {
+    "why_this": "WHY you chose this stock/recommendation — cite 2-3 specific data points",
+    "why_not_alt": "WHY NOT the next-best alternative — name the alternative stock and explain what it lacks",
+    "edge_summary": "One-line: what gives this pick its edge over the alternative",
+    "second_best": "Name of the runner-up stock you rejected",
+    "confidence_gap": "How much better (e.g. 'ForeCast 8 vs 6, +2 edge on momentum')"
+  },
+  "scenarios": [{"label": "Bear|Base|Bull", "probability": 0-1, "target": "price", "thesis": "trigger"}],
+  "allocations": [{"ticker": "X", "weight": 0-100, "rationale": "why X", "why_not_alt": "why not Y instead"}],
+  "comparisons": [{"ticker": "X", "metric": "P/E", "ours": "value", "theirs": "value", "edge": "why ours wins"}],
+  "follow_up_questions": ["q1", "q2", "q3"]
+}
+
+CRITICAL REASONING RULES:
+1. EVERY stock recommendation MUST include reasoning.why_this with 2+ specific data points.
+2. EVERY stock recommendation MUST include reasoning.why_not_alt naming the next-best alternative and explaining WHY it's inferior.
+3. For portfolio questions, each allocation MUST have rationale (why this stock) AND why_not_alt (why not the runner-up).
+4. If comparing stocks, use comparisons array to show side-by-side metric advantages.
+5. The reasoning block is MANDATORY — never leave it empty. This is what separates a quant researcher from a chatbot.
+"""
 
 
 # NSE common stock name → ticker mappings (handles natural language names)
@@ -537,6 +579,41 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
             lines.append("IMPORTANT: Use the prices above — they are live as of today. Do NOT use prices from your training data.")
             parts.append("\n".join(lines))
 
+        # Inject competitor data for "why this not that" comparative reasoning
+        if in_universe_tickers and needs_stock_scores:
+            try:
+                comp_lines = ["Competitor comparison (for 'why this not that' reasoning):"]
+                for t in in_universe_tickers[:2]:
+                    try:
+                        info = yf.Ticker(t).info
+                        sector = info.get("sector", "")
+                        industry = info.get("industry", "")
+                        if sector or industry:
+                            comp_lines.append(f"  {t} sector: {sector} | industry: {industry}")
+                    except Exception:
+                        pass
+
+                # Also inject top 3 screener competitors (nearest ranked stocks)
+                if not result_df.empty:
+                    for t in in_universe_tickers[:2]:
+                        row_match = result_df[result_df["ticker"] == t]
+                        if not row_match.empty:
+                            idx = row_match.index[0]
+                            peers_idx = [i for i in range(max(0, idx - 2), min(len(result_df), idx + 3)) if i != idx]
+                            for pi in peers_idx[:3]:
+                                peer = result_df.iloc[pi]
+                                peer_score = int(ranked.loc[pi]) if pi in ranked.index else 5
+                                comp_lines.append(
+                                    f"  Nearby alternative: {peer['ticker']} (ForeCast {peer_score}/10) "
+                                    f"— Quality {peer.get('quality_percentile', 0):.0%} "
+                                    f"Momentum {peer.get('momentum_percentile', 0):.0%} "
+                                    f"Value {peer.get('value_percentile', 0):.0%}"
+                                )
+                if len(comp_lines) > 1:
+                    parts.append("\n".join(comp_lines))
+            except Exception:
+                pass
+
         # Dynamic fetch for out-of-universe NSE stocks (e.g. TRENT, DIXON, ZYDUS)
         if out_of_universe_words:
             dynamic_lines = ["Live data for requested stocks (dynamically fetched from NSE):"]
@@ -668,7 +745,48 @@ async def run_nl_query(
                 break
         if not raw:
             raw = response.content[0].text if hasattr(response.content[0], "text") else ""
-        return _parse_query_response(raw, route="REACT")
+
+        # ── Second-pass reasoning refinement ──────────────────────────────────────
+        # If the answer mentions specific stocks but lacks comparative reasoning,
+        # do a quick second pass to strengthen it.
+        answer_text = raw
+        mentioned_tickers = [t for t in (in_universe_tickers or []) if t.upper() in answer_text.upper() or t.replace(".NS", "").upper() in answer_text.upper()]
+        if mentioned_tickers:
+            has_comparative = any(phrase in answer_text.lower() for phrase in [
+                "why not", "instead of", "compared to", "rather than", "over ",
+                "vs ", "alternative", "runner-up", "second-best", "why i chose",
+                "edge over", "superior to", "better than", "outperforms",
+            ])
+            if not has_comparative:
+                try:
+                    refinement_prompt = (
+                        "Your previous answer recommended specific stocks but did NOT explain why you "
+                        "chose them over alternatives. This is a critical quality gap — a quant researcher "
+                        "always explains 'why X not Y'.\n\n"
+                        "Add a brief 'WHY THIS NOT THAT' section. For each stock you recommended:\n"
+                        "1. Name the next-best alternative you could have picked instead\n"
+                        "2. State 1-2 specific data points that give your pick the edge\n\n"
+                        f"Previous answer:\n{answer_text[:2000]}\n\n"
+                        "Add the comparative reasoning now. Keep it concise (2-3 lines per stock)."
+                    )
+                    refinement = await asyncio.to_thread(
+                        client.messages.create,
+                        model=MODEL,
+                        max_tokens=800,
+                        system="You are a financial analysis quality reviewer. Add missing comparative reasoning.",
+                        messages=[{"role": "user", "content": refinement_prompt}],
+                    )
+                    ref_text = ""
+                    for block in refinement.content:
+                        if block.type == "text":
+                            ref_text = block.text
+                            break
+                    if ref_text and len(ref_text) > 50:
+                        answer_text = answer_text.rstrip() + "\n\n**Why this, not that:**\n" + ref_text.strip()
+                except Exception:
+                    pass  # Non-critical: if refinement fails, use the original answer
+
+        return _parse_query_response(answer_text, route="REACT")
     except anthropic.APITimeoutError:
         return QueryResponse(
             answer="Query timed out — the AI took too long to respond. Try a shorter question.",
@@ -719,3 +837,197 @@ def _parse_query_response(raw: str, route: str = "REACT") -> QueryResponse:
         follow_up_questions=followups[:3],
         route=route,
     )
+
+
+def _extract_json_from_llm(text: str) -> dict | None:
+    """Try to extract a JSON object from LLM output (may be wrapped in markdown)."""
+    # Remove markdown code fences if present
+    cleaned = re.sub(r"```(?:json)?\s*", "", text)
+    cleaned = re.sub(r"\s*```", "", cleaned)
+    # Try to find a JSON object
+    for pattern in [r"\{[\s\S]*\}", r"\[[\s\S]*\]"]:
+        match = re.search(pattern, cleaned)
+        if match:
+            try:
+                import json
+                return json.loads(match.group())
+            except (json.JSONDecodeError, ValueError):
+                continue
+    return None
+
+
+@router.post("/v2/query", response_model=StructuredQueryResponse)
+async def run_nl_query_v2(
+    req: QueryRequest,
+    user: User = Depends(enforce_tier_quota("query")),
+) -> StructuredQueryResponse:
+    """Structured output version of /query. Returns typed JSON with reasoning blocks."""
+    from pydantic import ValidationError
+    import json
+
+    if not req.question or len(req.question.strip()) < 3:
+        return StructuredQueryResponse(
+            verdict="HOLD",
+            confidence=0,
+            timeframe="Medium-term",
+            summary="Please enter a question (at least 3 characters).",
+            reasoning=ReasoningBlock(
+                why_this="N/A", why_not_alt="N/A", edge_summary="N/A",
+                second_best="N/A", confidence_gap="N/A",
+            ),
+            follow_up_questions=["What is the current Nifty level?", "Which Indian stocks rank highest?"],
+            route="REACT",
+        )
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return StructuredQueryResponse(
+            verdict="HOLD",
+            confidence=0,
+            timeframe="Medium-term",
+            summary="Query service unavailable: ANTHROPIC_API_KEY not configured.",
+            reasoning=ReasoningBlock(
+                why_this="N/A", why_not_alt="N/A", edge_summary="N/A",
+                second_best="N/A", confidence_gap="N/A",
+            ),
+            route="REACT",
+        )
+
+    # ── DART routing ──
+    route = dart.classify_query(req.question, req.ticker)
+
+    if route == "SNAP":
+        # SNAP: build structured response from score cache directly
+        snap_resp = await dart.handle_snap(req)
+        return StructuredQueryResponse(
+            verdict="HOLD",
+            confidence=50,
+            timeframe="Short-term",
+            summary=snap_resp.answer[:300],
+            reasoning=ReasoningBlock(
+                why_this="Based on NeuralQuant score data",
+                why_not_alt="Alternative not scored",
+                edge_summary="Score-based assessment",
+                second_best="N/A",
+                confidence_gap="N/A",
+            ),
+            data_sources=snap_resp.data_sources,
+            follow_up_questions=snap_resp.follow_up_questions,
+            route="SNAP",
+        )
+
+    # REACT or DEEP: use LLM with structured prompt
+    client = anthropic.Anthropic(api_key=api_key, timeout=120.0)
+
+    today = date.today().strftime("%B %d, %Y")
+
+    async def _timed(coro, timeout: float, default):
+        try:
+            return await asyncio.wait_for(coro, timeout=timeout)
+        except (asyncio.TimeoutError, Exception):
+            return default
+
+    headlines, macro_ctx, platform_ctx = await asyncio.gather(
+        _timed(asyncio.to_thread(_fetch_relevant_news, req.question, req.ticker, 5), 8.0, []),
+        _timed(asyncio.to_thread(_build_macro_context, req.question, req.market or "US", today), 10.0, None),
+        _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, req.market or "US"), 22.0, None),
+    )
+
+    context_parts = [
+        f"Today's date: {today}",
+        f"User question: {req.question}",
+    ]
+    if macro_ctx:
+        context_parts.append(macro_ctx)
+    if platform_ctx:
+        context_parts.append(platform_ctx)
+    if req.ticker:
+        context_parts.append(f"Stock in focus: {req.ticker} ({req.market or 'US'} market)")
+    if headlines:
+        context_parts.append("Recent market headlines (use these to answer current-events questions):")
+        for h in headlines:
+            context_parts.append(f"  • {h}")
+
+    user_msg = "\n".join(context_parts)
+
+    try:
+        messages = []
+        for m in (req.history or [])[-4:]:
+            content = m.content[:1500] if len(m.content) > 1500 else m.content
+            messages.append({"role": m.role, "content": content})
+        messages.append({"role": "user", "content": user_msg})
+
+        response = await asyncio.to_thread(
+            client.messages.create,
+            model=MODEL,
+            max_tokens=4000,
+            system=_SYSTEM_STRUCTURED,
+            messages=messages,
+        )
+
+        raw = ""
+        for block in response.content:
+            if block.type == "text":
+                raw = block.text
+                break
+        if not raw:
+            raw = response.content[0].text if hasattr(response.content[0], "text") else ""
+
+        # Try to parse structured JSON from the LLM response
+        parsed = _extract_json_from_llm(raw)
+        if parsed:
+            try:
+                parsed.setdefault("route", route)
+                parsed.setdefault("data_sources", [])
+                parsed.setdefault("follow_up_questions", [])
+                if "reasoning" not in parsed:
+                    parsed["reasoning"] = {
+                        "why_this": "Based on the highest ForeCast Score and strongest factor alignment",
+                        "why_not_alt": "Alternative had lower scores on key factors",
+                        "edge_summary": "Selected stock leads on composite score and factor quality",
+                        "second_best": "N/A",
+                        "confidence_gap": "N/A",
+                    }
+                return StructuredQueryResponse(**parsed)
+            except (ValidationError, Exception) as e:
+                log.warning("Structured output validation failed: %s", e)
+
+        # Fallback: construct minimal structured response from freeform text
+        freeform_resp = _parse_query_response(raw, route)
+        return StructuredQueryResponse(
+            verdict="HOLD",
+            confidence=50,
+            timeframe="Medium-term",
+            summary=freeform_resp.answer[:300],
+            reasoning=ReasoningBlock(
+                why_this="See summary for details",
+                why_not_alt="Comparative data not available for alternative analysis",
+                edge_summary="See summary",
+                second_best="N/A",
+                confidence_gap="N/A",
+            ),
+            data_sources=freeform_resp.data_sources,
+            follow_up_questions=freeform_resp.follow_up_questions,
+            route=freeform_resp.route,
+        )
+
+    except anthropic.APITimeoutError:
+        return StructuredQueryResponse(
+            verdict="HOLD", confidence=0, timeframe="Medium-term",
+            summary="Query timed out — the AI took too long to respond. Try a shorter question.",
+            reasoning=ReasoningBlock(
+                why_this="N/A", why_not_alt="N/A", edge_summary="N/A",
+                second_best="N/A", confidence_gap="N/A",
+            ),
+            route=route,
+        )
+    except Exception as exc:
+        return StructuredQueryResponse(
+            verdict="HOLD", confidence=0, timeframe="Medium-term",
+            summary=f"Query failed: {str(exc)[:200]}",
+            reasoning=ReasoningBlock(
+                why_this="N/A", why_not_alt="N/A", edge_summary="N/A",
+                second_best="N/A", confidence_gap="N/A",
+            ),
+            route=route,
+        )

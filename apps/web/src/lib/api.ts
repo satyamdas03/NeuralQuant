@@ -1,12 +1,11 @@
 import type {
   AIScore, Market, ScreenerRequest, ScreenerResponse,
   AnalystRequest, AnalystResponse,
-  QueryRequest, QueryResponse,
+  QueryRequest, QueryResponse, StructuredQueryResponse,
   MarketOverview, MarketNews, MarketSectors,
   MarketMovers, StockChart, StockMeta,
   SentimentResponse, BacktestRequest, BacktestResponse,
   AlertSubscription, AlertDelivery, NewsDeskResponse,
-  TeamTask, TeamStandup,
 } from "./types";
 
 // Route all requests through Next.js /api/ rewrite proxy to avoid CORS issues.
@@ -76,38 +75,6 @@ export const authedApi = {
   listAlertDeliveries: (limit = 20) =>
     authedFetch<{ items: AlertDelivery[]; count: number }>(`/alerts/deliveries?limit=${limit}`),
 
-  // Team Hub
-  listTeamTasks: (params?: { status?: string; assignee?: string; priority?: string }) => {
-    const q = new URLSearchParams();
-    if (params?.status) q.set("status", params.status);
-    if (params?.assignee) q.set("assignee", params.assignee);
-    if (params?.priority) q.set("priority", params.priority);
-    const qs = q.toString();
-    return authedFetch<{ items: TeamTask[]; count: number }>(`/team/tasks${qs ? `?${qs}` : ""}`);
-  },
-  createTeamTask: (body: {
-    title: string; description?: string; assignee: string;
-    created_by?: string; priority?: string; category?: string; reference_url?: string;
-  }) =>
-    authedFetch<TeamTask>("/team/tasks", { method: "POST", body: JSON.stringify(body) }),
-  updateTeamTask: (id: string, body: {
-    status?: string; priority?: string; output?: string; review_notes?: string; assignee?: string;
-  }) =>
-    authedFetch<TeamTask>(`/team/tasks/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
-  getReviewQueue: () =>
-    authedFetch<{ items: TeamTask[]; count: number }>("/team/tasks/queue"),
-  getTaskStats: () =>
-    authedFetch<{ by_status: Record<string, number>; by_assignee: Record<string, number>; total: number }>("/team/tasks/stats"),
-  listStandups: (agentRole?: string, limit = 20) => {
-    const q = new URLSearchParams();
-    if (agentRole) q.set("agent_role", agentRole);
-    q.set("limit", String(limit));
-    return authedFetch<{ items: TeamStandup[]; count: number }>(`/team/standups?${q.toString()}`);
-  },
-  createStandup: (body: {
-    agent_role: string; summary: string; blockers?: string; next_actions?: string;
-  }) =>
-    authedFetch<TeamStandup>("/team/standups", { method: "POST", body: JSON.stringify(body) }),
 };
 
 export const api = {
@@ -188,7 +155,7 @@ export const api = {
   },
 
   runQuery: (body: QueryRequest, signal?: AbortSignal) =>
-    authedFetch<QueryResponse>("/query", {
+    authedFetch<StructuredQueryResponse>("/v2/query", {
       method: "POST",
       body: JSON.stringify(body),
       signal,

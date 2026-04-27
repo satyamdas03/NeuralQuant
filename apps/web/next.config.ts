@@ -1,6 +1,22 @@
 import type { NextConfig } from "next";
 
+const TEAM_HUB_URL = process.env.NEXT_PUBLIC_TEAM_HUB_URL ?? "https://team-iota-neon.vercel.app";
+
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      {
+        source: "/team",
+        destination: TEAM_HUB_URL,
+        permanent: true,
+      },
+      {
+        source: "/team/:path*",
+        destination: `${TEAM_HUB_URL}/:path*`,
+        permanent: true,
+      },
+    ];
+  },
   async rewrites() {
     return [
       {

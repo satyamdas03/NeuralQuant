@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Send } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Send, Mic, MicOff } from "lucide-react";
 
 type Props = {
   onSubmit: (text: string) => void;
@@ -15,6 +15,41 @@ export default function ChatInputArea({
   disabled = false,
 }: Props) {
   const [text, setText] = useState("");
+  const [isListening, setIsListening] = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    setVoiceSupported(!!SR);
+  }, []);
+
+  const startListening = () => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) return;
+    const recognition = new SR();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = "en-US";
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setText(transcript);
+      setIsListening(false);
+      setTimeout(() => {
+        if (transcript.trim()) onSubmit(transcript.trim());
+      }, 300);
+    };
+    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => setIsListening(false);
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsListening(true);
+  };
+
+  const stopListening = () => {
+    recognitionRef.current?.stop();
+    setIsListening(false);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,7 +59,7 @@ export default function ChatInputArea({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex items-end gap-2">
+    <form onSubmit={handleSubmit} className="flex items-end gap-2 flex-1">
       <div className="flex-1 rounded-xl bg-surface-high ghost-border px-4 py-3">
         <textarea
           value={text}
@@ -41,6 +76,21 @@ export default function ChatInputArea({
           className="w-full resize-none bg-transparent text-sm text-on-surface outline-none placeholder:text-on-surface-variant"
         />
       </div>
+      {voiceSupported && (
+        <button
+          type="button"
+          onClick={isListening ? stopListening : startListening}
+          disabled={disabled}
+          className={`press-scale flex h-10 w-10 items-center justify-center rounded-xl transition-colors ${
+            isListening
+              ? "bg-red-500/20 text-red-400 animate-pulse ghost-border"
+              : "bg-surface-high text-on-surface-variant hover:text-on-surface ghost-border"
+          }`}
+          title={isListening ? "Stop listening" : "Voice input"}
+        >
+          {isListening ? <MicOff size={16} /> : <Mic size={16} />}
+        </button>
+      )}
       <button
         type="submit"
         disabled={disabled || !text.trim()}

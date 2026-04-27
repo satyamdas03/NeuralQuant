@@ -19,6 +19,24 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+PRESETS = [
+    {"id": "momentum_breakout", "name": "Momentum Breakout", "description": "Strong upward momentum stocks",
+     "filters": {"min_score": 7, "min_momentum": 70}, "icon": "TrendingUp"},
+    {"id": "value_play", "name": "Value Play", "description": "Undervalued quality stocks",
+     "filters": {"min_score": 5, "min_quality": 70}, "icon": "DollarSign"},
+    {"id": "dividend_income", "name": "Dividend Income", "description": "High-quality low-volatility stocks",
+     "filters": {"min_quality": 60, "min_score": 5, "min_low_vol": 60}, "icon": "Banknote"},
+    {"id": "quality_compound", "name": "Quality Compound", "description": "Long-term compounders",
+     "filters": {"min_quality": 80, "min_score": 7}, "icon": "Gem"},
+    {"id": "contrarian_bet", "name": "Contrarian Bet", "description": "Beaten down but fundamentally sound",
+     "filters": {"min_quality": 50, "max_momentum": 40}, "icon": "RotateCcw"},
+]
+
+
+@router.get("/presets")
+def get_screener_presets() -> dict:
+    return {"presets": PRESETS}
+
 
 def _get_live_regime_id(market: str = "US") -> int:
     """Detect current regime via SignalEngine._get_regime().
@@ -99,6 +117,33 @@ def _cache_rows_to_ai_scores(rows: list[dict], market: str, regime_id: int) -> l
     ]
 
 
+def _apply_preset_filters(scores: list, req: ScreenerRequest) -> list:
+    """Filter AIScore results by preset sub-score thresholds."""
+    # Apply preset defaults if preset specified
+    preset_filters = {}
+    if req.preset:
+        preset_match = next((p for p in PRESETS if p["id"] == req.preset), None)
+        if preset_match:
+            preset_filters = preset_match["filters"]
+
+    # Merge: explicit request params override preset defaults
+    min_momentum = req.min_momentum if req.min_momentum is not None else preset_filters.get("min_momentum")
+    min_quality = req.min_quality if req.min_quality is not None else preset_filters.get("min_quality")
+    min_low_vol = req.min_low_vol if req.min_low_vol is not None else preset_filters.get("min_low_vol")
+    max_momentum = req.max_momentum if req.max_momentum is not None else preset_filters.get("max_momentum")
+
+    filtered = scores
+    if min_momentum is not None:
+        filtered = [s for s in filtered if s.sub_scores.momentum * 100 >= min_momentum]
+    if max_momentum is not None:
+        filtered = [s for s in filtered if s.sub_scores.momentum * 100 <= max_momentum]
+    if min_quality is not None:
+        filtered = [s for s in filtered if s.sub_scores.quality * 100 >= min_quality]
+    if min_low_vol is not None:
+        filtered = [s for s in filtered if s.sub_scores.low_vol * 100 >= min_low_vol]
+    return filtered
+
+
 @router.post("", response_model=ScreenerResponse)
 async def run_screener(
     req: ScreenerRequest,
@@ -116,6 +161,7 @@ async def run_screener(
             regime_id = _get_live_regime_id(req.market)
             cached = cached[: req.max_results]
             ai_scores = _cache_rows_to_ai_scores(cached, req.market, regime_id)
+            ai_scores = _apply_preset_filters(ai_scores, req)
             return ScreenerResponse(
                 regime_label=REGIME_LABELS.get(regime_id, "Unknown"),
                 regime_id=regime_id,
@@ -143,6 +189,7 @@ def _run_screener_sync(req: ScreenerRequest, engine: SignalEngine) -> ScreenerRe
         row_to_ai_score(row, req.market, score_1_10_override=int(ranked_scores.iloc[i]))
         for i, (_, row) in enumerate(filtered.iterrows())
     ]
+    ai_scores = _apply_preset_filters(ai_scores, req)
 
     return ScreenerResponse(
         regime_label=REGIME_LABELS.get(regime_id, "Unknown"),

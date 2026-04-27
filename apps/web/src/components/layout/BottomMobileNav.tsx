@@ -11,7 +11,6 @@ import {
   Star,
   Database,
   GitCompareArrows,
-  Users,
 } from "lucide-react";
 
 const NAV = [
@@ -21,7 +20,6 @@ const NAV = [
   { href: "/query", label: "Ask AI", icon: MessageSquareText, center: true },
   { href: "/sources", label: "Sources", icon: Database },
   { href: "/compare", label: "Compare", icon: GitCompareArrows },
-  { href: "/team", label: "Team", icon: Users },
 ];
 
 export default function BottomMobileNav() {

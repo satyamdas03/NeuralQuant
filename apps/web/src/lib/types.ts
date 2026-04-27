@@ -58,6 +58,11 @@ export interface ScreenerRequest {
   min_score?: number;
   max_results?: number;
   tickers?: string[];
+  preset?: string;
+  min_momentum?: number;
+  min_quality?: number;
+  min_low_vol?: number;
+  max_momentum?: number;
 }
 
 export interface ScreenerResponse {
@@ -282,28 +287,57 @@ export interface SmartMoneyData {
   last_updated: string;
 }
 
-// Team Hub
-export interface TeamTask {
-  id: string;
-  title: string;
-  description: string | null;
-  assignee: string;
-  created_by: string;
-  status: "pending" | "in_progress" | "in_review" | "done" | "blocked";
-  priority: "low" | "medium" | "high" | "critical";
-  category: string;
-  output: string | null;
-  review_notes: string | null;
-  reference_url: string | null;
-  created_at: string;
-  updated_at: string;
+// ── Structured Query Response (v2) ──────────────────────────────────────────
+
+export interface MetricItem {
+  name: string;
+  value: string;
+  benchmark?: string | null;
+  status: "positive" | "negative" | "neutral";
 }
 
-export interface TeamStandup {
-  id: string;
-  agent_role: string;
-  summary: string;
-  blockers: string | null;
-  next_actions: string | null;
-  created_at: string;
+export interface ScenarioItem {
+  label: string;
+  probability: number;
+  target: string;
+  thesis: string;
 }
+
+export interface AllocationItem {
+  ticker: string;
+  weight: number;
+  rationale: string;
+  why_not_alt: string;
+}
+
+export interface ComparisonItem {
+  ticker: string;
+  metric: string;
+  ours: string;
+  theirs: string;
+  edge: string;
+}
+
+export interface ReasoningBlock {
+  why_this: string;
+  why_not_alt: string;
+  edge_summary: string;
+  second_best: string;
+  confidence_gap: string;
+}
+
+export interface StructuredQueryResponse {
+  verdict: string;
+  confidence: number;
+  timeframe: string;
+  summary: string;
+  metrics: MetricItem[];
+  reasoning: ReasoningBlock;
+  scenarios: ScenarioItem[];
+  allocations: AllocationItem[];
+  comparisons: ComparisonItem[];
+  data_sources: string[];
+  follow_up_questions: string[];
+  route: "SNAP" | "REACT" | "DEEP";
+}
+

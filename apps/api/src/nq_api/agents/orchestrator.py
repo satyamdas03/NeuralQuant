@@ -93,7 +93,7 @@ class ParaDebateOrchestrator:
         composite_score = float(context.get("composite_score", 0.5))
         try:
             synthesis = await asyncio.wait_for(
-                asyncio.to_thread(self._head.run_synthesis, ticker, all_outputs, composite_score),
+                asyncio.to_thread(self._head.run_synthesis, ticker, all_outputs, composite_score, context),
                 timeout=self.HEAD_ANALYST_TIMEOUT,
             )
         except asyncio.TimeoutError:

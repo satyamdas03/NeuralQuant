@@ -38,6 +38,11 @@ class ScreenerRequest(BaseModel):
     min_score: float = 0.0
     max_results: int = Field(50, le=200)
     tickers: Optional[list[str]] = None  # if None, use default universe
+    preset: Optional[str] = None         # "momentum_breakout", "value_play", etc.
+    min_momentum: Optional[float] = None  # 0-100 percentile filter
+    min_quality: Optional[float] = None
+    min_low_vol: Optional[float] = None
+    max_momentum: Optional[float] = None
 
 
 class ScreenerResponse(BaseModel):
@@ -88,4 +93,53 @@ class QueryResponse(BaseModel):
     answer: str
     data_sources: list[str]      # which data was used to answer
     follow_up_questions: list[str]  # 3 suggested follow-ups
+    route: Literal["SNAP", "REACT", "DEEP"] = "REACT"
+
+
+# ── Structured Query Response (v2) ──────────────────────────────────────────
+
+class MetricItem(BaseModel):
+    name: str
+    value: str
+    benchmark: str | None = None
+    status: Literal["positive", "negative", "neutral"]
+
+class ScenarioItem(BaseModel):
+    label: str          # "Bear" / "Base" / "Bull"
+    probability: float   # 0-1
+    target: str         # "$185" or "₹4,200"
+    thesis: str         # one-line trigger
+
+class AllocationItem(BaseModel):
+    ticker: str
+    weight: float        # percentage 0-100
+    rationale: str       # why THIS stock
+    why_not_alt: str     # why not the next-best alternative
+
+class ComparisonItem(BaseModel):
+    ticker: str
+    metric: str         # "P/E", "Revenue Growth", "ForeCast Score"
+    ours: str           # the recommended stock's value
+    theirs: str         # the alternative's value
+    edge: str           # one-line why ours wins on this metric
+
+class ReasoningBlock(BaseModel):
+    why_this: str        # Why we chose X — specific data-driven justification
+    why_not_alt: str     # Why not the next-best alternative Y — with data
+    edge_summary: str    # One-line edge statement: "X wins on [metric] vs Y"
+    second_best: str     # Name of the runner-up stock we rejected
+    confidence_gap: str  # How much better X is than Y (e.g. "Score 8 vs 6, +2 edge")
+
+class StructuredQueryResponse(BaseModel):
+    verdict: str                              # STRONG BUY | BUY | HOLD | SELL | STRONG SELL
+    confidence: float                         # 0-100
+    timeframe: str                            # Short-term | Medium-term | Long-term
+    summary: str                              # 2-3 sentence plain text summary
+    metrics: list[MetricItem] = []
+    reasoning: ReasoningBlock                 # comparative reasoning — why X not Y
+    scenarios: list[ScenarioItem] = []
+    allocations: list[AllocationItem] = []    # portfolio questions only
+    comparisons: list[ComparisonItem] = []     # DEEP route or compare questions
+    data_sources: list[str] = []
+    follow_up_questions: list[str] = []
     route: Literal["SNAP", "REACT", "DEEP"] = "REACT"

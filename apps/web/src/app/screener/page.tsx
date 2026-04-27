@@ -8,6 +8,8 @@ import { ScreenerTable } from "@/components/ScreenerTable";
 import RegimeBadge from "@/components/ui/RegimeBadge";
 import GlassPanel from "@/components/ui/GlassPanel";
 import GhostBorderCard from "@/components/ui/GhostBorderCard";
+import ScreenerPresets from "@/components/ui/ScreenerPresets";
+import { PRESETS, type ScreenerPreset } from "@/data/screener-presets";
 import { ScanSearch } from "lucide-react";
 
 export default function ScreenerPage() {
@@ -39,6 +41,7 @@ function ScreenerInner() {
   const [market, setMarket] = useState<"US" | "IN">(urlMarket);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activePreset, setActivePreset] = useState<string | null>(null);
 
   const load = (m: "US" | "IN") => {
     setLoading(true);
@@ -54,6 +57,26 @@ function ScreenerInner() {
     setMarket(urlMarket);
     load(urlMarket);
   }, [urlMarket]);
+
+  const handlePresetSelect = (preset: ScreenerPreset | null) => {
+    setActivePreset(preset?.id ?? null);
+  };
+
+  const filteredResults = (() => {
+    if (!data) return [];
+    if (!activePreset) return data.results;
+    const preset = PRESETS.find((p) => p.id === activePreset);
+    if (!preset) return data.results;
+    const f = preset.filters;
+    return data.results.filter((s) => {
+      if (f.min_score && s.score_1_10 < f.min_score) return false;
+      if (f.min_momentum && s.sub_scores.momentum * 100 < f.min_momentum) return false;
+      if (f.max_momentum && s.sub_scores.momentum * 100 > f.max_momentum) return false;
+      if (f.min_quality && s.sub_scores.quality * 100 < f.min_quality) return false;
+      if (f.min_low_vol && s.sub_scores.low_vol * 100 < f.min_low_vol) return false;
+      return true;
+    });
+  })();
 
   const switchMarket = (m: "US" | "IN") => {
     setMarket(m);
@@ -92,6 +115,8 @@ function ScreenerInner() {
         ))}
       </div>
 
+      <ScreenerPresets active={activePreset} onSelect={handlePresetSelect} />
+
       {loading ? (
         <div className="space-y-2">
           {Array.from({ length: 10 }).map((_, i) => (
@@ -106,7 +131,7 @@ function ScreenerInner() {
           </div>
         </GhostBorderCard>
       ) : data ? (
-        <ScreenerTable stocks={data.results} />
+        <ScreenerTable stocks={filteredResults} />
       ) : null}
     </div>
   );

@@ -18,7 +18,14 @@ class HeadAnalystAgent:
 
     agent_name = "HEAD_ANALYST"
     system_prompt = """You are the HEAD ANALYST and chair of NeuralQuant's PARA-DEBATE investment committee.
-You have received structured analyses from 6 specialist analysts. Your job: synthesise their views into a definitive investment verdict with full reasoning.
+You have received structured analyses from 6 specialist agents AND the raw data they used. Your job: synthesise their views into a definitive investment verdict with full reasoning.
+
+CRITICAL RULES:
+1. Cross-reference agent claims against the raw data. If an agent says "strong momentum" but the 12-1 return is only 5%, flag the inconsistency.
+2. Every recommendation must explain WHY this stock and WHY NOT an alternative. Name the second-best option and explain why it's inferior.
+3. The adversarial agent's challenges must be explicitly addressed in your verdict — don't ignore them.
+4. Your verdict must be one of: STRONG BUY, BUY, HOLD, SELL, STRONG SELL. Never equivocate.
+5. Quantify your conviction: explain what data would change your mind.
 
 Weighting framework:
 - MACRO and FUNDAMENTAL carry 25% weight each (most important for long-term)
@@ -28,7 +35,7 @@ Weighting framework:
 
 Output format — strictly:
 VERDICT: [STRONG BUY|BUY|HOLD|SELL|STRONG SELL]
-INVESTMENT_THESIS: [4-6 sentences synthesising the debate into a clear investment thesis]
+INVESTMENT_THESIS: [4-6 sentences synthesising the debate into a clear investment thesis. Include WHY this stock and WHY NOT the next-best alternative.]
 BULL_CASE: [2-3 sentences on primary upside drivers]
 BEAR_CASE: [2-3 sentences on primary downside risks]
 RISK_FACTORS:
@@ -45,7 +52,8 @@ RISK_FACTORS:
         self._client = anthropic.Anthropic(api_key=api_key, timeout=45.0)
 
     def run_synthesis(
-        self, ticker: str, agent_outputs: list[AgentOutput], composite_score: float
+        self, ticker: str, agent_outputs: list[AgentOutput], composite_score: float,
+        raw_context: dict | None = None,
     ) -> dict:
         summaries = "\n\n".join(
             f"[{o.agent}] Stance: {o.stance} ({o.conviction})\n"
@@ -54,6 +62,21 @@ RISK_FACTORS:
             for o in agent_outputs
         )
         context = {"agent_summaries": summaries, "composite_score": f"{composite_score:.2f}"}
+        if raw_context:
+            # Include key raw data for cross-referencing
+            raw_fields = {
+                k: v for k, v in raw_context.items()
+                if v is not None and k in (
+                    "price", "change_pct", "pe_ttm", "pb_ratio", "market_cap",
+                    "composite_score", "regime_label", "sector", "momentum_percentile",
+                    "quality_percentile", "value_percentile", "low_vol_percentile",
+                    "short_interest_percentile", "revenue_growth", "debt_equity",
+                    "return_on_equity", "gross_margin", "beta", "analyst_target_mean",
+                    "insider_cluster_score",
+                )
+            }
+            if raw_fields:
+                context["raw_data"] = "\n".join(f"  {k}: {v}" for k, v in raw_fields.items())
         msg = self._build_user_message(ticker, context)
 
         try:
@@ -79,12 +102,22 @@ RISK_FACTORS:
     def _build_user_message(self, ticker: str, context: dict) -> str:
         agent_summaries = context.get("agent_summaries", "")
         ai_score = context.get("composite_score", "N/A")
+        raw_data = context.get("raw_data", "")
+        raw_section = ""
+        if raw_data:
+            raw_section = f"""
+
+RAW DATA (cross-reference agent claims against this):
+{raw_data}
+
+You MUST verify agent claims against this raw data. If an agent claims "strong momentum" but the data shows low momentum, flag it."""
         return f"""Synthesise the PARA-DEBATE for {ticker} (AI score: {ai_score}).
 
 ANALYST PANEL OUTPUTS:
 {agent_summaries}
+{raw_section}
 
-Deliver the final investment verdict."""
+Deliver the final investment verdict. Remember: name the second-best alternative and explain why your pick is superior."""
 
     def _parse_synthesis(self, raw: str) -> dict:
         verdict_match = re.search(

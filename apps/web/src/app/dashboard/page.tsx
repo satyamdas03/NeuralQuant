@@ -112,6 +112,7 @@ interface ChatMsg {
   sources?: string[];
   followUps?: string[];
   loading?: boolean;
+  structured?: import("@/lib/types").StructuredQueryResponse | null;
 }
 
 const EXAMPLES = [
@@ -172,7 +173,7 @@ function HomeAskAI() {
       setMessages((prev) =>
         prev.map((m) =>
           m.id === phId
-            ? { ...m, content: res.answer, sources: res.data_sources, followUps: res.follow_up_questions, loading: false }
+            ? { ...m, content: res.summary || "", sources: res.data_sources, followUps: res.follow_up_questions, loading: false, structured: res }
             : m
         )
       );
@@ -244,6 +245,7 @@ function HomeAskAI() {
                   key={msg.id}
                   answer={msg.loading ? "…" : msg.content}
                   sources={msg.loading ? [] : msg.sources}
+                  structured={msg.structured}
                 />
               )
             )}

@@ -17,6 +17,7 @@ knowledgeGraph_NeuralQuant/
 docs/NeuralQuant_Report*.docx
 docs/~$*.docx
 .next/
+.vercel/
 INSPIRATIONS/
 NEURALQUANT_nextThings/
 .claude/
