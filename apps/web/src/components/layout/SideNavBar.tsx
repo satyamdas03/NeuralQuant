@@ -13,6 +13,7 @@ import {
   Database,
   GitCompareArrows,
   LogIn,
+  Users,
 } from "lucide-react";
 import GradientButton from "@/components/ui/GradientButton";
 
@@ -26,6 +27,7 @@ const NAV = [
   { href: "/compare", label: "Compare", icon: GitCompareArrows },
   { href: "/watchlist", label: "Watchlist", icon: Star },
   { href: "/alerts", label: "Alerts", icon: Bell },
+  { href: "/team", label: "Team", icon: Users },
 ];
 
 export default function SideNavBar() {

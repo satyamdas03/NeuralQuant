@@ -18,6 +18,7 @@ dependencies = [
     "stripe>=15.1.0",
     "slack-bolt>=1.18",
     "slack-sdk>=3.21",
+    "psycopg2-binary>=2.9.12",
 ]
 
 [project.optional-dependencies]

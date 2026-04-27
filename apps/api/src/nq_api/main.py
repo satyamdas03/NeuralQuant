@@ -15,7 +15,8 @@ log = logging.getLogger(__name__)
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from nq_api.routes import stocks, screener, analyst, query, market, auth, watchlists, sentiment, backtest, alerts, newsdesk, smart_money
+from nq_api.routes import stocks, screener, analyst, query, market, auth, watchlists, sentiment, backtest, alerts, newsdesk, smart_money, team
+from nq_api.routes.migrate import router as migrate_router
 from nq_api.slack.router import router as slack_router
 from nq_api.routes.checkout import router as checkout_router
 from nq_api.routes.webhooks_stripe import router as stripe_webhook_router
@@ -152,6 +153,8 @@ app.include_router(checkout_router)
 app.include_router(stripe_webhook_router)
 app.include_router(referral_router)
 app.include_router(slack_router)
+app.include_router(team.router)
+app.include_router(migrate_router)
 
 
 @app.get("/health")

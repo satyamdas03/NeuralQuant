@@ -74,6 +74,39 @@ export const authedApi = {
     authedFetch<void>(`/alerts/subscriptions/${id}`, { method: "DELETE" }),
   listAlertDeliveries: (limit = 20) =>
     authedFetch<{ items: AlertDelivery[]; count: number }>(`/alerts/deliveries?limit=${limit}`),
+
+  // Team Hub
+  listTeamTasks: (params?: { status?: string; assignee?: string; priority?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.status) q.set("status", params.status);
+    if (params?.assignee) q.set("assignee", params.assignee);
+    if (params?.priority) q.set("priority", params.priority);
+    const qs = q.toString();
+    return authedFetch<{ items: TeamTask[]; count: number }>(`/team/tasks${qs ? `?${qs}` : ""}`);
+  },
+  createTeamTask: (body: {
+    title: string; description?: string; assignee: string;
+    created_by?: string; priority?: string; category?: string; reference_url?: string;
+  }) =>
+    authedFetch<TeamTask>("/team/tasks", { method: "POST", body: JSON.stringify(body) }),
+  updateTeamTask: (id: string, body: {
+    status?: string; priority?: string; output?: string; review_notes?: string; assignee?: string;
+  }) =>
+    authedFetch<TeamTask>(`/team/tasks/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  getReviewQueue: () =>
+    authedFetch<{ items: TeamTask[]; count: number }>("/team/tasks/queue"),
+  getTaskStats: () =>
+    authedFetch<{ by_status: Record<string, number>; by_assignee: Record<string, number>; total: number }>("/team/tasks/stats"),
+  listStandups: (agentRole?: string, limit = 20) => {
+    const q = new URLSearchParams();
+    if (agentRole) q.set("agent_role", agentRole);
+    q.set("limit", String(limit));
+    return authedFetch<{ items: TeamStandup[]; count: number }>(`/team/standups?${q.toString()}`);
+  },
+  createStandup: (body: {
+    agent_role: string; summary: string; blockers?: string; next_actions?: string;
+  }) =>
+    authedFetch<TeamStandup>("/team/standups", { method: "POST", body: JSON.stringify(body) }),
 };
 
 export const api = {
