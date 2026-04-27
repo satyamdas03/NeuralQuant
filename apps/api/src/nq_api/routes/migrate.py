@@ -18,28 +18,77 @@ router = APIRouter(prefix="/migrate", tags=["migrate"])
 log = logging.getLogger(__name__)
 
 
-def _run_sql(sql: str) -> dict:
-    """Execute DDL SQL via direct PostgreSQL connection."""
-    db_url = os.environ.get("SUPABASE_DB_URL", "")
+def _build_db_urls() -> list[str]:
+    """Build ordered list of PostgreSQL connection URLs to try.
 
-    if not db_url:
+    1. SUPABASE_DB_URL env var (direct connection)
+    2. Session pooler (IPv4-compatible, port 5432)
+    3. Transaction pooler (IPv4-compatible, port 6543)
+    """
+    urls: list[str] = []
+    direct = os.environ.get("SUPABASE_DB_URL", "")
+    if direct:
+        urls.append(direct)
+
+    # Derive pooler URLs from SUPABASE_URL if available
+    supabase_url = os.environ.get("SUPABASE_URL", "")
+    if supabase_url:
+        # Extract project ref: https://ajkhyayrbqiuvnsmqrdz.supabase.co -> ajkhyayrbqiuvnsmqrdz
+        ref = supabase_url.replace("https://", "").split(".")[0]
+        db_password = os.environ.get("SUPABASE_DB_PASSWORD", "")
+        if not db_password and direct:
+            # Extract password from direct URL: postgresql://postgres:PASS@host/db
+            try:
+                from urllib.parse import urlparse, unquote
+                parsed = urlparse(direct)
+                db_password = unquote(parsed.password or "")
+            except Exception:
+                pass
+        if db_password:
+            # Session pooler (supports DDL, port 5432)
+            urls.append(
+                f"postgresql://postgres.{ref}:{_url_encode(db_password)}"
+                f"@aws-0-us-east-1.pooler.supabase.com:5432/postgres"
+            )
+            # Transaction pooler (fallback, port 6543)
+            urls.append(
+                f"postgresql://postgres.{ref}:{_url_encode(db_password)}"
+                f"@aws-0-us-east-1.pooler.supabase.com:6543/postgres"
+            )
+    return urls
+
+
+def _url_encode(s: str) -> str:
+    """Minimal URL encoding for PostgreSQL passwords."""
+    return s.replace("#", "%23").replace("@", "%40").replace("/", "%2F")
+
+
+def _run_sql(sql: str) -> dict:
+    """Execute DDL SQL via PostgreSQL, trying multiple connection URLs."""
+    urls = _build_db_urls()
+    if not urls:
         raise HTTPException(status_code=503, detail="SUPABASE_DB_URL not configured")
 
-    try:
-        import psycopg2
+    import psycopg2
 
-        conn = psycopg2.connect(db_url, sslmode="require", connect_timeout=15)
-        conn.autocommit = True
-        cur = conn.cursor()
-        cur.execute(sql)
-        rowcount = cur.rowcount if hasattr(cur, "rowcount") else -1
-        result = cur.fetchall() if cur.description else []
-        cur.close()
-        conn.close()
-        return {"method": "psycopg2", "rows_affected": rowcount, "result": result}
-    except Exception as exc:
-        log.exception("psycopg2 migration failed")
-        raise HTTPException(status_code=500, detail=f"Migration failed: {exc}")
+    last_err: Exception | None = None
+    for url in urls:
+        try:
+            conn = psycopg2.connect(url, sslmode="require", connect_timeout=10)
+            conn.autocommit = True
+            cur = conn.cursor()
+            cur.execute(sql)
+            rowcount = cur.rowcount if hasattr(cur, "rowcount") else -1
+            result = cur.fetchall() if cur.description else []
+            cur.close()
+            conn.close()
+            return {"method": "psycopg2", "url_type": "direct" if url == urls[0] else "pooler", "rows_affected": rowcount, "result": result}
+        except Exception as exc:
+            last_err = exc
+            log.warning("DB connection failed for URL type: %s", "direct" if url == urls[0] else "pooler")
+            continue
+
+    raise HTTPException(status_code=500, detail=f"Migration failed: all connection methods exhausted. Last error: {last_err}")
 
 
 MIGRATION_SQL = """
@@ -150,27 +199,29 @@ def migrate_team_hub() -> dict:
 @router.get("/test-db")
 def test_db_connection() -> dict:
     """Test database connectivity for debugging."""
-    db_url = os.environ.get("SUPABASE_DB_URL", "")
-    if not db_url:
-        return {"status": "error", "detail": "SUPABASE_DB_URL not set"}
+    urls = _build_db_urls()
+    if not urls:
+        return {"status": "error", "detail": "No DB URLs available (SUPABASE_DB_URL and SUPABASE_URL not set)"}
 
-    # Mask password
-    masked = db_url.split("@")[0].rsplit(":", 1)[0] + ":***@" + db_url.split("@")[1] if "@" in db_url else db_url
+    import psycopg2
 
-    try:
-        import psycopg2
-        conn = psycopg2.connect(db_url, sslmode="require", connect_timeout=15)
-        cur = conn.cursor()
-        cur.execute("SELECT version()")
-        version = cur.fetchone()[0]
-        # Check if tables exist
-        cur.execute("SELECT tablename FROM pg_tables WHERE tablename IN ('team_tasks', 'team_standups')")
-        tables = [r[0] for r in cur.fetchall()]
-        # Check if enums exist
-        cur.execute("SELECT typname FROM pg_type WHERE typname IN ('agent_role', 'task_status', 'task_priority')")
-        enums = [r[0] for r in cur.fetchall()]
-        cur.close()
-        conn.close()
-        return {"status": "ok", "postgres_version": version, "tables_found": tables, "enums_found": enums}
-    except Exception as exc:
-        return {"status": "error", "detail": str(exc), "db_url_masked": masked}
+    last_err = ""
+    for i, url in enumerate(urls):
+        url_type = "direct" if i == 0 else "pooler"
+        try:
+            conn = psycopg2.connect(url, sslmode="require", connect_timeout=10)
+            cur = conn.cursor()
+            cur.execute("SELECT version()")
+            version = cur.fetchone()[0]
+            cur.execute("SELECT tablename FROM pg_tables WHERE tablename IN ('team_tasks', 'team_standups')")
+            tables = [r[0] for r in cur.fetchall()]
+            cur.execute("SELECT typname FROM pg_type WHERE typname IN ('agent_role', 'task_status', 'task_priority')")
+            enums = [r[0] for r in cur.fetchall()]
+            cur.close()
+            conn.close()
+            return {"status": "ok", "url_type": url_type, "postgres_version": version, "tables_found": tables, "enums_found": enums}
+        except Exception as exc:
+            last_err = f"{url_type}: {exc}"
+            continue
+
+    return {"status": "error", "detail": f"All connection methods failed. {last_err}"}
