@@ -24,6 +24,7 @@ interface ChatMessage {
   followUps?: string[];
   loading?: boolean;
   structured?: StructuredQueryResponse | null;
+  phaseLabel?: string;
 }
 
 export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
@@ -44,7 +45,7 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
 
     const userMsg: ChatMessage = { id: Date.now().toString(), role: "user", content: q };
     const phId = (Date.now() + 1).toString();
-    const ph: ChatMessage = { id: phId, role: "assistant", content: "", loading: true };
+    const ph: ChatMessage = { id: phId, role: "assistant", content: "", loading: true, phaseLabel: "Thinking..." };
 
     setMessages((prev) => [...prev, userMsg, ph]);
     setLoading(true);
@@ -55,10 +56,20 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
       .map((m) => ({ role: m.role, content: m.content }));
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 300_000); // 300s — GLM thinking blocks take 60-180s for complex queries
+    const timeout = setTimeout(() => controller.abort(), 300_000);
 
     try {
-      const res = await api.runQuery({ question: q, ticker: defaultTicker, history }, controller.signal);
+      const res = await api.runQueryStream(
+        { question: q, ticker: defaultTicker, history },
+        controller.signal,
+        (phase, label) => {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === phId ? { ...m, phaseLabel: label } : m
+            )
+          );
+        },
+      );
       setMessages((prev) =>
         prev.map((m) =>
           m.id === phId
@@ -69,6 +80,7 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
                 followUps: res.follow_up_questions,
                 loading: false,
                 structured: res,
+                phaseLabel: undefined,
               }
             : m
         )
@@ -80,7 +92,7 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
       setMessages((prev) =>
         prev.map((m) =>
           m.id === phId
-            ? { ...m, content: msg, loading: false }
+            ? { ...m, content: msg, loading: false, phaseLabel: undefined }
             : m
         )
       );
@@ -112,7 +124,9 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
                 </div>
               </div>
             ) : msg.loading ? (
-              <div key={msg.id} className="flex gap-1.5 py-1">
+              <div key={msg.id} className="flex items-center gap-2 py-1 text-sm text-on-surface-variant">
+                <span className="animate-pulse text-primary">●</span>
+                <span>{msg.phaseLabel || "Thinking..."}</span>
                 {[0, 1, 2].map((i) => (
                   <span
                     key={i}

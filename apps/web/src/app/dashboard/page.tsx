@@ -113,6 +113,7 @@ interface ChatMsg {
   followUps?: string[];
   loading?: boolean;
   structured?: import("@/lib/types").StructuredQueryResponse | null;
+  phaseLabel?: string;
 }
 
 const EXAMPLES = [
@@ -158,7 +159,7 @@ function HomeAskAI() {
 
     const userMsg: ChatMsg = { id: Date.now().toString(), role: "user", content: q };
     const phId = (Date.now() + 1).toString();
-    const ph: ChatMsg = { id: phId, role: "assistant", content: "", loading: true };
+    const ph: ChatMsg = { id: phId, role: "assistant", content: "", loading: true, phaseLabel: "Thinking..." };
 
     setMessages((prev) => [...prev, userMsg, ph]);
     setLoading(true);
@@ -168,27 +169,43 @@ function HomeAskAI() {
       .filter((m) => !m.loading)
       .map((m) => ({ role: m.role, content: m.content }));
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 300_000);
+
     try {
-      const res = await api.runQuery({ question: q, history });
+      const res = await api.runQueryStream(
+        { question: q, history },
+        controller.signal,
+        (phase, label) => {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === phId ? { ...m, phaseLabel: label } : m
+            )
+          );
+        },
+      );
       setMessages((prev) =>
         prev.map((m) =>
           m.id === phId
-            ? { ...m, content: res.summary || "", sources: res.data_sources, followUps: res.follow_up_questions, loading: false, structured: res }
+            ? { ...m, content: res.summary || "", sources: res.data_sources, followUps: res.follow_up_questions, loading: false, structured: res, phaseLabel: undefined }
             : m
         )
       );
     } catch (e) {
       const errMsg = e instanceof Error && e.message.includes("auth required")
         ? "Sign in required to ask questions."
+        : e instanceof DOMException && e.name === "AbortError"
+        ? "Query timed out after 5 minutes. Try a shorter question or retry."
         : "Failed — backend may be starting. Retry in 30s.";
       setMessages((prev) =>
         prev.map((m) =>
           m.id === phId
-            ? { ...m, content: errMsg, loading: false }
+            ? { ...m, content: errMsg, loading: false, phaseLabel: undefined }
             : m
         )
       );
     } finally {
+      clearTimeout(timeout);
       setLoading(false);
       setSlowLoad(false);
       if (slowTimer.current) clearTimeout(slowTimer.current);
@@ -249,17 +266,22 @@ function HomeAskAI() {
                 />
               )
             )}
-            {messages.some((m) => m.loading) && (
-              <div className="flex gap-1.5 py-1">
-                {[0, 1, 2].map((i) => (
-                  <span
-                    key={i}
-                    className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce"
-                    style={{ animationDelay: `${i * 0.15}s` }}
-                  />
-                ))}
-              </div>
-            )}
+            {messages.some((m) => m.loading) && (() => {
+              const loadingMsg = messages.find((m) => m.loading);
+              return (
+                <div className="flex items-center gap-2 py-1 text-sm text-on-surface-variant">
+                  <span className="animate-pulse text-primary">●</span>
+                  <span>{loadingMsg?.phaseLabel || "Thinking..."}</span>
+                  {[0, 1, 2].map((i) => (
+                    <span
+                      key={i}
+                      className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce"
+                      style={{ animationDelay: `${i * 0.15}s` }}
+                    />
+                  ))}
+                </div>
+              );
+            })()}
             {messages.length > 0 && !loading && messages[messages.length - 1].followUps && (
               <SuggestionChips
                 suggestions={messages[messages.length - 1].followUps!}

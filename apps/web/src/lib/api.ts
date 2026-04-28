@@ -161,6 +161,80 @@ export const api = {
       signal,
     }),
 
+  /**
+   * SSE-based query: streams phase labels ("Scanning market headlines...",
+   * "Running AI analysis...") so the user sees what the AI is doing.
+   * Falls back to runQuery() on SSE failure.
+   */
+  runQueryStream: async (
+    body: QueryRequest,
+    signal: AbortSignal,
+    onPhase: (phase: string, label: string) => void,
+  ): Promise<StructuredQueryResponse> => {
+    const { createClient } = await import("./supabase/client");
+    const supabase = createClient();
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    // SSE must bypass Next.js proxy (Vercel serverless timeout kills streams)
+    const sseBase = process.env.NEXT_PUBLIC_API_URL || "https://neuralquant.onrender.com";
+
+    try {
+      const response = await fetch(`${sseBase}/query/v2/stream`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+        signal,
+      });
+
+      if (!response.ok) {
+        const err = await response.text();
+        throw new Error(`API ${response.status}: ${err}`);
+      }
+
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const payload = line.slice(6).trim();
+          if (payload === "[DONE]") throw new Error("Stream closed without result");
+          try {
+            const evt = JSON.parse(payload);
+            if (evt.status === "phase") {
+              onPhase(evt.phase, evt.label);
+            } else if (evt.status === "done") {
+              return evt.result as StructuredQueryResponse;
+            } else if (evt.status === "error") {
+              throw new Error(evt.message ?? "Query failed");
+            }
+            // status === "running": keep-alive tick, ignore
+          } catch (e) {
+            if (e instanceof SyntaxError) continue; // malformed line
+            throw e;
+          }
+        }
+      }
+      throw new Error("SSE stream ended without result");
+    } catch (streamErr) {
+      // Fallback: try the regular endpoint if SSE fails
+      try {
+        return await api.runQuery(body, signal);
+      } catch {
+        throw streamErr;
+      }
+    }
+  },
+
   getMarketOverview: () => apiFetch<MarketOverview>("/market/overview"),
   getNewsDesk: () => apiFetch<NewsDeskResponse>("/news"),
   getMarketNews: (n = 8) => apiFetch<MarketNews>(`/market/news?n=${n}`),

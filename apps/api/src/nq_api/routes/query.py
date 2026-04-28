@@ -1,12 +1,15 @@
 """POST /query — natural language financial query endpoint."""
 import asyncio
+import json as _json
 import os
 import re
+import time
 from datetime import date
 
 import anthropic
 import yfinance as yf
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 import logging
 
 from nq_api.schemas import QueryRequest, QueryResponse, StructuredQueryResponse, ReasoningBlock
@@ -1083,3 +1086,226 @@ async def run_nl_query_v2(
             ),
             route=route,
         )
+
+
+# ── SSE streaming variant of /v2 ──────────────────────────────────────────────
+
+_PHASE_LABELS = {
+    "classify": "Classifying your question...",
+    "news": "Scanning market headlines...",
+    "macro": "Building macro context...",
+    "platform": "Enriching with NeuralQuant data...",
+    "analyze": "Running AI analysis...",
+}
+
+
+@router.post("/v2/stream")
+async def run_nl_query_v2_stream(
+    req: QueryRequest,
+    user: User | None = Depends(get_current_user_optional),
+):
+    """SSE streaming variant of /v2. Emits phase labels + keep-alive pings."""
+    from pydantic import ValidationError
+
+    async def generate():
+        if not req.question or len(req.question.strip()) < 3:
+            err = StructuredQueryResponse(
+                verdict="HOLD", confidence=0, timeframe="Medium-term",
+                summary="Please enter a question (at least 3 characters).",
+                reasoning=ReasoningBlock(why_this="N/A",why_not_alt="N/A",edge_summary="N/A",second_best="N/A",confidence_gap="N/A"),
+                follow_up_questions=["What is the current Nifty level?"],
+                route="REACT",
+            )
+            yield f'data: {_json.dumps({"status":"done","result":err.model_dump()})}\n\n'
+            yield "data: [DONE]\n\n"
+            return
+
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            yield f'data: {_json.dumps({"status":"error","message":"ANTHROPIC_API_KEY not configured"})}\n\n'
+            yield "data: [DONE]\n\n"
+            return
+
+        # Phase 1: Classify
+        yield f'data: {_json.dumps({"status":"phase","phase":"classify","label":_PHASE_LABELS["classify"]})}\n\n'
+        route = dart.classify_query(req.question, req.ticker)
+
+        if route == "SNAP":
+            snap_resp = await dart.handle_snap(req)
+            result = StructuredQueryResponse(
+                verdict="HOLD", confidence=50, timeframe="Short-term",
+                summary=snap_resp.answer[:300],
+                reasoning=ReasoningBlock(why_this="Based on NeuralQuant score data",why_not_alt="Alternative not scored",edge_summary="Score-based assessment",second_best="N/A",confidence_gap="N/A"),
+                data_sources=snap_resp.data_sources,
+                follow_up_questions=snap_resp.follow_up_questions,
+                route="SNAP",
+            )
+            yield f'data: {_json.dumps({"status":"done","result":result.model_dump()})}\n\n'
+            yield "data: [DONE]\n\n"
+            return
+
+        # Phase 2-4: Context gathering (parallel)
+        client = anthropic.Anthropic(api_key=api_key, timeout=300.0)
+        today = date.today().strftime("%B %d, %Y")
+
+        yield f'data: {_json.dumps({"status":"phase","phase":"news","label":_PHASE_LABELS["news"]})}\n\n'
+        yield f'data: {_json.dumps({"status":"phase","phase":"macro","label":_PHASE_LABELS["macro"]})}\n\n'
+        yield f'data: {_json.dumps({"status":"phase","phase":"platform","label":_PHASE_LABELS["platform"]})}\n\n'
+
+        result_holder: dict = {}
+        context_done = asyncio.Event()
+
+        async def _gather_context():
+            async def _timed(coro, timeout, default):
+                try:
+                    return await asyncio.wait_for(coro, timeout=timeout)
+                except (asyncio.TimeoutError, Exception):
+                    return default
+
+            headlines, macro_ctx, platform_ctx = await asyncio.gather(
+                _timed(asyncio.to_thread(_fetch_relevant_news, req.question, req.ticker, 5), 8.0, []),
+                _timed(asyncio.to_thread(_build_macro_context, req.question, req.market or "US", today), 10.0, None),
+                _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, req.market or "US"), 22.0, None),
+            )
+            context_parts = [f"Today's date: {today}", f"User question: {req.question}"]
+            if macro_ctx:
+                context_parts.append(macro_ctx)
+            if platform_ctx:
+                context_parts.append(platform_ctx)
+            if req.ticker:
+                context_parts.append(f"Stock in focus: {req.ticker} ({req.market or 'US'} market)")
+            if headlines:
+                context_parts.append("Recent market headlines (use these to answer current-events questions):")
+                for h in headlines:
+                    context_parts.append(f"  • {h}")
+            result_holder["user_msg"] = "\n".join(context_parts)
+            context_done.set()
+
+        context_task = asyncio.create_task(_gather_context())
+        ctx_start = time.monotonic()
+        while not context_done.is_set():
+            yield 'data: {"status":"running"}\n\n'
+            elapsed = time.monotonic() - ctx_start
+            if elapsed > 45:
+                context_task.cancel()
+                result_holder.setdefault("error", "Context gathering timed out")
+                break
+            try:
+                await asyncio.wait_for(asyncio.shield(context_done.wait()), timeout=8.0)
+            except asyncio.TimeoutError:
+                pass
+
+        if "error" in result_holder:
+            yield f'data: {_json.dumps({"status":"error","message":result_holder["error"]})}\n\n'
+            yield "data: [DONE]\n\n"
+            return
+
+        # Phase 5: LLM analysis
+        yield f'data: {_json.dumps({"status":"phase","phase":"analyze","label":_PHASE_LABELS["analyze"]})}\n\n'
+
+        llm_done = asyncio.Event()
+
+        async def _call_llm():
+            try:
+                messages = []
+                for m in (req.history or [])[-4:]:
+                    content = m.content[:1500] if len(m.content) > 1500 else m.content
+                    messages.append({"role": m.role, "content": content})
+                messages.append({"role": "user", "content": result_holder["user_msg"]})
+
+                response = await asyncio.to_thread(
+                    client.messages.create,
+                    model=MODEL,
+                    max_tokens=8000,
+                    system=_SYSTEM_STRUCTURED,
+                    messages=messages,
+                )
+
+                raw = ""
+                for block in response.content:
+                    if block.type == "text":
+                        raw = block.text
+                        break
+                if not raw:
+                    raw = response.content[0].text if hasattr(response.content[0], "text") else ""
+
+                parsed = _extract_json_from_llm(raw)
+                if parsed:
+                    try:
+                        parsed.setdefault("route", route)
+                        parsed.setdefault("data_sources", [])
+                        parsed.setdefault("follow_up_questions", [])
+                        if "reasoning" not in parsed:
+                            parsed["reasoning"] = {
+                                "why_this": "Based on the highest ForeCast Score and strongest factor alignment",
+                                "why_not_alt": "Alternative had lower scores on key factors",
+                                "edge_summary": "Selected stock leads on composite score and factor quality",
+                                "second_best": "N/A",
+                                "confidence_gap": "N/A",
+                            }
+                        result_holder["result"] = StructuredQueryResponse(**parsed)
+                    except (ValidationError, Exception) as e:
+                        log.warning("Structured output validation failed: %s", e)
+
+                if "result" not in result_holder:
+                    freeform_resp = _parse_query_response(raw, route)
+                    result_holder["result"] = StructuredQueryResponse(
+                        verdict="HOLD", confidence=50, timeframe="Medium-term",
+                        summary=freeform_resp.answer[:300],
+                        reasoning=ReasoningBlock(why_this="See summary for details",why_not_alt="Comparative data not available for alternative analysis",edge_summary="See summary",second_best="N/A",confidence_gap="N/A"),
+                        data_sources=freeform_resp.data_sources,
+                        follow_up_questions=freeform_resp.follow_up_questions,
+                        route=freeform_resp.route,
+                    )
+            except anthropic.APITimeoutError:
+                result_holder["result"] = StructuredQueryResponse(
+                    verdict="HOLD", confidence=0, timeframe="Medium-term",
+                    summary="Query timed out — the AI took too long to respond. Try a shorter question.",
+                    reasoning=ReasoningBlock(why_this="N/A",why_not_alt="N/A",edge_summary="N/A",second_best="N/A",confidence_gap="N/A"),
+                    route=route,
+                )
+            except Exception as exc:
+                result_holder["result"] = StructuredQueryResponse(
+                    verdict="HOLD", confidence=0, timeframe="Medium-term",
+                    summary=f"Query failed: {str(exc)[:200]}",
+                    reasoning=ReasoningBlock(why_this="N/A",why_not_alt="N/A",edge_summary="N/A",second_best="N/A",confidence_gap="N/A"),
+                    route=route,
+                )
+            finally:
+                llm_done.set()
+
+        llm_task = asyncio.create_task(_call_llm())
+        llm_start = time.monotonic()
+        while not llm_done.is_set():
+            yield 'data: {"status":"running"}\n\n'
+            elapsed = time.monotonic() - llm_start
+            if elapsed > 300:
+                llm_task.cancel()
+                result_holder.setdefault("result", StructuredQueryResponse(
+                    verdict="HOLD", confidence=0, timeframe="Medium-term",
+                    summary="Analysis timed out. Try a shorter question.",
+                    reasoning=ReasoningBlock(why_this="N/A",why_not_alt="N/A",edge_summary="N/A",second_best="N/A",confidence_gap="N/A"),
+                    route=route,
+                ))
+                llm_done.set()
+                break
+            try:
+                await asyncio.wait_for(asyncio.shield(llm_done.wait()), timeout=8.0)
+            except asyncio.TimeoutError:
+                pass
+
+        if "result" in result_holder:
+            yield f'data: {_json.dumps({"status":"done","result": result_holder["result"].model_dump()})}\n\n'
+        else:
+            yield f'data: {_json.dumps({"status":"error","message":"No result produced"})}\n\n'
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
