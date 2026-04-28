@@ -124,16 +124,28 @@ ANALYST PANEL OUTPUTS:
 Deliver the final investment verdict. Remember: name the second-best alternative and explain why your pick is superior."""
 
     def _parse_synthesis(self, raw: str) -> dict:
+        # Normalise Markdown-bold section headers (Mistral often wraps keys in **)
+        norm = re.sub(
+            r"\*\*\s*(VERDICT|INVESTMENT_THESIS|BULL_CASE|BEAR_CASE|RISK_FACTORS|THESIS|KEY_POINTS)\s*:\s*\*\*",
+            r"\1:", raw, flags=re.I,
+        )
+        # Also strip stray ** around values
+        norm = re.sub(r"\*\*", "", norm)
+
         verdict_match = re.search(
-            r"VERDICT:\s*(STRONG BUY|BUY|HOLD|SELL|STRONG SELL)", raw, re.I
+            r"VERDICT:\s*(STRONG BUY|BUY|HOLD|SELL|STRONG SELL)", norm, re.I
         )
         verdict = verdict_match.group(1).upper() if verdict_match else "HOLD"
 
         def _extract(key: str) -> str:
-            m = re.search(rf"{key}:\s*(.+?)(?=\n[A-Z_]+:|\Z)", raw, re.I | re.S)
+            # Stop at next known section header or end-of-string
+            m = re.search(
+                rf"{key}:\s*(.+?)(?=\n(?:VERDICT|INVESTMENT_THESIS|BULL_CASE|BEAR_CASE|RISK_FACTORS|THESIS|KEY_POINTS)\s*:|\Z)",
+                norm, re.I | re.S,
+            )
             return m.group(1).strip() if m else ""
 
-        risks_raw = re.search(r"RISK_FACTORS:(.*)", raw, re.I | re.S)
+        risks_raw = re.search(r"RISK_FACTORS:(.*)", norm, re.I | re.S)
         risks = []
         if risks_raw:
             risks = [
@@ -146,7 +158,7 @@ Deliver the final investment verdict. Remember: name the second-best alternative
         if not investment_thesis:
             # Fallback: compose from THESIS + KEY_POINTS when response lacks INVESTMENT_THESIS
             thesis_part = _extract("THESIS")
-            key_points_raw = re.search(r"KEY_POINTS:(.*)", raw, re.I | re.S)
+            key_points_raw = re.search(r"KEY_POINTS:(.*)", norm, re.I | re.S)
             kp_text = ""
             if key_points_raw:
                 kp_lines = [

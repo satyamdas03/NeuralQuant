@@ -685,7 +685,7 @@ async def run_nl_query(
         return await dart.handle_deep(req)
 
     # REACT: existing LLM-powered logic with optimized context
-    client = anthropic.Anthropic(api_key=api_key, timeout=120.0)
+    client = anthropic.Anthropic(api_key=api_key, timeout=180.0)
 
     # ── Offload blocking I/O to thread pool ──────────────────────────────────
     # Each task gets a hard cap so the total context-build phase completes in
@@ -751,7 +751,10 @@ async def run_nl_query(
         # If the answer mentions specific stocks but lacks comparative reasoning,
         # do a quick second pass to strengthen it.
         answer_text = raw
-        mentioned_tickers = [t for t in (in_universe_tickers or []) if t.upper() in answer_text.upper() or t.replace(".NS", "").upper() in answer_text.upper()]
+        detected, _ = _detect_tickers_in_question(answer_text, req.market or "US")
+        mentioned_tickers = list(detected)
+        if req.ticker and req.ticker not in mentioned_tickers and req.ticker.upper() in answer_text.upper():
+            mentioned_tickers.append(req.ticker)
         if mentioned_tickers:
             has_comparative = any(phrase in answer_text.lower() for phrase in [
                 "why not", "instead of", "compared to", "rather than", "over ",
@@ -918,7 +921,7 @@ async def run_nl_query_v2(
         )
 
     # REACT or DEEP: use LLM with structured prompt
-    client = anthropic.Anthropic(api_key=api_key, timeout=120.0)
+    client = anthropic.Anthropic(api_key=api_key, timeout=180.0)
 
     today = date.today().strftime("%B %d, %Y")
 

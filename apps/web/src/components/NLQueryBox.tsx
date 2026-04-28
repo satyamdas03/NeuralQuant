@@ -55,7 +55,7 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
       .map((m) => ({ role: m.role, content: m.content }));
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 120_000);
+    const timeout = setTimeout(() => controller.abort(), 180_000); // 180s — GLM thinking blocks take 60-120s for complex queries
 
     try {
       const res = await api.runQuery({ question: q, ticker: defaultTicker, history }, controller.signal);
@@ -75,7 +75,7 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
       );
     } catch (err) {
       const msg = err instanceof DOMException && err.name === "AbortError"
-        ? "Query timed out after 2 minutes. Try a shorter question or retry."
+        ? "Query timed out after 3 minutes. Try a shorter question or retry."
         : "Query failed — backend may be warming up. Retry in 30s.";
       setMessages((prev) =>
         prev.map((m) =>
