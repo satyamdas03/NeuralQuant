@@ -4,7 +4,7 @@ const TEAM_HUB_URL = process.env.NEXT_PUBLIC_TEAM_HUB_URL ?? "https://team-iota-
 
 const nextConfig: NextConfig = {
   experimental: {
-    proxyTimeout: 1000 * 180, // 180s — PARA-DEBATE + AskAI need 30-120s
+    proxyTimeout: 1000 * 300, // 300s — GLM thinking blocks take 60-180s for complex queries
   },
   async redirects() {
     return [

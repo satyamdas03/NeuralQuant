@@ -685,11 +685,11 @@ async def run_nl_query(
         return await dart.handle_deep(req)
 
     # REACT: existing LLM-powered logic with optimized context
-    client = anthropic.Anthropic(api_key=api_key, timeout=180.0)
+    client = anthropic.Anthropic(api_key=api_key, timeout=300.0)
 
     # ── Offload blocking I/O to thread pool ──────────────────────────────────
     # Each task gets a hard cap so the total context-build phase completes in
-    # ≤ 25 s — leaving ample headroom for the 120 s Anthropic timeout.
+    # ≤ 25 s — leaving ample headroom for the 300 s Anthropic timeout.
     # Note: wait_for cancels the asyncio task on timeout but the underlying
     # thread may still run; this is a resource trade-off vs correct behaviour.
     today = date.today().strftime("%B %d, %Y")
@@ -844,19 +844,67 @@ def _parse_query_response(raw: str, route: str = "REACT") -> QueryResponse:
 
 
 def _extract_json_from_llm(text: str) -> dict | None:
-    """Try to extract a JSON object from LLM output (may be wrapped in markdown)."""
-    # Remove markdown code fences if present
-    cleaned = re.sub(r"```(?:json)?\s*", "", text)
-    cleaned = re.sub(r"\s*```", "", cleaned)
-    # Try to find a JSON object
+    """Try to extract a JSON object from LLM output (may be wrapped in markdown or garbled)."""
+    import json as _json
+
+    cleaned = text.strip()
+
+    # Strategy 1: Direct parse (clean JSON)
+    try:
+        return _json.loads(cleaned)
+    except (_json.JSONDecodeError, ValueError):
+        pass
+
+    # Strategy 2: Remove markdown code fences (```json ... ```)
+    fence_match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", cleaned)
+    if fence_match:
+        try:
+            return _json.loads(fence_match.group(1))
+        except (_json.JSONDecodeError, ValueError):
+            pass
+
+    # Strategy 3: Find JSON object boundaries (first { to last })
+    first_brace = cleaned.find("{")
+    if first_brace >= 0:
+        # Walk through string counting braces to find matching close
+        depth = 0
+        for i in range(first_brace, len(cleaned)):
+            if cleaned[i] == "{":
+                depth += 1
+            elif cleaned[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    try:
+                        return _json.loads(cleaned[first_brace : i + 1])
+                    except (_json.JSONDecodeError, ValueError):
+                        break
+
+    # Strategy 4: Aggressive — strip all markdown, find anything JSON-like
+    aggressive = re.sub(r"```(?:json)?\s*", "", cleaned)
+    aggressive = re.sub(r"\s*```", "", aggressive)
+    aggressive = re.sub(r"\*\*[^*]+\*\*", "", aggressive)  # remove markdown bold
     for pattern in [r"\{[\s\S]*\}", r"\[[\s\S]*\]"]:
-        match = re.search(pattern, cleaned)
+        match = re.search(pattern, aggressive)
         if match:
             try:
-                import json
-                return json.loads(match.group())
-            except (json.JSONDecodeError, ValueError):
+                return _json.loads(match.group())
+            except (_json.JSONDecodeError, ValueError):
                 continue
+
+    # Strategy 5: Truncated JSON — close open braces/brackets and retry
+    # Common when max_tokens is hit mid-response
+    first_brace = cleaned.find("{")
+    if first_brace >= 0:
+        snippet = cleaned[first_brace:]
+        # Count unclosed braces and brackets
+        open_braces = snippet.count("{") - snippet.count("}")
+        open_brackets = snippet.count("[") - snippet.count("]")
+        if open_braces > 0 or open_brackets > 0:
+            repaired = snippet + ("]" * max(0, open_brackets)) + ("}" * max(0, open_braces))
+            try:
+                return _json.loads(repaired)
+            except (_json.JSONDecodeError, ValueError):
+                pass
     return None
 
 
@@ -921,7 +969,7 @@ async def run_nl_query_v2(
         )
 
     # REACT or DEEP: use LLM with structured prompt
-    client = anthropic.Anthropic(api_key=api_key, timeout=180.0)
+    client = anthropic.Anthropic(api_key=api_key, timeout=300.0)
 
     today = date.today().strftime("%B %d, %Y")
 
@@ -964,7 +1012,7 @@ async def run_nl_query_v2(
         response = await asyncio.to_thread(
             client.messages.create,
             model=MODEL,
-            max_tokens=4000,
+            max_tokens=8000,
             system=_SYSTEM_STRUCTURED,
             messages=messages,
         )
