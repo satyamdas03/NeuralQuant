@@ -61,9 +61,11 @@ IMPORTANT: Use ONLY the exact figures provided below. Do not substitute values f
 Sentiment data (live as of today):
 - Short interest percentile: {context.get('short_interest_percentile', 'N/A')}
 - Short interest % of float: {context.get('short_interest_pct', 'N/A')}
-- Insider cluster score: {context.get('insider_cluster_score', 'N/A')} (0=bearish, 1=strong buy)
+- Insider cluster score: {context.get('insider_cluster_score', 'N/A')} (0=bearish, 1=strong buy. NOTE: if this is 0.5, it means no real insider data is available — treat as NEUTRAL signal, not bullish)
 - News sentiment (30d): {context.get('news_sentiment', 'N/A')}
 - Market regime: {context.get('regime_label', 'N/A')}
 - Analyst target mean: {context.get('analyst_target_mean', 'N/A')}
 {social_ctx}
-Provide your sentiment stance on {ticker}. Reference the specific numbers above in your key points."""
+Provide your sentiment stance on {ticker}. Reference the specific numbers above in your key points.
+
+CRITICAL: High short interest (>80th percentile) can signal smart money bearishness, NOT just squeeze potential. Do not reflexively interpret high short interest as bullish."""

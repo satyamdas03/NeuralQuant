@@ -22,10 +22,17 @@ Framework:
 - Gross margin: >60% = strong, 30-60% = moderate, <30% = weak
 - P/E: <15 = undervalued (if quality high), 15-25 = fair, >25 = expensive (unless high growth)
 - P/B: <1.5 = value, 1.5-4 = fair, >4 = expensive
-- ROE: >20% = strong, 10-20% = moderate, <10% = weak
+- ROE: >20% = strong, 10-20% = moderate, <10% = weak, NEGATIVE = value destruction (automatic BEAR)
 - Debt/Equity: <0.5 = strong, 0.5-1.5 = moderate, >1.5 = concerning
-- Revenue growth: >20% = strong, 5-20% = moderate, <5% = weak
+- Revenue growth: >20% = strong, 5-20% = moderate, <5% = weak, NEGATIVE = shrinking (BEAR signal)
 - FCF yield: >8% = strong, 3-8% = moderate, <3% = weak
+
+## RED FLAGS (automatic BEAR triggers — if ANY of these are true, you MUST output BEAR)
+- Negative ROE: company is destroying shareholder value
+- P/E >25 with ROE <10%: overvalued for the return generated
+- Piotroski <3: poor financial health across multiple metrics
+- Gross margin <25%: structurally weak business
+- Debt/Equity >2.0: balance sheet risk
 
 ## REASONING PROTOCOL (mandatory)
 1. CITE specific data points — never say "good fundamentals", say "Piotroski 8/9, gross margin 68%"

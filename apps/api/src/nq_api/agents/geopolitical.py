@@ -45,12 +45,18 @@ class GeopoliticalAgent(BaseAnalystAgent):
     system_prompt = _SYSTEM
 
     def _build_user_message(self, ticker: str, context: dict) -> str:
+        sector = context.get('sector', '')
+        market = context.get('market', 'US')
+        sector_note = ""
+        if sector:
+            sector_note = f"\nCompany sector: {sector} — consider sector-specific regulatory and geopolitical risks (e.g., tech=antitrust/export controls, healthcare=FDA/policy, energy=supply chain/sanctions, finance=regulation)."
+
         return f"""Assess geopolitical and regulatory risks for {ticker}.
 
 IMPORTANT: Use ONLY the exact figures provided below. Do not substitute values from memory or training data.
 
 Context (live as of today):
-- Market: {context.get('market', 'US')}
+- Market: {market}
 - Macro regime: {context.get('regime_label', 'N/A')}
 - HY credit spread (OAS): {context.get('hy_spread_oas', 'N/A')} bps
 - VIX: {context.get('vix', 'N/A')}
@@ -58,5 +64,8 @@ Context (live as of today):
 - 10Y Treasury yield: {context.get('yield_10y', 'N/A')}%
 - SPX vs 200-day MA: {context.get('spx_vs_200ma', 'N/A')}%
 - CPI YoY: {context.get('cpi_yoy', 'N/A')}%
+- Beta: {context.get('beta', 'N/A')} (higher beta = more geopolitical sensitivity)
+{sector_note}
+Provide your geopolitical risk stance on {ticker}. Reference the specific numbers above in your key points.
 
-Provide your geopolitical risk stance on {ticker}. Reference the specific numbers above in your key points."""
+IMPORTANT: If the sector has elevated regulatory risk (tech, healthcare, finance, energy), or if VIX > 20, or if yield curve is inverted, you should lean BEAR. Do not default to BULL just because macro numbers look calm."""

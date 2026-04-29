@@ -109,6 +109,21 @@ class ParaDebateOrchestrator:
         if adversarial_output.stance == "BULL":
             adversarial_output = adversarial_output.model_copy(update={"stance": "BEAR"})
 
+        # Step 2b: algorithmic guardrails — override LLM optimism on SEVERE red flags only
+        red_flags = context.get("_fundamental_red_flags", [])
+        severe_flags = [f for f in red_flags if f.startswith("SEVERE|")]
+        moderate_flags = [f.replace("MODERATE|", "") for f in red_flags if f.startswith("MODERATE|")]
+        if severe_flags:
+            for i, o in enumerate(specialist_outputs):
+                if o.agent == "FUNDAMENTAL" and o.stance in ("BULL", "NEUTRAL"):
+                    flag_text = severe_flags[0].replace("SEVERE|", "")
+                    log.info("Overriding FUNDAMENTAL %s→BEAR for %s: %s", o.stance, ticker, flag_text)
+                    specialist_outputs[i] = o.model_copy(update={
+                        "stance": "BEAR",
+                        "thesis": f"ALGORITHMIC OVERRIDE — {flag_text}. {o.thesis}",
+                        "key_points": [flag_text] + o.key_points[:2],
+                    })
+
         all_outputs = specialist_outputs + [adversarial_output]
 
         # Step 3: compute consensus score (adversarial included with 1.5x weight)
@@ -116,10 +131,10 @@ class ParaDebateOrchestrator:
         weighted_outputs = []
         for o in specialist_outputs:
             weighted_outputs.append((STANCE_SCORE[o.stance], CONVICTION_MULT[o.conviction]))
-        # Adversarial gets 1.5x weight (it's the only guaranteed bear counterweight)
+        # Adversarial gets 2x weight (it's the only guaranteed bear counterweight)
         adv_score = STANCE_SCORE[adversarial_output.stance]
         adv_conv = CONVICTION_MULT[adversarial_output.conviction]
-        weighted_outputs.append((adv_score, adv_conv * 1.5))
+        weighted_outputs.append((adv_score, adv_conv * 2.0))
 
         total_weight = sum(w for _, w in weighted_outputs)
         consensus = (
@@ -128,11 +143,12 @@ class ParaDebateOrchestrator:
 
         # Step 4: HEAD ANALYST synthesis (with consensus guardrails)
         # Map consensus to expected verdict range to prevent systematic BUY bias
+        # Wider HOLD zone: ±0.25 instead of ±0.15
         if consensus <= -0.5:
             verdict_guidance = "STRONG SELL or SELL"
-        elif consensus <= -0.15:
+        elif consensus <= -0.25:
             verdict_guidance = "SELL or HOLD"
-        elif consensus <= 0.15:
+        elif consensus <= 0.25:
             verdict_guidance = "HOLD"
         elif consensus <= 0.5:
             verdict_guidance = "HOLD or BUY"
@@ -140,6 +156,8 @@ class ParaDebateOrchestrator:
             verdict_guidance = "BUY or STRONG BUY"
 
         composite_score = float(context.get("composite_score", 0.5))
+        # Pass moderate red flags to HEAD ANALYST for contextual awareness
+        context["_moderate_flags"] = moderate_flags
         try:
             synthesis = await asyncio.wait_for(
                 asyncio.to_thread(self._head.run_synthesis, ticker, all_outputs, composite_score, context, consensus, verdict_guidance),

@@ -156,10 +156,61 @@ def _build_analyst_context(ticker: str, market: str) -> dict:
         # Adversarial / enrichment fields
         "debt_equity":               round(float(info.get("debtToEquity", 1.0)), 2) if info.get("debtToEquity") else None,
         "revenue_growth":            round(float(info.get("revenueGrowth", 0.0)) * 100, 1) if info.get("revenueGrowth") else None,
-        "insider_cluster_score":      round(float(fund.get("short_interest_pct", 0.02)) * 100, 1),
+        "insider_cluster_score":      _compute_insider_score(info, fund),
     }
 
+    # Post-hoc algorithmic guardrails — override LLM stances when data is unambiguous
+    context["_fundamental_red_flags"] = _fundamental_red_flags(context)
+
     return context
+
+
+def _compute_insider_score(info: dict, fund: dict) -> float:
+    """Insider cluster score (0=bearish, 1=bullish).
+
+    yfinance doesn't cleanly provide insider buying cluster data.
+    Default to 0.5 (neutral) to avoid biasing the sentiment agent.
+    Previously this was short_interest_pct * 100 — completely wrong metric.
+    TODO: integrate real insider transaction data from a proper source.
+    """
+    return 0.5
+
+
+def _fundamental_red_flags(ctx: dict) -> list[str]:
+    """Detect BEAR signals in the data — severe ones trigger algorithmic override,
+    moderate ones are passed to HEAD ANALYST as additional context."""
+    flags = []
+    roe = float(ctx.get("roe", 0.12))
+    pe = float(ctx.get("pe_ttm", 20.0))
+    gpm = float(ctx.get("gross_profit_margin", 0.5))
+    de = ctx.get("debt_equity")
+    revenue_growth = ctx.get("revenue_growth")
+    piotroski = int(ctx.get("piotroski", 5))
+    mcap = ctx.get("market_cap")
+
+    # SEVERE red flags — trigger algorithmic override (unambiguous BEAR signals)
+    if roe < 0:
+        flags.append(f"SEVERE|NEGATIVE_ROE: ROE at {roe*100:.1f}% — company destroying shareholder value")
+    if piotroski < 3:
+        flags.append(f"SEVERE|WEAK_FSCORE: Piotroski {piotroski}/9 below 3 — poor financial health")
+    if revenue_growth is not None and float(revenue_growth) < -10:
+        flags.append(f"SEVERE|SHRINKING_REVENUE: Revenue declining at {float(revenue_growth):.1f}%")
+
+    # MODERATE red flags — advisory, don't override but inform HEAD ANALYST
+    if pe > 35:
+        flags.append(f"MODERATE|EXTREME_P/E: P/E at {pe:.1f}x exceeds 35x threshold")
+    if pe > 25 and roe < 0.10:
+        flags.append(f"MODERATE|OVERVALUED_LOW_RETURN: P/E {pe:.1f}x with ROE only {roe*100:.1f}%")
+    if gpm < 0.25:
+        flags.append(f"MODERATE|WEAK_MARGIN: Gross margin at {gpm*100:.1f}% below 25%")
+    # D/E >2.0 — skip for mega-caps where extreme D/E is usually a buyback artifact
+    if de is not None and float(de) > 2.0:
+        mcap_val = float(mcap) if mcap else 0
+        de_val = float(de)
+        if not (mcap_val > 50e9 and de_val > 20 and roe > 0.15):
+            flags.append(f"MODERATE|HIGH_DEBT: Debt/Equity at {de_val:.1f} exceeds 2.0")
+
+    return flags
 
 
 def _build_context_from_cache(ticker: str, market: str) -> dict | None:
@@ -213,8 +264,10 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
             "analyst_target_mean":       fund.get("analyst_target"),
             "debt_equity":               round(float(info.get("debtToEquity", 1.0)), 2) if info.get("debtToEquity") else None,
             "revenue_growth":            round(float(info.get("revenueGrowth", 0.0)) * 100, 1) if info.get("revenueGrowth") else None,
-            "insider_cluster_score":      round(float(fund.get("short_interest_pct", 0.02)) * 100, 1),
+            "insider_cluster_score":      _compute_insider_score(info, fund),
         }
+        # Same algorithmic guardrails as _build_analyst_context
+        context["_fundamental_red_flags"] = _fundamental_red_flags(context)
         return context
     except Exception as e:
         log.warning("cache context build failed for %s: %s", ticker, e)

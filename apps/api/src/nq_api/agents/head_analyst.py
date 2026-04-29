@@ -83,6 +83,10 @@ RISK_FACTORS:
             }
             if raw_fields:
                 context["raw_data"] = "\n".join(f"  {k}: {v}" for k, v in raw_fields.items())
+            # Moderate red flags — advisory warnings for the HEAD ANALYST
+            mod_flags = raw_context.get("_moderate_flags", [])
+            if mod_flags:
+                context["moderate_flags"] = "\n".join(f"  - {f}" for f in mod_flags)
         msg = self._build_user_message(ticker, context)
 
         try:
@@ -113,6 +117,7 @@ RISK_FACTORS:
         panel_consensus = context.get("panel_consensus", "0.000")
         verdict_guidance = context.get("verdict_guidance", "HOLD")
         raw_data = context.get("raw_data", "")
+        moderate_flags = context.get("moderate_flags", "")
         raw_section = ""
         if raw_data:
             raw_section = f"""
@@ -121,6 +126,13 @@ RAW DATA (cross-reference agent claims against this):
 {raw_data}
 
 You MUST verify agent claims against this raw data. If an agent claims "strong momentum" but the data shows low momentum, flag it."""
+        if moderate_flags:
+            raw_section += f"""
+
+ALGORITHMIC WARNING FLAGS (moderate — weigh these in your assessment):
+{moderate_flags}
+
+These are quantitative signals that the data raises concerns. Even if agents are bullish, these flags should temper your verdict."""
         return f"""Synthesise the PARA-DEBATE for {ticker} (AI score: {ai_score}).
 
 PANEL CONSENSUS: {panel_consensus} (range -1.0 to 1.0, negative = bearish, positive = bullish)
