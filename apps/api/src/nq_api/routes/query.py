@@ -23,6 +23,28 @@ import nq_api.dart_router as dart
 router = APIRouter()
 
 MODEL = os.environ.get("ANTHROPIC_DEFAULT_SONNET_MODEL", "claude-sonnet-4-6")
+# When bypassing Ollama proxy, use real Anthropic model name
+_CLOUD_MODEL = os.environ.get("NQ_QUERY_MODEL", "claude-sonnet-4-6")
+
+def _is_ollama_proxy() -> bool:
+    url = os.environ.get("ANTHROPIC_BASE_URL", "")
+    return "127.0.0.1:11434" in url or "localhost:11434" in url
+
+
+def _query_client(api_key: str, timeout: float = 55.0) -> tuple[anthropic.Anthropic, str]:
+    """Create Anthropic client for Ask AI — bypasses Ollama proxy for speed.
+
+    Returns (client, model_name) tuple.
+    """
+    if _is_ollama_proxy():
+        saved = os.environ.pop("ANTHROPIC_BASE_URL", None)
+        try:
+            c = anthropic.Anthropic(api_key=api_key, timeout=timeout)
+        finally:
+            if saved:
+                os.environ["ANTHROPIC_BASE_URL"] = saved
+        return c, _CLOUD_MODEL
+    return anthropic.Anthropic(api_key=api_key, timeout=timeout), MODEL
 
 _STOP_WORDS = {
     "WHAT", "WHEN", "WHERE", "WILL", "HAVE", "DOES", "WERE", "THAN",
@@ -514,17 +536,14 @@ def _fmt_price_row(ticker: str, fund: dict, score: int, market: str, rank: int |
 def _enrich_with_platform_data(question: str, market: str) -> str | None:
     """
     Fetch NeuralQuant's own stock scores + live prices when the question needs them.
-    Also dynamically fetches data for stocks not in the screener universe.
-    Returns a formatted context string with ACCURATE live prices, or None if not needed.
+    Uses score_cache (instant) + _fetch_one (2-5s per stock) instead of
+    build_real_snapshot (30-120s for full universe).
     """
-    from nq_api.data_builder import build_real_snapshot, _fund_cache
-    from nq_api.universe import UNIVERSE_BY_MARKET
-    from nq_api.score_builder import rank_scores_in_universe
-    from nq_api.deps import get_signal_engine
+    from nq_api.data_builder import _fetch_one
+    from nq_api.cache import score_cache
 
     q_upper = question.upper()
     parts: list[str] = []
-
     target_market = "IN" if any(k in q_upper for k in _INDIA_KEYWORDS) else market
 
     needs_screener = any(k in q_upper for k in _SCREENER_KEYWORDS)
@@ -539,54 +558,87 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
         return None
 
     try:
-        engine = get_signal_engine()
-
+        # FAST PATH: score_cache for screener data (sub-100ms)
         if needs_screener or (not in_universe_tickers and not out_of_universe_words and needs_stock_scores):
-            universe = UNIVERSE_BY_MARKET.get(target_market, UNIVERSE_BY_MARKET["US"])[:40]
-            snapshot = build_real_snapshot(universe, target_market)
-            result_df = engine.compute(snapshot)
-            result_df = result_df.sort_values("composite_score", ascending=False).reset_index(drop=True)
-            ranked = rank_scores_in_universe(result_df)
-            top = result_df.head(20)
-            lines = [f"NeuralQuant {target_market} Screener — Top 20 with LIVE prices (use these exact prices):"]
-            for i, (idx, row) in enumerate(top.iterrows()):
-                sc = int(ranked.loc[idx]) if idx in ranked.index else 5
-                t = row["ticker"]
-                fund = _fund_cache.get(f"{t}:{target_market}", {})
-                lines.append(_fmt_price_row(t, fund, sc, target_market, rank=i + 1))
-            lines.append("IMPORTANT: Use the prices above — they are live as of today. Do NOT use prices from your training data.")
-            parts.append("\n".join(lines))
+            cached = score_cache.read_top(target_market, 20, max_age_seconds=86400)
+            if cached:
+                lines = [f"NeuralQuant {target_market} Screener — Top 20 (cached scores):"]
+                for i, row in enumerate(cached[:20]):
+                    t = row.get("ticker", "")
+                    sc = int(row.get("composite_score", 0.5) * 10)
+                    pe = row.get("pe_ttm")
+                    gpm = row.get("gross_profit_margin")
+                    momentum = row.get("momentum_percentile")
+                    quality = row.get("quality_percentile")
+                    value = row.get("value_percentile")
+                    # Fetch live price for top stocks only (first 5)
+                    if i < 5:
+                        fund = _fetch_one(t, target_market)
+                        price = fund.get("current_price")
+                        chg = fund.get("change_pct", 0)
+                        cur = "Rs." if target_market == "IN" else "$"
+                        price_str = f"{cur}{price:,.2f} ({chg:+.1f}%)" if price else "N/A"
+                    else:
+                        price_str = "N/A (cached)"
+                    details = []
+                    if pe: details.append(f"P/E={pe:.1f}")
+                    if gpm: details.append(f"GPM={gpm:.0%}")
+                    if momentum: details.append(f"Momentum={momentum:.0%}")
+                    if quality: details.append(f"Quality={quality:.0%}")
+                    if value: details.append(f"Value={value:.0%}")
+                    det_str = " | ".join(details) if details else ""
+                    lines.append(f"#{i+1} {t}: {sc}/10 | {price_str} | {det_str}")
+                lines.append("NOTE: Live prices for top 5, rest cached. Do NOT use prices from training data.")
+                parts.append("\n".join(lines))
+            else:
+                # No cache — fetch top 5 stocks only (fast)
+                from nq_api.universe import UNIVERSE_BY_MARKET
+                top_tickers = UNIVERSE_BY_MARKET.get(target_market, UNIVERSE_BY_MARKET["US"])[:5]
+                lines = [f"NeuralQuant {target_market} — Quick scan (live prices):"]
+                for t in top_tickers:
+                    fund = _fetch_one(t, target_market)
+                    if fund.get("_is_real"):
+                        price = fund.get("current_price")
+                        chg = fund.get("change_pct", 0)
+                        pe = fund.get("pe_ttm")
+                        cur = "Rs." if target_market == "IN" else "$"
+                        price_str = f"{cur}{price:,.2f} ({chg:+.1f}%)" if price else "N/A"
+                        pe_str = f"P/E={pe:.1f}" if pe else ""
+                        lines.append(f"  {t}: {price_str} | {pe_str}")
+                lines.append("NOTE: Full screener data not cached. Showing top 5 with live prices.")
+                parts.append("\n".join(lines))
 
+        # Fetch specific stock data with live prices (fast: 1-3 calls, ~5s)
         if in_universe_tickers:
-            base_universe = UNIVERSE_BY_MARKET.get(target_market, UNIVERSE_BY_MARKET["US"])
-            universe = list(dict.fromkeys(in_universe_tickers + base_universe))[:25]
-            snapshot = build_real_snapshot(universe, target_market)
-            result_df = engine.compute(snapshot)
-            ranked = rank_scores_in_universe(result_df)
             lines = ["NeuralQuant scores + LIVE prices for mentioned stocks:"]
-            for t in in_universe_tickers:
-                row_match = result_df[result_df["ticker"] == t]
-                if not row_match.empty:
-                    row = row_match.iloc[0]
-                    idx = row_match.index[0]
-                    sc = int(ranked.loc[idx]) if idx in ranked.index else 5
-                    fund = _fund_cache.get(f"{t}:{target_market}", {})
-                    conf_val = row.get("regime_confidence", 0.5)
-                    conf_label = "high" if conf_val > 0.7 else ("medium" if conf_val > 0.4 else "low")
-                    base = _fmt_price_row(t, fund, sc, target_market)
-                    lines.append(
-                        base + f" | Momentum={row.get('momentum_percentile', 0.5):.0%} "
-                        f"Value={row.get('value_percentile', 0.5):.0%} "
-                        f"Quality={row.get('quality_percentile', 0.5):.0%} "
-                        f"Confidence={conf_label}"
-                    )
-            lines.append("IMPORTANT: Use the prices above — they are live as of today. Do NOT use prices from your training data.")
+            cached_all = score_cache.read_top(target_market, 50, max_age_seconds=86400)
+            cache_map = {r.get("ticker"): r for r in cached_all} if cached_all else {}
+            for t in in_universe_tickers[:5]:
+                fund = _fetch_one(t, target_market)
+                cached_row = cache_map.get(t, {})
+                sc = int(cached_row.get("composite_score", 0.5) * 10) if cached_row else "N/A"
+                price = fund.get("current_price")
+                chg = fund.get("change_pct", 0)
+                pe = fund.get("pe_ttm")
+                target = fund.get("analyst_target")
+                rec = fund.get("analyst_rec", "")
+                cur = "Rs." if target_market == "IN" else "$"
+                price_str = f"{cur}{price:,.2f} ({chg:+.1f}%)" if price else "N/A"
+                target_str = f"analyst target {cur}{target:,.0f} ({rec})" if target else ""
+                pe_str = f"P/E={pe:.1f}" if pe else ""
+                momentum = cached_row.get("momentum_percentile")
+                quality = cached_row.get("quality_percentile")
+                factor_str = ""
+                if momentum: factor_str += f" Momentum={momentum:.0%}"
+                if quality: factor_str += f" Quality={quality:.0%}"
+                lines.append(f"  {t}: {sc}/10 | {price_str} | {pe_str}{factor_str} | {target_str}")
+            lines.append("IMPORTANT: Use these live prices. Do NOT use training data prices.")
             parts.append("\n".join(lines))
 
-        # Inject competitor data for "why this not that" comparative reasoning
+        # Inject competitor comparison for specific stocks
         if in_universe_tickers and needs_stock_scores:
             try:
-                comp_lines = ["Competitor comparison (for 'why this not that' reasoning):"]
+                comp_lines = ["Competitor comparison:"]
                 for t in in_universe_tickers[:2]:
                     try:
                         info = yf.Ticker(t).info
@@ -596,29 +648,29 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                             comp_lines.append(f"  {t} sector: {sector} | industry: {industry}")
                     except Exception:
                         pass
-
-                # Also inject top 3 screener competitors (nearest ranked stocks)
-                if not result_df.empty:
+                # Show nearby alternatives from cache
+                cached_all = score_cache.read_top(target_market, 50, max_age_seconds=86400)
+                if cached_all:
+                    cache_map = {r.get("ticker"): r for r in cached_all}
                     for t in in_universe_tickers[:2]:
-                        row_match = result_df[result_df["ticker"] == t]
-                        if not row_match.empty:
-                            idx = row_match.index[0]
-                            peers_idx = [i for i in range(max(0, idx - 2), min(len(result_df), idx + 3)) if i != idx]
-                            for pi in peers_idx[:3]:
-                                peer = result_df.iloc[pi]
-                                peer_score = int(ranked.loc[pi]) if pi in ranked.index else 5
-                                comp_lines.append(
-                                    f"  Nearby alternative: {peer['ticker']} (ForeCast {peer_score}/10) "
-                                    f"— Quality {peer.get('quality_percentile', 0):.0%} "
-                                    f"Momentum {peer.get('momentum_percentile', 0):.0%} "
-                                    f"Value {peer.get('value_percentile', 0):.0%}"
-                                )
+                        if t in cache_map:
+                            row = cache_map[t]
+                            rank = next((i for i, r in enumerate(cached_all) if r.get("ticker") == t), -1)
+                            for pi in range(max(0, rank - 1), min(len(cached_all), rank + 2)):
+                                if pi != rank and pi < len(cached_all):
+                                    peer = cached_all[pi]
+                                    peer_sc = int(peer.get("composite_score", 0.5) * 10)
+                                    comp_lines.append(
+                                        f"  Alternative: {peer['ticker']} (ForeCast {peer_sc}/10) "
+                                        f"— Quality {peer.get('quality_percentile', 0):.0%} "
+                                        f"Momentum {peer.get('momentum_percentile', 0):.0%}"
+                                    )
                 if len(comp_lines) > 1:
                     parts.append("\n".join(comp_lines))
             except Exception:
                 pass
 
-        # Dynamic fetch for out-of-universe NSE stocks (e.g. TRENT, DIXON, ZYDUS)
+        # Dynamic fetch for out-of-universe NSE stocks
         if out_of_universe_words:
             dynamic_lines = ["Live data for requested stocks (dynamically fetched from NSE):"]
             found_any = False
@@ -627,27 +679,13 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                 if data:
                     found_any = True
                     pe_str = f"P/E={data['pe_ttm']:.1f}" if data.get("pe_ttm") else "P/E=N/A"
-                    pb_str = f"P/B={data['pb_ratio']:.1f}" if data.get("pb_ratio") else "P/B=N/A"
-                    beta_str = f"Beta={data['beta']:.2f}" if data.get("beta") else ""
-                    target_str = (
-                        f"Analyst target=Rs.{data['analyst_target']:.0f} ({data['analyst_recommendation']})"
-                        if data.get("analyst_target") else ""
-                    )
+                    target_str = f"Analyst target=Rs.{data['analyst_target']:.0f}" if data.get("analyst_target") else ""
                     chg_str = f"{data['change_pct']:+.2f}%" if data.get("change_pct") else ""
-                    mcap = f"MCap=Rs.{data['market_cap']/1e7:.0f}Cr" if data.get("market_cap") else ""
-                    rev_growth = f"Rev growth={data['revenue_growth']*100:.1f}%" if data.get("revenue_growth") else ""
                     dynamic_lines.append(
                         f"  {data['longName']} ({data['symbol']}): "
-                        f"Rs.{data['price']:.2f} {chg_str} | "
-                        f"52w Rs.{data.get('week52_low', 0):.0f}-Rs.{data.get('week52_high', 0):.0f} | "
-                        f"{pe_str} {pb_str} {beta_str} {mcap} {rev_growth} | {target_str}"
+                        f"Rs.{data['price']:.2f} {chg_str} | {pe_str} | {target_str}"
                     )
             if found_any:
-                dynamic_lines.append(
-                    "  NOTE: Full NeuralQuant AI score unavailable for above stocks "
-                    "(not in screener universe), but LIVE price + fundamentals are injected above. "
-                    "Use these exact numbers. Do NOT use prices from training data."
-                )
                 parts.append("\n".join(dynamic_lines))
 
     except Exception as exc:
@@ -688,7 +726,7 @@ async def run_nl_query(
         return await dart.handle_deep(req)
 
     # REACT: existing LLM-powered logic with optimized context
-    client = anthropic.Anthropic(api_key=api_key, timeout=300.0)
+    client, query_model = _query_client(api_key)
 
     # ── Offload blocking I/O to thread pool ──────────────────────────────────
     # Each task gets a hard cap so the total context-build phase completes in
@@ -736,7 +774,7 @@ async def run_nl_query(
 
         response = await asyncio.to_thread(
             client.messages.create,
-            model=MODEL,
+            model=query_model,
             max_tokens=3000,
             system=_SYSTEM,
             messages=messages,
@@ -750,48 +788,9 @@ async def run_nl_query(
         if not raw:
             raw = response.content[0].text if hasattr(response.content[0], "text") else ""
 
-        # ── Second-pass reasoning refinement ──────────────────────────────────────
-        # If the answer mentions specific stocks but lacks comparative reasoning,
-        # do a quick second pass to strengthen it.
+        # Skip second-pass reasoning — the system prompt already requires
+        # "why this not that" reasoning. Second LLM call doubles latency.
         answer_text = raw
-        detected, _ = _detect_tickers_in_question(answer_text, req.market or "US")
-        mentioned_tickers = list(detected)
-        if req.ticker and req.ticker not in mentioned_tickers and req.ticker.upper() in answer_text.upper():
-            mentioned_tickers.append(req.ticker)
-        if mentioned_tickers:
-            has_comparative = any(phrase in answer_text.lower() for phrase in [
-                "why not", "instead of", "compared to", "rather than", "over ",
-                "vs ", "alternative", "runner-up", "second-best", "why i chose",
-                "edge over", "superior to", "better than", "outperforms",
-            ])
-            if not has_comparative:
-                try:
-                    refinement_prompt = (
-                        "Your previous answer recommended specific stocks but did NOT explain why you "
-                        "chose them over alternatives. This is a critical quality gap — a quant researcher "
-                        "always explains 'why X not Y'.\n\n"
-                        "Add a brief 'WHY THIS NOT THAT' section. For each stock you recommended:\n"
-                        "1. Name the next-best alternative you could have picked instead\n"
-                        "2. State 1-2 specific data points that give your pick the edge\n\n"
-                        f"Previous answer:\n{answer_text[:2000]}\n\n"
-                        "Add the comparative reasoning now. Keep it concise (2-3 lines per stock)."
-                    )
-                    refinement = await asyncio.to_thread(
-                        client.messages.create,
-                        model=MODEL,
-                        max_tokens=800,
-                        system="You are a financial analysis quality reviewer. Add missing comparative reasoning.",
-                        messages=[{"role": "user", "content": refinement_prompt}],
-                    )
-                    ref_text = ""
-                    for block in refinement.content:
-                        if block.type == "text":
-                            ref_text = block.text
-                            break
-                    if ref_text and len(ref_text) > 50:
-                        answer_text = answer_text.rstrip() + "\n\n**Why this, not that:**\n" + ref_text.strip()
-                except Exception:
-                    pass  # Non-critical: if refinement fails, use the original answer
 
         return _parse_query_response(answer_text, route="REACT")
     except anthropic.APITimeoutError:
@@ -972,7 +971,7 @@ async def run_nl_query_v2(
         )
 
     # REACT or DEEP: use LLM with structured prompt
-    client = anthropic.Anthropic(api_key=api_key, timeout=300.0)
+    client, query_model = _query_client(api_key)
 
     today = date.today().strftime("%B %d, %Y")
 
@@ -1014,8 +1013,8 @@ async def run_nl_query_v2(
 
         response = await asyncio.to_thread(
             client.messages.create,
-            model=MODEL,
-            max_tokens=8000,
+            model=query_model,
+            max_tokens=4000,
             system=_SYSTEM_STRUCTURED,
             messages=messages,
         )
@@ -1145,7 +1144,8 @@ async def run_nl_query_v2_stream(
             return
 
         # Phase 2-4: Context gathering (parallel)
-        client = anthropic.Anthropic(api_key=api_key, timeout=300.0)
+        client, query_model = _query_client(api_key)
+        query_start = time.monotonic()
         today = date.today().strftime("%B %d, %Y")
 
         yield f'data: {_json.dumps({"status":"phase","phase":"news","label":_PHASE_LABELS["news"]})}\n\n'
@@ -1186,7 +1186,7 @@ async def run_nl_query_v2_stream(
         while not context_done.is_set():
             yield 'data: {"status":"running"}\n\n'
             elapsed = time.monotonic() - ctx_start
-            if elapsed > 45:
+            if elapsed > 15:
                 context_task.cancel()
                 result_holder.setdefault("error", "Context gathering timed out")
                 break
@@ -1202,6 +1202,8 @@ async def run_nl_query_v2_stream(
 
         # Phase 5: LLM analysis
         yield f'data: {_json.dumps({"status":"phase","phase":"analyze","label":_PHASE_LABELS["analyze"]})}\n\n'
+        total_elapsed = time.monotonic() - query_start
+        remaining = max(5, 60 - total_elapsed)  # Hard 60s total cap
 
         llm_done = asyncio.Event()
 
@@ -1215,8 +1217,8 @@ async def run_nl_query_v2_stream(
 
                 response = await asyncio.to_thread(
                     client.messages.create,
-                    model=MODEL,
-                    max_tokens=8000,
+                    model=query_model,
+                    max_tokens=4000,
                     system=_SYSTEM_STRUCTURED,
                     messages=messages,
                 )
@@ -1278,8 +1280,8 @@ async def run_nl_query_v2_stream(
         llm_start = time.monotonic()
         while not llm_done.is_set():
             yield 'data: {"status":"running"}\n\n'
-            elapsed = time.monotonic() - llm_start
-            if elapsed > 300:
+            total_elapsed = time.monotonic() - query_start
+            if total_elapsed > 60:
                 llm_task.cancel()
                 result_holder.setdefault("result", StructuredQueryResponse(
                     verdict="HOLD", confidence=0, timeframe="Medium-term",
