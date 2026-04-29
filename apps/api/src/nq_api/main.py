@@ -139,6 +139,18 @@ async def lifespan(app: FastAPI):
                             "pe_ttm": float(row.get("pe_ttm", 0)) if pd.notna(row.get("pe_ttm")) else 0,
                             "market_cap": float(row.get("market_cap", 0)) if pd.notna(row.get("market_cap")) else 0,
                             "current_price": float(row.get("current_price", 0)) if pd.notna(row.get("current_price")) else 0,
+                            "analyst_target": float(row.get("analyst_target", 0)) if pd.notna(row.get("analyst_target")) else 0,
+                            "momentum_raw": float(row.get("momentum_raw", 0)) if pd.notna(row.get("momentum_raw")) else 0,
+                            "gross_profit_margin": float(row.get("gross_profit_margin", 0)) if pd.notna(row.get("gross_profit_margin")) else 0,
+                            "piotroski": float(row.get("piotroski", 0)) if pd.notna(row.get("piotroski")) else 0,
+                            "pb_ratio": float(row.get("pb_ratio", 0)) if pd.notna(row.get("pb_ratio")) else 0,
+                            "beta": float(row.get("beta", 0)) if pd.notna(row.get("beta")) else 0,
+                            "realized_vol_1y": float(row.get("realized_vol_1y", 0)) if pd.notna(row.get("realized_vol_1y")) else 0,
+                            "short_interest_pct": float(row.get("short_interest_pct", 0)) if pd.notna(row.get("short_interest_pct")) else 0,
+                            "insider_cluster_score": float(row.get("insider_cluster_score", 0)) if pd.notna(row.get("insider_cluster_score")) else 0,
+                            "accruals_ratio": float(row.get("accruals_ratio", 0)) if pd.notna(row.get("accruals_ratio")) else 0,
+                            "revenue_growth_yoy": float(row.get("revenue_growth_yoy", 0)) if pd.notna(row.get("revenue_growth_yoy")) else 0,
+                            "debt_equity": float(row.get("debt_equity", 0)) if pd.notna(row.get("debt_equity")) else 0,
                         })
                     count = upsert_scores(rows)
                     log.info("score_cache refreshed for %s: %d rows upserted", mkt, count)
@@ -189,6 +201,18 @@ async def lifespan(app: FastAPI):
                             "pe_ttm": float(row.get("pe_ttm", 0)) if pd.notna(row.get("pe_ttm")) else 0,
                             "market_cap": float(row.get("market_cap", 0)) if pd.notna(row.get("market_cap")) else 0,
                             "current_price": float(row.get("current_price", 0)) if pd.notna(row.get("current_price")) else 0,
+                            "analyst_target": float(row.get("analyst_target", 0)) if pd.notna(row.get("analyst_target")) else 0,
+                            "momentum_raw": float(row.get("momentum_raw", 0)) if pd.notna(row.get("momentum_raw")) else 0,
+                            "gross_profit_margin": float(row.get("gross_profit_margin", 0)) if pd.notna(row.get("gross_profit_margin")) else 0,
+                            "piotroski": float(row.get("piotroski", 0)) if pd.notna(row.get("piotroski")) else 0,
+                            "pb_ratio": float(row.get("pb_ratio", 0)) if pd.notna(row.get("pb_ratio")) else 0,
+                            "beta": float(row.get("beta", 0)) if pd.notna(row.get("beta")) else 0,
+                            "realized_vol_1y": float(row.get("realized_vol_1y", 0)) if pd.notna(row.get("realized_vol_1y")) else 0,
+                            "short_interest_pct": float(row.get("short_interest_pct", 0)) if pd.notna(row.get("short_interest_pct")) else 0,
+                            "insider_cluster_score": float(row.get("insider_cluster_score", 0)) if pd.notna(row.get("insider_cluster_score")) else 0,
+                            "accruals_ratio": float(row.get("accruals_ratio", 0)) if pd.notna(row.get("accruals_ratio")) else 0,
+                            "revenue_growth_yoy": float(row.get("revenue_growth_yoy", 0)) if pd.notna(row.get("revenue_growth_yoy")) else 0,
+                            "debt_equity": float(row.get("debt_equity", 0)) if pd.notna(row.get("debt_equity")) else 0,
                         })
                     count = upsert_scores(rows)
                     log.info("Render: score_cache refreshed for %s: %d rows", mkt, count)
