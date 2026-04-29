@@ -219,6 +219,12 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
         cached = score_cache.read_one(ticker, market, max_age_seconds=900)
         if not cached:
             cached = score_cache.read_one(ticker, market, max_age_seconds=86400)
+            if cached:
+                log.info("analyst: serving stale cache (>%15min) for %s/%s", ticker, market)
+        if not cached:
+            cached = score_cache.read_one(ticker, market, max_age_seconds=999999999)
+            if cached:
+                log.warning("analyst: serving very old cache for %s/%s", ticker, market)
     except Exception:
         return None
     if not cached:
