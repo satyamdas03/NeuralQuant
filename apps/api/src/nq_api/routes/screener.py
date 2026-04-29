@@ -55,7 +55,7 @@ def _get_live_regime_id(market: str = "US") -> int:
 async def screener_preview(market: str = "US", n: int = 8) -> ScreenerResponse:
     """Public, cache-only top-N. No auth, no quota. Used by dashboard preview."""
     try:
-        rows = await asyncio.to_thread(score_cache.read_top, market, n=n, max_age_seconds=86400 * 7)
+        rows = await asyncio.to_thread(score_cache.read_top, market, n=n, max_age_seconds=86400 * 30)
         logger.info("screener_preview: %d rows from cache for market=%s", len(rows), market)
     except Exception as exc:
         logger.exception("screener_preview cache read failed for market=%s", market)
@@ -77,12 +77,20 @@ async def screener_preview(market: str = "US", n: int = 8) -> ScreenerResponse:
 async def _preview_live_fallback(market: str, n: int) -> ScreenerResponse:
     """Compute top-N scores live when cache is empty. Slower but always returns data."""
     engine = get_signal_engine()
+    # Cap at 12 tickers max for live fallback to avoid yfinance timeout
+    n = min(n, 12)
     tickers = UNIVERSE_BY_MARKET.get(market, UNIVERSE_BY_MARKET["US"])[:n]
     try:
-        snapshot = await asyncio.to_thread(build_real_snapshot, tickers, market)
+        snapshot = await asyncio.wait_for(
+            asyncio.to_thread(build_real_snapshot, tickers, market),
+            timeout=60,
+        )
         if snapshot is None or snapshot.empty:
             return ScreenerResponse(regime_label="Unknown", regime_id=1, results=[], total=0)
-        result_df = await asyncio.to_thread(engine.compute, snapshot)
+        result_df = await asyncio.wait_for(
+            asyncio.to_thread(engine.compute, snapshot),
+            timeout=15,
+        )
         if result_df is None or result_df.empty:
             return ScreenerResponse(regime_label="Unknown", regime_id=1, results=[], total=0)
         ranked = rank_scores_in_universe(result_df).reset_index(drop=True)
@@ -98,6 +106,9 @@ async def _preview_live_fallback(market: str, n: int) -> ScreenerResponse:
             results=ai_scores,
             total=len(ai_scores),
         )
+    except asyncio.TimeoutError:
+        logger.warning("screener_preview live fallback timed out for market=%s", market)
+        return ScreenerResponse(regime_label="Unknown", regime_id=1, results=[], total=0)
     except Exception as exc:
         logger.exception("screener_preview live fallback failed for market=%s", market)
         return ScreenerResponse(regime_label="Unknown", regime_id=1, results=[], total=0)
@@ -153,8 +164,12 @@ async def run_screener(
     # Try cache first for full-universe requests
     custom_tickers = bool(req.tickers)
     if not custom_tickers:
-        max_age = TIER_LIMITS[user.tier].screener_refresh_seconds or 86400
-        cached = await asyncio.to_thread(score_cache.read_top, req.market, n=max(100, req.max_results * 3), max_age_seconds=max_age)
+        # Use tier-specific refresh window, but if cache is empty fall back to 30-day window
+        tier_age = TIER_LIMITS[user.tier].screener_refresh_seconds or 86400
+        cached = await asyncio.to_thread(score_cache.read_top, req.market, n=max(100, req.max_results * 3), max_age_seconds=tier_age)
+        if not cached:
+            # Broader fallback — stale cache better than 5-min live compute
+            cached = await asyncio.to_thread(score_cache.read_top, req.market, n=max(100, req.max_results * 3), max_age_seconds=86400 * 30)
         cached = [r for r in cached if (r.get("composite_score") or 0) >= req.min_score]
         if cached:
             # regime: compute cheaply from macro (static across batch)
