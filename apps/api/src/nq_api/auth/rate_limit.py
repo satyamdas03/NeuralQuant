@@ -2,21 +2,61 @@
 
 enforce_tier_quota(endpoint) -> FastAPI dep that:
   1. Requires authed user (get_current_user).
-  2. Counts today's usage_log rows for (user, endpoint).
+  2. Counts today's usage_log rows for (user, endpoint) via direct httpx REST.
   3. Compares against TIER_LIMITS[tier].queries_per_day
      (or .backtest_per_day when endpoint == "backtest").
   4. Inserts usage_log row on pass; raises 429 on cap.
+
+Uses direct httpx REST to PostgREST — avoids RemoteProtocolError from
+supabase Python SDK in uvicorn's asyncio context.
 """
 from __future__ import annotations
 import logging
 import os
 from datetime import datetime, timezone
+
+import httpx
 from fastapi import Depends, HTTPException, status
 
-from .deps import get_current_user, _supabase_service_client
+from .deps import get_current_user
 from .models import User, TIER_LIMITS
 
 log = logging.getLogger(__name__)
+
+
+def _usage_rest(
+    method: str,
+    query: dict[str, str] | None = None,
+    body: dict | None = None,
+) -> dict | list | None:
+    """Direct httpx REST to PostgREST usage_log table."""
+    url = os.environ.get("SUPABASE_URL", "")
+    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+    if not url or not key:
+        raise RuntimeError("SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY required")
+    endpoint = f"{url}/rest/v1/usage_log"
+    headers = {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation,count=exact",
+    }
+    try:
+        with httpx.Client(timeout=10) as c:
+            if method == "GET":
+                r = c.get(endpoint, params=query or {}, headers=headers)
+            elif method == "POST":
+                r = c.post(endpoint, json=body or {}, headers=headers)
+            else:
+                raise ValueError(f"unsupported method {method}")
+            r.raise_for_status()
+            return {"data": r.json() if r.content else [], "headers": dict(r.headers)}
+    except httpx.HTTPStatusError as exc:
+        log.warning("usage_log %s -> %s: %s", method, exc.response.status_code, exc.response.text[:200])
+        raise
+    except Exception as exc:
+        log.exception("usage_log %s failed", method)
+        raise
 
 
 def _cap_for(tier: str, endpoint: str) -> int:
@@ -27,24 +67,25 @@ def _cap_for(tier: str, endpoint: str) -> int:
 
 
 def _today_count(user_id: str, endpoint: str) -> int:
-    client = _supabase_service_client()
     today = datetime.now(timezone.utc).date().isoformat()
-    resp = (
-        client.table("usage_log")
-        .select("id", count="exact")
-        .eq("user_id", user_id)
-        .eq("endpoint", endpoint)
-        .gte("ts", f"{today}T00:00:00Z")
-        .execute()
+    resp = _usage_rest(
+        "GET",
+        query={
+            "select": "id",
+            "user_id": f"eq.{user_id}",
+            "endpoint": f"eq.{endpoint}",
+            "ts": f"gte.{today}T00:00:00Z",
+        },
     )
-    return resp.count or 0
+    content_range = (resp or {}).get("headers", {}).get("content-range", "0/0")
+    try:
+        return int(content_range.split("/")[-1])
+    except (ValueError, IndexError):
+        return len((resp or {}).get("data", []))
 
 
 def _record(user_id: str, endpoint: str) -> None:
-    client = _supabase_service_client()
-    client.table("usage_log").insert(
-        {"user_id": user_id, "endpoint": endpoint}
-    ).execute()
+    _usage_rest("POST", body={"user_id": user_id, "endpoint": endpoint})
 
 
 def enforce_tier_quota(endpoint: str):

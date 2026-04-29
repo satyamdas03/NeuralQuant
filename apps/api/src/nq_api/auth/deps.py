@@ -1,13 +1,14 @@
 """FastAPI deps: get_current_user + optional variant.
 
 Reads JWT from Authorization header, verifies, then fetches/creates
-public.users row via Supabase service client.
+public.users row via direct httpx REST to PostgREST (avoids
+RemoteProtocolError from supabase Python SDK in uvicorn asyncio).
 """
 from __future__ import annotations
 import logging
 import os
-import threading
 
+import httpx
 from fastapi import Depends, Header, HTTPException, status
 
 from .jwt_verify import verify_supabase_jwt, JWTVerificationError
@@ -15,26 +16,63 @@ from .models import User
 
 logger = logging.getLogger(__name__)
 
-_local = threading.local()
+
+def _rest(
+    method: str,
+    table: str,
+    query: dict[str, str] | None = None,
+    body: dict | list | None = None,
+) -> dict | list | None:
+    """Direct httpx REST to PostgREST — avoids supabase SDK RemoteProtocolError."""
+    url = os.environ.get("SUPABASE_URL", "")
+    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+    if not url or not key:
+        raise RuntimeError("SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY required")
+    endpoint = f"{url}/rest/v1/{table}"
+    headers = {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation",
+    }
+    try:
+        with httpx.Client(timeout=10) as c:
+            if method == "GET":
+                r = c.get(endpoint, params=query or {}, headers=headers)
+            elif method == "POST":
+                r = c.post(endpoint, params=query or {}, json=body, headers=headers)
+            elif method == "PATCH":
+                r = c.patch(endpoint, params=query or {}, json=body, headers=headers)
+            else:
+                raise ValueError(f"unsupported method {method}")
+            r.raise_for_status()
+            return r.json() if r.content else None
+    except httpx.HTTPStatusError as exc:
+        logger.warning("PostgREST %s %s -> %s: %s", method, table, exc.response.status_code, exc.response.text[:200])
+        raise
+    except Exception as exc:
+        logger.exception("PostgREST %s %s failed", method, table)
+        raise
 
 
 def _supabase_service_client():
-    """Thread-local lazy singleton — each thread gets its own client to avoid
-    httpx connection sharing across threads (causes RemoteProtocolError)."""
-    client = getattr(_local, "supabase_client", None)
+    """Legacy compat — routes still importing this get a thin wrapper over _rest.
+    Prefer using _rest() directly for new code."""
+    import threading
+    _tls = threading.local()
+    client = getattr(_tls, "supabase_client", None)
     if client is not None:
         return client
     try:
         from supabase import create_client  # type: ignore
     except ImportError as exc:
-        raise RuntimeError("supabase package missing — run `uv sync`") from exc
-
+        raise RuntimeError("supabase package missing") from exc
     url = os.environ.get("SUPABASE_URL")
     key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
     if not url or not key:
         raise RuntimeError("SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY required")
     client = create_client(url, key)
-    _local.supabase_client = client
+    _tls.supabase_client = client
     return client
 
 
@@ -49,16 +87,15 @@ def _extract_bearer(authorization: str | None) -> str | None:
 
 def _load_user_row(user_id: str, email: str) -> dict:
     """Fetch users row; insert default tier='free' if missing."""
-    client = _supabase_service_client()
-    resp = client.table("users").select("*").eq("id", user_id).execute()
-    rows = resp.data or []
+    try:
+        rows = _rest("GET", "users", query={"select": "*", "id": f"eq.{user_id}"})
+    except Exception:
+        rows = None
     if rows:
         return rows[0]
     # Fallback — trigger normally creates this, but insert defensively
     try:
-        client.table("users").insert(
-            {"id": user_id, "email": email, "tier": "free"}
-        ).execute()
+        _rest("POST", "users", body={"id": user_id, "email": email, "tier": "free"})
     except Exception:
         pass  # FK constraint or duplicate — return minimal row
     else:
