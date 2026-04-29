@@ -84,8 +84,8 @@ async def screener_preview(market: str = "US", n: int = 8) -> ScreenerResponse:
 async def _preview_live_fallback(market: str, n: int) -> ScreenerResponse:
     """Compute top-N scores live when cache is empty. Slower but always returns data."""
     engine = get_signal_engine()
-    # Cap at 12 tickers max for live fallback to avoid yfinance timeout
-    n = min(n, 12)
+    # Cap at 8 tickers for live fallback — yfinance rate-limits on cloud IPs
+    n = min(n, 8)
     tickers = UNIVERSE_BY_MARKET.get(market, UNIVERSE_BY_MARKET["US"])[:n]
     try:
         snapshot = await asyncio.wait_for(
