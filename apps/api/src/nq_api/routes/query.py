@@ -563,6 +563,8 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
             cached = score_cache.read_top(target_market, 20, max_age_seconds=300)
             if not cached:
                 cached = score_cache.read_top(target_market, 20, max_age_seconds=86400)
+            if not cached:
+                cached = score_cache.read_top(target_market, 20, max_age_seconds=999999999)
             if cached:
                 lines = [f"NeuralQuant {target_market} Screener — Top 20 (cached scores):"]
                 for i, row in enumerate(cached[:20]):
@@ -616,6 +618,8 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
             cached_all = score_cache.read_top(target_market, 50, max_age_seconds=300)
             if not cached_all:
                 cached_all = score_cache.read_top(target_market, 50, max_age_seconds=86400)
+            if not cached_all:
+                cached_all = score_cache.read_top(target_market, 50, max_age_seconds=999999999)
             cache_map = {r.get("ticker"): r for r in cached_all} if cached_all else {}
             for t in in_universe_tickers[:5]:
                 fund = _fetch_one(t, target_market)
@@ -656,6 +660,8 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                 cached_all = score_cache.read_top(target_market, 50, max_age_seconds=300)
                 if not cached_all:
                     cached_all = score_cache.read_top(target_market, 50, max_age_seconds=86400)
+                if not cached_all:
+                    cached_all = score_cache.read_top(target_market, 50, max_age_seconds=999999999)
                 if cached_all:
                     cache_map = {r.get("ticker"): r for r in cached_all}
                     for t in in_universe_tickers[:2]:

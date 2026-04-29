@@ -63,12 +63,17 @@ async def screener_preview(market: str = "US", n: int = 8) -> ScreenerResponse:
             rows = await asyncio.to_thread(score_cache.read_top, market, n=n, max_age_seconds=86400)
             if rows:
                 logger.info("screener_preview: serving stale cache (>%5min) for market=%s", market)
+        if not rows:
+            # Tier 3: any age — better than empty response
+            rows = await asyncio.to_thread(score_cache.read_top, market, n=n, max_age_seconds=999999999)
+            if rows:
+                logger.warning("screener_preview: serving very old cache for market=%s", market)
         if rows:
             logger.info("screener_preview: %d rows from cache for market=%s", len(rows), market)
     except Exception as exc:
         logger.exception("screener_preview cache read failed for market=%s", market)
     if not rows:
-        # Tier 3: live compute (last resort, strict timeout)
+        # Tier 4: live compute (last resort, strict timeout)
         logger.info("screener_preview: cache empty, falling back to live compute for market=%s", market)
         return await _preview_live_fallback(market, n)
     regime_id = _get_live_regime_id(market)

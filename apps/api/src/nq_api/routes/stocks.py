@@ -64,19 +64,26 @@ async def get_stock_score(
     ticker_upper = ticker.upper()
 
     # --- Fast path: read from Supabase score_cache (sub-100ms) ---
-    # Tiered: try 5min → 24h → live compute
+    # Tiered: try 5min → 24h → any age → live compute
     cached = None
     try:
         cached = await asyncio.to_thread(
             score_cache.read_one, ticker_upper, market, max_age_seconds=300
         )
         if not cached:
-            # Stale cache better than timeout — nightly GHA data
+            # Tier 2: stale cache (≤24h) — nightly GHA data
             cached = await asyncio.to_thread(
                 score_cache.read_one, ticker_upper, market, max_age_seconds=86400
             )
             if cached:
                 log.info("score_cache: serving stale (>%5min) for %s/%s", ticker_upper, market)
+        if not cached:
+            # Tier 3: any age — better than 504
+            cached = await asyncio.to_thread(
+                score_cache.read_one, ticker_upper, market, max_age_seconds=999999999
+            )
+            if cached:
+                log.warning("score_cache: serving very old data for %s/%s", ticker_upper, market)
     except Exception as e:
         log.warning("score_cache.read_one failed: %s", e)
     if cached:
