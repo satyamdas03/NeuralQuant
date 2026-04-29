@@ -27,8 +27,8 @@ from nq_api.sector_rank import apply_sector_adjustment  # noqa: E402
 from nq_api.cache import score_cache  # noqa: E402
 
 
-CHUNK = 50
-SLEEP_BETWEEN_CHUNKS = 2.0  # seconds, respect yfinance rate limit
+CHUNK = 20
+SLEEP_BETWEEN_CHUNKS = 1.0  # seconds, respect yfinance rate limit
 
 
 def _f(v, default: float = 0.0) -> float:
