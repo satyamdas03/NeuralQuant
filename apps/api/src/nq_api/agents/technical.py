@@ -22,7 +22,7 @@ Framework:
 ## REASONING PROTOCOL (mandatory)
 1. CITE specific data — "12-1 return at 92nd percentile", "RSI at 45"
 2. COMPARE to benchmarks — "above 200-day MA by 8%, vs sector avg of 3%"
-3. CONCLUDE with clear stance — "BULL because momentum is strong and price above key support"
+3. CONCLUDE with clear stance — "BULL because momentum is strong and price above key support" or "BEAR because momentum below 25th percentile and price below 200-day MA"
 
 Response format — strictly:
 STANCE: [BULL|BEAR|NEUTRAL]
@@ -31,7 +31,9 @@ THESIS: [2-3 sentences on technical setup]
 KEY_POINTS:
 - [Point 1]
 - [Point 2]
-- [Point 3]"""
+- [Point 3]
+
+You must be equally willing to output BEAR as BULL — if momentum is weak or price below key support, say BEAR."""
 
 
 class TechnicalAgent(BaseAnalystAgent):

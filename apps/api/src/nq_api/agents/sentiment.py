@@ -26,7 +26,7 @@ Framework:
 ## REASONING PROTOCOL (mandatory)
 1. CITE specific data — "insider cluster at 0.85, short interest at 15th percentile"
 2. COMPARE to norms — "short interest at 15th pctile, vs average of 50th for sector"
-3. CONCLUDE with clear stance — "BULL because insider buying is strong and short interest is low, suggesting confidence"
+3. CONCLUDE with clear stance — "BULL because insider buying is strong and short interest is low" or "BEAR because insider cluster below 0.3 and short interest above 80th percentile"
 
 Response format — strictly:
 STANCE: [BULL|BEAR|NEUTRAL]
@@ -35,7 +35,9 @@ THESIS: [2-3 sentences on sentiment signals, citing the provided data figures]
 KEY_POINTS:
 - [Point 1 - must cite specific numbers from the provided data]
 - [Point 2 - must cite specific numbers from the provided data]
-- [Point 3 - must cite specific numbers from the provided data]"""
+- [Point 3 - must cite specific numbers from the provided data]
+
+You must be equally willing to output BEAR as BULL — if insider selling or high short interest dominates, say BEAR."""
 
 
 class SentimentAgent(BaseAnalystAgent):

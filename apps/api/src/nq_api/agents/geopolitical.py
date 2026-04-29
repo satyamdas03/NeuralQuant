@@ -26,7 +26,7 @@ Framework:
 ## REASONING PROTOCOL (mandatory)
 1. CITE specific data — "VIX at 18.2, HY spreads at 280bps"
 2. COMPARE to stress levels — "VIX well below 25 stress threshold, HY spreads tight vs 5yr avg of 380bps"
-3. CONCLUDE with clear stance — "BULL because systemic risk indicators are calm and regime is Risk-On"
+3. CONCLUDE with clear stance — "BULL because systemic risk indicators are calm and regime is Risk-On" or "BEAR because VIX above 25 and HY spreads widening signal elevated risk"
 
 Response format — strictly:
 STANCE: [BULL|BEAR|NEUTRAL]
@@ -35,7 +35,9 @@ THESIS: [2-3 sentences on geopolitical/regulatory risk profile, citing the provi
 KEY_POINTS:
 - [Point 1 - must cite specific numbers from the provided data]
 - [Point 2 - must cite specific numbers from the provided data]
-- [Point 3 - must cite specific numbers from the provided data]"""
+- [Point 3 - must cite specific numbers from the provided data]
+
+You must be equally willing to output BEAR as BULL — if geopolitical risks are elevated, say BEAR."""
 
 
 class GeopoliticalAgent(BaseAnalystAgent):

@@ -18,24 +18,27 @@ class HeadAnalystAgent:
 
     agent_name = "HEAD_ANALYST"
     system_prompt = """You are the HEAD ANALYST and chair of NeuralQuant's PARA-DEBATE investment committee.
-You have received structured analyses from 6 specialist agents AND the raw data they used. Your job: synthesise their views into a definitive investment verdict with full reasoning.
+You have received structured analyses from 6 specialist agents AND the raw data they used. Your job: synthesise their views into a definitive assessment with full reasoning.
 
 CRITICAL RULES:
 1. Cross-reference agent claims against the raw data. If an agent says "strong momentum" but the 12-1 return is only 5%, flag the inconsistency.
-2. Every recommendation must explain WHY this stock and WHY NOT an alternative. Name the second-best option and explain why it's inferior.
-3. The adversarial agent's challenges must be explicitly addressed in your verdict — don't ignore them.
+2. Every assessment must explain WHY this stock and WHY NOT an alternative. Name the second-best option and explain why it's inferior.
+3. The adversarial agent's challenges must be explicitly addressed — don't ignore them. The adversarial represents the strongest bear case and must be weighed as a full voice, not just "downside scenario color".
 4. Your verdict must be one of: STRONG BUY, BUY, HOLD, SELL, STRONG SELL. Never equivocate.
 5. Quantify your conviction: explain what data would change your mind.
+6. The PANEL CONSENSUS and VERDICT GUIDANCE are computed from agent stances. Your verdict MUST respect the consensus direction. If consensus is negative, you cannot return BUY or STRONG BUY. If consensus is near zero, you should return HOLD.
 
 Weighting framework:
 - MACRO and FUNDAMENTAL carry 25% weight each (most important for long-term)
 - TECHNICAL and SENTIMENT carry 20% each
 - GEOPOLITICAL carries 15%
-- ADVERSARIAL: do NOT dismiss bear arguments — they represent tail risk. Weight them at 15% of your downside scenario.
+- ADVERSARIAL carries 20% weight (equal to any specialist — it is the dedicated bear counterweight)
+
+ANTI-BIAS RULE: You must be equally willing to recommend SELL as BUY. A stock with negative momentum, high P/E, and rising debt SHOULD get SELL — not a qualified HOLD. When bear signals dominate, say SELL.
 
 Output format — strictly:
 VERDICT: [STRONG BUY|BUY|HOLD|SELL|STRONG SELL]
-INVESTMENT_THESIS: [4-6 sentences synthesising the debate into a clear investment thesis. Include WHY this stock and WHY NOT the next-best alternative.]
+INVESTMENT_THESIS: [4-6 sentences synthesising the debate into a clear thesis. Include WHY this stock and WHY NOT the next-best alternative.]
 BULL_CASE: [2-3 sentences on primary upside drivers]
 BEAR_CASE: [2-3 sentences on primary downside risks]
 RISK_FACTORS:
@@ -55,7 +58,7 @@ RISK_FACTORS:
 
     def run_synthesis(
         self, ticker: str, agent_outputs: list[AgentOutput], composite_score: float,
-        raw_context: dict | None = None,
+        raw_context: dict | None = None, consensus: float = 0.0, verdict_guidance: str = "HOLD",
     ) -> dict:
         summaries = "\n\n".join(
             f"[{o.agent}] Stance: {o.stance} ({o.conviction})\n"
@@ -63,7 +66,8 @@ RISK_FACTORS:
             "Key points:\n" + "\n".join(f"  - {p}" for p in o.key_points)
             for o in agent_outputs
         )
-        context = {"agent_summaries": summaries, "composite_score": f"{composite_score:.2f}"}
+        context = {"agent_summaries": summaries, "composite_score": f"{composite_score:.2f}",
+                   "panel_consensus": f"{consensus:.3f}", "verdict_guidance": verdict_guidance}
         if raw_context:
             # Include key raw data for cross-referencing
             raw_fields = {
@@ -106,6 +110,8 @@ RISK_FACTORS:
     def _build_user_message(self, ticker: str, context: dict) -> str:
         agent_summaries = context.get("agent_summaries", "")
         ai_score = context.get("composite_score", "N/A")
+        panel_consensus = context.get("panel_consensus", "0.000")
+        verdict_guidance = context.get("verdict_guidance", "HOLD")
         raw_data = context.get("raw_data", "")
         raw_section = ""
         if raw_data:
@@ -117,11 +123,14 @@ RAW DATA (cross-reference agent claims against this):
 You MUST verify agent claims against this raw data. If an agent claims "strong momentum" but the data shows low momentum, flag it."""
         return f"""Synthesise the PARA-DEBATE for {ticker} (AI score: {ai_score}).
 
+PANEL CONSENSUS: {panel_consensus} (range -1.0 to 1.0, negative = bearish, positive = bullish)
+VERDICT GUIDANCE: Based on the panel consensus, your verdict should be {verdict_guidance}. You MAY deviate by one tier if you have strong justification from the raw data, but you MUST NOT deviate by two or more tiers.
+
 ANALYST PANEL OUTPUTS:
 {agent_summaries}
 {raw_section}
 
-Deliver the final investment verdict. Remember: name the second-best alternative and explain why your pick is superior."""
+Deliver the final assessment. Remember: name the second-best alternative and explain why your pick is superior."""
 
     def _parse_synthesis(self, raw: str) -> dict:
         # Normalise Markdown-bold section headers (Mistral often wraps keys in **)

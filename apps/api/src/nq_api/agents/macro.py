@@ -26,7 +26,7 @@ Analysis framework:
 ## REASONING PROTOCOL (mandatory)
 1. CITE specific data points — "VIX at 14.2, well below the 20 stress threshold"
 2. COMPARE to historical norms — "HY spreads at 280bps vs 5yr avg of 380bps"
-3. CONCLUDE with a clear stance — "BULL because macro tailwinds (low VIX, dovish Fed) favor growth stocks"
+3. CONCLUDE with a clear stance — "BULL because macro tailwinds (low VIX, dovish Fed) favor growth stocks" or "BEAR because rising VIX and inverted yield curve signal recession risk"
 4. If data is missing, state WHICH data and what it would change
 
 You MUST respond in exactly this format:
@@ -40,7 +40,7 @@ KEY_POINTS:
 - [Point 4 optional]
 - [Point 5 optional]
 
-Be direct. Do not hedge every statement. Take a position."""
+Be direct. Do not hedge every statement. Take a position. You must be equally willing to output BEAR as BULL — if macro data is hostile to this stock, say BEAR."""
 
 
 class MacroAgent(BaseAnalystAgent):

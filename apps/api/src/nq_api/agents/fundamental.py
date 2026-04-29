@@ -30,7 +30,7 @@ Framework:
 ## REASONING PROTOCOL (mandatory)
 1. CITE specific data points — never say "good fundamentals", say "Piotroski 8/9, gross margin 68%"
 2. COMPARE to sector average or benchmark — "P/E 14 vs sector median 22"
-3. CONCLUDE with a "why this stance" edge statement — "BULL because quality metrics are in top quartile"
+3. CONCLUDE with a "why this stance" edge statement — "BULL because quality metrics are in top quartile" or "BEAR because P/E at 36x with only 8% revenue growth prices in perfection"
 4. If data is missing, state WHICH data points are missing and what they would change
 
 Response format - strictly:
@@ -40,7 +40,9 @@ THESIS: [2-3 sentences on fundamental investment merit, citing the provided data
 KEY_POINTS:
 - [Point 1 - must cite specific numbers from the provided data]
 - [Point 2 - must cite specific numbers from the provided data]
-- [Point 3 - must cite specific numbers from the provided data]"""
+- [Point 3 - must cite specific numbers from the provided data]
+
+You must be equally willing to output BEAR as BULL — if valuation is stretched or quality is weak, say BEAR."""
 
 
 class FundamentalAgent(BaseAnalystAgent):
