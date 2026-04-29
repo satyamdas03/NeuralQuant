@@ -54,14 +54,21 @@ def _get_live_regime_id(market: str = "US") -> int:
 @router.get("/preview", response_model=ScreenerResponse)
 async def screener_preview(market: str = "US", n: int = 8) -> ScreenerResponse:
     """Public, cache-only top-N. No auth, no quota. Used by dashboard preview."""
+    rows = []
     try:
+        # Tier 1: fresh cache (≤5 min)
         rows = await asyncio.to_thread(score_cache.read_top, market, n=n, max_age_seconds=300)
-        logger.info("screener_preview: %d rows from cache for market=%s", len(rows), market)
+        if not rows:
+            # Tier 2: stale cache (≤24 h) — nightly GHA data, better than timeout
+            rows = await asyncio.to_thread(score_cache.read_top, market, n=n, max_age_seconds=86400)
+            if rows:
+                logger.info("screener_preview: serving stale cache (>%5min) for market=%s", market)
+        if rows:
+            logger.info("screener_preview: %d rows from cache for market=%s", len(rows), market)
     except Exception as exc:
         logger.exception("screener_preview cache read failed for market=%s", market)
-        rows = []
     if not rows:
-        # Live-compute fallback when cache is empty (cold start / nightly job missed)
+        # Tier 3: live compute (last resort, strict timeout)
         logger.info("screener_preview: cache empty, falling back to live compute for market=%s", market)
         return await _preview_live_fallback(market, n)
     regime_id = _get_live_regime_id(market)
@@ -83,7 +90,7 @@ async def _preview_live_fallback(market: str, n: int) -> ScreenerResponse:
     try:
         snapshot = await asyncio.wait_for(
             asyncio.to_thread(build_real_snapshot, tickers, market),
-            timeout=60,
+            timeout=25,
         )
         if snapshot is None or snapshot.empty:
             return ScreenerResponse(regime_label="Unknown", regime_id=1, results=[], total=0)
@@ -164,12 +171,12 @@ async def run_screener(
     # Try cache first for full-universe requests
     custom_tickers = bool(req.tickers)
     if not custom_tickers:
-        # Use tier-specific refresh window, but if cache is empty fall back to 30-day window
+        # Tiered cache: fresh → stale → live
         tier_age = TIER_LIMITS[user.tier].screener_refresh_seconds or 86400
         cached = await asyncio.to_thread(score_cache.read_top, req.market, n=max(100, req.max_results * 3), max_age_seconds=tier_age)
         if not cached:
-            # Broader fallback — stale cache better than 5-min live compute
-            cached = await asyncio.to_thread(score_cache.read_top, req.market, n=max(100, req.max_results * 3), max_age_seconds=300)
+            # Broader fallback — stale cache better than live compute timeout
+            cached = await asyncio.to_thread(score_cache.read_top, req.market, n=max(100, req.max_results * 3), max_age_seconds=86400)
         cached = [r for r in cached if (r.get("composite_score") or 0) >= req.min_score]
         if cached:
             # regime: compute cheaply from macro (static across batch)

@@ -64,14 +64,21 @@ async def get_stock_score(
     ticker_upper = ticker.upper()
 
     # --- Fast path: read from Supabase score_cache (sub-100ms) ---
-    # 5-min window: nightly GHA refreshes, but stock detail must be near-live.
+    # Tiered: try 5min → 24h → live compute
+    cached = None
     try:
         cached = await asyncio.to_thread(
             score_cache.read_one, ticker_upper, market, max_age_seconds=300
         )
+        if not cached:
+            # Stale cache better than timeout — nightly GHA data
+            cached = await asyncio.to_thread(
+                score_cache.read_one, ticker_upper, market, max_age_seconds=86400
+            )
+            if cached:
+                log.info("score_cache: serving stale (>%5min) for %s/%s", ticker_upper, market)
     except Exception as e:
         log.warning("score_cache.read_one failed: %s", e)
-        cached = None
     if cached:
         # Build AIScore from cache row — use regime_id from cache row itself
         df = pd.DataFrame([cached])

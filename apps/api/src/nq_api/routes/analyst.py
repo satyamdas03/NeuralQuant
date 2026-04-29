@@ -217,6 +217,8 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
     """Fast path: build analyst context from Supabase score_cache (sub-100ms)."""
     try:
         cached = score_cache.read_one(ticker, market, max_age_seconds=900)
+        if not cached:
+            cached = score_cache.read_one(ticker, market, max_age_seconds=86400)
     except Exception:
         return None
     if not cached:
