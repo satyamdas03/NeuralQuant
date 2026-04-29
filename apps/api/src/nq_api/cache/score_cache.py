@@ -4,6 +4,7 @@ Populated by scripts/nightly_score.py (nightly GHA).
 Read by /screener for sub-100ms responses.
 """
 from __future__ import annotations
+import logging
 import os
 from datetime import datetime, timezone, timedelta
 from typing import Any
@@ -13,7 +14,9 @@ from pathlib import Path
 import httpx
 
 
+log = logging.getLogger(__name__)
 _env_loaded = False
+_known_columns: set[str] | None = None
 
 
 def _load_env():
@@ -60,9 +63,36 @@ def _supabase_rest(
             r.raise_for_status()
             return r.json() if r.content else None
     except Exception as e:
-        import logging
-        logging.getLogger(__name__).warning("Supabase REST call failed for table=%s: %s", table, e)
+        log.warning("Supabase REST call failed for table=%s: %s", table, e)
         return None
+
+
+def _get_known_columns() -> set[str]:
+    """Fetch actual column names from score_cache table. Caches result."""
+    global _known_columns
+    if _known_columns is not None:
+        return _known_columns
+    # Fetch one row to discover columns
+    data = _supabase_rest("score_cache", "GET", {"select": "*", "limit": "1"})
+    if isinstance(data, list) and data:
+        _known_columns = set(data[0].keys())
+    else:
+        # Table might be empty — use known schema
+        _known_columns = {
+            "ticker", "market", "sector", "composite_score", "rank_score",
+            "value_percentile", "momentum_percentile", "quality_percentile",
+            "low_vol_percentile", "short_interest_percentile", "current_price",
+            "analyst_target", "pe_ttm", "market_cap", "week52_high", "week52_low",
+            "computed_at",
+        }
+    log.info("score_cache columns: %s", sorted(_known_columns))
+    return _known_columns
+
+
+def _reset_known_columns():
+    """Force re-fetch of column list after schema migration."""
+    global _known_columns
+    _known_columns = None
 
 
 def read_top(
@@ -90,10 +120,13 @@ def upsert_scores(rows: list[dict[str, Any]]) -> int:
     """Batch upsert rows keyed on (ticker, market). Returns count."""
     if not rows:
         return 0
+    known = _get_known_columns()
     now_iso = datetime.now(timezone.utc).isoformat()
     for r in rows:
         r.setdefault("computed_at", now_iso)
-    result = _supabase_rest("score_cache", method="POST", body=rows)
+    # Filter to only columns that exist in the table (PostgREST rejects unknown columns)
+    filtered = [{k: v for k, v in r.items() if k in known} for r in rows]
+    result = _supabase_rest("score_cache", method="POST", body=filtered)
     return len(rows) if result is not None else 0
 
 

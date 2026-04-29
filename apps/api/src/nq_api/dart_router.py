@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import re
 from typing import Literal
 
@@ -364,20 +365,38 @@ def _build_analyst_context(ticker: str, market: str, engine) -> dict:
     matching = result_df[result_df["ticker"] == ticker]
     if not matching.empty:
         row = matching.iloc[0]
+        def _r(key, cast=float, default=None):
+            v = row.get(key)
+            if v is None or (isinstance(v, float) and not math.isfinite(v)):
+                return default
+            try:
+                return cast(v)
+            except (TypeError, ValueError):
+                return default
+
         context.update({
-            "composite_score": round(float(row.get("composite_score", 0.5)), 4),
-            "quality_percentile": round(float(row.get("quality_percentile", 0.5)), 3),
-            "momentum_percentile": round(float(row.get("momentum_percentile", 0.5)), 3),
-            "value_percentile": round(float(row.get("value_percentile", 0.5)), 3),
-            "low_vol_percentile": round(float(row.get("low_vol_percentile", 0.5)), 3),
-            "short_interest_percentile": round(float(row.get("short_interest_percentile", 0.5)), 3),
-            "momentum_raw": round(float(row.get("momentum_raw", 0.0)), 4),
-            "gross_profit_margin": round(float(row.get("gross_profit_margin", 0.0)), 3),
+            "sector": str(row.get("sector", "") or "") or None,
+            "composite_score": round(_r("composite_score", default=0.5), 4),
+            "quality_percentile": round(_r("quality_percentile", default=0.5), 3),
+            "momentum_percentile": round(_r("momentum_percentile", default=0.5), 3),
+            "value_percentile": round(_r("value_percentile", default=0.5), 3),
+            "low_vol_percentile": round(_r("low_vol_percentile", default=0.5), 3),
+            "short_interest_percentile": round(_r("short_interest_percentile", default=0.5), 3),
+            "short_interest_pct": round(_r("short_interest_pct"), 4) if _r("short_interest_pct") is not None else None,
+            "momentum_raw": round(_r("momentum_raw"), 4) if _r("momentum_raw") is not None else None,
+            "gross_profit_margin": round(_r("gross_profit_margin"), 3) if _r("gross_profit_margin") is not None else None,
             "piotroski": int(row.get("piotroski", 5)),
-            "pe_ttm": round(float(row.get("pe_ttm", 20.0)), 1),
-            "pb_ratio": round(float(row.get("pb_ratio", 2.0)), 2),
-            "beta": round(float(row.get("beta", 1.0)), 2),
-            "realized_vol_1y": round(float(row.get("realized_vol_1y", 0.20)), 3),
+            "pe_ttm": round(_r("pe_ttm"), 1) if _r("pe_ttm") is not None else None,
+            "pb_ratio": round(_r("pb_ratio"), 2) if _r("pb_ratio") is not None else None,
+            "beta": round(_r("beta"), 2) if _r("beta") is not None else None,
+            "realized_vol_1y": round(_r("realized_vol_1y"), 3) if _r("realized_vol_1y") is not None else None,
+            "current_price": round(_r("current_price"), 2) if _r("current_price") is not None else None,
+            "analyst_target_mean": round(_r("analyst_target"), 2) if _r("analyst_target") is not None else None,
+            "market_cap": _r("market_cap") if _r("market_cap") is not None else None,
+            "insider_cluster_score": round(_r("insider_cluster_score"), 2) if _r("insider_cluster_score") is not None else None,
+            "accruals_ratio": round(_r("accruals_ratio"), 4) if _r("accruals_ratio") is not None else None,
+            "revenue_growth_yoy": round(_r("revenue_growth_yoy"), 4) if _r("revenue_growth_yoy") is not None else None,
+            "debt_equity": round(_r("debt_equity"), 2) if _r("debt_equity") is not None else None,
         })
 
     return context
@@ -385,10 +404,20 @@ def _build_analyst_context(ticker: str, market: str, engine) -> dict:
 
 def _build_context_from_cache(ticker: str, market: str) -> dict | None:
     """Fast path: build analyst context from Supabase score_cache."""
+    cached = None
     try:
+        # Tier 1: fresh cache (≤15 min)
         cached = score_cache.read_one(ticker, market, max_age_seconds=900)
         if not cached:
+            # Tier 2: stale cache (≤24 h) — nightly GHA data
             cached = score_cache.read_one(ticker, market, max_age_seconds=86400)
+            if cached:
+                log.info("DEEP context: serving stale cache (>%15min) for %s/%s", ticker, market)
+        if not cached:
+            # Tier 3: any age — better than no data
+            cached = score_cache.read_one(ticker, market, max_age_seconds=999999999)
+            if cached:
+                log.warning("DEEP context: serving very old cache for %s/%s", ticker, market)
     except Exception:
         return None
     if not cached:
@@ -398,6 +427,13 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
         macro = fetch_real_macro()
         regime_id = cached.get("regime_id", 1)
         regime_labels = {1: "Risk-On", 2: "Late-Cycle", 3: "Bear", 4: "Recovery"}
+
+        def _c(key, default=0.0):
+            """Get cached value, returning None if missing (not default)."""
+            v = cached.get(key)
+            if v is None or v == 0 and key not in cached:
+                return None
+            return v
 
         context = {
             "market": market,
@@ -413,19 +449,30 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
             "cpi_yoy": round(macro.cpi_yoy, 2),
             "fed_funds_rate": round(macro.fed_funds_rate, 2),
             "fred_sourced": macro.fred_sourced,
+            # Stock-specific fields from cache
+            "sector": cached.get("sector") or "Unknown",
             "composite_score": round(float(cached.get("composite_score", 0.5)), 4),
             "quality_percentile": round(float(cached.get("quality_percentile", 0.5)), 3),
             "momentum_percentile": round(float(cached.get("momentum_percentile", 0.5)), 3),
             "value_percentile": round(float(cached.get("value_percentile", 0.5)), 3),
             "low_vol_percentile": round(float(cached.get("low_vol_percentile", 0.5)), 3),
             "short_interest_percentile": round(float(cached.get("short_interest_percentile", 0.5)), 3),
-            "momentum_raw": round(float(cached.get("momentum_raw", 0.0)), 4),
-            "gross_profit_margin": round(float(cached.get("gross_profit_margin", 0.0)), 3),
-            "piotroski": int(cached.get("piotroski", 5)),
-            "pe_ttm": round(float(cached.get("pe_ttm", 20.0)), 1),
-            "pb_ratio": round(float(cached.get("pb_ratio", 2.0)), 2),
-            "beta": round(float(cached.get("beta", 1.0)), 2),
-            "realized_vol_1y": round(float(cached.get("realized_vol_1y", 0.20)), 3),
+            "pe_ttm": round(float(cached.get("pe_ttm")), 1) if cached.get("pe_ttm") is not None else None,
+            "current_price": round(float(cached.get("current_price")), 2) if cached.get("current_price") is not None else None,
+            "analyst_target_mean": round(float(cached.get("analyst_target")), 2) if cached.get("analyst_target") is not None else None,
+            "market_cap": float(cached.get("market_cap")) if cached.get("market_cap") is not None else None,
+            # Fields added by migration 005 — may be None if migration not yet run
+            "momentum_raw": round(float(cached["momentum_raw"]), 4) if cached.get("momentum_raw") is not None else None,
+            "gross_profit_margin": round(float(cached["gross_profit_margin"]), 3) if cached.get("gross_profit_margin") is not None else None,
+            "piotroski": int(cached["piotroski"]) if cached.get("piotroski") is not None else None,
+            "pb_ratio": round(float(cached["pb_ratio"]), 2) if cached.get("pb_ratio") is not None else None,
+            "beta": round(float(cached["beta"]), 2) if cached.get("beta") is not None else None,
+            "realized_vol_1y": round(float(cached["realized_vol_1y"]), 3) if cached.get("realized_vol_1y") is not None else None,
+            "short_interest_pct": round(float(cached["short_interest_pct"]), 4) if cached.get("short_interest_pct") is not None else None,
+            "insider_cluster_score": round(float(cached["insider_cluster_score"]), 2) if cached.get("insider_cluster_score") is not None else None,
+            "accruals_ratio": round(float(cached["accruals_ratio"]), 4) if cached.get("accruals_ratio") is not None else None,
+            "revenue_growth_yoy": round(float(cached["revenue_growth_yoy"]), 4) if cached.get("revenue_growth_yoy") is not None else None,
+            "debt_equity": round(float(cached["debt_equity"]), 2) if cached.get("debt_equity") is not None else None,
         }
         return context
     except Exception as e:
@@ -497,6 +544,20 @@ async def handle_deep(req: QueryRequest) -> QueryResponse:
     # Cache-first context build
     context = await asyncio.to_thread(_build_context_from_cache, ticker_upper, market)
     if context is None:
+        # On Render, skip yfinance (rate-limited) — return error instead of 25s hang
+        import os
+        if os.environ.get("RENDER"):
+            log.warning("DEEP: cache empty for %s/%s on Render, skipping rate-limited yfinance", ticker_upper, market)
+            return QueryResponse(
+                answer=f"Deep-dive analysis for {ticker_upper} is being refreshed. Please retry in 1-2 minutes.",
+                data_sources=["NeuralQuant PARA-DEBATE"],
+                follow_up_questions=[
+                    f"Quick snapshot of {ticker_upper}",
+                    f"Compare {ticker_upper} with peers",
+                    "Show top-ranked stocks",
+                ],
+                route="DEEP",
+            )
         context = await asyncio.to_thread(_build_analyst_context, ticker_upper, market, engine)
 
     orch = ParaDebateOrchestrator()

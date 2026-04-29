@@ -77,6 +77,18 @@ def run_market(market: str) -> int:
                     "market_cap": _f(row.get("market_cap")),
                     "week52_high": _f(row.get("week52_high")),
                     "week52_low": _f(row.get("week52_low")),
+                    # Agent-critical fields (columns added by migration 005)
+                    "momentum_raw": _f(row.get("momentum_raw")),
+                    "gross_profit_margin": _f(row.get("gross_profit_margin")),
+                    "piotroski": _f(row.get("piotroski"), 5),
+                    "pb_ratio": _f(row.get("pb_ratio")),
+                    "beta": _f(row.get("beta")),
+                    "realized_vol_1y": _f(row.get("realized_vol_1y")),
+                    "short_interest_pct": _f(row.get("short_interest_pct")),
+                    "insider_cluster_score": _f(row.get("insider_cluster_score")),
+                    "accruals_ratio": _f(row.get("accruals_ratio")),
+                    "revenue_growth_yoy": _f(row.get("revenue_growth_yoy")),
+                    "debt_equity": _f(row.get("debt_equity")),
                 })
         except Exception as exc:
             print(f"[{market}] chunk failed: {exc}", file=sys.stderr)
