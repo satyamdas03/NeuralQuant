@@ -560,7 +560,7 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
     try:
         # FAST PATH: score_cache for screener data (sub-100ms)
         if needs_screener or (not in_universe_tickers and not out_of_universe_words and needs_stock_scores):
-            cached = score_cache.read_top(target_market, 20, max_age_seconds=86400)
+            cached = score_cache.read_top(target_market, 20, max_age_seconds=300)
             if cached:
                 lines = [f"NeuralQuant {target_market} Screener — Top 20 (cached scores):"]
                 for i, row in enumerate(cached[:20]):
@@ -611,7 +611,7 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
         # Fetch specific stock data with live prices (fast: 1-3 calls, ~5s)
         if in_universe_tickers:
             lines = ["NeuralQuant scores + LIVE prices for mentioned stocks:"]
-            cached_all = score_cache.read_top(target_market, 50, max_age_seconds=86400)
+            cached_all = score_cache.read_top(target_market, 50, max_age_seconds=300)
             cache_map = {r.get("ticker"): r for r in cached_all} if cached_all else {}
             for t in in_universe_tickers[:5]:
                 fund = _fetch_one(t, target_market)
@@ -649,7 +649,7 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                     except Exception:
                         pass
                 # Show nearby alternatives from cache
-                cached_all = score_cache.read_top(target_market, 50, max_age_seconds=86400)
+                cached_all = score_cache.read_top(target_market, 50, max_age_seconds=300)
                 if cached_all:
                     cache_map = {r.get("ticker"): r for r in cached_all}
                     for t in in_universe_tickers[:2]:

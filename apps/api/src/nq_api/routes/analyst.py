@@ -216,7 +216,7 @@ def _fundamental_red_flags(ctx: dict) -> list[str]:
 def _build_context_from_cache(ticker: str, market: str) -> dict | None:
     """Fast path: build analyst context from Supabase score_cache (sub-100ms)."""
     try:
-        cached = score_cache.read_one(ticker, market, max_age_seconds=172800)
+        cached = score_cache.read_one(ticker, market, max_age_seconds=900)
     except Exception:
         return None
     if not cached:

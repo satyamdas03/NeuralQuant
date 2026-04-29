@@ -34,3 +34,4 @@ services:
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
     plan: free
+    healthCheckPath: /health

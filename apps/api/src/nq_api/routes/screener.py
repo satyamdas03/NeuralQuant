@@ -55,7 +55,7 @@ def _get_live_regime_id(market: str = "US") -> int:
 async def screener_preview(market: str = "US", n: int = 8) -> ScreenerResponse:
     """Public, cache-only top-N. No auth, no quota. Used by dashboard preview."""
     try:
-        rows = await asyncio.to_thread(score_cache.read_top, market, n=n, max_age_seconds=86400 * 30)
+        rows = await asyncio.to_thread(score_cache.read_top, market, n=n, max_age_seconds=300)
         logger.info("screener_preview: %d rows from cache for market=%s", len(rows), market)
     except Exception as exc:
         logger.exception("screener_preview cache read failed for market=%s", market)
@@ -169,7 +169,7 @@ async def run_screener(
         cached = await asyncio.to_thread(score_cache.read_top, req.market, n=max(100, req.max_results * 3), max_age_seconds=tier_age)
         if not cached:
             # Broader fallback — stale cache better than 5-min live compute
-            cached = await asyncio.to_thread(score_cache.read_top, req.market, n=max(100, req.max_results * 3), max_age_seconds=86400 * 30)
+            cached = await asyncio.to_thread(score_cache.read_top, req.market, n=max(100, req.max_results * 3), max_age_seconds=300)
         cached = [r for r in cached if (r.get("composite_score") or 0) >= req.min_score]
         if cached:
             # regime: compute cheaply from macro (static across batch)

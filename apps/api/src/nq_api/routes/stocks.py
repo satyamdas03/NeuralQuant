@@ -64,11 +64,10 @@ async def get_stock_score(
     ticker_upper = ticker.upper()
 
     # --- Fast path: read from Supabase score_cache (sub-100ms) ---
-    # Widened to 7d to match screener/preview — nightly GHA refreshes cache,
-    # but Render/yfinance rate-limits make live recompute unsafe.
+    # 5-min window: nightly GHA refreshes, but stock detail must be near-live.
     try:
         cached = await asyncio.to_thread(
-            score_cache.read_one, ticker_upper, market, max_age_seconds=86400 * 7
+            score_cache.read_one, ticker_upper, market, max_age_seconds=300
         )
     except Exception as e:
         log.warning("score_cache.read_one failed: %s", e)

@@ -137,7 +137,18 @@ async def market_movers():
     if _movers_cache and time.time() - _movers_ts < MOVERS_TTL:
         return _movers_cache
 
+    # Serve stale immediately + background refresh
+    if _movers_cache:
+        asyncio.create_task(_refresh_movers())
+        return {**_movers_cache, "stale": True}
+
+    # Cold start: block briefly to fill
     return await asyncio.to_thread(_market_movers_sync)
+
+
+async def _refresh_movers():
+    """Background refresh for market movers cache."""
+    await asyncio.to_thread(_market_movers_sync)
 
 
 def _market_movers_sync():
