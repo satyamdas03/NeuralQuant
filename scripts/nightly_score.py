@@ -89,6 +89,12 @@ def run_market(market: str) -> int:
                     "accruals_ratio": _f(row.get("accruals_ratio")),
                     "revenue_growth_yoy": _f(row.get("revenue_growth_yoy")),
                     "debt_equity": _f(row.get("debt_equity")),
+                    # Meta fields for /meta fallback on Render
+                    "long_name": str(row.get("long_name") or row.get("ticker", "")),
+                    "industry": str(row.get("industry") or ""),
+                    "analyst_rec": str(row.get("analyst_rec") or ""),
+                    "earnings_date": str(row.get("earnings_date") or ""),
+                    "dividend_yield": _f(row.get("dividend_yield")),
                 })
         except Exception as exc:
             print(f"[{market}] chunk failed: {exc}", file=sys.stderr)

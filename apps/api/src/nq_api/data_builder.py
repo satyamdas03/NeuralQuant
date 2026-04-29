@@ -364,6 +364,40 @@ def _fetch_one(ticker: str, market: str) -> dict:
         market_cap      = info.get("marketCap")
         change_pct      = info.get("regularMarketChangePercent", 0.0)
         long_name       = info.get("longName") or info.get("shortName") or ticker
+        industry        = info.get("industry")
+        sector          = info.get("sector")
+
+        # Earnings date
+        earnings_date = None
+        try:
+            cal = t.calendar
+            if isinstance(cal, dict):
+                ed = cal.get("Earnings Date")
+                if ed and len(ed) > 0:
+                    earnings_date = str(ed[0].date())
+        except Exception:
+            pass
+
+        # Dividend yield
+        div_pct = None
+        div_rate = info.get("dividendRate")
+        if div_rate and current_price:
+            try:
+                div_pct = round(float(div_rate) / float(current_price) * 100, 2)
+                if not (0 < div_pct < 20):
+                    div_pct = None
+            except Exception:
+                pass
+        if div_pct is None:
+            div_raw = info.get("dividendYield")
+            if div_raw:
+                try:
+                    v = float(div_raw)
+                    v = v if v > 1 else v * 100
+                    if 0 < v < 20:
+                        div_pct = round(v, 2)
+                except Exception:
+                    pass
 
         result = {
             "gross_profit_margin": float(gpm),
@@ -387,6 +421,10 @@ def _fetch_one(ticker: str, market: str) -> dict:
             "market_cap":           float(market_cap) if market_cap else None,
             "change_pct":           float(change_pct),
             "long_name":            long_name,
+            "industry":             industry,
+            "sector":               sector,
+            "earnings_date":        earnings_date,
+            "dividend_yield":       div_pct,
         }
     except Exception as exc:
         log.debug("yfinance fetch failed for %s: %s — using synthetic", ticker, exc)

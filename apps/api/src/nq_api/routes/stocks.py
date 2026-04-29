@@ -346,6 +346,44 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
         _persist_meta(t_up, market, fallback)
         return fallback
 
+    # Fallback: score_cache has fundamentals from nightly GHA
+    sc_row = None
+    try:
+        sc_row = score_cache.read_one(t_up, market, max_age_seconds=999999999)
+    except Exception:
+        pass
+    if sc_row:
+        log.info("meta: serving from score_cache fallback for %s", t_up)
+        mc = sc_row.get("market_cap")
+        pe = sc_row.get("pe_ttm")
+        pb = sc_row.get("pb_ratio")
+        hi52 = sc_row.get("week52_high")
+        lo52 = sc_row.get("week52_low")
+        tgt = sc_row.get("analyst_target")
+        cur = sc_row.get("current_price")
+        sec = sc_row.get("sector")
+        beta_v = sc_row.get("beta")
+        result = {
+            "ticker": t_up,
+            "name": sc_row.get("long_name") or t_up,
+            "market_cap": mc,
+            "market_cap_fmt": _fmt_mcap(float(mc), market) if mc else None,
+            "pe_ttm": round(float(pe), 1) if pe is not None else None,
+            "pb_ratio": round(float(pb), 2) if pb is not None else None,
+            "beta": round(float(beta_v), 2) if beta_v is not None else None,
+            "week_52_high": hi52,
+            "week_52_low": lo52,
+            "earnings_date": sc_row.get("earnings_date"),
+            "analyst_target": tgt,
+            "analyst_recommendation": sc_row.get("analyst_rec"),
+            "sector": sec,
+            "industry": sc_row.get("industry"),
+            "dividend_yield": sc_row.get("dividend_yield"),
+            "current_price": cur,
+        }
+        _META_CACHE[cache_key] = (result, time.monotonic())
+        return result
+
     # Both failed — serve stale cache if available, else minimal response
     if cached:
         log.warning("meta both paths failed for %s — serving stale cache", t_up)
