@@ -64,12 +64,12 @@ export default async function Landing() {
             PARA-DEBATE™
           </span>
           <h2 className="font-headline text-3xl md:text-4xl font-bold tracking-tight mb-3">
-            6 AI analysts debate your stock.
+            AI analysts debate your stock.
           </h2>
           <p className="text-on-surface-variant max-w-2xl mx-auto">
-            Before you invest, 6 specialist agents argue every angle — macro, fundamentals,
-            technicals, sentiment, geopolitics, and an adversarial devil&apos;s advocate.
-            A Head Analyst delivers the final verdict.
+            Before you invest, specialist agents argue every angle — macro, fundamentals,
+            technicals, sentiment, geopolitics, and an adversarial devil&apos;s advocate —
+            then a Bull vs. Bear debate settles it. A Head Analyst delivers the final verdict.
           </p>
         </div>
         <DebateShowcase />
@@ -134,7 +134,7 @@ export default async function Landing() {
         <div className="grid md:grid-cols-3 gap-8">
           <Stat num="1000+" label="US + Indian tickers scored nightly" />
           <Stat num="5" label="ForeCast™ factors, sector-adjusted" />
-          <Stat num="4" label="AI analysts debate every thesis" />
+          <Stat num="7" label="AI agents debate every thesis" />
         </div>
         <div className="mt-6 flex flex-col gap-2">
           <Link href="/sources" className="text-sm text-secondary hover:underline">
