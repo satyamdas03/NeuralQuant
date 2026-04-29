@@ -94,8 +94,14 @@ async def get_stock_score(
         return row_to_ai_score(df.iloc[0], market, score_1_10_override=_score_1_10_from_cache(cached))
 
     # --- Slow path: live compute with hard timeout (cache miss fallback) ---
-    # yfinance can hang for minutes when Render IP is rate-limited.
-    # Cap at 25s so the user gets a fast 504 rather than a frozen request.
+    # On Render, yfinance is rate-limited — skip live compute and return 504 fast.
+    import os
+    if os.environ.get("RENDER"):
+        log.warning("score_cache empty for %s/%s on Render, skipping rate-limited live compute", ticker_upper, market)
+        raise HTTPException(
+            status_code=503,
+            detail=f"Score data for {ticker_upper} is being refreshed. Please retry in 1-2 minutes.",
+        )
     try:
         snapshot = await asyncio.wait_for(
             asyncio.to_thread(build_real_snapshot, [ticker_upper], market),

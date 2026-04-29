@@ -74,6 +74,12 @@ async def screener_preview(market: str = "US", n: int = 8) -> ScreenerResponse:
         logger.exception("screener_preview cache read failed for market=%s", market)
     if not rows:
         # Tier 4: live compute (last resort, strict timeout)
+        # On cloud (Render), yfinance is often rate-limited, so skip live compute
+        # entirely and return empty. The background warmup will fill cache instead.
+        import os
+        if os.environ.get("RENDER"):
+            logger.info("screener_preview: cache empty on Render, skipping live compute (rate-limited)")
+            return ScreenerResponse(regime_label="Unknown", regime_id=1, results=[], total=0)
         logger.info("screener_preview: cache empty, falling back to live compute for market=%s", market)
         return await _preview_live_fallback(market, n)
     regime_id = _get_live_regime_id(market)
