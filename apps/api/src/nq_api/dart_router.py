@@ -171,10 +171,18 @@ async def handle_snap(req: QueryRequest) -> QueryResponse:
     market = req.market or "US"
     ticker_upper = ticker.upper()
 
-    # Try score cache first (sub-100ms)
+    # Try score cache first (sub-100ms) — tiered fallback like screener/stocks
     cached = None
     try:
-        cached = await asyncio.to_thread(score_cache.read_one, ticker_upper, market, 172800)
+        cached = await asyncio.to_thread(score_cache.read_one, ticker_upper, market, 300)
+        if not cached:
+            cached = await asyncio.to_thread(score_cache.read_one, ticker_upper, market, 86400)
+            if cached:
+                log.info("SNAP: serving stale cache (>%5min) for %s/%s", ticker_upper, market)
+        if not cached:
+            cached = await asyncio.to_thread(score_cache.read_one, ticker_upper, market, 999999999)
+            if cached:
+                log.warning("SNAP: serving very old cache for %s/%s", ticker_upper, market)
     except Exception as exc:
         log.warning("SNAP score_cache read failed for %s: %s", ticker_upper, exc)
 
