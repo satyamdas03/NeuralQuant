@@ -22,7 +22,7 @@ from nq_signals.engine import SignalEngine
 
 # In-memory TTL cache for stock meta — serves stale data when Yahoo rate-limits
 _META_CACHE: dict[str, tuple[dict, float]] = {}
-_META_CACHE_TTL = 86400  # 24 hours — reduces Yahoo API calls significantly
+_META_CACHE_TTL = 3600  # 1 hour — balance between API calls and freshness
 
 router = APIRouter()
 

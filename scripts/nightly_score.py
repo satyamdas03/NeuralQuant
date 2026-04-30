@@ -114,9 +114,110 @@ def run_market(market: str) -> int:
     return written
 
 
+def warm_stock_meta(market: str = "US") -> int:
+    """Populate stock_meta table from yfinance for all tickers in the universe.
+    Runs after nightly_score so stock detail pages have P/B, Beta, etc."""
+    import json as _json
+    from datetime import datetime, timezone
+    from nq_api.cache.score_cache import _supabase_rest
+    import yfinance as yf
+
+    tickers = UNIVERSE_FULL.get(market, [])
+    print(f"[{market}] warming stock_meta for {len(tickers)} tickers")
+    written = 0
+    for i, sym in enumerate(tickers):
+        try:
+            t = yf.Ticker(sym)
+            info = t.info or {}
+            if not info:
+                continue
+
+            # Earnings date
+            earnings_date = None
+            try:
+                cal = t.calendar
+                if isinstance(cal, dict):
+                    ed = cal.get("Earnings Date")
+                    if ed and len(ed) > 0:
+                        earnings_date = str(ed[0].date())
+            except Exception:
+                pass
+
+            mc = info.get("marketCap")
+            price_now = info.get("currentPrice") or info.get("regularMarketPrice")
+
+            # Dividend yield
+            div_pct = None
+            div_rate = info.get("dividendRate")
+            if div_rate and price_now:
+                try:
+                    v = float(div_rate) / float(price_now) * 100
+                    if 0 < v < 20:
+                        div_pct = round(v, 2)
+                except Exception:
+                    pass
+            if div_pct is None:
+                div_raw = info.get("dividendYield")
+                if div_raw:
+                    try:
+                        v = float(div_raw)
+                        v = v if v > 1 else v * 100
+                        if 0 < v < 20:
+                            div_pct = round(v, 2)
+                    except Exception:
+                        pass
+
+            row = {
+                "ticker": sym,
+                "market": market,
+                "data": _json.dumps({
+                    "ticker": sym,
+                    "name": info.get("longName") or info.get("shortName") or sym,
+                    "market_cap": mc,
+                    "market_cap_fmt": _fmt_mcap(float(mc), market) if mc else None,
+                    "pe_ttm": round(float(info["trailingPE"]), 1) if info.get("trailingPE") else None,
+                    "pb_ratio": round(float(info["priceToBook"]), 2) if info.get("priceToBook") else None,
+                    "beta": round(float(info["beta"]), 2) if info.get("beta") else None,
+                    "week_52_high": info.get("fiftyTwoWeekHigh"),
+                    "week_52_low": info.get("fiftyTwoWeekLow"),
+                    "earnings_date": earnings_date,
+                    "analyst_target": info.get("targetMeanPrice"),
+                    "analyst_recommendation": info.get("recommendationKey"),
+                    "sector": info.get("sector"),
+                    "industry": info.get("industry"),
+                    "dividend_yield": div_pct,
+                    "current_price": price_now,
+                }),
+                "fetched_at": datetime.now(timezone.utc).isoformat(),
+            }
+            _supabase_rest("stock_meta", method="PATCH", body=[row],
+                           query={"ticker": f"eq.{sym}", "market": f"eq.{market}"})
+            written += 1
+            if written % 20 == 0:
+                print(f"[{market}] warmed {written}/{len(tickers)} stock_meta rows")
+        except Exception as exc:
+            print(f"[{market}] stock_meta failed for {sym}: {exc}", file=sys.stderr)
+        time.sleep(0.3)
+
+    print(f"[{market}] stock_meta warm complete: {written} tickers")
+    return written
+
+
+def _fmt_mcap(mc: float, market: str) -> str:
+    """Format market cap in billions/millions."""
+    if mc >= 1e12:
+        return f"${mc/1e12:.1f}T"
+    if mc >= 1e9:
+        return f"${mc/1e9:.1f}B"
+    if mc >= 1e6:
+        return f"${mc/1e6:.1f}M"
+    return f"${mc:,.0f}"
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--market", default="BOTH", choices=["US", "IN", "BOTH"])
+    ap.add_argument("--skip-meta", action="store_true", help="Skip stock_meta warm step")
     args = ap.parse_args()
 
     if not (os.environ.get("SUPABASE_URL") and os.environ.get("SUPABASE_SERVICE_ROLE_KEY")):
@@ -129,6 +230,16 @@ def main() -> int:
     if args.market in ("IN", "BOTH"):
         total += run_market("IN")
     print(f"TOTAL upserted: {total}")
+
+    # Warm stock_meta table from yfinance
+    if not args.skip_meta:
+        meta_count = 0
+        if args.market in ("US", "BOTH"):
+            meta_count += warm_stock_meta("US")
+        if args.market in ("IN", "BOTH"):
+            meta_count += warm_stock_meta("IN")
+        print(f"TOTAL stock_meta warmed: {meta_count}")
+
     return 0 if total > 0 else 1
 
 
