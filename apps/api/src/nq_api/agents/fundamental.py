@@ -84,6 +84,32 @@ class FundamentalAgent(BaseAnalystAgent):
         de = context.get('debt_equity', None)
         de_display = f"{de}" if de is not None and de != 'N/A' else 'N/A'
 
+        # Sector median comparison
+        sector = context.get('sector', '')
+        sector_section = ""
+        if sector and sector != 'Unknown':
+            sector_lines = []
+            sector_fields = [
+                ('sector_median_pe_ttm', 'P/E', 'x'),
+                ('sector_median_roe', 'ROE', '%'),
+                ('sector_median_gross_profit_margin', 'Gross margin', '%'),
+                ('sector_median_debt_equity', 'D/E', ''),
+                ('sector_median_composite_score', 'Composite', ''),
+            ]
+            for key, label, unit in sector_fields:
+                val = context.get(key)
+                if val is not None:
+                    if unit == '%':
+                        sector_lines.append(f"  {label}: {float(val) * 100:.1f}%")
+                    else:
+                        sector_lines.append(f"  {label}: {val}{unit}")
+            if sector_lines:
+                sector_section = f"""
+Sector median ({sector}):
+{chr(10).join(sector_lines)}
+
+Compare this stock's metrics to the sector median above when making your assessment."""
+
         return f"""Analyse the fundamental investment merit of {ticker}.
 
 IMPORTANT: Use ONLY the exact figures provided below. Do not substitute values from memory or training data.
@@ -103,5 +129,5 @@ Financial data (live as of today):
 - 52-week range: {context.get('week52_low', 'N/A')} – {context.get('week52_high', 'N/A')}
 - Analyst target mean: {context.get('analyst_target_mean', 'N/A')}
 - AI composite score: {context.get('composite_score', 'N/A')} (0-1 scale)
-
+{sector_section}
 Provide your fundamental stance on {ticker}. Reference the specific numbers above in your key points."""

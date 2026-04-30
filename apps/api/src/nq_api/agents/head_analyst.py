@@ -87,6 +87,9 @@ RISK_FACTORS:
                     "insider_cluster_score", "rsi_14", "macd_hist", "atr_14",
                     "sma_50", "sma_200", "volume_ratio",
                     "news_sentiment", "news_sentiment_score", "insider_net_buy_ratio",
+                    "sector_median_pe_ttm", "sector_median_roe",
+                    "sector_median_gross_profit_margin", "sector_median_debt_equity",
+                    "sector_median_composite_score",
                 )
             }
             if raw_fields:

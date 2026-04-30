@@ -171,3 +171,63 @@ def age_seconds(market: str) -> int | None:
         ts = datetime.fromisoformat(data[0]["computed_at"].replace("Z", "+00:00"))
         return int((datetime.now(timezone.utc) - ts).total_seconds())
     return None
+
+
+def read_sector_median(
+    sector: str,
+    market: str,
+    fields: tuple[str, ...] = (
+        "pe_ttm", "pb_ratio", "gross_profit_margin", "roe",
+        "debt_equity", "revenue_growth_yoy", "composite_score",
+        "quality_percentile", "momentum_percentile",
+    ),
+    max_age_seconds: int = 86400,
+) -> dict[str, float | None]:
+    """Return median values for a sector from score_cache.
+
+    Used for peer comparison context in Ask AI and PARA-DEBATE.
+    Returns {field: median_value} for the given sector/market.
+    """
+    from nq_api.universe import UNIVERSE_FULL
+    # Find tickers in this sector
+    tickers_in_sector = [
+        row["ticker"] for row in UNIVERSE_FULL.get(market, [])
+        if row.get("sector") == sector
+    ]
+    if not tickers_in_sector:
+        return {}
+
+    # Fetch all fresh rows for this market
+    cutoff = (datetime.now(timezone.utc) - timedelta(seconds=max_age_seconds)).isoformat()
+    data = _supabase_rest(
+        "score_cache",
+        method="GET",
+        query={
+            "select": ",".join(["ticker"] + list(fields)),
+            "market": f"eq.{market}",
+            "computed_at": f"gte.{cutoff}",
+        },
+    )
+    if not isinstance(data, list) or not data:
+        return {}
+
+    # Filter to sector tickers
+    sector_set = set(tickers_in_sector)
+    sector_rows = [r for r in data if r.get("ticker") in sector_set]
+    if not sector_rows:
+        return {}
+
+    # Compute medians
+    import statistics
+    result: dict[str, float | None] = {}
+    for field in fields:
+        values = []
+        for row in sector_rows:
+            v = row.get(field)
+            if v is not None:
+                try:
+                    values.append(float(v))
+                except (ValueError, TypeError):
+                    pass
+        result[field] = statistics.median(values) if values else None
+    return result

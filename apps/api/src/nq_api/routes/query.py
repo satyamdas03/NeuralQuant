@@ -823,6 +823,21 @@ async def run_nl_query(
         context_parts.append(platform_ctx)
     if req.ticker:
         context_parts.append(f"Stock in focus: {req.ticker} ({req.market or 'US'} market)")
+        # Sector peer comparison
+        try:
+            from nq_api.universe import sector_of
+            from nq_api.cache.score_cache import read_sector_median
+            sector = sector_of(req.ticker, req.market or "US")
+            if sector and sector != "Unknown":
+                medians = read_sector_median(sector, req.market or "US")
+                if medians:
+                    lines = [f"Sector median ({sector}):"]
+                    for k, v in medians.items():
+                        if v is not None:
+                            lines.append(f"  {k}: {round(v, 3)}")
+                    context_parts.append("\n".join(lines))
+        except Exception:
+            pass
     if headlines:
         context_parts.append("Recent market headlines (use these to answer current-events questions):")
         for h in headlines:
@@ -1283,6 +1298,21 @@ async def run_nl_query_v2(
         context_parts.append(platform_ctx)
     if req.ticker:
         context_parts.append(f"Stock in focus: {req.ticker} ({req.market or 'US'} market)")
+        # Sector peer comparison
+        try:
+            from nq_api.universe import sector_of
+            from nq_api.cache.score_cache import read_sector_median
+            sector = sector_of(req.ticker, req.market or "US")
+            if sector and sector != "Unknown":
+                medians = read_sector_median(sector, req.market or "US")
+                if medians:
+                    lines = [f"Sector median ({sector}):"]
+                    for k, v in medians.items():
+                        if v is not None:
+                            lines.append(f"  {k}: {round(v, 3)}")
+                    context_parts.append("\n".join(lines))
+        except Exception:
+            pass
     if headlines:
         context_parts.append("Recent market headlines (use these to answer current-events questions):")
         for h in headlines:
@@ -1589,6 +1619,21 @@ async def run_nl_query_v2_stream(
                 context_parts.append(platform_ctx)
             if req.ticker:
                 context_parts.append(f"Stock in focus: {req.ticker} ({req.market or 'US'} market)")
+                # Sector peer comparison
+                try:
+                    from nq_api.universe import sector_of
+                    from nq_api.cache.score_cache import read_sector_median
+                    sector = sector_of(req.ticker, req.market or "US")
+                    if sector and sector != "Unknown":
+                        medians = read_sector_median(sector, req.market or "US")
+                        if medians:
+                            lines = [f"Sector median ({sector}):"]
+                            for k, v in medians.items():
+                                if v is not None:
+                                    lines.append(f"  {k}: {round(v, 3)}")
+                            context_parts.append("\n".join(lines))
+                except Exception:
+                    pass
             if headlines:
                 context_parts.append("Recent market headlines (use these to answer current-events questions):")
                 for h in headlines:
