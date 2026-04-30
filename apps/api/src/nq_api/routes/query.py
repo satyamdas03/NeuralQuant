@@ -430,6 +430,47 @@ def _fetch_finnhub_news_summaries(ticker: str | None, market: str = "US", n: int
         return []
 
 
+def _save_conversation_turn(user_id: str | None, session_key: str, role: str, content: str,
+                            ticker: str | None = None, market: str = "US") -> None:
+    """Persist a conversation turn to Supabase for multi-session memory."""
+    if not user_id or not session_key:
+        return
+    try:
+        from nq_api.cache.score_cache import _supabase_rest
+        _supabase_rest("conversations", method="POST", body=[{
+            "user_id": user_id,
+            "session_key": session_key,
+            "role": role,
+            "content": content[:5000],  # truncate long messages
+            "ticker": ticker,
+            "market": market,
+        }])
+    except Exception:
+        pass  # Best-effort — never block the main query flow
+
+
+def _load_conversation_history(user_id: str | None, session_key: str, limit: int = 20) -> list[dict]:
+    """Load recent conversation turns for multi-session memory."""
+    if not user_id or not session_key:
+        return []
+    try:
+        from nq_api.cache.score_cache import _supabase_rest
+        data = _supabase_rest("conversations", method="GET", query={
+            "select": "role,content,created_at",
+            "user_id": f"eq.{user_id}",
+            "session_key": f"eq.{session_key}",
+            "order": "created_at.desc",
+            "limit": str(limit),
+        })
+        if isinstance(data, list) and data:
+            # Return in chronological order
+            data.reverse()
+            return data
+    except Exception:
+        pass
+    return []
+
+
 def _fetch_india_macro() -> str | None:
     """Fetch India-specific market context: Nifty 50, Sensex, INR/USD, India VIX."""
     try:
@@ -1328,11 +1369,29 @@ async def run_nl_query_v2(
 
     user_msg = "\n".join(context_parts)
 
+    # Load persistent conversation memory if session_key provided
+    user_id = str(user.id) if user else None
+    persistent_history = []
+    if user_id and req.session_key:
+        persistent_history = await asyncio.to_thread(
+            _load_conversation_history, user_id, req.session_key, limit=10
+        )
+        if persistent_history:
+            context_parts.insert(0, f"[Previous conversation context ({len(persistent_history)} turns)]")
+            user_msg = "\n".join(context_parts)
+
     try:
         messages = []
-        for m in (req.history or [])[-4:]:
+        # Merge client-provided history, persistent history, and current message
+        seen_content = set()
+        all_history = list(req.history or [])[-4:]
+        for ph in persistent_history:
+            all_history.append(ConversationMessage(role=ph["role"], content=ph["content"]))
+        for m in all_history[-8:]:  # max 8 total history turns
             content = m.content[:1500] if len(m.content) > 1500 else m.content
-            messages.append({"role": m.role, "content": content})
+            if content not in seen_content:
+                seen_content.add(content)
+                messages.append({"role": m.role, "content": content})
         messages.append({"role": "user", "content": user_msg})
 
         # Force tool_use for guaranteed structured output (no markdown leakage).
@@ -1360,7 +1419,18 @@ async def run_nl_query_v2(
                         "second_best": "N/A",
                         "confidence_gap": "N/A",
                     }
-                return StructuredQueryResponse(**parsed)
+                result = StructuredQueryResponse(**parsed)
+                # Persist conversation turn (best-effort)
+                if user_id and req.session_key:
+                    await asyncio.to_thread(
+                        _save_conversation_turn, user_id, req.session_key,
+                        "user", req.question, req.ticker, req.market or "US"
+                    )
+                    await asyncio.to_thread(
+                        _save_conversation_turn, user_id, req.session_key,
+                        "assistant", result.summary, req.ticker, req.market or "US"
+                    )
+                return result
             except (ValidationError, Exception) as e:
                 log.warning("Tool-use structured output validation failed: %s", e)
 

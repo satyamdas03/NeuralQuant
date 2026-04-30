@@ -87,6 +87,7 @@ class QueryRequest(BaseModel):
     ticker: Optional[str] = None
     market: Literal["US", "IN", "GLOBAL"] = "US"
     history: list[ConversationMessage] = []  # previous turns for multi-turn chat
+    session_key: Optional[str] = None  # persistent conversation key (client-generated UUID)
 
 
 class QueryResponse(BaseModel):
