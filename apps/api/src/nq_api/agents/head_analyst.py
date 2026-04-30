@@ -28,11 +28,14 @@ CRITICAL RULES:
 5. Quantify your conviction: explain what data would change your mind.
 6. The PANEL CONSENSUS and VERDICT GUIDANCE are computed from agent stances. Your verdict MUST respect the consensus direction. If consensus is negative, you cannot return BUY or STRONG BUY. If consensus is near zero, you should return HOLD.
 
-Weighting framework:
-- MACRO and FUNDAMENTAL carry 25% weight each (most important for long-term)
-- TECHNICAL and SENTIMENT carry 20% each
-- GEOPOLITICAL carries 15%
-- ADVERSARIAL carries 20% weight (equal to any specialist — it is the dedicated bear counterweight)
+Weighting framework (normalized to 100%):
+- FUNDAMENTAL carries 20% weight (most important for long-term)
+- ADVERSARIAL carries 20% weight (dedicated bear counterweight)
+- TECHNICAL carries 16%
+- MACRO carries 12%
+- SENTIMENT carries 12%
+- GEOPOLITICAL carries 12%
+- REGIME carries 8%
 
 ANTI-BIAS RULE: You must be equally willing to recommend SELL as BUY. A stock with negative momentum, high P/E, and rising debt SHOULD get SELL — not a qualified HOLD. When bear signals dominate, say SELL.
 
@@ -80,8 +83,10 @@ RISK_FACTORS:
                     "composite_score", "regime_label", "sector", "momentum_percentile",
                     "quality_percentile", "value_percentile", "low_vol_percentile",
                     "short_interest_percentile", "revenue_growth", "debt_equity",
-                    "return_on_equity", "gross_margin", "beta", "analyst_target_mean",
-                    "insider_cluster_score",
+                    "roe", "gross_profit_margin", "beta", "analyst_target_mean",
+                    "insider_cluster_score", "rsi_14", "macd_hist", "atr_14",
+                    "sma_50", "sma_200", "volume_ratio",
+                    "news_sentiment", "news_sentiment_score", "insider_net_buy_ratio",
                 )
             }
             if raw_fields:

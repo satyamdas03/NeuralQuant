@@ -169,6 +169,26 @@ def _build_analyst_context(ticker: str, market: str) -> dict:
         "insider_cluster_score":      _compute_insider_score(info, fund),
     }
 
+    # Finnhub enrichment (technical indicators, insider, news sentiment)
+    finnhub_data = _fetch_finnhub_data(ticker, market)
+    if finnhub_data:
+        # Overwrite insider_cluster_score with real Finnhub data if available
+        if finnhub_data.get("insider_cluster_score") is not None:
+            context["insider_cluster_score"] = finnhub_data.pop("insider_cluster_score")
+        if finnhub_data.get("insider_summary"):
+            context["insider_summary"] = finnhub_data.pop("insider_summary")
+        if finnhub_data.get("insider_net_buy_ratio") is not None:
+            context["insider_net_buy_ratio"] = finnhub_data.pop("insider_net_buy_ratio")
+        # News sentiment
+        if finnhub_data.get("news_sentiment_label"):
+            context["news_sentiment"] = finnhub_data.pop("news_sentiment_label")
+            context["news_sentiment_score"] = finnhub_data.pop("news_sentiment_score")
+            context["news_buzz"] = finnhub_data.pop("news_buzz")
+        # All remaining Finnhub fields (technical indicators) — don't overwrite existing keys
+        for k, v in finnhub_data.items():
+            if k not in context:
+                context[k] = v
+
     # Post-hoc algorithmic guardrails — override LLM stances when data is unambiguous
     context["_fundamental_red_flags"] = _fundamental_red_flags(context)
 
@@ -184,6 +204,85 @@ def _compute_insider_score(info: dict, fund: dict) -> float:
     TODO: integrate real insider transaction data from a proper source.
     """
     return 0.5
+
+
+def _fetch_finnhub_data(ticker: str, market: str) -> dict:
+    """Fetch technical indicators, insider sentiment, and news sentiment from Finnhub.
+
+    Returns a dict with keys prefixed by source:
+      - technical_*: RSI, MACD, ATR, SMA, volume (from get_indicators)
+      - insider_*: cluster_score, net_buy_ratio, summary (from get_insider_sentiment)
+      - news_sentiment_*: label, score, buzz (from get_news_sentiment)
+
+    Returns empty dict on failure (graceful fallback).
+    """
+    try:
+        from nq_data.finnhub import get_finnhub_client
+        client = get_finnhub_client()
+        if not client._enabled:
+            return {}
+    except Exception:
+        return {}
+
+    result: dict = {}
+
+    # Technical indicators (RSI, MACD, ATR, SMA, volume)
+    try:
+        import asyncio
+        loop = None
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            pass
+
+        if loop and loop.is_running():
+            # We're inside an async context — can't await, skip Finnhub
+            indicators = None
+        else:
+            indicators = asyncio.run(client.get_indicators(ticker))
+
+        if indicators:
+            result["rsi_14"] = indicators.get("rsi_14")
+            result["macd_line"] = indicators.get("macd_line")
+            result["macd_signal"] = indicators.get("macd_signal")
+            result["macd_hist"] = indicators.get("macd_hist")
+            result["atr_14"] = indicators.get("atr_14")
+            result["sma_50"] = indicators.get("sma_50")
+            result["sma_200"] = indicators.get("sma_200")
+            result["price_vs_sma50"] = indicators.get("price_vs_sma50")
+            result["price_vs_sma200"] = indicators.get("price_vs_sma200")
+            result["volume_today"] = indicators.get("volume_today")
+            result["volume_20d_avg"] = indicators.get("volume_20d_avg")
+            result["volume_ratio"] = indicators.get("volume_ratio")
+            result["finnhub_price"] = indicators.get("current_price")
+    except Exception as exc:
+        log.debug("Finnhub indicators failed for %s: %s", ticker, exc)
+
+    # Insider sentiment
+    try:
+        if not (loop and loop.is_running()):
+            insider = asyncio.run(client.get_insider_sentiment(ticker))
+            if insider:
+                result["insider_cluster_score"] = insider.get("cluster_score")
+                result["insider_net_buy_ratio"] = insider.get("net_buy_ratio")
+                result["insider_summary"] = insider.get("summary")
+    except Exception as exc:
+        log.debug("Finnhub insider failed for %s: %s", ticker, exc)
+
+    # News sentiment
+    try:
+        if not (loop and loop.is_running()):
+            news_sent = asyncio.run(client.get_news_sentiment(ticker))
+            if news_sent:
+                result["news_sentiment_label"] = news_sent.get("sentiment_label")
+                result["news_sentiment_score"] = news_sent.get("sentiment_score")
+                result["news_buzz"] = news_sent.get("buzz_score")
+                result["news_bullish_pct"] = news_sent.get("bullish_pct")
+                result["news_bearish_pct"] = news_sent.get("bearish_pct")
+    except Exception as exc:
+        log.debug("Finnhub news sentiment failed for %s: %s", ticker, exc)
+
+    return result
 
 
 def _fundamental_red_flags(ctx: dict) -> list[str]:
@@ -284,6 +383,23 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
             "revenue_growth":            round(_safe_float(info.get("revenueGrowth"), 0.0) * 100, 1) if info.get("revenueGrowth") is not None else None,
             "insider_cluster_score":      _compute_insider_score(info, fund),
         }
+
+        # Finnhub enrichment (same as _build_analyst_context)
+        finhub_data = _fetch_finnhub_data(ticker, market)
+        if finhub_data:
+            if finhub_data.get("insider_cluster_score") is not None:
+                context["insider_cluster_score"] = finhub_data.pop("insider_cluster_score")
+            if finhub_data.get("insider_summary"):
+                context["insider_summary"] = finhub_data.pop("insider_summary")
+            if finhub_data.get("insider_net_buy_ratio") is not None:
+                context["insider_net_buy_ratio"] = finhub_data.pop("insider_net_buy_ratio")
+            if finhub_data.get("news_sentiment_label"):
+                context["news_sentiment"] = finhub_data.pop("news_sentiment_label")
+                context["news_sentiment_score"] = finhub_data.pop("news_sentiment_score")
+                context["news_buzz"] = finhub_data.pop("news_buzz")
+            for k, v in finhub_data.items():
+                if k not in context:
+                    context[k] = v
         # Same algorithmic guardrails as _build_analyst_context
         context["_fundamental_red_flags"] = _fundamental_red_flags(context)
         return context

@@ -90,12 +90,30 @@ class ParaDebateOrchestrator:
                 for r, agent in zip(raw_results, self._specialists)
             ]
 
-        # Step 2: build bull thesis summary for adversarial to stress-test
+        # Step 2: build bull and bear thesis summaries + pass all specialist outputs to adversarial
         bull_summary = "; ".join(
             o.thesis for o in specialist_outputs if o.stance == "BULL"
         ) or "Mixed signals from panel."
+        bear_summary = "; ".join(
+            o.thesis for o in specialist_outputs if o.stance == "BEAR"
+        ) or "No strong bear signals from panel."
 
-        adversarial_context = {**context, "bull_thesis": bull_summary}
+        # Build structured specialist outputs for adversarial context
+        specialist_outputs_dict = {}
+        for o in specialist_outputs:
+            specialist_outputs_dict[o.agent] = {
+                "stance": o.stance,
+                "conviction": o.conviction,
+                "thesis": o.thesis,
+                "key_points": o.key_points,
+            }
+
+        adversarial_context = {
+            **context,
+            "bull_thesis": bull_summary,
+            "bear_thesis": bear_summary,
+            "specialist_outputs": specialist_outputs_dict,
+        }
         try:
             adversarial_output = await asyncio.wait_for(
                 asyncio.to_thread(self._adversarial.run, ticker, adversarial_context),
