@@ -125,7 +125,8 @@ def warm_stock_meta(market: str = "US") -> int:
     tickers = UNIVERSE_FULL.get(market, [])
     print(f"[{market}] warming stock_meta for {len(tickers)} tickers")
     written = 0
-    for i, sym in enumerate(tickers):
+    for i, entry in enumerate(tickers):
+        sym = entry["ticker"] if isinstance(entry, dict) else str(entry)
         try:
             t = yf.Ticker(sym)
             info = t.info or {}
