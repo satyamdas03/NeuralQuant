@@ -27,17 +27,18 @@ def _is_ollama() -> bool:
 
 class ParaDebateOrchestrator:
     # Per-agent timeout (seconds) — evaluated at runtime, not import time
+    # Sonnet is slower than Haiku; timeouts must accommodate 5 parallel Sonnet calls
     @property
     def SPECIALIST_TIMEOUT(self):
-        return 60 if _is_ollama() else 25
+        return 60 if _is_ollama() else 45
 
     @property
     def ADVERSARIAL_TIMEOUT(self):
-        return 45 if _is_ollama() else 20
+        return 45 if _is_ollama() else 30
 
     @property
     def HEAD_ANALYST_TIMEOUT(self):
-        return 80 if _is_ollama() else 35
+        return 80 if _is_ollama() else 60
 
     def __init__(self):
         self._specialists = [

@@ -36,7 +36,7 @@ def _is_ollama() -> bool:
 def _phase_timeouts():
     if _is_ollama():
         return 60, 420  # 7 agents sequentially at ~60s each
-    return 30, 90
+    return 45, 180  # Phase 1: context build (45s), Phase 2: debate (3 min for Sonnet)
 MACRO_FETCH_TIMEOUT = 15
 
 
