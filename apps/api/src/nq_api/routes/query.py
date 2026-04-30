@@ -395,6 +395,41 @@ def _fetch_relevant_news(question: str, ticker: str | None, n: int = 8) -> list[
     return headlines[:n]
 
 
+def _fetch_finnhub_news_summaries(ticker: str | None, market: str = "US", n: int = 5) -> list[dict]:
+    """Fetch Finnhub news with full summaries for richer Ask AI context."""
+    if not ticker:
+        return []
+    try:
+        from nq_data.finnhub import get_finnhub_client
+        client = get_finnhub_client()
+        if not client._enabled:
+            return []
+    except Exception:
+        return []
+
+    try:
+        loop = None
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            pass
+        if loop and loop.is_running():
+            return []
+        articles = asyncio.run(client.get_news(ticker, days=7))
+        if not articles:
+            return []
+        results = []
+        for a in articles[:n]:
+            results.append({
+                "title": a.get("title", ""),
+                "summary": a.get("summary", ""),
+                "source": a.get("source", ""),
+            })
+        return results
+    except Exception:
+        return []
+
+
 def _fetch_india_macro() -> str | None:
     """Fetch India-specific market context: Nifty 50, Sensex, INR/USD, India VIX."""
     try:
@@ -771,10 +806,11 @@ async def run_nl_query(
         except (asyncio.TimeoutError, Exception):
             return default
 
-    headlines, macro_ctx, platform_ctx = await asyncio.gather(
+    headlines, macro_ctx, platform_ctx, finnhub_news = await asyncio.gather(
         _timed(asyncio.to_thread(_fetch_relevant_news, req.question, req.ticker, 5), 8.0, []),
         _timed(asyncio.to_thread(_build_macro_context, req.question, req.market or "US", today), 10.0, None),
         _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, req.market or "US"), 22.0, None),
+        _timed(asyncio.to_thread(_fetch_finnhub_news_summaries, req.ticker, req.market or "US", 5), 8.0, []),
     )
 
     context_parts = [
@@ -791,6 +827,14 @@ async def run_nl_query(
         context_parts.append("Recent market headlines (use these to answer current-events questions):")
         for h in headlines:
             context_parts.append(f"  • {h}")
+    if finnhub_news:
+        context_parts.append("Detailed news summaries (use these for deeper context):")
+        for a in finnhub_news:
+            summary_text = a.get("summary", "")
+            title_text = a.get("title", "")
+            source_text = a.get("source", "")
+            if summary_text:
+                context_parts.append(f"  • [{source_text}] {title_text}: {summary_text[:300]}")
 
     user_msg = "\n".join(context_parts)
 
@@ -1222,10 +1266,11 @@ async def run_nl_query_v2(
         except (asyncio.TimeoutError, Exception):
             return default
 
-    headlines, macro_ctx, platform_ctx = await asyncio.gather(
+    headlines, macro_ctx, platform_ctx, finnhub_news = await asyncio.gather(
         _timed(asyncio.to_thread(_fetch_relevant_news, req.question, req.ticker, 5), 8.0, []),
         _timed(asyncio.to_thread(_build_macro_context, req.question, req.market or "US", today), 10.0, None),
         _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, req.market or "US"), 22.0, None),
+        _timed(asyncio.to_thread(_fetch_finnhub_news_summaries, req.ticker, req.market or "US", 5), 8.0, []),
     )
 
     context_parts = [
@@ -1242,6 +1287,14 @@ async def run_nl_query_v2(
         context_parts.append("Recent market headlines (use these to answer current-events questions):")
         for h in headlines:
             context_parts.append(f"  • {h}")
+    if finnhub_news:
+        context_parts.append("Detailed news summaries (use these for deeper context):")
+        for a in finnhub_news:
+            summary_text = a.get("summary", "")
+            title_text = a.get("title", "")
+            source_text = a.get("source", "")
+            if summary_text:
+                context_parts.append(f"  • [{source_text}] {title_text}: {summary_text[:300]}")
 
     user_msg = "\n".join(context_parts)
 
@@ -1523,10 +1576,11 @@ async def run_nl_query_v2_stream(
                 except (asyncio.TimeoutError, Exception):
                     return default
 
-            headlines, macro_ctx, platform_ctx = await asyncio.gather(
+            headlines, macro_ctx, platform_ctx, finnhub_news = await asyncio.gather(
                 _timed(asyncio.to_thread(_fetch_relevant_news, req.question, req.ticker, 5), 8.0, []),
                 _timed(asyncio.to_thread(_build_macro_context, req.question, req.market or "US", today), 10.0, None),
                 _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, req.market or "US"), 22.0, None),
+                _timed(asyncio.to_thread(_fetch_finnhub_news_summaries, req.ticker, req.market or "US", 5), 8.0, []),
             )
             context_parts = [f"Today's date: {today}", f"User question: {req.question}"]
             if macro_ctx:
@@ -1539,6 +1593,14 @@ async def run_nl_query_v2_stream(
                 context_parts.append("Recent market headlines (use these to answer current-events questions):")
                 for h in headlines:
                     context_parts.append(f"  • {h}")
+            if finnhub_news:
+                context_parts.append("Detailed news summaries (use these for deeper context):")
+                for a in finnhub_news:
+                    summary_text = a.get("summary", "")
+                    title_text = a.get("title", "")
+                    source_text = a.get("source", "")
+                    if summary_text:
+                        context_parts.append(f"  • [{source_text}] {title_text}: {summary_text[:300]}")
             result_holder["user_msg"] = "\n".join(context_parts)
             context_done.set()
 
