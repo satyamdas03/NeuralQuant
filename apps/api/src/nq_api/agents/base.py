@@ -11,14 +11,43 @@ from nq_api.schemas import AgentOutput
 
 logger = logging.getLogger(__name__)
 MODEL = os.environ.get("ANTHROPIC_DEFAULT_SONNET_MODEL", "claude-sonnet-4-6")
-# Fast model for 5 specialist + adversarial agents (2-5s vs 10-30s Sonnet)
-FAST_MODEL = os.environ.get("NQ_FAST_MODEL", os.environ.get("ANTHROPIC_DEFAULT_HAIKU_MODEL", "claude-3-5-haiku-20241022"))
+# Fast model for 5 specialist + adversarial agents.
+# Default: Sonnet (works on all API tiers; Haiku 3.5 model name deprecated on some plans).
+# Set NQ_FAST_MODEL to a Haiku model ID if your API key supports it for faster/cheaper calls.
+FAST_MODEL = os.environ.get("NQ_FAST_MODEL", MODEL)
 MAX_TOKENS = 4096
+
+# Validate model availability at first use — falls back to MODEL if fast model is unavailable
+_validated_models: dict[str, bool] = {}
 
 def _is_ollama() -> bool:
     """Runtime Ollama detection — avoids module-level env var issues in uvicorn."""
     url = os.environ.get("ANTHROPIC_BASE_URL", "")
     return "127.0.0.1:11434" in url or "localhost:11434" in url
+
+
+def _resolve_model(preferred: str, fallback: str) -> str:
+    """Return preferred if validated, else fallback. Validates once, caches result."""
+    if preferred in _validated_models:
+        return preferred if _validated_models[preferred] else fallback
+    # One-shot validation: try a minimal completion with the preferred model
+    try:
+        client = anthropic.Anthropic(
+            api_key=os.environ.get("ANTHROPIC_API_KEY", ""),
+            timeout=10.0,
+        )
+        resp = client.messages.create(
+            model=preferred, max_tokens=5,
+            messages=[{"role": "user", "content": "hi"}],
+        )
+        _validated_models[preferred] = bool(resp and resp.content)
+        if _validated_models[preferred]:
+            logger.info("Model %s validated — using as fast model", preferred)
+            return preferred
+    except Exception as exc:
+        logger.warning("Model %s unavailable (%s: %s) — falling back to %s", preferred, type(exc).__name__, exc, fallback)
+        _validated_models[preferred] = False
+    return fallback
 
 
 class BaseAnalystAgent(ABC):
@@ -36,6 +65,8 @@ class BaseAnalystAgent(ABC):
             )
         client_timeout = 90.0 if _is_ollama() else 45.0
         self._client = anthropic.Anthropic(api_key=api_key, timeout=client_timeout)
+        # Resolve fast model — fall back to MODEL if preferred model is unavailable
+        self._model = _resolve_model(FAST_MODEL, MODEL)
 
     @abstractmethod
     def _build_user_message(self, ticker: str, context: dict) -> str:
@@ -47,7 +78,7 @@ class BaseAnalystAgent(ABC):
         logger.info("%s agent starting for %s (context keys: %s...)", self.agent_name, ticker, ctx_keys)
         try:
             response = self._client.messages.create(
-                model=FAST_MODEL,
+                model=self._model,
                 max_tokens=MAX_TOKENS,
                 system=self.system_prompt,
                 messages=[{"role": "user", "content": user_msg}],
@@ -96,7 +127,7 @@ class BaseAnalystAgent(ABC):
         user_msg = self._build_user_message(ticker, simplified_ctx)
         try:
             response = self._client.messages.create(
-                model=FAST_MODEL,
+                model=self._model,
                 max_tokens=2048,
                 system=self.system_prompt + "\n\nSimplified context — use only the data provided. Be concise.",
                 messages=[{"role": "user", "content": user_msg}],
@@ -155,18 +186,23 @@ class BaseAnalystAgent(ABC):
 
     def _neutral_fallback(self, ticker: str = "", context: dict | None = None) -> AgentOutput:
         name = getattr(self, "agent_name", "UNKNOWN")
-        available = [k for k in (context or {}) if context.get(k) is not None and k != "ticker"][:10]
-        thesis = (
-            f"{name} could not reach a conclusion on {ticker}. "
-            f"Data available: {', '.join(available)}. "
-            f"Limited data prevented definitive analysis."
-            if available
-            else f"{name} analysis unavailable — no data received."
-        )
+        # Show stock-specific keys first (more useful for debugging than macro keys)
+        stock_keys = ["composite_score", "pe_ttm", "pb_ratio", "beta", "market_cap",
+                      "gross_profit_margin", "piotroski", "momentum_raw", "short_interest_pct"]
+        macro_keys = ["vix", "regime_label", "spx_return_1m", "yield_10y"]
+        available_stock = [k for k in stock_keys if context and context.get(k) is not None]
+        available_macro = [k for k in macro_keys if context and context.get(k) is not None]
+        if available_stock or available_macro:
+            stock_str = f"stock: {', '.join(available_stock)}" if available_stock else "no stock data"
+            macro_str = f"macro: {', '.join(available_macro)}" if available_macro else ""
+            data_desc = f"{stock_str}; {macro_str}".strip("; ")
+            thesis = f"{name} could not reach a conclusion on {ticker}. Data present: {data_desc}. The LLM call likely failed — check model availability and API access."
+        else:
+            thesis = f"{name} analysis unavailable — no data received for {ticker}."
         return AgentOutput(
             agent=name,
             stance="NEUTRAL",
             conviction="LOW",
             thesis=thesis,
-            key_points=["Insufficient signal strength for directional call."],
+            key_points=["Agent LLM call failed or returned unparseable output."],
         )

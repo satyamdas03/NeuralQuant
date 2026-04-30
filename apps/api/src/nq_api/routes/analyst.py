@@ -439,14 +439,17 @@ async def run_analyst_stream(
 
 @router.get("/envcheck")
 async def envcheck():
-    """Runtime check: confirms Ollama detection and model config at request time."""
-    from nq_api.agents.base import FAST_MODEL, MODEL, _is_ollama as _base_is_ollama
+    """Runtime check: confirms model availability and config at request time."""
+    from nq_api.agents.base import FAST_MODEL, MODEL, _is_ollama as _base_is_ollama, _resolve_model, _validated_models
     from nq_api.agents.orchestrator import _is_ollama as _orch_is_ollama
+    resolved_fast = _resolve_model(FAST_MODEL, MODEL)
     return {
         "ANTHROPIC_BASE_URL": os.environ.get("ANTHROPIC_BASE_URL", "NOT SET"),
         "NQ_FAST_MODEL": os.environ.get("NQ_FAST_MODEL", "NOT SET"),
-        "FAST_MODEL": FAST_MODEL,
+        "FAST_MODEL_CONFIG": FAST_MODEL,
+        "FAST_MODEL_RESOLVED": resolved_fast,
         "MODEL": MODEL,
         "BASE_IS_OLLAMA": _base_is_ollama(),
         "ORCH_IS_OLLAMA": _orch_is_ollama(),
+        "MODEL_VALIDATIONS": dict(_validated_models),
     }
