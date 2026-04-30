@@ -948,11 +948,18 @@ def _structured_from_markdown(raw: str, freeform_resp: QueryResponse, route: str
     elif any(w in q_lower for w in ["long term", "long-term", "year", "years", "5 year"]):
         timeframe = "Long-term"
 
+    # Strip markdown so the summary <p> doesn't render raw `#` and `**` chars.
+    clean_summary = re.sub(r"^#+\s*", "", freeform_resp.answer, flags=re.M)  # strip headers
+    clean_summary = re.sub(r"\*\*([^*]+)\*\*", r"\1", clean_summary)          # strip bold
+    clean_summary = re.sub(r"^[-*]\s+", "• ", clean_summary, flags=re.M)      # bullets
+    clean_summary = re.sub(r"^---+$", "", clean_summary, flags=re.M)          # rules
+    clean_summary = re.sub(r"\n{3,}", "\n\n", clean_summary).strip()
+
     return StructuredQueryResponse(
         verdict=verdict,
         confidence=confidence,
         timeframe=timeframe,
-        summary=freeform_resp.answer[:800],
+        summary=clean_summary[:800],
         metrics=metrics[:6],
         reasoning=ReasoningBlock(
             why_this=why_this,
@@ -1243,35 +1250,20 @@ async def run_nl_query_v2(
         for m in (req.history or [])[-4:]:
             content = m.content[:1500] if len(m.content) > 1500 else m.content
             messages.append({"role": m.role, "content": content})
-        # CRITICAL: enforce JSON-only output — prepend reminder to every user message
-        json_reminder = "\n\n[SYSTEM REMINDER: Respond with ONLY a valid JSON object matching the structured schema. No markdown headers, no markdown tables, no prose outside the JSON. Start your response with { and end with }.]"
-        messages.append({"role": "user", "content": user_msg + json_reminder})
-        # Anthropic prefill technique — assistant message starting with `{`
-        # forces the model to continue with valid JSON, not markdown.
-        messages.append({"role": "assistant", "content": "{"})
+        messages.append({"role": "user", "content": user_msg})
 
+        # Force tool_use for guaranteed structured output (no markdown leakage).
         response = await asyncio.to_thread(
             client.messages.create,
             model=query_model,
             max_tokens=8000,
             system=_SYSTEM_STRUCTURED,
+            tools=[_STRUCTURED_TOOL],
+            tool_choice={"type": "tool", "name": _STRUCTURED_TOOL["name"]},
             messages=messages,
         )
 
-        raw = ""
-        for block in response.content:
-            if block.type == "text":
-                raw = block.text
-                break
-        if not raw:
-            raw = response.content[0].text if hasattr(response.content[0], "text") else ""
-
-        # Prepend the leading `{` we prefilled (Anthropic does not include it)
-        if raw and not raw.lstrip().startswith("{"):
-            raw = "{" + raw
-
-        # Try to parse structured JSON from the LLM response
-        parsed = _extract_json_from_llm(raw)
+        parsed = _extract_tool_use_input(response)
         if parsed:
             try:
                 parsed.setdefault("route", route)
@@ -1287,9 +1279,14 @@ async def run_nl_query_v2(
                     }
                 return StructuredQueryResponse(**parsed)
             except (ValidationError, Exception) as e:
-                log.warning("Structured output validation failed: %s", e)
+                log.warning("Tool-use structured output validation failed: %s", e)
 
-        # Fallback: extract structured data from freeform markdown
+        # Extreme fallback: tool_use was rejected — salvage from any text block
+        raw = ""
+        for block in response.content:
+            if getattr(block, "type", None) == "text":
+                raw = block.text
+                break
         freeform_resp = _parse_query_response(raw, route)
         return _structured_from_markdown(raw, freeform_resp, route)
 
@@ -1329,6 +1326,145 @@ _PHASE_LABELS = {
     "parse":     "Parsing AI output into rich cards",
     "render":    "Building NeuralQuant ForeCast",
 }
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Anthropic tool definition for guaranteed structured output.
+# Using `tool_use` instead of free-form prompting forces the model to emit
+# arguments that match the JSON schema exactly — no markdown, no parse failures.
+# Reference: https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/overview
+# ──────────────────────────────────────────────────────────────────────────────
+_STRUCTURED_TOOL = {
+    "name": "respond_with_neuralquant_forecast",
+    "description": (
+        "Respond to the user's stock or portfolio question with a detailed "
+        "NeuralQuant ForeCast structured analysis. ALWAYS use this tool — "
+        "never reply with plain text or markdown."
+    ),
+    "input_schema": {
+        "type": "object",
+        "required": ["verdict", "confidence", "timeframe", "summary", "reasoning"],
+        "properties": {
+            "verdict": {
+                "type": "string",
+                "enum": ["STRONG BUY", "BUY", "HOLD", "SELL", "STRONG SELL"],
+                "description": "Top-line investment verdict.",
+            },
+            "confidence": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100,
+                "description": "Conviction level 0-100.",
+            },
+            "timeframe": {
+                "type": "string",
+                "enum": ["Short-term", "Medium-term", "Long-term"],
+            },
+            "summary": {
+                "type": "string",
+                "description": (
+                    "4–8 sentence detailed plain-text summary. NO markdown headers, "
+                    "NO `#`, NO `**`, NO bullets. Include specific numbers (prices, P/E, "
+                    "scores, percentages). For portfolio questions, mention each stock with "
+                    "allocation %. This is the user's primary read."
+                ),
+            },
+            "metrics": {
+                "type": "array",
+                "description": "4+ metric cards. P/E, momentum, quality, ForeCast score, etc.",
+                "items": {
+                    "type": "object",
+                    "required": ["name", "value", "status"],
+                    "properties": {
+                        "name": {"type": "string"},
+                        "value": {"type": "string"},
+                        "benchmark": {"type": "string"},
+                        "status": {"type": "string", "enum": ["positive", "negative", "neutral"]},
+                    },
+                },
+            },
+            "reasoning": {
+                "type": "object",
+                "required": ["why_this", "why_not_alt", "edge_summary"],
+                "properties": {
+                    "why_this": {
+                        "type": "string",
+                        "description": "2-4 sentences with 3+ specific data points (P/E, momentum, score, etc.)",
+                    },
+                    "why_not_alt": {
+                        "type": "string",
+                        "description": "2-3 sentences naming the runner-up stock and why it's inferior with data.",
+                    },
+                    "edge_summary": {
+                        "type": "string",
+                        "description": "One-line decisive edge.",
+                    },
+                    "second_best": {"type": "string", "description": "Name of runner-up stock"},
+                    "confidence_gap": {"type": "string", "description": "Quantified advantage"},
+                },
+            },
+            "scenarios": {
+                "type": "array",
+                "description": "Bear / Base / Bull scenarios with target + thesis.",
+                "items": {
+                    "type": "object",
+                    "required": ["label", "probability", "target", "thesis"],
+                    "properties": {
+                        "label": {"type": "string", "enum": ["Bear", "Base", "Bull"]},
+                        "probability": {"type": "number", "minimum": 0, "maximum": 1},
+                        "target": {"type": "string", "description": "Specific price or %"},
+                        "thesis": {"type": "string", "description": "Specific trigger / catalyst"},
+                    },
+                },
+            },
+            "allocations": {
+                "type": "array",
+                "description": "Portfolio allocations (for invest/portfolio questions).",
+                "items": {
+                    "type": "object",
+                    "required": ["ticker", "weight", "rationale"],
+                    "properties": {
+                        "ticker": {"type": "string"},
+                        "weight": {"type": "number", "minimum": 0, "maximum": 100},
+                        "rationale": {"type": "string", "description": "2-sentence rationale with data"},
+                        "why_not_alt": {"type": "string", "description": "Name alt stock + what it lacks"},
+                    },
+                },
+            },
+            "comparisons": {
+                "type": "array",
+                "description": "Head-to-head metric comparisons vs alternative stock(s).",
+                "items": {
+                    "type": "object",
+                    "required": ["ticker", "metric", "ours", "theirs", "edge"],
+                    "properties": {
+                        "ticker": {"type": "string"},
+                        "metric": {"type": "string"},
+                        "ours": {"type": "string"},
+                        "theirs": {"type": "string"},
+                        "edge": {"type": "string"},
+                    },
+                },
+            },
+            "follow_up_questions": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "3 suggested follow-up questions.",
+            },
+        },
+    },
+}
+
+
+def _extract_tool_use_input(response) -> dict | None:
+    """Pull the tool_use input dict from an Anthropic response. Returns None
+    if the model returned text/no tool_use (e.g. on tool_choice rejection)."""
+    for block in getattr(response, "content", []):
+        if getattr(block, "type", None) == "tool_use" and getattr(block, "name", None) == _STRUCTURED_TOOL["name"]:
+            inp = getattr(block, "input", None)
+            if isinstance(inp, dict):
+                return inp
+    return None
 
 
 @router.post("/v2/stream")
@@ -1440,34 +1576,21 @@ async def run_nl_query_v2_stream(
                 for m in (req.history or [])[-4:]:
                     content = m.content[:1500] if len(m.content) > 1500 else m.content
                     messages.append({"role": m.role, "content": content})
-                json_reminder = "\n\n[SYSTEM REMINDER: Respond with ONLY a valid JSON object matching the structured schema. No markdown headers, no markdown tables, no prose outside the JSON. Start your response with { and end with }.]"
-                messages.append({"role": "user", "content": result_holder["user_msg"] + json_reminder})
-                # Anthropic prefill technique — assistant message that begins with `{`
-                # forces the model to continue with valid JSON rather than markdown.
-                # See: https://docs.anthropic.com/en/docs/test-and-evaluate/strengthen-guardrails/increase-consistency
-                messages.append({"role": "assistant", "content": "{"})
+                messages.append({"role": "user", "content": result_holder["user_msg"]})
 
+                # Force tool_use: model MUST call `respond_with_neuralquant_forecast`
+                # with arguments matching the schema. No more markdown leakage.
                 response = await asyncio.to_thread(
                     client.messages.create,
                     model=query_model,
                     max_tokens=8000,
                     system=_SYSTEM_STRUCTURED,
+                    tools=[_STRUCTURED_TOOL],
+                    tool_choice={"type": "tool", "name": _STRUCTURED_TOOL["name"]},
                     messages=messages,
                 )
 
-                raw = ""
-                for block in response.content:
-                    if block.type == "text":
-                        raw = block.text
-                        break
-                if not raw:
-                    raw = response.content[0].text if hasattr(response.content[0], "text") else ""
-
-                # Prefix back the leading `{` we prefilled (Anthropic doesn't include it in the response)
-                if raw and not raw.lstrip().startswith("{"):
-                    raw = "{" + raw
-
-                parsed = _extract_json_from_llm(raw)
+                parsed = _extract_tool_use_input(response)
                 if parsed:
                     try:
                         parsed.setdefault("route", route)
@@ -1483,9 +1606,16 @@ async def run_nl_query_v2_stream(
                             }
                         result_holder["result"] = StructuredQueryResponse(**parsed)
                     except (ValidationError, Exception) as e:
-                        log.warning("Structured output validation failed: %s", e)
+                        log.warning("Tool-use structured output validation failed: %s", e)
 
+                # Fallback path — if tool_use missed (extremely rare with tool_choice forced),
+                # extract from any text block and run the markdown salvage parser.
                 if "result" not in result_holder:
+                    raw = ""
+                    for block in response.content:
+                        if getattr(block, "type", None) == "text":
+                            raw = block.text
+                            break
                     freeform_resp = _parse_query_response(raw, route)
                     result_holder["result"] = _structured_from_markdown(raw, freeform_resp, route)
             except anthropic.APITimeoutError:
