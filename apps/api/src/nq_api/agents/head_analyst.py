@@ -53,7 +53,8 @@ RISK_FACTORS:
                 "ANTHROPIC_API_KEY environment variable is not set."
             )
         # Longer timeout for Ollama (local models + synthesis of 6+ agents)
-        client_timeout = 120.0 if _is_ollama() else 45.0
+        # Sonnet synthesis needs more time than specialists — 75s orchestrator timeout
+        client_timeout = 120.0 if _is_ollama() else 70.0
         self._client = anthropic.Anthropic(api_key=api_key, timeout=client_timeout)
         # HEAD ANALYST always uses MODEL (Sonnet) — but validate it
         self._model = _resolve_model(MODEL, MODEL)

@@ -267,12 +267,23 @@ _NSE_NAME_MAP = {
 # Words that should never be treated as stock tickers
 _TICKER_STOP_WORDS = {
     "SHOULD", "INVEST", "INDIA", "INDIAN", "STOCK", "SHARE", "SHARES",
-    "MARKET", "NIFTY", "SENSEX", "RUPEE", "LAKH", "CRORE", "MILLION",
+    "MARKET", "NIFTY", "SENSEX", "RUPEE", "LAKH", "LACS", "CRORE", "MILLION",
     "BILLION", "WANT", "GIVE", "TELL", "BEST", "GOOD", "HIGH", "LARGE",
     "SMALL", "LONG", "TERM", "CURRENT", "TODAY", "YEAR", "MONTH", "WEEK",
     "PLEASE", "WHICH", "ABOUT", "PORTFOLIO", "INVEST", "ADVICE", "RETURN",
     "GROWTH", "VALUE", "STRONG", "WEAK", "RISK", "SAFE", "SECTOR", "NSE",
-    "BSE", "BULL", "BEAR", "TRADE", "TRADE", "PRICE", "RANGE", "TARGET",
+    "BSE", "BULL", "BEAR", "TRADE", "PRICE", "RANGE", "TARGET",
+    # Common English words that look like tickers
+    "THE", "AND", "FOR", "WITH", "NOT", "BUT", "ARE", "WAS", "THIS",
+    "THAT", "HAVE", "FROM", "OR", "ONE", "ALL", "WERE", "WHAT", "HOW",
+    "CAN", "WILL", "EACH", "MAKE", "LIKE", "LONG", "OVER", "SUCH",
+    "A", "AN", "IS", "IT", "OF", "TO", "IN", "ON", "BY", "MY", "ME",
+    "EARN", "NEXT", "PLAN", "SOLID", "WOULD", "SOME", "VERY", "JUST",
+    "THAN", "ALSO", "INTO", "THEIR", "MUCH", "MANY", "EVEN", "ONLY",
+    "MOST", "BEEN", "BEING", "BEFORE", "AFTER", "BETWEEN", "THROUGH",
+    "DURING", "WITHOUT", "WITHIN", "ALONG", "FOLLOWING", "ACROSS",
+    "BEHIND", "BEYOND", "PLUS", "UNDER", "UPON", "DESPITE", "UNTIL",
+    "WHILE", "WHERE", "WHEN", "WHY", "WHO", "WHOM", "WHOSE",
 }
 
 _SCREENER_KEYWORDS = {

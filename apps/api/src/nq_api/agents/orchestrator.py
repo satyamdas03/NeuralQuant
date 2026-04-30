@@ -38,7 +38,7 @@ class ParaDebateOrchestrator:
 
     @property
     def HEAD_ANALYST_TIMEOUT(self):
-        return 80 if _is_ollama() else 60
+        return 90 if _is_ollama() else 75
 
     def __init__(self):
         self._specialists = [

@@ -24,6 +24,16 @@ from nq_api.data_builder import _yf_symbol
 log = logging.getLogger(__name__)
 router = APIRouter()
 
+
+def _safe_float(val, default=0.0):
+    """Convert val to float, treating None and missing keys as default."""
+    if val is None:
+        return float(default)
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return float(default)
+
 def _is_ollama() -> bool:
     """Runtime Ollama detection — avoids module-level env var issues in uvicorn."""
     url = os.environ.get("ANTHROPIC_BASE_URL", "")
@@ -104,15 +114,15 @@ def _build_analyst_context(ticker: str, market: str) -> dict:
 
     # 4. Build context from the single ticker's data
     # Percentiles are estimated from raw values since we don't rank the full universe.
-    gpm = float(fund.get("gross_profit_margin", 0.5))
-    mom = float(fund.get("momentum_raw", 0.0))
-    vol = float(fund.get("realized_vol_1y", 0.20))
-    si  = float(fund.get("short_interest_pct", 0.02))
+    gpm = _safe_float(fund.get("gross_profit_margin"), 0.5)
+    mom = _safe_float(fund.get("momentum_raw"), 0.0)
+    vol = _safe_float(fund.get("realized_vol_1y"), 0.20)
+    si  = _safe_float(fund.get("short_interest_pct"), 0.02)
 
     # Rough composite: quality 30%, momentum 25%, value 20%, low-vol 15%, short-int 10%
     quality_p = min(1.0, max(0.0, gpm))  # gross margin ≈ quality percentile
     momentum_p = min(1.0, max(0.0, 0.5 + mom * 0.5))  # map momentum to 0-1
-    value_p = 1.0 / max(0.5, float(fund.get("pe_ttm", 20.0)) / 20.0)  # lower PE = higher value
+    value_p = 1.0 / max(0.5, _safe_float(fund.get("pe_ttm"), 20.0) / 20.0)  # lower PE = higher value
     lowvol_p = 1.0 / max(0.5, vol / 0.15)  # lower vol = higher low-vol score
     shortint_p = 1.0 - min(1.0, si * 5)  # lower SI = higher score
 
@@ -138,12 +148,12 @@ def _build_analyst_context(ticker: str, market: str) -> dict:
         "short_interest_pct":        round(si * 100, 2),
         "momentum_raw":              round(mom, 4),
         "gross_profit_margin":       round(gpm, 3),
-        "roe":                       round(float(fund.get("roe", 0.12)), 3),
-        "accruals_ratio":            round(float(fund.get("accruals_ratio", 0.0)), 3),
-        "piotroski":                 int(fund.get("piotroski", 5)),
-        "pe_ttm":                    round(float(fund.get("pe_ttm", 20.0)), 1),
-        "pb_ratio":                  round(float(fund.get("pb_ratio", 2.0)), 2),
-        "beta":                      round(float(fund.get("beta", 1.0)), 2),
+        "roe":                       round(_safe_float(fund.get("roe"), 0.12), 3),
+        "accruals_ratio":            round(_safe_float(fund.get("accruals_ratio"), 0.0), 3),
+        "piotroski":                 int(_safe_float(fund.get("piotroski"), 5)),
+        "pe_ttm":                    round(_safe_float(fund.get("pe_ttm"), 20.0), 1),
+        "pb_ratio":                  round(_safe_float(fund.get("pb_ratio"), 2.0), 2),
+        "beta":                      round(_safe_float(fund.get("beta"), 1.0), 2),
         "realized_vol_1y":           round(vol, 3),
         # Price / valuation fields agents reference
         "price":                     fund.get("current_price"),
@@ -180,12 +190,12 @@ def _fundamental_red_flags(ctx: dict) -> list[str]:
     """Detect BEAR signals in the data — severe ones trigger algorithmic override,
     moderate ones are passed to HEAD ANALYST as additional context."""
     flags = []
-    roe = float(ctx.get("roe", 0.12))
-    pe = float(ctx.get("pe_ttm", 20.0))
-    gpm = float(ctx.get("gross_profit_margin", 0.5))
+    roe = _safe_float(ctx.get("roe"), 0.12)
+    pe = _safe_float(ctx.get("pe_ttm"), 20.0)
+    gpm = _safe_float(ctx.get("gross_profit_margin"), 0.5)
     de = ctx.get("debt_equity")
     revenue_growth = ctx.get("revenue_growth")
-    piotroski = int(ctx.get("piotroski", 5))
+    piotroski = int(_safe_float(ctx.get("piotroski"), 5))
     mcap = ctx.get("market_cap")
 
     # SEVERE red flags — trigger algorithmic override (unambiguous BEAR signals)
@@ -193,8 +203,8 @@ def _fundamental_red_flags(ctx: dict) -> list[str]:
         flags.append(f"SEVERE|NEGATIVE_ROE: ROE at {roe*100:.1f}% — company destroying shareholder value")
     if piotroski < 3:
         flags.append(f"SEVERE|WEAK_FSCORE: Piotroski {piotroski}/9 below 3 — poor financial health")
-    if revenue_growth is not None and float(revenue_growth) < -10:
-        flags.append(f"SEVERE|SHRINKING_REVENUE: Revenue declining at {float(revenue_growth):.1f}%")
+    if revenue_growth is not None and _safe_float(revenue_growth, 0) < -10:
+        flags.append(f"SEVERE|SHRINKING_REVENUE: Revenue declining at {_safe_float(revenue_growth, 0):.1f}%")
 
     # MODERATE red flags — advisory, don't override but inform HEAD ANALYST
     if pe > 35:
@@ -204,9 +214,9 @@ def _fundamental_red_flags(ctx: dict) -> list[str]:
     if gpm < 0.25:
         flags.append(f"MODERATE|WEAK_MARGIN: Gross margin at {gpm*100:.1f}% below 25%")
     # D/E >2.0 — skip for mega-caps where extreme D/E is usually a buyback artifact
-    if de is not None and float(de) > 2.0:
-        mcap_val = float(mcap) if mcap else 0
-        de_val = float(de)
+    if de is not None and _safe_float(de, 0) > 2.0:
+        mcap_val = _safe_float(mcap, 0)
+        de_val = _safe_float(de, 0)
         if not (mcap_val > 50e9 and de_val > 20 and roe > 0.15):
             flags.append(f"MODERATE|HIGH_DEBT: Debt/Equity at {de_val:.1f} exceeds 2.0")
 
@@ -247,22 +257,22 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
             "market": market,
             "regime_label": regime_labels.get(regime_id, "Risk-On"),
             **macro,
-            "composite_score":           round(float(cached.get("composite_score", 0.5)), 4),
-            "quality_percentile":        round(float(cached.get("quality_percentile", 0.5)), 3),
-            "momentum_percentile":       round(float(cached.get("momentum_percentile", 0.5)), 3),
-            "value_percentile":          round(float(cached.get("value_percentile", 0.5)), 3),
-            "low_vol_percentile":        round(float(cached.get("low_vol_percentile", 0.5)), 3),
-            "short_interest_percentile": round(float(cached.get("short_interest_percentile", 0.5)), 3),
-            "short_interest_pct":        round(float(cached.get("short_interest_percentile", 0.02)) * 100, 2),
-            "momentum_raw":              round(float(cached.get("momentum_raw", 0.0)), 4),
-            "gross_profit_margin":       round(float(cached.get("gross_profit_margin", 0.0)), 3),
-            "roe":                       round(float(fund.get("roe", 0.12)), 3),
-            "accruals_ratio":            round(float(fund.get("accruals_ratio", 0.0)), 3),
-            "piotroski":                 int(cached.get("piotroski", 5)),
-            "pe_ttm":                    round(float(cached.get("pe_ttm", 20.0)), 1),
-            "pb_ratio":                  round(float(cached.get("pb_ratio", 2.0)), 2),
-            "beta":                      round(float(cached.get("beta", 1.0)), 2),
-            "realized_vol_1y":           round(float(cached.get("realized_vol_1y", 0.20)), 3),
+            "composite_score":           round(_safe_float(cached.get("composite_score"), 0.5), 4),
+            "quality_percentile":        round(_safe_float(cached.get("quality_percentile"), 0.5), 3),
+            "momentum_percentile":       round(_safe_float(cached.get("momentum_percentile"), 0.5), 3),
+            "value_percentile":          round(_safe_float(cached.get("value_percentile"), 0.5), 3),
+            "low_vol_percentile":        round(_safe_float(cached.get("low_vol_percentile"), 0.5), 3),
+            "short_interest_percentile": round(_safe_float(cached.get("short_interest_percentile"), 0.5), 3),
+            "short_interest_pct":        round(_safe_float(cached.get("short_interest_percentile"), 0.02) * 100, 2),
+            "momentum_raw":              round(_safe_float(cached.get("momentum_raw"), 0.0), 4),
+            "gross_profit_margin":       round(_safe_float(cached.get("gross_profit_margin"), 0.0), 3),
+            "roe":                       round(_safe_float(fund.get("roe"), 0.12), 3),
+            "accruals_ratio":            round(_safe_float(fund.get("accruals_ratio"), 0.0), 3),
+            "piotroski":                 int(_safe_float(cached.get("piotroski"), 5)),
+            "pe_ttm":                    round(_safe_float(cached.get("pe_ttm"), 20.0), 1),
+            "pb_ratio":                  round(_safe_float(cached.get("pb_ratio"), 2.0), 2),
+            "beta":                      round(_safe_float(cached.get("beta"), 1.0), 2),
+            "realized_vol_1y":           round(_safe_float(cached.get("realized_vol_1y"), 0.20), 3),
             "price":                     fund.get("current_price"),
             "change_pct":                fund.get("change_pct", 0.0),
             "market_cap":                fund.get("market_cap"),
@@ -270,8 +280,8 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
             "week52_high":               fund.get("week52_high"),
             "week52_low":                fund.get("week52_low"),
             "analyst_target_mean":       fund.get("analyst_target"),
-            "debt_equity":               round(float(info.get("debtToEquity", 1.0)), 2) if info.get("debtToEquity") else None,
-            "revenue_growth":            round(float(info.get("revenueGrowth", 0.0)) * 100, 1) if info.get("revenueGrowth") else None,
+            "debt_equity":               round(_safe_float(info.get("debtToEquity"), 1.0), 2) if info.get("debtToEquity") is not None else None,
+            "revenue_growth":            round(_safe_float(info.get("revenueGrowth"), 0.0) * 100, 1) if info.get("revenueGrowth") is not None else None,
             "insider_cluster_score":      _compute_insider_score(info, fund),
         }
         # Same algorithmic guardrails as _build_analyst_context
