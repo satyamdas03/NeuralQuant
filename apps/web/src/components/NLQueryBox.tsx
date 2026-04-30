@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { api } from "@/lib/api";
 import type { ConversationMessage, StructuredQueryResponse } from "@/lib/types";
 import AIResponseCard from "@/components/ui/AIResponseCard";
+import AIThinkingTimeline, { type PhaseEntry } from "@/components/ui/AIThinkingTimeline";
 import SuggestionChips from "@/components/ui/SuggestionChips";
 import ChatInputArea from "@/components/ui/ChatInputArea";
 import GlassPanel from "@/components/ui/GlassPanel";
@@ -24,7 +25,7 @@ interface ChatMessage {
   followUps?: string[];
   loading?: boolean;
   structured?: StructuredQueryResponse | null;
-  phaseLabel?: string;
+  phases?: PhaseEntry[];
 }
 
 export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
@@ -33,6 +34,16 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
   const [slowLoad, setSlowLoad] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const slowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Force re-render every 500ms while a request is in flight so the timeline's
+  // elapsed-time counters update visually. Without this, "0.0s" stays frozen
+  // until the next phase event arrives.
+  const [, forceTick] = useState(0);
+  useEffect(() => {
+    if (!loading) return;
+    const id = setInterval(() => forceTick((t) => t + 1), 500);
+    return () => clearInterval(id);
+  }, [loading]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -45,11 +56,17 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
 
     const userMsg: ChatMessage = { id: Date.now().toString(), role: "user", content: q };
     const phId = (Date.now() + 1).toString();
-    const ph: ChatMessage = { id: phId, role: "assistant", content: "", loading: true, phaseLabel: "Thinking..." };
+    const ph: ChatMessage = {
+      id: phId,
+      role: "assistant",
+      content: "",
+      loading: true,
+      phases: [],
+    };
 
     setMessages((prev) => [...prev, userMsg, ph]);
     setLoading(true);
-    slowTimer.current = setTimeout(() => setSlowLoad(true), 8000);
+    slowTimer.current = setTimeout(() => setSlowLoad(true), 12000);
 
     const history: ConversationMessage[] = messages
       .filter((m) => !m.loading)
@@ -63,27 +80,42 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
         { question: q, ticker: defaultTicker, history },
         controller.signal,
         (phase, label) => {
+          // Append new phase to the message's phase history; mark previous
+          // phase as completed so the timeline shows ✓ on all prior steps.
+          const now = Date.now();
           setMessages((prev) =>
-            prev.map((m) =>
-              m.id === phId ? { ...m, phaseLabel: label } : m
-            )
+            prev.map((m) => {
+              if (m.id !== phId) return m;
+              const prevPhases = m.phases ?? [];
+              const updated: PhaseEntry[] = prevPhases.map((p, idx) =>
+                idx === prevPhases.length - 1 && p.completedAt === undefined
+                  ? { ...p, completedAt: now }
+                  : p
+              );
+              updated.push({ phase, label, startedAt: now });
+              return { ...m, phases: updated };
+            })
           );
         },
       );
+      // Mark final phase as completed on result
+      const completionTs = Date.now();
       setMessages((prev) =>
-        prev.map((m) =>
-          m.id === phId
-            ? {
-                ...m,
-                content: res.summary || "",
-                sources: res.data_sources,
-                followUps: res.follow_up_questions,
-                loading: false,
-                structured: res,
-                phaseLabel: undefined,
-              }
-            : m
-        )
+        prev.map((m) => {
+          if (m.id !== phId) return m;
+          const closed: PhaseEntry[] = (m.phases ?? []).map((p) =>
+            p.completedAt === undefined ? { ...p, completedAt: completionTs } : p
+          );
+          return {
+            ...m,
+            content: res.summary || "",
+            sources: res.data_sources,
+            followUps: res.follow_up_questions,
+            loading: false,
+            structured: res,
+            phases: closed,
+          };
+        })
       );
     } catch (err) {
       const msg = err instanceof DOMException && err.name === "AbortError"
@@ -91,9 +123,7 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
         : "Query failed — backend may be warming up. Retry in 30s.";
       setMessages((prev) =>
         prev.map((m) =>
-          m.id === phId
-            ? { ...m, content: msg, loading: false, phaseLabel: undefined }
-            : m
+          m.id === phId ? { ...m, content: msg, loading: false } : m
         )
       );
     } finally {
@@ -124,16 +154,15 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
                 </div>
               </div>
             ) : msg.loading ? (
-              <div key={msg.id} className="flex items-center gap-2 py-1 text-sm text-on-surface-variant">
-                <span className="animate-pulse text-primary">●</span>
-                <span>{msg.phaseLabel || "Thinking..."}</span>
-                {[0, 1, 2].map((i) => (
-                  <span
-                    key={i}
-                    className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce"
-                    style={{ animationDelay: `${i * 0.15}s` }}
-                  />
-                ))}
+              <div key={msg.id}>
+                {msg.phases && msg.phases.length > 0 ? (
+                  <AIThinkingTimeline phases={msg.phases} />
+                ) : (
+                  <div className="flex items-center gap-2 py-1 text-sm text-on-surface-variant">
+                    <span className="animate-pulse text-primary">●</span>
+                    <span>Connecting to NeuralQuant AI...</span>
+                  </div>
+                )}
               </div>
             ) : (
               <AIResponseCard

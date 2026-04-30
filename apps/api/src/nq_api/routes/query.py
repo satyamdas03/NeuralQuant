@@ -1200,25 +1200,9 @@ async def run_nl_query_v2(
             route="REACT",
         )
 
-    # ── DART routing ──
-    route = dart.classify_query(req.question, req.ticker)
-
-    if route == "SNAP":
-        # SNAP: build structured response from score cache with rich data
-        snap_resp = await dart.handle_snap(req)
-        # Try to enrich with cache metrics
-        snap_metrics, snap_reasoning, snap_verdict = _enrich_snap_structured(req)
-        return StructuredQueryResponse(
-            verdict=snap_verdict,
-            confidence=50,
-            timeframe="Short-term",
-            summary=snap_resp.answer[:500],
-            metrics=snap_metrics,
-            reasoning=snap_reasoning,
-            data_sources=snap_resp.data_sources,
-            follow_up_questions=snap_resp.follow_up_questions,
-            route="SNAP",
-        )
+    # ── DART routing ── (SNAP disabled — force REACT for full structured detail)
+    classified = dart.classify_query(req.question, req.ticker)
+    route = "REACT" if classified == "SNAP" else classified
 
     # REACT or DEEP: use LLM with structured prompt
     client, query_model = _query_client(api_key)
@@ -1262,6 +1246,9 @@ async def run_nl_query_v2(
         # CRITICAL: enforce JSON-only output — prepend reminder to every user message
         json_reminder = "\n\n[SYSTEM REMINDER: Respond with ONLY a valid JSON object matching the structured schema. No markdown headers, no markdown tables, no prose outside the JSON. Start your response with { and end with }.]"
         messages.append({"role": "user", "content": user_msg + json_reminder})
+        # Anthropic prefill technique — assistant message starting with `{`
+        # forces the model to continue with valid JSON, not markdown.
+        messages.append({"role": "assistant", "content": "{"})
 
         response = await asyncio.to_thread(
             client.messages.create,
@@ -1278,6 +1265,10 @@ async def run_nl_query_v2(
                 break
         if not raw:
             raw = response.content[0].text if hasattr(response.content[0], "text") else ""
+
+        # Prepend the leading `{` we prefilled (Anthropic does not include it)
+        if raw and not raw.lstrip().startswith("{"):
+            raw = "{" + raw
 
         # Try to parse structured JSON from the LLM response
         parsed = _extract_json_from_llm(raw)
@@ -1327,11 +1318,16 @@ async def run_nl_query_v2(
 # ── SSE streaming variant of /v2 ──────────────────────────────────────────────
 
 _PHASE_LABELS = {
-    "classify": "Classifying your question...",
-    "news": "Scanning market headlines...",
-    "macro": "Building macro context...",
-    "platform": "Enriching with NeuralQuant data...",
-    "analyze": "Running AI analysis...",
+    "classify":  "Understanding your question",
+    "news":      "Scanning latest market headlines",
+    "macro":     "Loading macro context (VIX, SPX, yields, CPI)",
+    "platform":  "Reading NeuralQuant ForeCast scores + factor data",
+    "context":   "Assembling reasoning context",
+    "prompt":    "Sending data to AI (Claude Sonnet 4.6)",
+    "thinking":  "AI is reasoning over the data",
+    "generate":  "AI is generating structured response",
+    "parse":     "Parsing AI output into rich cards",
+    "render":    "Building NeuralQuant ForeCast",
 }
 
 
@@ -1362,25 +1358,15 @@ async def run_nl_query_v2_stream(
             yield "data: [DONE]\n\n"
             return
 
-        # Phase 1: Classify
+        # Phase 1: Classify (always REACT — SNAP disabled for richer detail)
         yield f'data: {_json.dumps({"status":"phase","phase":"classify","label":_PHASE_LABELS["classify"]})}\n\n'
-        route = dart.classify_query(req.question, req.ticker)
-
-        if route == "SNAP":
-            snap_resp = await dart.handle_snap(req)
-            snap_metrics, snap_reasoning, snap_verdict = _enrich_snap_structured(req)
-            result = StructuredQueryResponse(
-                verdict=snap_verdict, confidence=50, timeframe="Short-term",
-                summary=snap_resp.answer[:500],
-                metrics=snap_metrics,
-                reasoning=snap_reasoning,
-                data_sources=snap_resp.data_sources,
-                follow_up_questions=snap_resp.follow_up_questions,
-                route="SNAP",
-            )
-            yield f'data: {_json.dumps({"status":"done","result":result.model_dump()})}\n\n'
-            yield "data: [DONE]\n\n"
-            return
+        # Force REACT for all queries — user wants every answer detailed with full
+        # cards (verdict banner, metrics, reasoning, scenarios, comparisons).
+        # SNAP returns short cache-only answers which produce empty/weak cards.
+        # DEEP (PARA-DEBATE) is reserved for explicit deep-analysis triggers and
+        # is fine to keep. All other queries route to REACT.
+        classified = dart.classify_query(req.question, req.ticker)
+        route = "REACT" if classified == "SNAP" else classified
 
         # Phase 2-4: Context gathering (parallel)
         client, query_model = _query_client(api_key)
@@ -1425,12 +1411,12 @@ async def run_nl_query_v2_stream(
         while not context_done.is_set():
             yield 'data: {"status":"running"}\n\n'
             elapsed = time.monotonic() - ctx_start
-            if elapsed > 15:
+            if elapsed > 30:                       # bumped 15s -> 30s
                 context_task.cancel()
                 result_holder.setdefault("error", "Context gathering timed out")
                 break
             try:
-                await asyncio.wait_for(asyncio.shield(context_done.wait()), timeout=8.0)
+                await asyncio.wait_for(asyncio.shield(context_done.wait()), timeout=4.0)
             except asyncio.TimeoutError:
                 pass
 
@@ -1439,10 +1425,12 @@ async def run_nl_query_v2_stream(
             yield "data: [DONE]\n\n"
             return
 
-        # Phase 5: LLM analysis
-        yield f'data: {_json.dumps({"status":"phase","phase":"analyze","label":_PHASE_LABELS["analyze"]})}\n\n'
+        # Context built — emit "context" phase as completed marker
+        yield f'data: {_json.dumps({"status":"phase","phase":"context","label":_PHASE_LABELS["context"]})}\n\n'
+
+        # Phase 5+: LLM call broken into prompt → thinking → generate → parse
+        yield f'data: {_json.dumps({"status":"phase","phase":"prompt","label":_PHASE_LABELS["prompt"]})}\n\n'
         total_elapsed = time.monotonic() - query_start
-        remaining = max(5, 60 - total_elapsed)  # Hard 60s total cap
 
         llm_done = asyncio.Event()
 
@@ -1454,6 +1442,10 @@ async def run_nl_query_v2_stream(
                     messages.append({"role": m.role, "content": content})
                 json_reminder = "\n\n[SYSTEM REMINDER: Respond with ONLY a valid JSON object matching the structured schema. No markdown headers, no markdown tables, no prose outside the JSON. Start your response with { and end with }.]"
                 messages.append({"role": "user", "content": result_holder["user_msg"] + json_reminder})
+                # Anthropic prefill technique — assistant message that begins with `{`
+                # forces the model to continue with valid JSON rather than markdown.
+                # See: https://docs.anthropic.com/en/docs/test-and-evaluate/strengthen-guardrails/increase-consistency
+                messages.append({"role": "assistant", "content": "{"})
 
                 response = await asyncio.to_thread(
                     client.messages.create,
@@ -1470,6 +1462,10 @@ async def run_nl_query_v2_stream(
                         break
                 if not raw:
                     raw = response.content[0].text if hasattr(response.content[0], "text") else ""
+
+                # Prefix back the leading `{` we prefilled (Anthropic doesn't include it in the response)
+                if raw and not raw.lstrip().startswith("{"):
+                    raw = "{" + raw
 
                 parsed = _extract_json_from_llm(raw)
                 if parsed:
@@ -1511,23 +1507,37 @@ async def run_nl_query_v2_stream(
 
         llm_task = asyncio.create_task(_call_llm())
         llm_start = time.monotonic()
+        # Emit thinking → generate phase transitions while LLM works
+        sent_thinking = False
+        sent_generate = False
         while not llm_done.is_set():
             yield 'data: {"status":"running"}\n\n'
+            llm_elapsed = time.monotonic() - llm_start
+            if not sent_thinking and llm_elapsed > 1.5:
+                yield f'data: {_json.dumps({"status":"phase","phase":"thinking","label":_PHASE_LABELS["thinking"]})}\n\n'
+                sent_thinking = True
+            if not sent_generate and llm_elapsed > 12:
+                yield f'data: {_json.dumps({"status":"phase","phase":"generate","label":_PHASE_LABELS["generate"]})}\n\n'
+                sent_generate = True
             total_elapsed = time.monotonic() - query_start
-            if total_elapsed > 60:
+            if total_elapsed > 180:                 # bumped 60s -> 180s total cap
                 llm_task.cancel()
                 result_holder.setdefault("result", StructuredQueryResponse(
                     verdict="HOLD", confidence=0, timeframe="Medium-term",
-                    summary="Analysis timed out. Try a shorter question.",
+                    summary="Analysis timed out after 3 minutes. Try a shorter or more specific question.",
                     reasoning=ReasoningBlock(why_this="N/A",why_not_alt="N/A",edge_summary="N/A",second_best="N/A",confidence_gap="N/A"),
                     route=route,
                 ))
                 llm_done.set()
                 break
             try:
-                await asyncio.wait_for(asyncio.shield(llm_done.wait()), timeout=8.0)
+                await asyncio.wait_for(asyncio.shield(llm_done.wait()), timeout=4.0)
             except asyncio.TimeoutError:
                 pass
+
+        # Final phases: parse + render
+        yield f'data: {_json.dumps({"status":"phase","phase":"parse","label":_PHASE_LABELS["parse"]})}\n\n'
+        yield f'data: {_json.dumps({"status":"phase","phase":"render","label":_PHASE_LABELS["render"]})}\n\n'
 
         if "result" in result_holder:
             yield f'data: {_json.dumps({"status":"done","result": result_holder["result"].model_dump()})}\n\n'
