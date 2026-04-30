@@ -83,6 +83,8 @@ def _get_known_columns() -> set[str]:
             "value_percentile", "momentum_percentile", "quality_percentile",
             "low_vol_percentile", "short_interest_percentile", "current_price",
             "analyst_target", "pe_ttm", "market_cap", "week52_high", "week52_low",
+            "pb_ratio", "beta", "long_name", "industry", "analyst_rec",
+            "earnings_date", "dividend_yield",
             "computed_at",
         }
     log.info("score_cache columns: %s", sorted(_known_columns))

@@ -297,23 +297,44 @@ async def get_stock_chart(
     }
 
 
+_NULL_FIELDS = ("pb_ratio", "beta", "earnings_date", "analyst_recommendation",
+                 "dividend_yield", "industry")
+
+
+def _has_null_fields(meta: dict) -> bool:
+    """Check if critical fields are null in a meta dict."""
+    return any(meta.get(k) is None for k in _NULL_FIELDS)
+
+
+def _merge_meta(base: dict, overlay: dict) -> dict:
+    """Merge overlay into base: overlay values replace nulls in base."""
+    merged = {**base}
+    for k, v in overlay.items():
+        if v is not None and merged.get(k) is None:
+            merged[k] = v
+    return merged
+
+
 @router.get("/{ticker}/meta")
 async def get_stock_meta(ticker: str, market: str = Query("US")):
     t_up = ticker.upper()
     cache_key = f"{t_up}:{market}"
 
-    # Serve from in-memory cache if fresh
+    # Serve from in-memory cache if fresh AND complete
     cached = _META_CACHE.get(cache_key)
     if cached and (time.monotonic() - cached[1]) < _META_CACHE_TTL:
-        return cached[0]
+        if not _has_null_fields(cached[0]):
+            return cached[0]
+        # Cached data has nulls — fall through to refetch
 
-    # Try Supabase persistent cache first (survives cold starts)
+    # Try Supabase persistent cache — but only serve if fresh AND complete
     from nq_api.cache.score_cache import _supabase_rest
+    supa_row = None
     supa = _supabase_rest(
         "stock_meta",
         method="GET",
         query={
-            "select": "data",
+            "select": "data,fetched_at",
             "ticker": f"eq.{t_up}",
             "market": f"eq.{market}",
             "order": "fetched_at.desc",
@@ -324,16 +345,35 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
         import json as _json
         try:
             meta = _json.loads(supa[0]["data"]) if isinstance(supa[0]["data"], str) else supa[0]["data"]
-            _META_CACHE[cache_key] = (meta, time.monotonic())
-            return meta
+            fetched_at = supa[0].get("fetched_at", "")
+            # Only serve from cache if fresh (< 6h) AND has no null critical fields
+            age_hours = 999
+            if fetched_at:
+                try:
+                    from datetime import datetime as _dt, timezone as _tz
+                    fa = _dt.fromisoformat(fetched_at.replace("Z", "+00:00"))
+                    age_hours = (_dt.now(_tz.utc) - fa).total_seconds() / 3600
+                except Exception:
+                    pass
+            if age_hours < 6 and not _has_null_fields(meta):
+                _META_CACHE[cache_key] = (meta, time.monotonic())
+                return meta
+            supa_row = meta  # keep for merging later
         except Exception:
             log.warning("meta Supabase cache parse failed for %s", t_up)
 
     # Primary: yfinance
     result = await asyncio.to_thread(_fetch_stock_meta, t_up, market)
     if isinstance(result, dict):
+        # Merge with Supabase cache or score_cache to fill any nulls
+        if _has_null_fields(result):
+            merged = _merge_meta(result, supa_row) if supa_row else result
+            if _has_null_fields(merged):
+                sc = _read_score_cache(t_up, market)
+                if sc:
+                    merged = _merge_meta(merged, sc)
+            result = merged
         _META_CACHE[cache_key] = (result, time.monotonic())
-        # Persist to Supabase for cold-start resilience
         _persist_meta(t_up, market, result)
         return result
 
@@ -342,47 +382,27 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
                 t_up, market, result)
     fallback = await asyncio.to_thread(_fetch_stock_meta_yahoo_direct, t_up, market)
     if isinstance(fallback, dict):
+        if _has_null_fields(fallback):
+            merged = _merge_meta(fallback, supa_row) if supa_row else fallback
+            if _has_null_fields(merged):
+                sc = _read_score_cache(t_up, market)
+                if sc:
+                    merged = _merge_meta(merged, sc)
+            fallback = merged
         _META_CACHE[cache_key] = (fallback, time.monotonic())
         _persist_meta(t_up, market, fallback)
         return fallback
 
-    # Fallback: score_cache has fundamentals from nightly GHA
-    sc_row = None
-    try:
-        sc_row = score_cache.read_one(t_up, market, max_age_seconds=999999999)
-    except Exception:
-        pass
-    if sc_row:
-        log.info("meta: serving from score_cache fallback for %s", t_up)
-        mc = sc_row.get("market_cap")
-        pe = sc_row.get("pe_ttm")
-        pb = sc_row.get("pb_ratio")
-        hi52 = sc_row.get("week52_high")
-        lo52 = sc_row.get("week52_low")
-        tgt = sc_row.get("analyst_target")
-        cur = sc_row.get("current_price")
-        sec = sc_row.get("sector")
-        beta_v = sc_row.get("beta")
-        result = {
-            "ticker": t_up,
-            "name": sc_row.get("long_name") or t_up,
-            "market_cap": mc,
-            "market_cap_fmt": _fmt_mcap(float(mc), market) if mc else None,
-            "pe_ttm": round(float(pe), 1) if pe is not None else None,
-            "pb_ratio": round(float(pb), 2) if pb is not None else None,
-            "beta": round(float(beta_v), 2) if beta_v is not None else None,
-            "week_52_high": hi52,
-            "week_52_low": lo52,
-            "earnings_date": sc_row.get("earnings_date"),
-            "analyst_target": tgt,
-            "analyst_recommendation": sc_row.get("analyst_rec"),
-            "sector": sec,
-            "industry": sc_row.get("industry"),
-            "dividend_yield": sc_row.get("dividend_yield"),
-            "current_price": cur,
-        }
-        _META_CACHE[cache_key] = (result, time.monotonic())
-        return result
+    # Fallback: merge Supabase cache + score_cache
+    sc = _read_score_cache(t_up, market)
+    if supa_row or sc:
+        base = supa_row or _build_from_score_cache(t_up, market, sc) or _empty_meta(t_up)
+        merged = base
+        if sc:
+            merged = _merge_meta(merged, sc)
+        _META_CACHE[cache_key] = (merged, time.monotonic())
+        log.info("meta: serving merged cache for %s", t_up)
+        return merged
 
     # Both failed — serve stale cache if available, else minimal response
     if cached:
@@ -390,9 +410,58 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
         return cached[0]
 
     log.error("meta all sources failed for %s and no cache", t_up)
+    return _empty_meta(t_up)
+
+
+def _read_score_cache(ticker: str, market: str) -> dict | None:
+    """Read score_cache row and convert to meta-compatible dict."""
+    try:
+        sc = score_cache.read_one(ticker, market, max_age_seconds=999999999)
+        if sc:
+            return _build_from_score_cache(ticker, market, sc)
+    except Exception:
+        pass
+    return None
+
+
+def _build_from_score_cache(ticker: str, market: str, sc: dict) -> dict | None:
+    """Build a meta dict from a score_cache row."""
+    if not sc:
+        return None
+    mc = sc.get("market_cap")
+    pe = sc.get("pe_ttm")
+    pb = sc.get("pb_ratio")
+    hi52 = sc.get("week52_high")
+    lo52 = sc.get("week52_low")
+    tgt = sc.get("analyst_target")
+    cur = sc.get("current_price")
+    sec = sc.get("sector")
+    beta_v = sc.get("beta")
     return {
-        "ticker": t_up,
-        "name": t_up,
+        "ticker": ticker,
+        "name": sc.get("long_name") or ticker,
+        "market_cap": mc,
+        "market_cap_fmt": _fmt_mcap(float(mc), market) if mc else None,
+        "pe_ttm": round(float(pe), 1) if pe is not None else None,
+        "pb_ratio": round(float(pb), 2) if pb is not None else None,
+        "beta": round(float(beta_v), 2) if beta_v is not None else None,
+        "week_52_high": hi52,
+        "week_52_low": lo52,
+        "earnings_date": sc.get("earnings_date"),
+        "analyst_target": tgt,
+        "analyst_recommendation": sc.get("analyst_rec"),
+        "sector": sec,
+        "industry": sc.get("industry"),
+        "dividend_yield": sc.get("dividend_yield"),
+        "current_price": cur,
+    }
+
+
+def _empty_meta(ticker: str) -> dict:
+    """Minimal response when all sources fail."""
+    return {
+        "ticker": ticker,
+        "name": ticker,
         "market_cap": None, "market_cap_fmt": None,
         "pe_ttm": None, "pb_ratio": None, "beta": None,
         "week_52_high": None, "week_52_low": None,
