@@ -64,7 +64,6 @@ def _fetch_macro_with_timeout() -> dict:
         macro = None
 
     if macro is None:
-        # Sensible defaults — better than crashing the whole analyst request
         return {
             "vix": 18.0, "spx_return_1m": 0.01, "spx_vs_200ma": 0.02,
             "hy_spread_oas": 350.0, "ism_pmi": 51.0,
@@ -87,6 +86,36 @@ def _fetch_macro_with_timeout() -> dict:
     }
 
 
+def _fetch_macro_in_with_timeout() -> dict:
+    """Fetch India macro data with a hard timeout — returns defaults on failure."""
+    import concurrent.futures
+    from nq_api.data_builder import fetch_real_macro_in
+
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(fetch_real_macro_in)
+            macro_in = future.result(timeout=MACRO_FETCH_TIMEOUT)
+    except (concurrent.futures.TimeoutError, Exception) as exc:
+        log.warning("India macro fetch timed out or failed (%s), using defaults", exc)
+        macro_in = None
+
+    if macro_in is None:
+        return {
+            "india_vix": 15.0, "nifty_vs_200ma": 2.0,
+            "nifty_return_1m": 1.0, "inr_usd": 83.0,
+            "rbi_repo_rate": 6.50, "sensex_close": 72000.0,
+        }
+
+    return {
+        "india_vix": round(macro_in.india_vix, 2),
+        "nifty_vs_200ma": round(macro_in.nifty_vs_200ma * 100, 2),
+        "nifty_return_1m": round(macro_in.nifty_return_1m * 100, 2),
+        "inr_usd": round(macro_in.inr_usd, 2),
+        "rbi_repo_rate": round(macro_in.rbi_repo_rate, 2),
+        "sensex_close": round(macro_in.sensex_close, 0),
+    }
+
+
 def _build_analyst_context(ticker: str, market: str) -> dict:
     """Fast context builder: fetch data for ONE ticker only, not the full universe.
 
@@ -99,18 +128,32 @@ def _build_analyst_context(ticker: str, market: str) -> dict:
 
     # 1. Macro data (cached after first call; 15s timeout handled by caller)
     macro = _fetch_macro_with_timeout()
+    # 1b. India macro data (only when market=IN)
+    macro_in = _fetch_macro_in_with_timeout() if market == "IN" else {}
 
     # 2. Fundamentals for just the requested ticker (1-3 yfinance calls, ~2-5s)
     fund = _fetch_one(ticker, market)
 
-    # 3. Regime from macro (VIX-based heuristic)
-    vix = macro.get("vix", 18.0)
-    if vix < 20:
-        regime_label = "Risk-On"
-    elif vix < 30:
-        regime_label = "Late-Cycle"
+    # 3. Regime from macro (VIX-based heuristic — use India VIX for IN market)
+    if market == "IN" and macro_in:
+        vix = macro_in.get("india_vix", 15.0)
     else:
-        regime_label = "Bear"
+        vix = macro.get("vix", 18.0)
+    if market == "IN":
+        # India VIX thresholds are lower (typically 10-25 range)
+        if vix < 14:
+            regime_label = "Risk-On"
+        elif vix < 20:
+            regime_label = "Late-Cycle"
+        else:
+            regime_label = "Bear"
+    else:
+        if vix < 20:
+            regime_label = "Risk-On"
+        elif vix < 30:
+            regime_label = "Late-Cycle"
+        else:
+            regime_label = "Bear"
 
     # 4. Build context from the single ticker's data
     # Percentiles are estimated from raw values since we don't rank the full universe.
@@ -139,6 +182,7 @@ def _build_analyst_context(ticker: str, market: str) -> dict:
         "market": market,
         "regime_label": regime_label,
         **macro,
+        **macro_in,
         "composite_score":           round(composite, 4),
         "quality_percentile":        round(quality_p, 3),
         "momentum_percentile":       round(momentum_p, 3),
@@ -341,6 +385,7 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
 
     try:
         macro = _fetch_macro_with_timeout()
+        macro_in = _fetch_macro_in_with_timeout() if market == "IN" else {}
         regime_id = cached.get("regime_id", 1)
         regime_labels = {1: "Risk-On", 2: "Late-Cycle", 3: "Bear", 4: "Recovery"}
 
@@ -356,6 +401,7 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
             "market": market,
             "regime_label": regime_labels.get(regime_id, "Risk-On"),
             **macro,
+            **macro_in,
             "composite_score":           round(_safe_float(cached.get("composite_score"), 0.5), 4),
             "quality_percentile":        round(_safe_float(cached.get("quality_percentile"), 0.5), 3),
             "momentum_percentile":       round(_safe_float(cached.get("momentum_percentile"), 0.5), 3),

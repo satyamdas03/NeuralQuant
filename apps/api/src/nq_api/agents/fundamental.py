@@ -69,18 +69,39 @@ class FundamentalAgent(BaseAnalystAgent):
         pb = context.get('pb_ratio', 'N/A')
         beta = context.get('beta', 'N/A')
 
+        # ROE display
+        raw_roe = context.get('roe', None)
+        if raw_roe is not None and raw_roe != 'N/A':
+            roe_display = f"{float(raw_roe) * 100:.1f}%"
+        else:
+            roe_display = 'N/A'
+
+        # Revenue growth display
+        rev_g = context.get('revenue_growth', None)
+        rev_display = f"{rev_g}%" if rev_g is not None and rev_g != 'N/A' else 'N/A'
+
+        # Debt/Equity
+        de = context.get('debt_equity', None)
+        de_display = f"{de}" if de is not None and de != 'N/A' else 'N/A'
+
         return f"""Analyse the fundamental investment merit of {ticker}.
 
 IMPORTANT: Use ONLY the exact figures provided below. Do not substitute values from memory or training data.
 
 Financial data (live as of today):
 - Piotroski F-Score: {context.get('piotroski', 'N/A')} / 9 (higher = stronger fundamentals)
-- Gross profit margin: {gpm_display} (this is the actual gross margin percentage - use this exact figure)
+- Gross profit margin: {gpm_display}
+- ROE: {roe_display}
+- Revenue growth YoY: {rev_display}
+- Debt/Equity: {de_display}
 - Quality composite percentile: {context.get('quality_percentile', 'N/A')} (0-1 scale, higher = better quality vs universe)
 - Trailing P/E ratio: {pe}x
 - Price-to-Book ratio: {pb}x
 - Beta (market sensitivity): {beta}
 - Accruals ratio: {context.get('accruals_ratio', 'N/A')} (lower/negative is better - indicates cash earnings quality)
+- Market cap: {context.get('market_cap', 'N/A')}
+- 52-week range: {context.get('week52_low', 'N/A')} – {context.get('week52_high', 'N/A')}
+- Analyst target mean: {context.get('analyst_target_mean', 'N/A')}
 - AI composite score: {context.get('composite_score', 'N/A')} (0-1 scale)
 
 Provide your fundamental stance on {ticker}. Reference the specific numbers above in your key points."""

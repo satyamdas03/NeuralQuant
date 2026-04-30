@@ -17,11 +17,15 @@ Analysis framework:
 
 ## THRESHOLDS (use these to make calls)
 - VIX: <15 = low vol / Risk-On, 15-25 = normal, >25 = elevated, >35 = crisis
+- India VIX: <14 = low vol / Risk-On, 14-20 = normal, >20 = elevated, >25 = crisis
 - HY spread: <300bps = tight/healthy, 300-500bps = moderate, >500bps = stressed
 - 2s10s spread: >100bps = normal, 0-100bps = flat/concerning, inverted = recession signal
 - ISM PMI: >55 = expansion, 50-55 = moderate, <50 = contraction
 - Fed funds vs CPI: real rate >0 = restrictive, <0 = accommodative
+- RBI repo rate: >6.5% = restrictive, 5.5-6.5% = neutral, <5.5% = accommodative
+- INR/USD: <82 = strong rupee, 82-85 = moderate, >85 = weak rupee
 - SPX vs 200-MA: >5% = strong uptrend, -5% to +5% = range, <-5% = downtrend
+- Nifty vs 200-MA: >5% = strong uptrend, -5% to +5% = range, <-5% = downtrend
 
 ## REASONING PROTOCOL (mandatory)
 1. CITE specific data points — "VIX at 14.2, well below the 20 stress threshold"
@@ -48,6 +52,39 @@ class MacroAgent(BaseAnalystAgent):
     system_prompt = _SYSTEM
 
     def _build_user_message(self, ticker: str, context: dict) -> str:
+        market = context.get('market', 'US')
+        regime = context.get('regime_label', 'N/A')
+
+        if market == "IN":
+            return f"""Analyse the macro environment for {ticker} (Indian market / NSE).
+
+IMPORTANT: Use ONLY the exact figures provided below. Do not substitute values from memory or training data.
+
+Current India macro data (live as of today):
+- India VIX: {context.get('india_vix', 'N/A')} (typically 10-25 range; >20 = elevated fear)
+- Market regime: {regime}
+- RBI repo rate: {context.get('rbi_repo_rate', 'N/A')}%
+- INR/USD: {context.get('inr_usd', 'N/A')} (higher = weaker rupee)
+- Nifty 50 vs 200-day MA: {context.get('nifty_vs_200ma', 'N/A')}% (positive = above 200MA)
+- Nifty 50 1-month return: {context.get('nifty_return_1m', 'N/A')}%
+- Sensex close: {context.get('sensex_close', 'N/A')}
+
+## India-specific framework:
+1. RBI rate cycle — repo rate impacts banking, real estate, infrastructure stocks
+2. INR/USD — weak rupee benefits IT exporters, hurts oil importers
+3. India VIX — similar to US VIX but typically 10-25 range
+4. Nifty vs 200MA — broad market trend for Indian equities
+5. FII/DII flows — foreign institutional investor sentiment (use regime as proxy)
+
+## India thresholds:
+- India VIX: <14 = low vol/Risk-On, 14-20 = normal, >20 = elevated, >25 = crisis
+- RBI repo rate: >6.5% = restrictive, 5.5-6.5% = neutral, <5.5% = accommodative
+- INR/USD: <82 = strong rupee, 82-85 = moderate, >85 = weak rupee
+- Nifty vs 200MA: >5% = strong uptrend, -5% to +5% = range, <-5% = downtrend
+
+Provide your macro stance on {ticker}. Reference the specific numbers above in your key points."""
+
+        # US market (default)
         vix = context.get('vix', 'N/A')
         ism_pmi = context.get('ism_pmi', 'N/A')
         hy_spread = context.get('hy_spread_oas', 'N/A')
@@ -58,7 +95,6 @@ class MacroAgent(BaseAnalystAgent):
         yield_2y = context.get('yield_2y', 'N/A')
         fed_funds = context.get('fed_funds_rate', 'N/A')
         cpi = context.get('cpi_yoy', 'N/A')
-        regime = context.get('regime_label', 'N/A')
 
         return f"""Analyse the macro environment for {ticker}.
 
