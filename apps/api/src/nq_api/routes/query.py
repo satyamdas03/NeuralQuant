@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 import logging
 
-from nq_api.schemas import QueryRequest, QueryResponse, StructuredQueryResponse, ReasoningBlock
+from nq_api.schemas import QueryRequest, QueryResponse, StructuredQueryResponse, ReasoningBlock, MetricItem
 
 log = logging.getLogger(__name__)
 from nq_api.auth.rate_limit import enforce_tier_quota
@@ -132,34 +132,41 @@ FOLLOW_UP:
 _SYSTEM_STRUCTURED = _SYSTEM + """
 
 ## STRUCTURED OUTPUT MODE
-You MUST respond with ONLY a JSON object matching this schema. No markdown, no prose outside the JSON.
+You MUST respond with ONLY a JSON object matching this schema. No markdown, no prose outside the JSON. Do NOT truncate — provide ALL fields with FULL detail.
 
 Required fields:
 {
   "verdict": "STRONG BUY | BUY | HOLD | SELL | STRONG SELL",
   "confidence": 0-100,
   "timeframe": "Short-term | Medium-term | Long-term",
-  "summary": "2-3 sentence plain text summary",
+  "summary": "DETAILED 4-8 sentence summary covering the core thesis, key data points, and actionable conclusion. This is the MAIN output the user reads — make it comprehensive, specific, and data-rich. Include specific numbers: prices, P/E, scores, percentages. For portfolio questions: list each stock with its allocation % and one-line rationale.",
   "metrics": [{"name": "string", "value": "string", "benchmark": "string|null", "status": "positive|negative|neutral"}],
   "reasoning": {
-    "why_this": "WHY you chose this stock/recommendation — cite 2-3 specific data points",
-    "why_not_alt": "WHY NOT the next-best alternative — name the alternative stock and explain what it lacks",
-    "edge_summary": "One-line: what gives this pick its edge over the alternative",
+    "why_this": "2-4 sentences explaining WHY you chose this recommendation with 3+ specific data points (P/E, ForeCast score, momentum percentile, revenue growth, etc.)",
+    "why_not_alt": "2-3 sentences naming the next-best alternative and explaining WHY it's inferior with specific data (e.g. 'TCS has P/E 32 vs INFY 28 but revenue growth only 8% vs 15%' )",
+    "edge_summary": "One-line: what gives this pick its decisive edge (e.g. 'Superior momentum + lower P/E vs sector average')",
     "second_best": "Name of the runner-up stock you rejected",
-    "confidence_gap": "How much better (e.g. 'ForeCast 8 vs 6, +2 edge on momentum')"
+    "confidence_gap": "Quantified advantage (e.g. 'ForeCast 8 vs 6, +2 on momentum, -0.5 on value — momentum edge decisive for short-term')"
   },
-  "scenarios": [{"label": "Bear|Base|Bull", "probability": 0-1, "target": "price", "thesis": "trigger"}],
-  "allocations": [{"ticker": "X", "weight": 0-100, "rationale": "why X", "why_not_alt": "why not Y instead"}],
+  "scenarios": [
+    {"label": "Bear", "probability": 0.15-0.30, "target": "specific price or %", "thesis": "specific trigger event"},
+    {"label": "Base", "probability": 0.45-0.55, "target": "specific price or %", "thesis": "most likely path with data support"},
+    {"label": "Bull", "probability": 0.20-0.35, "target": "specific price or %", "thesis": "specific catalyst"}
+  ],
+  "allocations": [{"ticker": "X", "weight": 0-100, "rationale": "2-sentence rationale with data (e.g. 'ForeCast 8/10, P/E 18 vs sector 25, 15% revenue growth — quality at reasonable price')", "why_not_alt": "Name the alternative stock and what it lacks (e.g. 'BAJFINANCE has similar P/E but lower momentum percentile (65 vs 82)')"}],
   "comparisons": [{"ticker": "X", "metric": "P/E", "ours": "value", "theirs": "value", "edge": "why ours wins"}],
   "follow_up_questions": ["q1", "q2", "q3"]
 }
 
-CRITICAL REASONING RULES:
-1. EVERY stock recommendation MUST include reasoning.why_this with 2+ specific data points.
-2. EVERY stock recommendation MUST include reasoning.why_not_alt naming the next-best alternative and explaining WHY it's inferior.
-3. For portfolio questions, each allocation MUST have rationale (why this stock) AND why_not_alt (why not the runner-up).
-4. If comparing stocks, use comparisons array to show side-by-side metric advantages.
-5. The reasoning block is MANDATORY — never leave it empty. This is what separates a quant researcher from a chatbot.
+MANDATORY FIELD RULES — EVERY field must be filled with substantive, data-rich content:
+1. summary: MUST be 4-8 sentences, NOT 1-2 sentences. Include specific numbers, allocations, verdict. This is the user's primary read.
+2. metrics: MUST include at least 4 metrics with values, benchmarks, and status. For stock queries: P/E, momentum, quality, ForeCast score. For portfolio queries: target return, risk level, diversification score.
+3. reasoning.why_this: MUST cite 3+ specific data points with numbers. Not "strong momentum" — "92nd percentile momentum, P/E 18 vs sector 25, revenue growth +22% YoY".
+4. reasoning.why_not_alt: MUST name a specific alternative stock and explain with data why it's inferior. "Similar P/E but lower ForeCast score (6 vs 8) and weaker momentum (65th vs 92nd percentile)".
+5. scenarios: ALWAYS include Bear/Base/Bull with specific prices or percentages and named triggers.
+6. allocations: For portfolio/allocation questions, include 4-6 stocks with weight%, rationale with data, and why_not_alt naming the rejected alternative. For single-stock questions, include at least 1 allocation (the recommended stock at 100% or the suggested position size).
+7. comparisons: ALWAYS include at least 3 comparisons showing side-by-side metric advantages vs the alternative stock.
+8. NEVER use placeholder text like "N/A", "various", "multiple factors", or generic filler. Every field must contain SPECIFIC, DATA-DRIVEN content.
 """
 
 
@@ -832,6 +839,98 @@ async def run_nl_query(
         )
 
 
+def _enrich_snap_structured(req: QueryRequest) -> tuple[list, ReasoningBlock, str]:
+    """Build metrics and reasoning from score cache for SNAP responses."""
+    from nq_api.cache import score_cache
+    from nq_api.score_builder import _score_to_1_10
+
+    ticker = (req.ticker or "").upper()
+    market = req.market or "US"
+    metrics: list[MetricItem] = []
+    verdict = "HOLD"
+    why_this = "Based on NeuralQuant score data"
+    why_not_alt = "Alternative not scored"
+    edge_summary = "Score-based assessment"
+    second_best = "N/A"
+    confidence_gap = "N/A"
+
+    if not ticker:
+        return metrics, ReasoningBlock(
+            why_this=why_this, why_not_alt=why_not_alt,
+            edge_summary=edge_summary, second_best=second_best, confidence_gap=confidence_gap,
+        ), verdict
+
+    cached = None
+    try:
+        cached = score_cache.read_one(ticker, market, 86400) or score_cache.read_one(ticker, market, 999999999)
+    except Exception:
+        pass
+
+    if cached:
+        score = cached.get("composite_score", 0.5)
+        score_10 = _score_to_1_10(float(score)) if score is not None else 5
+        momentum = cached.get("momentum_percentile")
+        quality = cached.get("quality_percentile")
+        value = cached.get("value_percentile")
+        pe = cached.get("pe_ttm")
+        pb = cached.get("pb_ratio")
+
+        if score is not None:
+            metrics.append(MetricItem(name="ForeCast Score", value=f"{score_10}/10", benchmark="5/10 avg", status="positive" if score_10 >= 6 else "negative"))
+        if momentum is not None:
+            metrics.append(MetricItem(name="Momentum", value=f"{float(momentum)*100:.0f}%", benchmark="50% avg", status="positive" if float(momentum) >= 0.5 else "negative"))
+        if quality is not None:
+            metrics.append(MetricItem(name="Quality", value=f"{float(quality)*100:.0f}%", benchmark="50% avg", status="positive" if float(quality) >= 0.5 else "negative"))
+        if value is not None:
+            metrics.append(MetricItem(name="Value", value=f"{float(value)*100:.0f}%", benchmark="50% avg", status="positive" if float(value) >= 0.5 else "negative"))
+        if pe is not None:
+            metrics.append(MetricItem(name="P/E (TTM)", value=f"{float(pe):.1f}", benchmark="Sector avg", status="positive" if float(pe) < 25 else "negative"))
+        if pb is not None:
+            metrics.append(MetricItem(name="P/B", value=f"{float(pb):.2f}", benchmark="Sector avg", status="positive" if float(pb) < 3 else "negative"))
+
+        if score_10 >= 7:
+            verdict = "BUY"
+        elif score_10 >= 5:
+            verdict = "HOLD"
+        else:
+            verdict = "SELL"
+
+        # Build richer reasoning from cache data
+        data_points = []
+        if score_10:
+            data_points.append(f"ForeCast {score_10}/10")
+        if momentum is not None:
+            data_points.append(f"momentum {float(momentum)*100:.0f}%")
+        if quality is not None:
+            data_points.append(f"quality {float(quality)*100:.0f}%")
+        why_this = f"Score-driven assessment: {', '.join(data_points[:3])}" if data_points else "Based on NeuralQuant score data"
+
+        # Find nearest competitor in cache for comparison
+        try:
+            from nq_api.universe import US_DEFAULT, IN_DEFAULT
+            universe = IN_DEFAULT if market == "IN" else US_DEFAULT
+            # Try up to 8 nearby tickers to find a competitor with cached data
+            for alt_ticker in universe[:8]:
+                if alt_ticker == ticker:
+                    continue
+                alt_cached = score_cache.read_one(alt_ticker, market, 86400)
+                if alt_cached and alt_cached.get("composite_score") is not None:
+                    alt_score = float(alt_cached["composite_score"])
+                    alt_10 = _score_to_1_10(alt_score)
+                    second_best = alt_ticker
+                    why_not_alt = f"{alt_ticker} scores {alt_10}/10 — selected stock has {'higher' if score_10 >= alt_10 else 'comparable'} composite score"
+                    confidence_gap = f"ForeCast {score_10} vs {alt_10}, {'+' if score_10 >= alt_10 else ''}{score_10 - alt_10} edge"
+                    edge_summary = f"ForeCast {score_10}/10 vs {alt_ticker}'s {alt_10}/10"
+                    break
+        except Exception:
+            pass
+
+    return metrics, ReasoningBlock(
+        why_this=why_this, why_not_alt=why_not_alt,
+        edge_summary=edge_summary, second_best=second_best, confidence_gap=confidence_gap,
+    ), verdict
+
+
 def _parse_query_response(raw: str, route: str = "REACT") -> QueryResponse:
     # Strip markdown bold around section headers (Claude occasionally wraps
     # `ANSWER:` as `**ANSWER:**`), which previously leaked `**` into the
@@ -974,20 +1073,17 @@ async def run_nl_query_v2(
     route = dart.classify_query(req.question, req.ticker)
 
     if route == "SNAP":
-        # SNAP: build structured response from score cache directly
+        # SNAP: build structured response from score cache with rich data
         snap_resp = await dart.handle_snap(req)
+        # Try to enrich with cache metrics
+        snap_metrics, snap_reasoning, snap_verdict = _enrich_snap_structured(req)
         return StructuredQueryResponse(
-            verdict="HOLD",
+            verdict=snap_verdict,
             confidence=50,
             timeframe="Short-term",
-            summary=snap_resp.answer[:300],
-            reasoning=ReasoningBlock(
-                why_this="Based on NeuralQuant score data",
-                why_not_alt="Alternative not scored",
-                edge_summary="Score-based assessment",
-                second_best="N/A",
-                confidence_gap="N/A",
-            ),
+            summary=snap_resp.answer[:500],
+            metrics=snap_metrics,
+            reasoning=snap_reasoning,
             data_sources=snap_resp.data_sources,
             follow_up_questions=snap_resp.follow_up_questions,
             route="SNAP",
@@ -1037,7 +1133,7 @@ async def run_nl_query_v2(
         response = await asyncio.to_thread(
             client.messages.create,
             model=query_model,
-            max_tokens=4000,
+            max_tokens=8000,
             system=_SYSTEM_STRUCTURED,
             messages=messages,
         )
@@ -1075,7 +1171,7 @@ async def run_nl_query_v2(
             verdict="HOLD",
             confidence=50,
             timeframe="Medium-term",
-            summary=freeform_resp.answer[:300],
+            summary=freeform_resp.answer[:500],
             reasoning=ReasoningBlock(
                 why_this="See summary for details",
                 why_not_alt="Comparative data not available for alternative analysis",
@@ -1154,10 +1250,12 @@ async def run_nl_query_v2_stream(
 
         if route == "SNAP":
             snap_resp = await dart.handle_snap(req)
+            snap_metrics, snap_reasoning, snap_verdict = _enrich_snap_structured(req)
             result = StructuredQueryResponse(
-                verdict="HOLD", confidence=50, timeframe="Short-term",
-                summary=snap_resp.answer[:300],
-                reasoning=ReasoningBlock(why_this="Based on NeuralQuant score data",why_not_alt="Alternative not scored",edge_summary="Score-based assessment",second_best="N/A",confidence_gap="N/A"),
+                verdict=snap_verdict, confidence=50, timeframe="Short-term",
+                summary=snap_resp.answer[:500],
+                metrics=snap_metrics,
+                reasoning=snap_reasoning,
                 data_sources=snap_resp.data_sources,
                 follow_up_questions=snap_resp.follow_up_questions,
                 route="SNAP",
@@ -1241,7 +1339,7 @@ async def run_nl_query_v2_stream(
                 response = await asyncio.to_thread(
                     client.messages.create,
                     model=query_model,
-                    max_tokens=4000,
+                    max_tokens=8000,
                     system=_SYSTEM_STRUCTURED,
                     messages=messages,
                 )
@@ -1276,7 +1374,7 @@ async def run_nl_query_v2_stream(
                     freeform_resp = _parse_query_response(raw, route)
                     result_holder["result"] = StructuredQueryResponse(
                         verdict="HOLD", confidence=50, timeframe="Medium-term",
-                        summary=freeform_resp.answer[:300],
+                        summary=freeform_resp.answer[:500],
                         reasoning=ReasoningBlock(why_this="See summary for details",why_not_alt="Comparative data not available for alternative analysis",edge_summary="See summary",second_best="N/A",confidence_gap="N/A"),
                         data_sources=freeform_resp.data_sources,
                         follow_up_questions=freeform_resp.follow_up_questions,

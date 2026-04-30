@@ -134,7 +134,7 @@ class StructuredQueryResponse(BaseModel):
     verdict: str                              # STRONG BUY | BUY | HOLD | SELL | STRONG SELL
     confidence: float                         # 0-100
     timeframe: str                            # Short-term | Medium-term | Long-term
-    summary: str                              # 2-3 sentence plain text summary
+    summary: str                              # 4-8 sentence detailed summary with data points
     metrics: list[MetricItem] = []
     reasoning: ReasoningBlock                 # comparative reasoning — why X not Y
     scenarios: list[ScenarioItem] = []
