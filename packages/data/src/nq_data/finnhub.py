@@ -116,7 +116,18 @@ class FinnhubClient:
     async def get_candles(
         self, ticker: str, resolution: str = "D", days: int = 200
     ) -> list[dict] | None:
-        """Historical OHLCV candles. resolution: 1/5/15/30/60/D/W/M."""
+        """Historical OHLCV candles. Tries Finnhub first, falls back to yfinance."""
+        # Try Finnhub API first
+        candles = await self._fetch_candles_finnhub(ticker, resolution, days)
+        if candles:
+            return candles
+        # Fallback: yfinance (free, no API key needed)
+        return await self._fetch_candles_yfinance(ticker, days)
+
+    async def _fetch_candles_finnhub(
+        self, ticker: str, resolution: str = "D", days: int = 200
+    ) -> list[dict] | None:
+        """Fetch candles from Finnhub API (requires premium for stock/candle)."""
         now = int(time.time())
         fr = now - days * 86400
         params = {
@@ -148,6 +159,39 @@ class FinnhubClient:
             for t, o, h, lo, c, v in zip(keys, opens, highs, lows, closes, vols)
         ]
 
+    async def _fetch_candles_yfinance(
+        self, ticker: str, days: int = 250
+    ) -> list[dict] | None:
+        """Fetch OHLCV from yfinance as free fallback for candles."""
+        try:
+            import yfinance as yf
+            with broker.acquire("yfinance"):
+                df = yf.download(
+                    self._resolve_symbol(ticker),
+                    period=f"{days}d",
+                    interval="1d",
+                    progress=False,
+                    auto_adjust=True,
+                )
+            if df.empty or len(df) < 50:
+                log.warning("yfinance returned %d rows for %s (need 50+)", len(df), ticker)
+                return None
+            candles = []
+            for idx, row in df.iterrows():
+                candles.append({
+                    "timestamp": int(idx.timestamp()),
+                    "open": float(row["Open"].iloc[0]) if hasattr(row["Open"], 'iloc') else float(row["Open"]),
+                    "high": float(row["High"].iloc[0]) if hasattr(row["High"], 'iloc') else float(row["High"]),
+                    "low": float(row["Low"].iloc[0]) if hasattr(row["Low"], 'iloc') else float(row["Low"]),
+                    "close": float(row["Close"].iloc[0]) if hasattr(row["Close"], 'iloc') else float(row["Close"]),
+                    "volume": float(row["Volume"].iloc[0]) if hasattr(row["Volume"], 'iloc') else float(row["Volume"]),
+                })
+            log.info("yfinance OHLCV for %s: %d candles", ticker, len(candles))
+            return candles
+        except Exception as exc:
+            log.warning("yfinance OHLCV failed for %s: %s", ticker, exc)
+            return None
+
     async def get_news(self, ticker: str, days: int = 7) -> list[dict] | None:
         """Company news with summaries."""
         from_ts = int(time.time()) - days * 86400
@@ -175,7 +219,16 @@ class FinnhubClient:
         ]
 
     async def get_insider_sentiment(self, ticker: str) -> dict | None:
-        """Insider sentiment (monthly aggregated). Returns {msp, months: [{...}]}."""
+        """Insider sentiment. Tries Finnhub first, falls back to SEC EDGAR."""
+        # Try Finnhub API
+        result = await self._fetch_insider_finnhub(ticker)
+        if result:
+            return result
+        # Fallback: SEC EDGAR Form 4 (free, no API key)
+        return await self._fetch_insider_edgar(ticker)
+
+    async def _fetch_insider_finnhub(self, ticker: str) -> dict | None:
+        """Fetch insider sentiment from Finnhub API (premium)."""
         params = {"symbol": self._resolve_symbol(ticker)}
         data = await self._fetch("insider_sentiment", ticker, params, cache_category="insider")
         if not data or not isinstance(data, dict):
@@ -203,8 +256,51 @@ class FinnhubClient:
             "summary": _insider_summary(ticker, total_buy, total_sell, len(recent)),
         }
 
+    async def _fetch_insider_edgar(self, ticker: str) -> dict | None:
+        """Compute insider sentiment from SEC EDGAR Form 4 (free, but slow).
+
+        Only used as a fallback when Finnhub premium is unavailable.
+        EDGAR requests can take 10-30s — suitable for background jobs,
+        not for real-time per-request calls.
+        """
+        try:
+            from .alt_signals.edgar_form4 import Form4Connector, compute_insider_cluster_score
+            from datetime import date, timedelta
+            end = date.today()
+            start = end - timedelta(days=90)
+            connector = Form4Connector()
+            with broker.acquire("edgar"):
+                events = connector.get_insider_events(ticker, start, end)
+            if not events:
+                return None
+            total_buy = sum(1 for e in events if e.get("is_purchase"))
+            total_sell = len(events) - total_buy
+            total = total_buy + total_sell
+            net_buy_ratio = round(total_buy / max(total, 1), 2)
+            cluster_score = compute_insider_cluster_score(events)
+            return {
+                "net_buy_ratio": net_buy_ratio,
+                "cluster_score": cluster_score,
+                "recent_months": 3,
+                "total_buy": total_buy,
+                "total_sell": total_sell,
+                "summary": _insider_summary(ticker, total_buy, total_sell, 3),
+            }
+        except Exception as exc:
+            log.warning("EDGAR insider fallback failed for %s: %s", ticker, exc)
+            return None
+
     async def get_news_sentiment(self, ticker: str) -> dict | None:
-        """News sentiment (buzz, bearish/neutral/bullish %)."""
+        """News sentiment (buzz, bearish/neutral/bullish %). Tries Finnhub first, falls back to local NLP."""
+        # Try Finnhub API
+        result = await self._fetch_news_sentiment_finnhub(ticker)
+        if result:
+            return result
+        # Fallback: yfinance headlines + FinBERT/VADER
+        return await self._fetch_news_sentiment_local(ticker)
+
+    async def _fetch_news_sentiment_finnhub(self, ticker: str) -> dict | None:
+        """Fetch news sentiment from Finnhub API (premium)."""
         params = {"symbol": self._resolve_symbol(ticker)}
         data = await self._fetch("news_sentiment", ticker, params, cache_category="news_sentiment")
         if not data or not isinstance(data, dict):
@@ -213,10 +309,12 @@ class FinnhubClient:
         buzz = data.get("buzz", {})
         sentiment = data.get("sentiment", {})
 
+        if not buzz and not sentiment:
+            return None
+
         bearish = sentiment.get("bearishPercent", 0)
         bullish = sentiment.get("bullishPercent", 0)
 
-        # Determine label
         if bullish > 0.55:
             label = "bullish"
         elif bearish > 0.55:
@@ -224,7 +322,7 @@ class FinnhubClient:
         else:
             label = "neutral"
 
-        score = bullish - bearish  # -1 to 1
+        score = bullish - bearish
 
         return {
             "buzz_score": buzz.get("buzz", 0),
@@ -236,6 +334,64 @@ class FinnhubClient:
             "articles_this_week": buzz.get("articlesThisWeek", 0),
             "articles_last_week": buzz.get("articlesLastWeek", 0),
         }
+
+    async def _fetch_news_sentiment_local(self, ticker: str) -> dict | None:
+        """Compute news sentiment locally using yfinance headlines + VADER/FinBERT."""
+        try:
+            import yfinance as yf
+            with broker.acquire("yfinance"):
+                stock = yf.Ticker(self._resolve_symbol(ticker))
+                raw_news = stock.news or []
+            if not raw_news:
+                log.info("No yfinance news for %s", ticker)
+                return None
+
+            # Extract headlines — yfinance v1.5+ uses content.title, older uses title
+            headlines = []
+            for a in raw_news[:10]:
+                title = a.get("title", "")
+                if not title and isinstance(a.get("content"), dict):
+                    title = a["content"].get("title", "")
+                if title:
+                    headlines.append(title)
+            if not headlines:
+                return None
+
+            # Try FinBERT first, fall back to VADER
+            sentiments = _classify_headlines(headlines)
+
+            pos = sum(1 for s in sentiments if s == "positive")
+            neg = sum(1 for s in sentiments if s == "negative")
+            neu = sum(1 for s in sentiments if s == "neutral")
+            total = len(sentiments)
+
+            bullish = pos / total if total else 0
+            bearish = neg / total if total else 0
+            score = bullish - bearish
+
+            if bullish > 0.55:
+                label = "bullish"
+            elif bearish > 0.55:
+                label = "bearish"
+            else:
+                label = "neutral"
+
+            # Buzz = article count relative to average (proxy)
+            buzz = round(total / 5.0, 2)  # normalize: 5 articles = buzz 1.0
+
+            return {
+                "buzz_score": buzz,
+                "weekly_average": 0,
+                "bearish_pct": round(bearish, 4),
+                "bullish_pct": round(bullish, 4),
+                "sentiment_label": label,
+                "sentiment_score": round(score, 4),
+                "articles_this_week": total,
+                "articles_last_week": 0,
+            }
+        except Exception as exc:
+            log.warning("Local news sentiment failed for %s: %s", ticker, exc)
+            return None
 
     # ── Internal ────────────────────────────────────────────────────────────
 
@@ -326,12 +482,12 @@ _client_lock = threading.Lock()
 
 
 def get_finnhub_client() -> FinnhubClient:
-    """Thread-safe singleton accessor."""
+    """Thread-safe singleton accessor. Works even without API key (uses yfinance fallbacks)."""
     global _client
-    if _client is not None and _client._enabled:
+    if _client is not None:
         return _client
     with _client_lock:
-        if _client is None or not _client._enabled:
+        if _client is None:
             _client = FinnhubClient()
         return _client
 
@@ -434,6 +590,91 @@ def _insider_summary(ticker: str, buy: int, sell: int, months: int) -> str:
     direction = "buying" if buy > sell else "selling"
     net = abs(buy - sell)
     return f"Insiders net {direction} ${net:,} in last {months} months for {ticker}"
+
+
+# ── News sentiment classification ────────────────────────────────────────────
+
+_nlp_pipeline = None
+_nlp_lock = threading.Lock()
+
+
+def _classify_headlines(headlines: list[str]) -> list[str]:
+    """Classify headlines as positive/negative/neutral. Tries FinBERT, falls back to VADER."""
+    global _nlp_pipeline
+    if not headlines:
+        return []
+
+    # Try FinBERT (transformers pipeline)
+    if _nlp_pipeline is None:
+        with _nlp_lock:
+            if _nlp_pipeline is None:
+                try:
+                    from transformers import pipeline as hf_pipeline
+                    _nlp_pipeline = hf_pipeline(
+                        "sentiment-analysis",
+                        model="ProsusAI/finbert",
+                        top_k=None,
+                    )
+                    log.info("FinBERT loaded for news sentiment")
+                except Exception as exc:
+                    log.warning("FinBERT not available (%s) — falling back to VADER", exc)
+                    _nlp_pipeline = False  # sentinel: don't retry
+
+    if _nlp_pipeline and _nlp_pipeline is not False:
+        try:
+            results = _nlp_pipeline(headlines)
+            labels = []
+            for r in results:
+                # FinBERT returns list of dicts per headline
+                if isinstance(r, list):
+                    best = max(r, key=lambda x: x["score"])
+                    label = best["label"].lower()
+                else:
+                    label = r["label"].lower()
+                # Normalize: finbert uses "positive"/"negative"/"neutral"
+                labels.append(label)
+            return labels
+        except Exception as exc:
+            log.warning("FinBERT inference failed: %s — falling back to VADER", exc)
+
+    # Fallback: VADER (no ML model needed)
+    return _classify_headlines_vader(headlines)
+
+
+def _classify_headlines_vader(headlines: list[str]) -> list[str]:
+    """VADER-based sentiment classification as lightweight fallback."""
+    try:
+        from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+        analyzer = SentimentIntensityAnalyzer()
+        labels = []
+        for h in headlines:
+            score = analyzer.polarity_scores(h)["compound"]
+            if score >= 0.05:
+                labels.append("positive")
+            elif score <= -0.05:
+                labels.append("negative")
+            else:
+                labels.append("neutral")
+        return labels
+    except ImportError:
+        # Ultimate fallback: keyword heuristics
+        log.warning("VADER not available — using keyword heuristics for sentiment")
+        BULL = {"surge", "beat", "rise", "gain", "record", "high", "bullish", "rally",
+                "upgrade", "buy", "growth", "profit", "strong", "exceed", "jump", "soar"}
+        BEAR = {"fall", "drop", "miss", "decline", "loss", "low", "bearish", "sell",
+                "cut", "downgrade", "crash", "recall", "risk", "weak", "slump", "tumble"}
+        labels = []
+        for h in headlines:
+            words = set(h.lower().split())
+            b = len(words & BULL)
+            s = len(words & BEAR)
+            if b > s + 1:
+                labels.append("positive")
+            elif s > b + 1:
+                labels.append("negative")
+            else:
+                labels.append("neutral")
+        return labels
 
 
 # ── Date helpers ─────────────────────────────────────────────────────────────

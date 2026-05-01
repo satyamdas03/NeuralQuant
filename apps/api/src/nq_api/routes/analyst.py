@@ -265,28 +265,24 @@ def _compute_insider_score(info: dict, fund: dict) -> float:
 
 
 def _fetch_finnhub_data(ticker: str, market: str) -> dict:
-    """Fetch technical indicators, insider sentiment, and news sentiment from Finnhub.
+    """Fetch technical indicators, insider sentiment, and news sentiment.
 
-    Returns a dict with keys prefixed by source:
-      - technical_*: RSI, MACD, ATR, SMA, volume (from get_indicators)
-      - insider_*: cluster_score, net_buy_ratio, summary (from get_insider_sentiment)
-      - news_sentiment_*: label, score, buzz (from get_news_sentiment)
+    Uses Finnhub API when available, automatically falls back to:
+      - yfinance OHLCV for technical indicators (RSI/MACD/ATR/SMA)
+      - SEC EDGAR Form 4 for insider sentiment
+      - yfinance headlines + FinBERT/VADER for news sentiment
 
     Returns empty dict on failure (graceful fallback).
     """
     try:
         from nq_data.finnhub import get_finnhub_client
         client = get_finnhub_client()
-        if not client._enabled:
-            log.warning("Finnhub disabled for %s — FINNHUB_API_KEY not set", ticker)
-            return {}
     except Exception as exc:
         log.warning("Finnhub client init failed: %s", exc)
         return {}
 
     result: dict = {}
 
-    # Detect if we're inside a running event loop (shouldn't happen if called via asyncio.to_thread)
     import asyncio
     loop = None
     try:
@@ -300,6 +296,7 @@ def _fetch_finnhub_data(ticker: str, market: str) -> dict:
         return {}
 
     # Technical indicators (RSI, MACD, ATR, SMA, volume)
+    # Uses Finnhub candles → falls back to yfinance OHLCV automatically
     try:
         indicators = asyncio.run(client.get_indicators(ticker))
         if indicators:
@@ -317,9 +314,10 @@ def _fetch_finnhub_data(ticker: str, market: str) -> dict:
             result["volume_ratio"] = indicators.get("volume_ratio")
             result["finnhub_price"] = indicators.get("current_price")
     except Exception as exc:
-        log.warning("Finnhub indicators failed for %s: %s", ticker, exc)
+        log.warning("Indicators failed for %s: %s", ticker, exc)
 
     # Insider sentiment
+    # Uses Finnhub → falls back to SEC EDGAR Form 4 automatically
     try:
         insider = asyncio.run(client.get_insider_sentiment(ticker))
         if insider:
@@ -327,9 +325,10 @@ def _fetch_finnhub_data(ticker: str, market: str) -> dict:
             result["insider_net_buy_ratio"] = insider.get("net_buy_ratio")
             result["insider_summary"] = insider.get("summary")
     except Exception as exc:
-        log.warning("Finnhub insider failed for %s: %s", ticker, exc)
+        log.warning("Insider sentiment failed for %s: %s", ticker, exc)
 
     # News sentiment
+    # Uses Finnhub → falls back to yfinance headlines + FinBERT/VADER automatically
     try:
         news_sent = asyncio.run(client.get_news_sentiment(ticker))
         if news_sent:
@@ -339,12 +338,12 @@ def _fetch_finnhub_data(ticker: str, market: str) -> dict:
             result["news_bullish_pct"] = news_sent.get("bullish_pct")
             result["news_bearish_pct"] = news_sent.get("bearish_pct")
     except Exception as exc:
-        log.warning("Finnhub news sentiment failed for %s: %s", ticker, exc)
+        log.warning("News sentiment failed for %s: %s", ticker, exc)
 
     if result:
-        log.info("Finnhub enrichment for %s: %d fields", ticker, len(result))
+        log.info("Enrichment for %s: %d fields", ticker, len(result))
     else:
-        log.warning("Finnhub returned empty for %s", ticker)
+        log.warning("Enrichment returned empty for %s", ticker)
 
     return result
 
