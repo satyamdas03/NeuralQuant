@@ -13,6 +13,8 @@ import time
 from datetime import datetime, timezone
 from typing import Any, Optional
 
+import pandas as pd
+
 import httpx
 
 from .broker import broker
@@ -176,15 +178,18 @@ class FinnhubClient:
             if df.empty or len(df) < 50:
                 log.warning("yfinance returned %d rows for %s (need 50+)", len(df), ticker)
                 return None
+            # Handle MultiIndex columns from yfinance (ticker name as level 0)
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
             candles = []
             for idx, row in df.iterrows():
                 candles.append({
                     "timestamp": int(idx.timestamp()),
-                    "open": float(row["Open"].iloc[0]) if hasattr(row["Open"], 'iloc') else float(row["Open"]),
-                    "high": float(row["High"].iloc[0]) if hasattr(row["High"], 'iloc') else float(row["High"]),
-                    "low": float(row["Low"].iloc[0]) if hasattr(row["Low"], 'iloc') else float(row["Low"]),
-                    "close": float(row["Close"].iloc[0]) if hasattr(row["Close"], 'iloc') else float(row["Close"]),
-                    "volume": float(row["Volume"].iloc[0]) if hasattr(row["Volume"], 'iloc') else float(row["Volume"]),
+                    "open": float(row["Open"]),
+                    "high": float(row["High"]),
+                    "low": float(row["Low"]),
+                    "close": float(row["Close"]),
+                    "volume": float(row["Volume"]),
                 })
             log.info("yfinance OHLCV for %s: %d candles", ticker, len(candles))
             return candles
