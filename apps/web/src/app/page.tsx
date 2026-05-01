@@ -49,11 +49,63 @@ export default async function Landing() {
               Sign in
             </Link>
           </div>
-          <div className="mt-10 flex flex-wrap gap-6 text-xs text-on-surface-variant">
+          <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-tertiary/10 text-tertiary text-sm font-medium">
+            <span className="w-2 h-2 rounded-full bg-tertiary animate-pulse" />
+            Free for everyone till 30th May 2026
+          </div>
+          <div className="mt-6 flex flex-wrap gap-6 text-xs text-on-surface-variant">
             <span>✓ No credit card</span>
             <span>✓ 50 queries / day free</span>
             <span>✓ US + Indian markets</span>
           </div>
+        </div>
+      </section>
+
+      {/* What's New — 10x Quality Upgrade */}
+      <section className="max-w-6xl mx-auto px-6 py-20 border-t border-surface-container">
+        <div className="text-center mb-12">
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium mb-4">
+            NEW — v4.0 Quality Upgrade
+          </span>
+          <h2 className="font-headline text-3xl md:text-4xl font-bold tracking-tight mb-3">
+            Real data. Real debate. Real conviction.
+          </h2>
+          <p className="text-on-surface-variant max-w-2xl mx-auto">
+            Every AI agent now reasons over live technical indicators, insider flows,
+            news sentiment, and sector peer comparisons — not placeholders.
+          </p>
+        </div>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <UpgradeCard
+            icon="📊"
+            title="Live Technical Indicators"
+            body="RSI-14, MACD, ATR, SMA-50/200, volume ratio — computed from real Finnhub candles, not estimates. Crash protection flags when RSI >80 or MACD flips."
+          />
+          <UpgradeCard
+            icon="🏦"
+            title="Insider Cluster Detection"
+            body="Real insider net buy ratio and cluster scores from SEC Form 4 + Finnhub filings. Know when insiders are buying or selling before the market catches on."
+          />
+          <UpgradeCard
+            icon="📰"
+            title="News Sentiment Engine"
+            body="Finnhub buzz score, bullish/bearish %, sentiment label — fed directly into the sentiment agent. Headlines plus full article summaries in Ask AI."
+          />
+          <UpgradeCard
+            icon="🇮🇳"
+            title="India Macro Context"
+            body="India VIX, RBI repo rate, INR/USD, Nifty vs 200MA, Sensex close — India stocks now get India-specific regime labels, not US VIX thresholds."
+          />
+          <UpgradeCard
+            icon="⚖️"
+            title="Sector Peer Comparison"
+            body="Every stock now compares P/E, ROE, gross margin, D/E, and composite score against sector medians. &ldquo;P/E 22x&rdquo; means something when the sector median is 28x."
+          />
+          <UpgradeCard
+            icon="💬"
+            title="Conversation Memory"
+            body="Ask AI remembers your prior questions within a session. Follow-ups like &ldquo;what about the bear case?&rdquo; now carry context from the previous turn."
+          />
         </div>
       </section>
 
@@ -78,6 +130,110 @@ export default async function Landing() {
             Watch them debate →
           </GradientButton>
         </div>
+      </section>
+
+      {/* Pricing */}
+      <section className="max-w-6xl mx-auto px-6 py-20 border-t border-surface-container">
+        <div className="text-center mb-10">
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary/10 text-secondary text-xs font-medium mb-4">
+            Simple pricing
+          </span>
+          <h2 className="font-headline text-3xl md:text-4xl font-bold tracking-tight mb-3">
+            Start free. Scale when ready.
+          </h2>
+          <p className="text-on-surface-variant max-w-xl mx-auto">
+            Full access to PARA-DEBATE, Ask AI, screener, and watchlists — no credit card required.
+          </p>
+        </div>
+        <div className="grid md:grid-cols-3 gap-6">
+          {/* Free Tier */}
+          <div className="relative rounded-2xl ghost-border bg-surface-low/40 p-6 flex flex-col">
+            <h3 className="font-headline text-xl font-bold">Free</h3>
+            <div className="mt-3 font-headline text-3xl font-bold gradient-cta bg-clip-text text-transparent">
+              $0
+            </div>
+            <p className="mt-1 text-xs text-tertiary font-medium">Free for everyone till 30th May 2026</p>
+            <ul className="mt-6 space-y-3 text-sm text-on-surface-variant flex-1">
+              <li>✓ 5 watchlists</li>
+              <li>✓ 50 AI queries/day</li>
+              <li>✓ 5 backtests/day</li>
+              <li>✓ Full PARA-DEBATE analysis</li>
+              <li>✓ Ask AI with conversation memory</li>
+              <li>✓ Live technical indicators (RSI, MACD, ATR)</li>
+              <li>✓ Insider sentiment & news sentiment</li>
+              <li>✓ Sector peer comparisons</li>
+              <li>✓ India macro context (VIX, RBI rate)</li>
+              <li>✓ Screener + compare tools</li>
+            </ul>
+            <div className="mt-6">
+              <Link
+                href="/signup"
+                className="block text-center px-6 py-3 rounded-xl ghost-border text-on-surface-variant hover:text-on-surface font-medium text-sm transition-colors"
+              >
+                Get started free
+              </Link>
+            </div>
+          </div>
+
+          {/* Investor Tier */}
+          <div className="relative rounded-2xl ghost-border bg-surface-low/40 p-6 flex flex-col ring-2 ring-primary">
+            <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-primary text-on-primary text-xs font-semibold">
+              Most popular
+            </span>
+            <h3 className="font-headline text-xl font-bold">Investor</h3>
+            <div className="mt-3 font-headline text-3xl font-bold gradient-cta bg-clip-text text-transparent">
+              $9<span className="text-base font-normal text-on-surface-variant">/mo</span>
+            </div>
+            <p className="mt-1 text-xs text-on-surface-variant">or ₹299/mo</p>
+            <ul className="mt-6 space-y-3 text-sm text-on-surface-variant flex-1">
+              <li>✓ 25 watchlists</li>
+              <li>✓ 100 AI queries/day</li>
+              <li>✓ 5 backtests/day</li>
+              <li>✓ Everything in Free, plus:</li>
+              <li>✓ Priority support</li>
+              <li>✓ Faster response times</li>
+              <li>✓ Extended Ask AI history (30 days)</li>
+            </ul>
+            <div className="mt-6">
+              <Link
+                href="/signup"
+                className="block text-center px-6 py-3 rounded-xl bg-gradient-to-r from-[#c1c1ff] to-[#bdf4ff] text-[#0f0f1a] font-semibold text-sm hover:opacity-90 transition-opacity"
+              >
+                Upgrade to Investor
+              </Link>
+            </div>
+          </div>
+
+          {/* Pro Tier */}
+          <div className="relative rounded-2xl ghost-border bg-surface-low/40 p-6 flex flex-col">
+            <h3 className="font-headline text-xl font-bold">Pro</h3>
+            <div className="mt-3 font-headline text-3xl font-bold gradient-cta bg-clip-text text-transparent">
+              $29<span className="text-base font-normal text-on-surface-variant">/mo</span>
+            </div>
+            <p className="mt-1 text-xs text-on-surface-variant">or ₹999/mo</p>
+            <ul className="mt-6 space-y-3 text-sm text-on-surface-variant flex-1">
+              <li>✓ 100 watchlists</li>
+              <li>✓ 1,000 AI queries/day</li>
+              <li>✓ 50 backtests/day</li>
+              <li>✓ Everything in Investor, plus:</li>
+              <li>✓ Priority support</li>
+              <li>✓ Unlimited Ask AI history</li>
+              <li>✓ Early access to new features</li>
+              <li>✓ API access (coming soon)</li>
+            </ul>
+            <div className="mt-6">
+              <Link
+                href="/signup"
+                className="block text-center px-6 py-3 rounded-xl ghost-border text-on-surface-variant hover:text-on-surface font-medium text-sm transition-colors"
+              >
+                Upgrade to Pro
+              </Link>
+            </div>
+          </div>
+        </div>
+        <p className="mt-8 text-center text-xs text-on-surface-variant">
+          All prices exclude applicable taxes. Cancel anytime. No lock-in.
+        </p>
       </section>
 
       {/* Built on Published Research */}
@@ -165,6 +321,16 @@ export default async function Landing() {
       <footer className="max-w-6xl mx-auto px-6 py-10 text-xs text-on-surface-variant border-t border-surface-container">
         © {new Date().getFullYear()} NeuralQuant · Research tool, not investment advice.
       </footer>
+    </div>
+  );
+}
+
+function UpgradeCard({ icon, title, body }: { icon: string; title: string; body: string }) {
+  return (
+    <div className="rounded-xl ghost-border bg-surface-low/40 p-6 hover-glow transition-colors">
+      <div className="text-2xl mb-3">{icon}</div>
+      <h3 className="font-semibold text-on-surface">{title}</h3>
+      <p className="mt-2 text-sm text-on-surface-variant leading-relaxed">{body}</p>
     </div>
   );
 }
