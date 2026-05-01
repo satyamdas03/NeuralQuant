@@ -82,7 +82,7 @@ RISK_FACTORS:
                     "price", "change_pct", "pe_ttm", "pb_ratio", "market_cap",
                     "composite_score", "regime_label", "sector", "momentum_percentile",
                     "quality_percentile", "value_percentile", "low_vol_percentile",
-                    "short_interest_percentile", "revenue_growth", "debt_equity",
+                    "low_short_interest_rank", "short_interest_pct", "revenue_growth", "debt_equity",
                     "roe", "gross_profit_margin", "beta", "analyst_target_mean",
                     "insider_cluster_score", "rsi_14", "macd_hist", "atr_14",
                     "sma_50", "sma_200", "volume_ratio",

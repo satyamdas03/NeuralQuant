@@ -93,7 +93,8 @@ Key data to challenge (live as of today):
 - Debt/Equity: {context.get('debt_equity', 'N/A')}
 - Revenue growth: {context.get('revenue_growth', 'N/A')}
 - Insider cluster score: {context.get('insider_cluster_score', 'N/A')}
-- Short interest percentile: {context.get('short_interest_percentile', 'N/A')}
+- Low-short-interest rank (0-1, higher = LESS shorting = bullish): {context.get('low_short_interest_rank', 'N/A')}
+- Short interest % of float: {context.get('short_interest_pct', 'N/A')}%
 - RSI-14: {context.get('rsi_14', 'N/A')}
 - MACD histogram: {context.get('macd_hist', 'N/A')}
 

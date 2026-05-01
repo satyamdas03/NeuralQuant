@@ -86,8 +86,8 @@ Social Sentiment Data:
 IMPORTANT: Use ONLY the exact figures provided below. Do not substitute values from memory or training data.
 
 Sentiment data (live as of today):
-- Short interest percentile: {context.get('short_interest_percentile', 'N/A')}
-- Short interest % of float: {context.get('short_interest_pct', 'N/A')}
+- Low-short-interest rank (0-1, higher = LESS shorting = bullish): {context.get('low_short_interest_rank', 'N/A')}
+- Short interest % of float: {context.get('short_interest_pct', 'N/A')}%
 {insider_ctx}
 {news_ctx}
 - Market regime: {context.get('regime_label', 'N/A')}
@@ -95,4 +95,4 @@ Sentiment data (live as of today):
 {social_ctx}
 Provide your sentiment stance on {ticker}. Reference the specific numbers above in your key points.
 
-CRITICAL: High short interest (>80th percentile) can signal smart money bearishness, NOT just squeeze potential. Do not reflexively interpret high short interest as bullish."""
+CRITICAL: low_short_interest_rank is the INVERSE short interest rank — a high value (e.g. 0.86) means LOW short interest (bullish), NOT high short interest. Always cross-reference with short_interest_pct (actual % of float). Short interest >5% of float is elevated; >10% is very high."""
