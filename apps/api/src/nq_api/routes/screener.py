@@ -103,7 +103,7 @@ async def _preview_live_fallback(market: str, n: int) -> ScreenerResponse:
             asyncio.to_thread(build_real_snapshot, tickers, market),
             timeout=25,
         )
-        if snapshot is None or snapshot.empty:
+        if snapshot is None or snapshot.fundamentals.empty:
             return ScreenerResponse(regime_label="Unknown", regime_id=1, results=[], total=0)
         result_df = await asyncio.wait_for(
             asyncio.to_thread(engine.compute, snapshot),

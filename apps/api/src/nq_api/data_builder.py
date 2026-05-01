@@ -427,6 +427,7 @@ def _fetch_one(ticker: str, market: str) -> dict:
             "dividend_yield":       div_pct,
             "debt_equity":          round(float(info.get("debtToEquity", 100.0)) / 100, 2) if info.get("debtToEquity") is not None else None,
             "revenue_growth_yoy":   round(float(info.get("revenueGrowth", 0.0)) * 100, 1) if info.get("revenueGrowth") is not None else None,
+            "fcf_yield":            round(fcf_val / market_cap, 4) if (fcf_val := _safe(info.get("freeCashflow")) or 0) > 0 and market_cap else None,
         }
     except Exception as exc:
         log.debug("yfinance fetch failed for %s: %s — using synthetic", ticker, exc)

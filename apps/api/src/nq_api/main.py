@@ -117,7 +117,7 @@ async def lifespan(app: FastAPI):
                 for mkt in ("US", "IN"):
                     tickers = UNIVERSE_BY_MARKET.get(mkt, UNIVERSE_BY_MARKET["US"])
                     snapshot = build_real_snapshot(tickers, mkt)
-                    if snapshot is None or snapshot.empty:
+                    if snapshot is None or snapshot.fundamentals.empty:
                         continue
                     engine = get_signal_engine()
                     result_df = engine.compute(snapshot)
@@ -179,7 +179,7 @@ async def lifespan(app: FastAPI):
                     except Exception as e:
                         log.warning("Render: build_real_snapshot failed for %s: %s", mkt, e)
                         continue
-                    if snapshot is None or snapshot.empty:
+                    if snapshot is None or snapshot.fundamentals.empty:
                         continue
                     engine = get_signal_engine()
                     result_df = engine.compute(snapshot)

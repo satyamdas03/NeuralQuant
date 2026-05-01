@@ -14,7 +14,7 @@ type Props = {
 
 export default function RegimeBadge({ regime, label }: Props) {
   const r = regime ?? label ?? "Bear";
-  const s = REGIME_STYLES[r];
+  const s = REGIME_STYLES[r] ?? REGIME_STYLES["Bear"];
 
   return (
     <span

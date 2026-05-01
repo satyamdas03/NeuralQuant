@@ -178,7 +178,7 @@ def read_sector_median(
     market: str,
     fields: tuple[str, ...] = (
         "pe_ttm", "pb_ratio", "gross_profit_margin", "roe",
-        "debt_equity", "revenue_growth_yoy", "composite_score",
+        "fcf_yield", "debt_equity", "revenue_growth_yoy", "composite_score",
         "quality_percentile", "momentum_percentile",
     ),
     max_age_seconds: int = 86400,

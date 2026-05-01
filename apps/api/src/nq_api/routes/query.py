@@ -402,20 +402,11 @@ def _fetch_finnhub_news_summaries(ticker: str | None, market: str = "US", n: int
     try:
         from nq_data.finnhub import get_finnhub_client
         client = get_finnhub_client()
-    # Client always available (yfinance fallbacks if no Finnhub key)
-
     except Exception:
         return []
 
     try:
-        loop = None
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            pass
-        if loop and loop.is_running():
-            return []
-        articles = asyncio.run(client.get_news(ticker, days=7))
+        articles = client.get_news(ticker, days=7)
         if not articles:
             return []
         results = []
@@ -859,7 +850,7 @@ async def run_nl_query(
         except (asyncio.TimeoutError, Exception):
             return default
 
-    headlines, macro_ctx, platform_ctx, finnhub_news, enrichment = await asyncio.gather(
+    enrichment, headlines, macro_ctx, platform_ctx, finnhub_news = await asyncio.gather(
         _timed(asyncio.to_thread(_fetch_enrichment, req.ticker, req.market or 'US'), 15.0, {}),
         _timed(asyncio.to_thread(_fetch_relevant_news, req.question, req.ticker, 5), 8.0, []),
         _timed(asyncio.to_thread(_build_macro_context, req.question, req.market or "US", today), 10.0, None),

@@ -46,17 +46,17 @@ class FinnhubClient:
 
     # ── Public API ──────────────────────────────────────────────────────────
 
-    async def get_quote(self, ticker: str) -> dict | None:
+    def get_quote(self, ticker: str) -> dict | None:
         """Real-time quote: c=current, h=high, l=low, o=open, pc=prev_close."""
-        return await self._fetch("quote", ticker, {"symbol": self._resolve_symbol(ticker)})
+        return self._fetch("quote", ticker, {"symbol": self._resolve_symbol(ticker)})
 
-    async def get_indicators(self, ticker: str) -> dict | None:
+    def get_indicators(self, ticker: str) -> dict | None:
         """Compute RSI-14, MACD, ATR-14, SMA-50, SMA-200, volume from candles."""
         cached = self._cache_get("indicator", ticker)
         if cached is not None:
             return cached
 
-        candles = await self.get_candles(ticker, resolution="D", days=250)
+        candles = self.get_candles(ticker, resolution="D", days=250)
         if not candles or len(candles) < 50:
             return None
 
@@ -115,18 +115,18 @@ class FinnhubClient:
         self._cache_set("indicator", ticker, indicators)
         return indicators
 
-    async def get_candles(
+    def get_candles(
         self, ticker: str, resolution: str = "D", days: int = 200
     ) -> list[dict] | None:
         """Historical OHLCV candles. Tries Finnhub first, falls back to yfinance."""
         # Try Finnhub API first
-        candles = await self._fetch_candles_finnhub(ticker, resolution, days)
+        candles = self._fetch_candles_finnhub(ticker, resolution, days)
         if candles:
             return candles
         # Fallback: yfinance (free, no API key needed)
-        return await self._fetch_candles_yfinance(ticker, days)
+        return self._fetch_candles_yfinance(ticker, days)
 
-    async def _fetch_candles_finnhub(
+    def _fetch_candles_finnhub(
         self, ticker: str, resolution: str = "D", days: int = 200
     ) -> list[dict] | None:
         """Fetch candles from Finnhub API (requires premium for stock/candle)."""
@@ -138,7 +138,7 @@ class FinnhubClient:
             "from": str(fr),
             "to": str(now),
         }
-        data = await self._fetch("candle", ticker, params, cache_category="candle")
+        data = self._fetch("candle", ticker, params, cache_category="candle")
         if not data or data.get("s") != "ok":
             return None
         keys = data.get("t", [])
@@ -161,7 +161,7 @@ class FinnhubClient:
             for t, o, h, lo, c, v in zip(keys, opens, highs, lows, closes, vols)
         ]
 
-    async def _fetch_candles_yfinance(
+    def _fetch_candles_yfinance(
         self, ticker: str, days: int = 250
     ) -> list[dict] | None:
         """Fetch OHLCV from yfinance as free fallback for candles."""
@@ -174,9 +174,10 @@ class FinnhubClient:
                     interval="1d",
                     progress=False,
                     auto_adjust=True,
+                    timeout=15,
                 )
-            if df.empty or len(df) < 50:
-                log.warning("yfinance returned %d rows for %s (need 50+)", len(df), ticker)
+            if df is None or df.empty or len(df) < 50:
+                log.warning("yfinance returned %d rows for %s (need 50+)", len(df) if df is not None else 0, ticker)
                 return None
             # Handle MultiIndex columns from yfinance (ticker name as level 0)
             if isinstance(df.columns, pd.MultiIndex):
@@ -197,7 +198,7 @@ class FinnhubClient:
             log.warning("yfinance OHLCV failed for %s: %s", ticker, exc)
             return None
 
-    async def get_news(self, ticker: str, days: int = 7) -> list[dict] | None:
+    def get_news(self, ticker: str, days: int = 7) -> list[dict] | None:
         """Company news with summaries."""
         from_ts = int(time.time()) - days * 86400
         to_ts = int(time.time())
@@ -206,7 +207,7 @@ class FinnhubClient:
             "from": _ts_to_date(from_ts),
             "to": _ts_to_date(to_ts),
         }
-        data = await self._fetch("news", ticker, params)
+        data = self._fetch("news", ticker, params)
         if not data or not isinstance(data, list):
             return None
         return [
@@ -223,19 +224,19 @@ class FinnhubClient:
             if a.get("headline")
         ]
 
-    async def get_insider_sentiment(self, ticker: str) -> dict | None:
+    def get_insider_sentiment(self, ticker: str) -> dict | None:
         """Insider sentiment. Tries Finnhub first, falls back to SEC EDGAR."""
         # Try Finnhub API
-        result = await self._fetch_insider_finnhub(ticker)
+        result = self._fetch_insider_finnhub(ticker)
         if result:
             return result
         # Fallback: SEC EDGAR Form 4 (free, no API key)
-        return await self._fetch_insider_edgar(ticker)
+        return self._fetch_insider_edgar(ticker)
 
-    async def _fetch_insider_finnhub(self, ticker: str) -> dict | None:
+    def _fetch_insider_finnhub(self, ticker: str) -> dict | None:
         """Fetch insider sentiment from Finnhub API (premium)."""
         params = {"symbol": self._resolve_symbol(ticker)}
-        data = await self._fetch("insider_sentiment", ticker, params, cache_category="insider")
+        data = self._fetch("insider_sentiment", ticker, params, cache_category="insider")
         if not data or not isinstance(data, dict):
             return None
 
@@ -261,7 +262,7 @@ class FinnhubClient:
             "summary": _insider_summary(ticker, total_buy, total_sell, len(recent)),
         }
 
-    async def _fetch_insider_edgar(self, ticker: str) -> dict | None:
+    def _fetch_insider_edgar(self, ticker: str) -> dict | None:
         """Compute insider sentiment from SEC EDGAR Form 4 (free, but slow).
 
         Only used as a fallback when Finnhub premium is unavailable.
@@ -295,19 +296,19 @@ class FinnhubClient:
             log.warning("EDGAR insider fallback failed for %s: %s", ticker, exc)
             return None
 
-    async def get_news_sentiment(self, ticker: str) -> dict | None:
+    def get_news_sentiment(self, ticker: str) -> dict | None:
         """News sentiment (buzz, bearish/neutral/bullish %). Tries Finnhub first, falls back to local NLP."""
         # Try Finnhub API
-        result = await self._fetch_news_sentiment_finnhub(ticker)
+        result = self._fetch_news_sentiment_finnhub(ticker)
         if result:
             return result
         # Fallback: yfinance headlines + FinBERT/VADER
-        return await self._fetch_news_sentiment_local(ticker)
+        return self._fetch_news_sentiment_local(ticker)
 
-    async def _fetch_news_sentiment_finnhub(self, ticker: str) -> dict | None:
+    def _fetch_news_sentiment_finnhub(self, ticker: str) -> dict | None:
         """Fetch news sentiment from Finnhub API (premium)."""
         params = {"symbol": self._resolve_symbol(ticker)}
-        data = await self._fetch("news_sentiment", ticker, params, cache_category="news_sentiment")
+        data = self._fetch("news_sentiment", ticker, params, cache_category="news_sentiment")
         if not data or not isinstance(data, dict):
             return None
 
@@ -340,7 +341,7 @@ class FinnhubClient:
             "articles_last_week": buzz.get("articlesLastWeek", 0),
         }
 
-    async def _fetch_news_sentiment_local(self, ticker: str) -> dict | None:
+    def _fetch_news_sentiment_local(self, ticker: str) -> dict | None:
         """Compute news sentiment locally using yfinance headlines + VADER/FinBERT."""
         try:
             import yfinance as yf
@@ -419,7 +420,7 @@ class FinnhubClient:
             return idx_map.get(ticker, ticker)
         return ticker
 
-    async def _fetch(
+    def _fetch(
         self,
         endpoint: str,
         ticker: str,

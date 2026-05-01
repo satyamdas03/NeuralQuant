@@ -210,7 +210,7 @@ def _build_analyst_context(ticker: str, market: str) -> dict:
         # Adversarial / enrichment fields
         "debt_equity":               round(float(info.get("debtToEquity", 100.0)) / 100, 2) if info.get("debtToEquity") else None,
         "revenue_growth":            round(float(info.get("revenueGrowth", 0.0)) * 100, 1) if info.get("revenueGrowth") else None,
-        "insider_cluster_score":      _compute_insider_score(info, fund),
+        "insider_cluster_score":      _compute_insider_score(info, fund) or 0.5,
     }
 
     # Sector median comparison (for agent context)
@@ -252,15 +252,21 @@ def _merge_enrichment(context: dict, enrichment: dict) -> None:
         if k not in context:
             context[k] = v
 
-def _compute_insider_score(info: dict, fund: dict) -> float:
+def _compute_insider_score(info: dict, fund: dict) -> float | None:
     """Insider cluster score (0=bearish, 1=bullish).
 
-    yfinance doesn't cleanly provide insider buying cluster data.
-    Default to 0.5 (neutral) to avoid biasing the sentiment agent.
-    Previously this was short_interest_pct * 100 — completely wrong metric.
-    TODO: integrate real insider transaction data from a proper source.
+    Tries yfinance info for insider transaction data. Falls back to neutral.
+    This is the baseline — enrichment from EDGAR/Finnhub overrides it later.
     """
-    return 0.5
+    if isinstance(info, dict):
+        insider_pct = info.get("heldPercentInsiders")
+        if insider_pct is not None:
+            pct = float(insider_pct)
+            if pct > 0.25:
+                return round(min(pct, 1.0), 3)
+            elif pct < 0.05:
+                return round(max(pct, 0.0), 3)
+    return None  # Let enrichment merge override; defaults to 0.5 if neither provides value
 
 
 def _fetch_finnhub_data(ticker: str, market: str) -> dict:
@@ -282,22 +288,10 @@ def _fetch_finnhub_data(ticker: str, market: str) -> dict:
 
     result: dict = {}
 
-    import asyncio
-    loop = None
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        pass
-
-    if loop and loop.is_running():
-        log.warning("Finnhub called from async context for %s — data will be empty. "
-                     "Call via asyncio.to_thread() to fix.", ticker)
-        return {}
-
     # Technical indicators (RSI, MACD, ATR, SMA, volume)
     # Uses Finnhub candles → falls back to yfinance OHLCV automatically
     try:
-        indicators = asyncio.run(client.get_indicators(ticker))
+        indicators = client.get_indicators(ticker)
         if indicators:
             result["rsi_14"] = indicators.get("rsi_14")
             result["macd_line"] = indicators.get("macd_line")
@@ -318,7 +312,7 @@ def _fetch_finnhub_data(ticker: str, market: str) -> dict:
     # Insider sentiment
     # Uses Finnhub → falls back to SEC EDGAR Form 4 automatically
     try:
-        insider = asyncio.run(client.get_insider_sentiment(ticker))
+        insider = client.get_insider_sentiment(ticker)
         if insider:
             result["insider_cluster_score"] = insider.get("cluster_score")
             result["insider_net_buy_ratio"] = insider.get("net_buy_ratio")
@@ -329,7 +323,7 @@ def _fetch_finnhub_data(ticker: str, market: str) -> dict:
     # News sentiment
     # Uses Finnhub → falls back to yfinance headlines + FinBERT/VADER automatically
     try:
-        news_sent = asyncio.run(client.get_news_sentiment(ticker))
+        news_sent = client.get_news_sentiment(ticker)
         if news_sent:
             result["news_sentiment_label"] = news_sent.get("sentiment_label")
             result["news_sentiment_score"] = news_sent.get("sentiment_score")
@@ -445,7 +439,7 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
             "analyst_target_mean":       fund.get("analyst_target"),
             "debt_equity":               round(_safe_float(info.get("debtToEquity"), 100.0) / 100, 2) if info.get("debtToEquity") is not None else None,
             "revenue_growth":            round(_safe_float(info.get("revenueGrowth"), 0.0) * 100, 1) if info.get("revenueGrowth") is not None else None,
-            "insider_cluster_score":      _compute_insider_score(info, fund),
+            "insider_cluster_score":      _compute_insider_score(info, fund) or 0.5,
         }
 
         # Sector median comparison (for agent context)

@@ -117,7 +117,7 @@ async def get_stock_score(
         log.error("build_real_snapshot failed for %s: %s", ticker_upper, e)
         raise HTTPException(status_code=504, detail=f"Data fetch failed for {ticker_upper}. Try again in 30s.")
 
-    if snapshot is None or snapshot.empty:
+    if snapshot is None or snapshot.fundamentals.empty:
         raise HTTPException(status_code=404, detail=f"No data for {ticker}")
 
     result_df = await asyncio.to_thread(engine.compute, snapshot)

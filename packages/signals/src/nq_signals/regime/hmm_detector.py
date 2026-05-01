@@ -1,9 +1,9 @@
 """
 4-State Hidden Markov Model for market regime detection.
 States:
-  1 = Risk-On / Trending
-  2 = Late Cycle / Overheating
-  3 = Stress / Bear
+  1 = Risk-On
+  2 = Late-Cycle
+  3 = Bear
   4 = Recovery
 Trained on: VIX, VIX 20d change, SPX vs 200MA, HY spread OAS, ISM PMI
 """
@@ -19,9 +19,9 @@ FEATURE_COLS = ["vix", "vix_20d_change", "spx_vs_200ma", "hy_spread_oas", "ism_p
 
 # Human-interpretable regime labels based on typical macro patterns
 REGIME_LABELS = {
-    1: "Risk-On / Trending",
-    2: "Late Cycle / Overheating",
-    3: "Stress / Bear",
+    1: "Risk-On",
+    2: "Late-Cycle",
+    3: "Bear",
     4: "Recovery",
 }
 

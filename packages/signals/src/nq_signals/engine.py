@@ -37,7 +37,7 @@ class SignalEngine:
         """Get current market regime from macro snapshot."""
         if self._regime_detector is None or not self._regime_detector._fitted:
             return RegimeState(
-                regime_id=1, label="Risk-On / Trending",
+                regime_id=1, label="Risk-On",
                 confidence=0.5,
                 posteriors=np.array([0.5, 0.2, 0.2, 0.1]),
                 factor_weights=REGIME_WEIGHTS[1],
@@ -50,20 +50,20 @@ class SignalEngine:
             nifty_200ma = float(getattr(macro, "nifty_vs_200ma", 0.0) or 0.0)
             if ivix > 25 or nifty_200ma < -0.08:
                 return RegimeState(
-                    regime_id=3, label="Bear / Crisis",
+                    regime_id=3, label="Bear",
                     confidence=0.6,
                     posteriors=np.array([0.1, 0.2, 0.6, 0.1]),
                     factor_weights=REGIME_WEIGHTS[3],
                 )
             if ivix > 18 or nifty_200ma < -0.02:
                 return RegimeState(
-                    regime_id=2, label="Late-Cycle / Choppy",
+                    regime_id=2, label="Late-Cycle",
                     confidence=0.5,
                     posteriors=np.array([0.2, 0.5, 0.2, 0.1]),
                     factor_weights=REGIME_WEIGHTS[2],
                 )
             return RegimeState(
-                regime_id=1, label="Risk-On / Trending",
+                regime_id=1, label="Risk-On",
                 confidence=0.6,
                 posteriors=np.array([0.6, 0.2, 0.1, 0.1]),
                 factor_weights=REGIME_WEIGHTS[1],
