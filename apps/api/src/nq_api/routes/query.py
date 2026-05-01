@@ -402,8 +402,8 @@ def _fetch_finnhub_news_summaries(ticker: str | None, market: str = "US", n: int
     try:
         from nq_data.finnhub import get_finnhub_client
         client = get_finnhub_client()
-        if not client._enabled:
-            return []
+    # Client always available (yfinance fallbacks if no Finnhub key)
+
     except Exception:
         return []
 
@@ -429,6 +429,18 @@ def _fetch_finnhub_news_summaries(ticker: str | None, market: str = "US", n: int
     except Exception:
         return []
 
+
+
+def _fetch_enrichment(ticker: str | None, market: str = "US") -> dict:
+    """Fetch technical indicators + insider + news sentiment for Ask AI."""
+    if not ticker:
+        return {}
+    try:
+        from nq_api.routes.analyst import _fetch_finnhub_data
+        return _fetch_finnhub_data(ticker, market)
+    except Exception as exc:
+        log.warning('Enrichment for Ask AI failed %s: %s', ticker, exc)
+        return {}
 
 def _save_conversation_turn(user_id: str | None, session_key: str, role: str, content: str,
                             ticker: str | None = None, market: str = "US") -> None:
@@ -847,7 +859,8 @@ async def run_nl_query(
         except (asyncio.TimeoutError, Exception):
             return default
 
-    headlines, macro_ctx, platform_ctx, finnhub_news = await asyncio.gather(
+    headlines, macro_ctx, platform_ctx, finnhub_news, enrichment = await asyncio.gather(
+        _timed(asyncio.to_thread(_fetch_enrichment, req.ticker, req.market or 'US'), 15.0, {}),
         _timed(asyncio.to_thread(_fetch_relevant_news, req.question, req.ticker, 5), 8.0, []),
         _timed(asyncio.to_thread(_build_macro_context, req.question, req.market or "US", today), 10.0, None),
         _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, req.market or "US"), 22.0, None),
@@ -891,6 +904,21 @@ async def run_nl_query(
             source_text = a.get("source", "")
             if summary_text:
                 context_parts.append(f"  • [{source_text}] {title_text}: {summary_text[:300]}")
+    if enrichment:
+        tech_lines = ["Technical indicators & sentiment (REAL-TIME DATA):"]
+        field_labels = {"rsi_14": "RSI-14", "macd_line": "MACD", "macd_signal": "MACD Signal",
+            "macd_hist": "MACD Histogram", "atr_14": "ATR-14", "sma_50": "SMA-50",
+            "sma_200": "SMA-200", "price_vs_sma50": "Price vs SMA50",
+            "price_vs_sma200": "Price vs SMA200", "volume_ratio": "Volume Ratio",
+            "news_sentiment": "News Sentiment", "news_sentiment_score": "Sentiment Score",
+            "news_buzz": "News Buzz", "insider_cluster_score": "Insider Score",
+            "insider_net_buy_ratio": "Insider Buy Ratio"}
+        for k, label in field_labels.items():
+            v = enrichment.get(k)
+            if v is not None:
+                tech_lines.append(f"  {label}: {v}")
+        if len(tech_lines) > 1:
+            context_parts.append("\n".join(tech_lines))
 
     user_msg = "\n".join(context_parts)
 
@@ -1322,11 +1350,12 @@ async def run_nl_query_v2(
         except (asyncio.TimeoutError, Exception):
             return default
 
-    headlines, macro_ctx, platform_ctx, finnhub_news = await asyncio.gather(
+    headlines, macro_ctx, platform_ctx, finnhub_news, enrichment = await asyncio.gather(
         _timed(asyncio.to_thread(_fetch_relevant_news, req.question, req.ticker, 5), 8.0, []),
         _timed(asyncio.to_thread(_build_macro_context, req.question, req.market or "US", today), 10.0, None),
         _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, req.market or "US"), 22.0, None),
         _timed(asyncio.to_thread(_fetch_finnhub_news_summaries, req.ticker, req.market or "US", 5), 8.0, []),
+        _timed(asyncio.to_thread(_fetch_enrichment, req.ticker, req.market or 'US'), 15.0, {}),
     )
 
     context_parts = [
@@ -1366,6 +1395,21 @@ async def run_nl_query_v2(
             source_text = a.get("source", "")
             if summary_text:
                 context_parts.append(f"  • [{source_text}] {title_text}: {summary_text[:300]}")
+    if enrichment:
+        tech_lines = ["Technical indicators & sentiment (REAL-TIME DATA):"]
+        field_labels = {"rsi_14": "RSI-14", "macd_line": "MACD", "macd_signal": "MACD Signal",
+            "macd_hist": "MACD Histogram", "atr_14": "ATR-14", "sma_50": "SMA-50",
+            "sma_200": "SMA-200", "price_vs_sma50": "Price vs SMA50",
+            "price_vs_sma200": "Price vs SMA200", "volume_ratio": "Volume Ratio",
+            "news_sentiment": "News Sentiment", "news_sentiment_score": "Sentiment Score",
+            "news_buzz": "News Buzz", "insider_cluster_score": "Insider Score",
+            "insider_net_buy_ratio": "Insider Buy Ratio"}
+        for k, label in field_labels.items():
+            v = enrichment.get(k)
+            if v is not None:
+                tech_lines.append(f"  {label}: {v}")
+        if len(tech_lines) > 1:
+            context_parts.append("\n".join(tech_lines))
 
     user_msg = "\n".join(context_parts)
 
@@ -1676,11 +1720,12 @@ async def run_nl_query_v2_stream(
                 except (asyncio.TimeoutError, Exception):
                     return default
 
-            headlines, macro_ctx, platform_ctx, finnhub_news = await asyncio.gather(
+            headlines, macro_ctx, platform_ctx, finnhub_news, enrichment = await asyncio.gather(
                 _timed(asyncio.to_thread(_fetch_relevant_news, req.question, req.ticker, 5), 8.0, []),
                 _timed(asyncio.to_thread(_build_macro_context, req.question, req.market or "US", today), 10.0, None),
                 _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, req.market or "US"), 22.0, None),
                 _timed(asyncio.to_thread(_fetch_finnhub_news_summaries, req.ticker, req.market or "US", 5), 8.0, []),
+                _timed(asyncio.to_thread(_fetch_enrichment, req.ticker, req.market or 'US'), 15.0, {}),
             )
             context_parts = [f"Today's date: {today}", f"User question: {req.question}"]
             if macro_ctx:
@@ -1716,6 +1761,21 @@ async def run_nl_query_v2_stream(
                     source_text = a.get("source", "")
                     if summary_text:
                         context_parts.append(f"  • [{source_text}] {title_text}: {summary_text[:300]}")
+            if enrichment:
+                tech_lines = ["Technical indicators & sentiment (REAL-TIME DATA):"]
+                field_labels = {"rsi_14": "RSI-14", "macd_line": "MACD", "macd_signal": "MACD Signal",
+                    "macd_hist": "MACD Histogram", "atr_14": "ATR-14", "sma_50": "SMA-50",
+                    "sma_200": "SMA-200", "price_vs_sma50": "Price vs SMA50",
+                    "price_vs_sma200": "Price vs SMA200", "volume_ratio": "Volume Ratio",
+                    "news_sentiment": "News Sentiment", "news_sentiment_score": "Sentiment Score",
+                    "news_buzz": "News Buzz", "insider_cluster_score": "Insider Score",
+                    "insider_net_buy_ratio": "Insider Buy Ratio"}
+                for k, label in field_labels.items():
+                    v = enrichment.get(k)
+                    if v is not None:
+                        tech_lines.append(f"  {label}: {v}")
+                if len(tech_lines) > 1:
+                    context_parts.append("\n".join(tech_lines))
             result_holder["user_msg"] = "\n".join(context_parts)
             context_done.set()
 
