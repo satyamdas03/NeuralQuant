@@ -213,6 +213,20 @@ def _build_analyst_context(ticker: str, market: str) -> dict:
         "insider_cluster_score":      _compute_insider_score(info, fund),
     }
 
+    # Sector median comparison (for agent context)
+    sector = context.get("sector", "")
+    if sector and sector != "Unknown":
+        try:
+            from nq_api.cache.score_cache import read_sector_median
+            sector_medians = read_sector_median(sector, market)
+            if sector_medians:
+                # Prefix keys to avoid collision
+                for k, v in sector_medians.items():
+                    if v is not None:
+                        context[f"sector_median_{k}"] = round(v, 3)
+        except Exception:
+            pass  # Sector medians are best-effort enrichment
+
     # Finnhub enrichment (technical indicators, insider, news sentiment)
     finnhub_data = _fetch_finnhub_data(ticker, market)
     if finnhub_data:
@@ -429,6 +443,19 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
             "revenue_growth":            round(_safe_float(info.get("revenueGrowth"), 0.0) * 100, 1) if info.get("revenueGrowth") is not None else None,
             "insider_cluster_score":      _compute_insider_score(info, fund),
         }
+
+        # Sector median comparison (for agent context)
+        sector = context.get("sector", "")
+        if sector and sector != "Unknown":
+            try:
+                from nq_api.cache.score_cache import read_sector_median
+                sector_medians = read_sector_median(sector, market)
+                if sector_medians:
+                    for k, v in sector_medians.items():
+                        if v is not None:
+                            context[f"sector_median_{k}"] = round(v, 3)
+            except Exception:
+                pass
 
         # Finnhub enrichment (same as _build_analyst_context)
         finhub_data = _fetch_finnhub_data(ticker, market)
