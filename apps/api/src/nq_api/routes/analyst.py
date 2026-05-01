@@ -227,31 +227,30 @@ def _build_analyst_context(ticker: str, market: str) -> dict:
         except Exception:
             pass  # Sector medians are best-effort enrichment
 
-    # Finnhub enrichment (technical indicators, insider, news sentiment)
-    finnhub_data = _fetch_finnhub_data(ticker, market)
-    if finnhub_data:
-        # Overwrite insider_cluster_score with real Finnhub data if available
-        if finnhub_data.get("insider_cluster_score") is not None:
-            context["insider_cluster_score"] = finnhub_data.pop("insider_cluster_score")
-        if finnhub_data.get("insider_summary"):
-            context["insider_summary"] = finnhub_data.pop("insider_summary")
-        if finnhub_data.get("insider_net_buy_ratio") is not None:
-            context["insider_net_buy_ratio"] = finnhub_data.pop("insider_net_buy_ratio")
-        # News sentiment
-        if finnhub_data.get("news_sentiment_label"):
-            context["news_sentiment"] = finnhub_data.pop("news_sentiment_label")
-            context["news_sentiment_score"] = finnhub_data.pop("news_sentiment_score")
-            context["news_buzz"] = finnhub_data.pop("news_buzz")
-        # All remaining Finnhub fields (technical indicators) — don't overwrite existing keys
-        for k, v in finnhub_data.items():
-            if k not in context:
-                context[k] = v
-
     # Post-hoc algorithmic guardrails — override LLM stances when data is unambiguous
     context["_fundamental_red_flags"] = _fundamental_red_flags(context)
 
     return context
 
+
+
+def _merge_enrichment(context: dict, enrichment: dict) -> None:
+    """Merge enrichment data into analyst context (mutates in-place)."""
+    if not enrichment:
+        return
+    if enrichment.get("insider_cluster_score") is not None:
+        context["insider_cluster_score"] = enrichment.pop("insider_cluster_score")
+    if enrichment.get("insider_summary"):
+        context["insider_summary"] = enrichment.pop("insider_summary")
+    if enrichment.get("insider_net_buy_ratio") is not None:
+        context["insider_net_buy_ratio"] = enrichment.pop("insider_net_buy_ratio")
+    if enrichment.get("news_sentiment_label"):
+        context["news_sentiment"] = enrichment.pop("news_sentiment_label")
+        context["news_sentiment_score"] = enrichment.pop("news_sentiment_score")
+        context["news_buzz"] = enrichment.pop("news_buzz")
+    for k, v in enrichment.items():
+        if k not in context:
+            context[k] = v
 
 def _compute_insider_score(info: dict, fund: dict) -> float:
     """Insider cluster score (0=bearish, 1=bullish).
@@ -462,22 +461,6 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
             except Exception:
                 pass
 
-        # Finnhub enrichment (same as _build_analyst_context)
-        finhub_data = _fetch_finnhub_data(ticker, market)
-        if finhub_data:
-            if finhub_data.get("insider_cluster_score") is not None:
-                context["insider_cluster_score"] = finhub_data.pop("insider_cluster_score")
-            if finhub_data.get("insider_summary"):
-                context["insider_summary"] = finhub_data.pop("insider_summary")
-            if finhub_data.get("insider_net_buy_ratio") is not None:
-                context["insider_net_buy_ratio"] = finhub_data.pop("insider_net_buy_ratio")
-            if finhub_data.get("news_sentiment_label"):
-                context["news_sentiment"] = finhub_data.pop("news_sentiment_label")
-                context["news_sentiment_score"] = finhub_data.pop("news_sentiment_score")
-                context["news_buzz"] = finhub_data.pop("news_buzz")
-            for k, v in finhub_data.items():
-                if k not in context:
-                    context[k] = v
         # Same algorithmic guardrails as _build_analyst_context
         context["_fundamental_red_flags"] = _fundamental_red_flags(context)
         return context
@@ -499,6 +482,21 @@ async def run_analyst(
     if context is None:
         # Slow path: fetch just the one ticker's data (2-5s, not 503 tickers)
         context = await asyncio.to_thread(_build_analyst_context, ticker, req.market)
+
+    # Enrichment with timeout (yfinance/VADER/EDGAR)
+    try:
+        enrichment = await asyncio.wait_for(
+            asyncio.to_thread(_fetch_finnhub_data, ticker, req.market),
+            timeout=20.0,
+        )
+    except asyncio.TimeoutError:
+        log.warning("Enrichment timed out for %s", ticker)
+        enrichment = {}
+    except Exception as exc:
+        log.warning("Enrichment failed for %s: %s", ticker, exc)
+        enrichment = {}
+    if enrichment:
+        _merge_enrichment(context, enrichment)
 
     orch = ParaDebateOrchestrator()
     return await orch.analyse(ticker=ticker, market=req.market, context=context)
@@ -539,6 +537,17 @@ async def run_analyst_stream(
                 if ctx is None:
                     ctx = await asyncio.to_thread(_build_analyst_context, ticker, market)
                 context = ctx
+                # Enrichment with timeout
+                try:
+                    enrichment_data = await asyncio.wait_for(
+                        asyncio.to_thread(_fetch_finnhub_data, ticker, market),
+                        timeout=20.0,
+                    )
+                except (asyncio.TimeoutError, Exception):
+                    enrichment_data = {}
+                else:
+                    if enrichment_data:
+                        _merge_enrichment(ctx, enrichment_data)
             except Exception as exc:
                 log.exception("PARA-DEBATE context build failed for %s", ticker)
                 context_error = str(exc)
