@@ -596,48 +596,53 @@ def _insider_summary(ticker: str, buy: int, sell: int, months: int) -> str:
 
 _nlp_pipeline = None
 _nlp_lock = threading.Lock()
+_nlp_attempted = False  # Only try FinBERT once, then fall back permanently
 
 
 def _classify_headlines(headlines: list[str]) -> list[str]:
     """Classify headlines as positive/negative/neutral. Tries FinBERT, falls back to VADER."""
-    global _nlp_pipeline
+    global _nlp_pipeline, _nlp_attempted
     if not headlines:
         return []
 
-    # Try FinBERT (transformers pipeline)
-    if _nlp_pipeline is None:
-        with _nlp_lock:
-            if _nlp_pipeline is None:
-                try:
-                    from transformers import pipeline as hf_pipeline
-                    _nlp_pipeline = hf_pipeline(
-                        "sentiment-analysis",
-                        model="ProsusAI/finbert",
-                        top_k=None,
-                    )
-                    log.info("FinBERT loaded for news sentiment")
-                except Exception as exc:
-                    log.warning("FinBERT not available (%s) — falling back to VADER", exc)
-                    _nlp_pipeline = False  # sentinel: don't retry
+    # Try FinBERT once (skip in cloud/low-memory environments)
+    if not _nlp_attempted:
+        _nlp_attempted = True
+        try:
+            import os
+            # Skip FinBERT on Render/Docker (512MB RAM) — use VADER instead
+            if os.environ.get("RENDER") or os.environ.get("DYNO"):
+                log.info("Skipping FinBERT in cloud environment — using VADER")
+            else:
+                with _nlp_lock:
+                    if _nlp_pipeline is None:
+                        from transformers import pipeline as hf_pipeline
+                        _nlp_pipeline = hf_pipeline(
+                            "sentiment-analysis",
+                            model="ProsusAI/finbert",
+                            top_k=None,
+                        )
+                        log.info("FinBERT loaded for news sentiment")
+        except Exception as exc:
+            log.info("FinBERT not available (%s) — using VADER", exc)
+            _nlp_pipeline = False  # sentinel: don't retry
 
     if _nlp_pipeline and _nlp_pipeline is not False:
         try:
             results = _nlp_pipeline(headlines)
             labels = []
             for r in results:
-                # FinBERT returns list of dicts per headline
                 if isinstance(r, list):
                     best = max(r, key=lambda x: x["score"])
                     label = best["label"].lower()
                 else:
                     label = r["label"].lower()
-                # Normalize: finbert uses "positive"/"negative"/"neutral"
                 labels.append(label)
             return labels
         except Exception as exc:
             log.warning("FinBERT inference failed: %s — falling back to VADER", exc)
 
-    # Fallback: VADER (no ML model needed)
+    # Fallback: VADER (lightweight, no model download)
     return _classify_headlines_vader(headlines)
 
 

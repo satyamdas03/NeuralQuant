@@ -11,6 +11,8 @@ services:
         sync: false
       - key: ENVIRONMENT
         value: production
+      - key: RENDER
+        value: "true"
       - key: PORT
         value: "10000"
       - key: SLACK_BOT_TOKEN
