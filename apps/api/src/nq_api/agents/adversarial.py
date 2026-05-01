@@ -62,9 +62,11 @@ class AdversarialAgent(BaseAnalystAgent):
         # Build individual specialist breakdown
         specialist_lines = []
         for name, data in specialist_outputs.items():
+            kp = data.get('key_points', [])
+            kp_text = f" | Key: {', '.join(kp[:3])}" if kp else ""
             specialist_lines.append(
                 f"  [{name}] {data.get('stance', '?')} ({data.get('conviction', '?')}): "
-                f"{data.get('thesis', 'No thesis')}"
+                f"{data.get('thesis', 'No thesis')}{kp_text}"
             )
         specialist_section = "\n".join(specialist_lines) if specialist_lines else "No specialist data available."
 

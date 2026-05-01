@@ -12,10 +12,11 @@ import yfinance as yf
 from nq_api.schemas import QueryRequest, QueryResponse, AnalystResponse
 from nq_api.cache import score_cache
 from nq_api.universe import US_DEFAULT, IN_DEFAULT
-from nq_api.data_builder import build_real_snapshot, fetch_real_macro, _fund_cache
+from nq_api.data_builder import build_real_snapshot, fetch_real_macro, fetch_real_macro_in, _fund_cache
 from nq_api.deps import get_signal_engine
 from nq_api.score_builder import _score_to_1_10
 from nq_api.agents.orchestrator import ParaDebateOrchestrator
+from nq_api.routes.analyst import _fetch_finnhub_data
 
 log = logging.getLogger(__name__)
 
@@ -340,6 +341,24 @@ def _fetch_snap_yfinance(ticker: str, market: str) -> QueryResponse | None:
 # ── DEEP handler ─────────────────────────────────────────────────────────
 
 
+def _fetch_macro_in_with_timeout_dart() -> dict:
+    """Fetch India macro data with timeout for DEEP route."""
+    try:
+        macro_in = fetch_real_macro_in()
+        if macro_in is None:
+            return {}
+        return {
+            "india_vix": round(macro_in.india_vix, 2),
+            "nifty_vs_200ma": round(macro_in.nifty_vs_200ma * 100, 2),
+            "nifty_return_1m": round(macro_in.nifty_return_1m * 100, 2),
+            "inr_usd": round(macro_in.inr_usd, 2),
+            "rbi_repo_rate": round(macro_in.rbi_repo_rate, 2),
+            "sensex_close": round(macro_in.sensex_close, 0),
+        }
+    except Exception:
+        return {}
+
+
 def _build_analyst_context(ticker: str, market: str, engine) -> dict:
     """Synchronous context builder — runs in a thread pool."""
     from nq_api.universe import UNIVERSE_BY_MARKET
@@ -351,12 +370,30 @@ def _build_analyst_context(ticker: str, market: str, engine) -> dict:
     result_df = engine.compute(snapshot)
     macro = fetch_real_macro()
 
+    # India macro data (only when market=IN)
+    macro_in = _fetch_macro_in_with_timeout_dart() if market == "IN" else {}
+
+    # Regime label — use India VIX thresholds for IN market
+    if market == "IN" and macro_in:
+        vix_for_regime = macro_in.get("india_vix", 15.0)
+    else:
+        vix_for_regime = macro.vix
+
     regime_id = int(result_df["regime_id"].iloc[0]) if not result_df.empty else 1
-    regime_labels = {1: "Risk-On", 2: "Late-Cycle", 3: "Bear", 4: "Recovery"}
+    if market == "IN":
+        if vix_for_regime < 14:
+            regime_label = "Risk-On"
+        elif vix_for_regime < 20:
+            regime_label = "Late-Cycle"
+        else:
+            regime_label = "Bear"
+    else:
+        regime_labels = {1: "Risk-On", 2: "Late-Cycle", 3: "Bear", 4: "Recovery"}
+        regime_label = regime_labels.get(regime_id, "Risk-On")
 
     context = {
         "market": market,
-        "regime_label": regime_labels.get(regime_id, "Risk-On"),
+        "regime_label": regime_label,
         "vix": round(macro.vix, 2),
         "spx_return_1m": round(macro.spx_return_1m * 100, 2),
         "spx_vs_200ma": round(macro.spx_vs_200ma * 100, 2),
@@ -368,6 +405,7 @@ def _build_analyst_context(ticker: str, market: str, engine) -> dict:
         "cpi_yoy": round(macro.cpi_yoy, 2),
         "fed_funds_rate": round(macro.fed_funds_rate, 2),
         "fred_sourced": macro.fred_sourced,
+        **macro_in,
     }
 
     matching = result_df[result_df["ticker"] == ticker]
@@ -407,6 +445,36 @@ def _build_analyst_context(ticker: str, market: str, engine) -> dict:
             "debt_equity": round(_r("debt_equity"), 2) if _r("debt_equity") is not None else None,
         })
 
+    # Sector median comparison (for agent context)
+    sector = context.get("sector", "")
+    if sector and sector != "Unknown":
+        try:
+            from nq_api.cache.score_cache import read_sector_median
+            sector_medians = read_sector_median(sector, market)
+            if sector_medians:
+                for k, v in sector_medians.items():
+                    if v is not None:
+                        context[f"sector_median_{k}"] = round(v, 3)
+        except Exception:
+            pass
+
+    # Finnhub enrichment (technical indicators, insider, news sentiment)
+    finnhub_data = _fetch_finnhub_data(ticker, market)
+    if finnhub_data:
+        if finnhub_data.get("insider_cluster_score") is not None:
+            context["insider_cluster_score"] = finnhub_data.pop("insider_cluster_score")
+        if finnhub_data.get("insider_summary"):
+            context["insider_summary"] = finnhub_data.pop("insider_summary")
+        if finnhub_data.get("insider_net_buy_ratio") is not None:
+            context["insider_net_buy_ratio"] = finnhub_data.pop("insider_net_buy_ratio")
+        if finnhub_data.get("news_sentiment_label"):
+            context["news_sentiment"] = finnhub_data.pop("news_sentiment_label")
+            context["news_sentiment_score"] = finnhub_data.pop("news_sentiment_score")
+            context["news_buzz"] = finnhub_data.pop("news_buzz")
+        for k, v in finnhub_data.items():
+            if k not in context:
+                context[k] = v
+
     return context
 
 
@@ -433,8 +501,26 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
 
     try:
         macro = fetch_real_macro()
+        # India macro data (only when market=IN)
+        macro_in = _fetch_macro_in_with_timeout_dart() if market == "IN" else {}
+
+        # Regime label — use India VIX thresholds for IN market
+        if market == "IN" and macro_in:
+            vix_for_regime = macro_in.get("india_vix", 15.0)
+        else:
+            vix_for_regime = macro.vix
+
         regime_id = cached.get("regime_id", 1)
-        regime_labels = {1: "Risk-On", 2: "Late-Cycle", 3: "Bear", 4: "Recovery"}
+        if market == "IN":
+            if vix_for_regime < 14:
+                regime_label = "Risk-On"
+            elif vix_for_regime < 20:
+                regime_label = "Late-Cycle"
+            else:
+                regime_label = "Bear"
+        else:
+            regime_labels = {1: "Risk-On", 2: "Late-Cycle", 3: "Bear", 4: "Recovery"}
+            regime_label = regime_labels.get(regime_id, "Risk-On")
 
         def _c(key, default=0.0):
             """Get cached value, returning None if missing (not default)."""
@@ -445,7 +531,7 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
 
         context = {
             "market": market,
-            "regime_label": regime_labels.get(regime_id, "Risk-On"),
+            "regime_label": regime_label,
             "vix": round(macro.vix, 2),
             "spx_return_1m": round(macro.spx_return_1m * 100, 2),
             "spx_vs_200ma": round(macro.spx_vs_200ma * 100, 2),
@@ -457,6 +543,7 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
             "cpi_yoy": round(macro.cpi_yoy, 2),
             "fed_funds_rate": round(macro.fed_funds_rate, 2),
             "fred_sourced": macro.fred_sourced,
+            **macro_in,
             # Stock-specific fields from cache
             "sector": cached.get("sector") or "Unknown",
             "composite_score": round(float(cached.get("composite_score", 0.5)), 4),
@@ -482,6 +569,37 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
             "revenue_growth_yoy": round(float(cached["revenue_growth_yoy"]), 4) if cached.get("revenue_growth_yoy") is not None else None,
             "debt_equity": round(float(cached["debt_equity"]), 2) if cached.get("debt_equity") is not None else None,
         }
+
+        # Sector median comparison (for agent context)
+        sector = context.get("sector", "")
+        if sector and sector != "Unknown":
+            try:
+                from nq_api.cache.score_cache import read_sector_median
+                sector_medians = read_sector_median(sector, market)
+                if sector_medians:
+                    for k, v in sector_medians.items():
+                        if v is not None:
+                            context[f"sector_median_{k}"] = round(v, 3)
+            except Exception:
+                pass
+
+        # Finnhub enrichment (technical indicators, insider, news sentiment)
+        finnhub_data = _fetch_finnhub_data(ticker, market)
+        if finnhub_data:
+            if finnhub_data.get("insider_cluster_score") is not None:
+                context["insider_cluster_score"] = finnhub_data.pop("insider_cluster_score")
+            if finnhub_data.get("insider_summary"):
+                context["insider_summary"] = finnhub_data.pop("insider_summary")
+            if finnhub_data.get("insider_net_buy_ratio") is not None:
+                context["insider_net_buy_ratio"] = finnhub_data.pop("insider_net_buy_ratio")
+            if finnhub_data.get("news_sentiment_label"):
+                context["news_sentiment"] = finnhub_data.pop("news_sentiment_label")
+                context["news_sentiment_score"] = finnhub_data.pop("news_sentiment_score")
+                context["news_buzz"] = finnhub_data.pop("news_buzz")
+            for k, v in finnhub_data.items():
+                if k not in context:
+                    context[k] = v
+
         return context
     except Exception as e:
         log.warning("cache context build failed for %s: %s", ticker, e)

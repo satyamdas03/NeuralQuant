@@ -1749,10 +1749,28 @@ async def run_nl_query_v2_stream(
 
         async def _call_llm():
             try:
+                # Load persistent conversation memory if session_key provided
+                user_id_stream = str(user.id) if user else None
+                persistent_history_stream = []
+                if user_id_stream and req.session_key:
+                    try:
+                        persistent_history_stream = await asyncio.to_thread(
+                            _load_conversation_history, user_id_stream, req.session_key, limit=10
+                        )
+                    except Exception:
+                        pass
+
                 messages = []
-                for m in (req.history or [])[-4:]:
+                # Merge client-provided history, persistent history, and current message
+                seen_content = set()
+                all_history = list(req.history or [])[-4:]
+                for ph in persistent_history_stream:
+                    all_history.append(ConversationMessage(role=ph["role"], content=ph["content"]))
+                for m in all_history[-8:]:
                     content = m.content[:1500] if len(m.content) > 1500 else m.content
-                    messages.append({"role": m.role, "content": content})
+                    if content not in seen_content:
+                        seen_content.add(content)
+                        messages.append({"role": m.role, "content": content})
                 messages.append({"role": "user", "content": result_holder["user_msg"]})
 
                 # Force tool_use: model MUST call `respond_with_neuralquant_forecast`
@@ -1782,6 +1800,19 @@ async def run_nl_query_v2_stream(
                                 "confidence_gap": "N/A",
                             }
                         result_holder["result"] = StructuredQueryResponse(**parsed)
+                        # Persist conversation turn (best-effort, streaming)
+                        if user_id_stream and req.session_key:
+                            try:
+                                await asyncio.to_thread(
+                                    _save_conversation_turn, user_id_stream, req.session_key,
+                                    "user", req.question, req.ticker, req.market or "US"
+                                )
+                                await asyncio.to_thread(
+                                    _save_conversation_turn, user_id_stream, req.session_key,
+                                    "assistant", result_holder["result"].summary, req.ticker, req.market or "US"
+                                )
+                            except Exception:
+                                pass
                     except (ValidationError, Exception) as e:
                         log.warning("Tool-use structured output validation failed: %s", e)
 
