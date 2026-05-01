@@ -208,7 +208,7 @@ def _build_analyst_context(ticker: str, market: str) -> dict:
         "week52_low":                fund.get("week52_low"),
         "analyst_target_mean":       fund.get("analyst_target"),
         # Adversarial / enrichment fields
-        "debt_equity":               round(float(info.get("debtToEquity", 1.0)), 2) if info.get("debtToEquity") else None,
+        "debt_equity":               round(float(info.get("debtToEquity", 100.0)) / 100, 2) if info.get("debtToEquity") else None,
         "revenue_growth":            round(float(info.get("revenueGrowth", 0.0)) * 100, 1) if info.get("revenueGrowth") else None,
         "insider_cluster_score":      _compute_insider_score(info, fund),
     }
@@ -278,27 +278,30 @@ def _fetch_finnhub_data(ticker: str, market: str) -> dict:
         from nq_data.finnhub import get_finnhub_client
         client = get_finnhub_client()
         if not client._enabled:
+            log.warning("Finnhub disabled for %s — FINNHUB_API_KEY not set", ticker)
             return {}
-    except Exception:
+    except Exception as exc:
+        log.warning("Finnhub client init failed: %s", exc)
         return {}
 
     result: dict = {}
 
+    # Detect if we're inside a running event loop (shouldn't happen if called via asyncio.to_thread)
+    import asyncio
+    loop = None
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        pass
+
+    if loop and loop.is_running():
+        log.warning("Finnhub called from async context for %s — data will be empty. "
+                     "Call via asyncio.to_thread() to fix.", ticker)
+        return {}
+
     # Technical indicators (RSI, MACD, ATR, SMA, volume)
     try:
-        import asyncio
-        loop = None
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            pass
-
-        if loop and loop.is_running():
-            # We're inside an async context — can't await, skip Finnhub
-            indicators = None
-        else:
-            indicators = asyncio.run(client.get_indicators(ticker))
-
+        indicators = asyncio.run(client.get_indicators(ticker))
         if indicators:
             result["rsi_14"] = indicators.get("rsi_14")
             result["macd_line"] = indicators.get("macd_line")
@@ -314,31 +317,34 @@ def _fetch_finnhub_data(ticker: str, market: str) -> dict:
             result["volume_ratio"] = indicators.get("volume_ratio")
             result["finnhub_price"] = indicators.get("current_price")
     except Exception as exc:
-        log.debug("Finnhub indicators failed for %s: %s", ticker, exc)
+        log.warning("Finnhub indicators failed for %s: %s", ticker, exc)
 
     # Insider sentiment
     try:
-        if not (loop and loop.is_running()):
-            insider = asyncio.run(client.get_insider_sentiment(ticker))
-            if insider:
-                result["insider_cluster_score"] = insider.get("cluster_score")
-                result["insider_net_buy_ratio"] = insider.get("net_buy_ratio")
-                result["insider_summary"] = insider.get("summary")
+        insider = asyncio.run(client.get_insider_sentiment(ticker))
+        if insider:
+            result["insider_cluster_score"] = insider.get("cluster_score")
+            result["insider_net_buy_ratio"] = insider.get("net_buy_ratio")
+            result["insider_summary"] = insider.get("summary")
     except Exception as exc:
-        log.debug("Finnhub insider failed for %s: %s", ticker, exc)
+        log.warning("Finnhub insider failed for %s: %s", ticker, exc)
 
     # News sentiment
     try:
-        if not (loop and loop.is_running()):
-            news_sent = asyncio.run(client.get_news_sentiment(ticker))
-            if news_sent:
-                result["news_sentiment_label"] = news_sent.get("sentiment_label")
-                result["news_sentiment_score"] = news_sent.get("sentiment_score")
-                result["news_buzz"] = news_sent.get("buzz_score")
-                result["news_bullish_pct"] = news_sent.get("bullish_pct")
-                result["news_bearish_pct"] = news_sent.get("bearish_pct")
+        news_sent = asyncio.run(client.get_news_sentiment(ticker))
+        if news_sent:
+            result["news_sentiment_label"] = news_sent.get("sentiment_label")
+            result["news_sentiment_score"] = news_sent.get("sentiment_score")
+            result["news_buzz"] = news_sent.get("buzz_score")
+            result["news_bullish_pct"] = news_sent.get("bullish_pct")
+            result["news_bearish_pct"] = news_sent.get("bearish_pct")
     except Exception as exc:
-        log.debug("Finnhub news sentiment failed for %s: %s", ticker, exc)
+        log.warning("Finnhub news sentiment failed for %s: %s", ticker, exc)
+
+    if result:
+        log.info("Finnhub enrichment for %s: %d fields", ticker, len(result))
+    else:
+        log.warning("Finnhub returned empty for %s", ticker)
 
     return result
 
@@ -422,9 +428,9 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
             "value_percentile":          round(_safe_float(cached.get("value_percentile"), 0.5), 3),
             "low_vol_percentile":        round(_safe_float(cached.get("low_vol_percentile"), 0.5), 3),
             "short_interest_percentile": round(_safe_float(cached.get("short_interest_percentile"), 0.5), 3),
-            "short_interest_pct":        round(_safe_float(cached.get("short_interest_percentile"), 0.02) * 100, 2),
+            "short_interest_pct":        round(_safe_float(cached.get("short_interest_pct"), 0.02) * 100, 2),
             "momentum_raw":              round(_safe_float(cached.get("momentum_raw"), 0.0), 4),
-            "gross_profit_margin":       round(_safe_float(cached.get("gross_profit_margin"), 0.0), 3),
+            "gross_profit_margin":       round(_safe_float(cached.get("gross_profit_margin")), 3) if cached.get("gross_profit_margin") is not None else None,
             "roe":                       round(_safe_float(fund.get("roe"), 0.12), 3),
             "accruals_ratio":            round(_safe_float(fund.get("accruals_ratio"), 0.0), 3),
             "piotroski":                 int(_safe_float(cached.get("piotroski"), 5)),
@@ -439,7 +445,7 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
             "week52_high":               fund.get("week52_high"),
             "week52_low":                fund.get("week52_low"),
             "analyst_target_mean":       fund.get("analyst_target"),
-            "debt_equity":               round(_safe_float(info.get("debtToEquity"), 1.0), 2) if info.get("debtToEquity") is not None else None,
+            "debt_equity":               round(_safe_float(info.get("debtToEquity"), 100.0) / 100, 2) if info.get("debtToEquity") is not None else None,
             "revenue_growth":            round(_safe_float(info.get("revenueGrowth"), 0.0) * 100, 1) if info.get("revenueGrowth") is not None else None,
             "insider_cluster_score":      _compute_insider_score(info, fund),
         }
