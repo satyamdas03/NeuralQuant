@@ -2,9 +2,9 @@
 
 # NeuralQuant
 
-**AI-Powered Stock Intelligence Platform — v4.0.0 (Phase 4 complete)**
+**AI-Powered Stock Intelligence Platform — v4.1.0 (Quality Upgrade)**
 
-*Institutional-grade quant research + 7-agent AI debate. US & India. 100% live data.*
+*Institutional-grade quant research + 7-agent AI debate with live technical indicators, insider sentiment, and sector peer comparison. US & India. 100% live data.*
 
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
@@ -18,7 +18,7 @@
 
 ---
 
-## Phase 4 Complete (v4.0.0)
+## Phase 4 Complete (v4.1.0)
 
 | Pillar | Scope | Status |
 |---|---|---|
@@ -32,6 +32,7 @@
 | **Alerts** | Email alerts (Resend) on score/regime/threshold changes | ✅ COMPLETE |
 | **SSE** | Real-time score streaming via EventSource | ✅ COMPLETE |
 | **Stripe** | Checkout + billing webhook | Deferred |
+| **v4.1** | Finnhub technical indicators, insider sentiment, news sentiment, sector medians, India macro, conversation memory, adversarial enrichment, head analyst weight fix | ✅ LIVE |
 
 **Live deploys:**
 - API (Render): `https://neuralquant.onrender.com`
@@ -88,6 +89,7 @@ NeuralQuant is a full-stack AI stock intelligence platform that combines a **5-f
 │  NSE Bhavcopy (IN)  │   EOD data + delivery_pct
 │  FRED API (macro)   │   HY Spread, CPI, Fed Funds, 2Y/10Y yields
 │  EDGAR Form 4       │   Insider buying/selling signals
+│  Finnhub API        │   RSI/MACD/ATR/SMA, insider sentiment, news sentiment
 │  DuckDB DataStore   │   Zero-copy columnar cache
 └─────────────────────┘
 ```
@@ -117,6 +119,11 @@ Every number shown in NeuralQuant is sourced from live APIs — no synthetic dat
 | Live stock price | yfinance info | Real-time |
 | Analyst price target | yfinance `targetMeanPrice` | As published |
 | Market news headlines | Yahoo Finance news feed | Real-time |
+| RSI-14, MACD, ATR-14, SMA-50/200 | Finnhub candles (1Y daily) | 15 min |
+| Volume ratio (today vs 20d avg) | Finnhub candles | 15 min |
+| Insider net buy ratio + cluster score | Finnhub insider sentiment API | 1 hour |
+| News sentiment (bullish/bearish %, buzz) | Finnhub news sentiment API | 30 min |
+| Sector peer medians (P/E, ROE, D/E) | NeuralQuant score_cache | Nightly |
 
 ---
 
@@ -286,7 +293,7 @@ npm run dev    # http://localhost:3000
 
 ### `GET /health`
 ```json
-{ "status": "ok", "version": "4.0.0" }
+{ "status": "ok", "version": "4.1.0" }
 ```
 
 ### `GET /stocks/{ticker}?market=US`
@@ -359,6 +366,19 @@ List recent alert deliveries (auth required).
 - [x] India VIX regime heuristics
 - [x] Obsidian Quantum UI redesign
 
+### Phase 4.1 ✅ — Quality Upgrade (v4.1.0)
+- [x] FinnhubClient with token bucket rate limiting + in-process cache
+- [x] Technical agent: RSI-14, MACD, ATR-14, SMA-50/200, volume ratio, crash protection
+- [x] Sentiment agent: real insider cluster scores (not hardcoded 0.5), news sentiment, short interest
+- [x] Fundamental agent: ROE, revenue growth, D/E, sector median comparison
+- [x] Head analyst weight fix: 125% → 100%, raw data cross-reference fields
+- [x] Adversarial agent: individual specialist outputs for targeted challenge
+- [x] India macro context: India VIX, RBI repo rate, INR/USD, Nifty vs 200MA
+- [x] Ask AI: Finnhub news summaries in all 3 endpoints
+- [x] Sector peer comparison: medians for P/E, ROE, margin, D/E, composite
+- [x] Persistent conversation memory: Supabase `conversations` table with RLS
+- [x] DEEP route enrichment: Finnhub, India macro, sector medians now in all query paths
+
 ### Phase 5 🔮 — Next
 - [ ] Fitted HMM for India market regime detection
 - [ ] Reddit/StockTwits sentiment integration
@@ -386,5 +406,5 @@ MIT — see [LICENSE](LICENSE).
 ---
 
 <div align="center">
-Built with Claude Sonnet 4.6 · 5-Factor Quant Engine · India & US Markets · 100% Live Data
+Built with Claude Sonnet 4.6 · 5-Factor Quant Engine · 7-Agent PARA-DEBATE · Finnhub Enrichment · India & US Markets · 100% Live Data
 </div>
