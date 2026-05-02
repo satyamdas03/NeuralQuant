@@ -41,6 +41,14 @@ function SignupForm() {
       setError(error.message);
       return;
     }
+    // Fire-and-forget welcome email (backup for Supabase DB trigger)
+    if (data.session || data.user) {
+      fetch("/api/auth/welcome", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, name: email.split("@")[0] }),
+      }).catch(() => {/* best-effort */});
+    }
     if (data.session) {
       router.push("/dashboard");
       router.refresh();
