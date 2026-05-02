@@ -207,14 +207,10 @@ class TestGetIndicators:
                 "volume": 1000000 + (i % 10) * 100000,
             })
 
-        # Mock get_candles to return our test data
-        async def mock_candles(ticker, resolution="D", days=250):
-            return candles
+        # Mock get_candles (sync — matches real method signature)
+        client.get_candles = lambda ticker, resolution="D", days=250: candles
 
-        import asyncio
-        client.get_candles = mock_candles
-
-        result = asyncio.run(client.get_indicators("AAPL"))
+        result = client.get_indicators("AAPL")
 
         assert result is not None
         assert "rsi_14" in result
@@ -231,13 +227,11 @@ class TestGetIndicators:
     def test_indicators_too_few_candles(self):
         client = FinnhubClient(api_key="test")
 
-        async def mock_candles(ticker, resolution="D", days=250):
-            return [{"close": 100, "high": 101, "low": 99, "volume": 1000, "timestamp": 1, "open": 99.5}]
+        client.get_candles = lambda ticker, resolution="D", days=250: [
+            {"close": 100, "high": 101, "low": 99, "volume": 1000, "timestamp": 1, "open": 99.5}
+        ]
 
-        import asyncio
-        client.get_candles = mock_candles
-
-        result = asyncio.run(client.get_indicators("AAPL"))
+        result = client.get_indicators("AAPL")
         assert result is None
 
 

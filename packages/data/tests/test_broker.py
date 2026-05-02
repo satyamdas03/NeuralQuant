@@ -30,7 +30,7 @@ def test_broker_rate_limits_when_saturated():
     config = SourceConfig(name="slow_source", requests_per_minute=1)
     broker = DataBroker([config])
 
-    with patch("nq_data.broker.time.sleep") as mock_sleep:
+    with patch("nq_data.broker._rate_limiter.time.sleep") as mock_sleep:
         # First request — should not sleep (bucket not full)
         with broker.acquire("slow_source"):
             pass
