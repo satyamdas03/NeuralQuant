@@ -15,11 +15,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from nq_api.auth import User, get_current_user
 from nq_api.auth.models import TIER_LIMITS
 from nq_api.schemas_watchlist import (
-logger = logging.getLogger(__name__)
     WatchlistItem,
     WatchlistAddRequest,
     WatchlistListResponse,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/watchlist", tags=["watchlist"])
 log = logging.getLogger(__name__)
