@@ -25,12 +25,25 @@ from nq_api.routes.webhooks_stripe import router as stripe_webhook_router
 from nq_api.routes.referrals import router as referral_router
 
 
+def _run_pending_migrations():
+    """Apply pending SQL migrations via Supabase REST (no direct DB needed)."""
+    import asyncio
+    try:
+        from nq_api.db_migrate import run_pending
+        asyncio.run(run_pending())
+    except Exception as exc:
+        log.warning("Migration runner failed: %s", exc)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     import os
     # On Render, skip heavy prewarm — caches populate lazily on first request.
     # Prewarm threads with yfinance + asyncio.run() cause OOM/crash on cold starts.
     on_render = bool(os.environ.get("RENDER"))
+
+    # Run pending DB migrations before warming caches
+    _run_pending_migrations()
 
     # Lightweight prewarm: fetch macro data (2 yfinance calls) even on Render
     # so first analyst request isn't slow. Full universe prewarm is still skipped.
