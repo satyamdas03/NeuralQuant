@@ -13,6 +13,7 @@ from fastapi.responses import StreamingResponse
 log = logging.getLogger(__name__)
 
 from nq_api.deps import get_signal_engine
+from nq_api.config import YAHOO_CHART_URL, YAHOO_QUOTE_URL
 from nq_api.schemas import AIScore
 from nq_api.score_builder import row_to_ai_score, rank_scores_in_universe
 from nq_api.universe import UNIVERSE_BY_MARKET
@@ -175,8 +176,9 @@ def _fmt_chart_date(ts_epoch: int, period: str) -> str:
 def _fetch_chart_yahoo_direct(sym: str, period: str) -> list[dict]:
     """Hit Yahoo's chart API directly (v8) — works when yfinance's scraping path fails
     in cloud environments (Render, etc.). Returns [] on any error."""
+    from nq_api.config import YAHOO_CHART_URL
     yrange, yinterval = _YAHOO_RANGE_MAP.get(period, ("1mo", "1d"))
-    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}"
+    url = f"{YAHOO_CHART_URL}/{sym}"
     params = {"range": yrange, "interval": yinterval, "includePrePost": "false"}
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -510,7 +512,7 @@ def _fetch_stock_meta_yahoo_direct(ticker: str, market: str) -> dict | Exception
         "summaryDetail,defaultKeyStatistics,financialData,"
         "assetProfile,calendarEvents,price"
     )
-    url = f"https://query1.finance.yahoo.com/v10/finance/quoteSummary/{sym}"
+    url = f"{YAHOO_QUOTE_URL}/{sym}"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                       "AppleWebKit/537.36 (KHTML, like Gecko) "

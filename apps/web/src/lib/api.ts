@@ -258,3 +258,18 @@ export const authedBacktest = {
       body: JSON.stringify(body),
     }),
 };
+
+// Broker integration — deep-link trade tickets
+export const brokerApi = {
+  getDeepLink: (symbol: string, side: "buy" | "sell" = "buy", broker: "alpaca" | "zerodha" = "alpaca") =>
+    authedFetch<{ url: string; broker: string; symbol: string; side: string; note: string }>("/broker/deep-link", {
+      method: "POST",
+      body: JSON.stringify({ symbol, side, broker }),
+    }),
+
+  getAccount: () =>
+    authedFetch<Record<string, string | number | boolean>>("/broker/account"),
+
+  getPositions: () =>
+    authedFetch<Record<string, string>[]>("/broker/positions"),
+};

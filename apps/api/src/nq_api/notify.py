@@ -11,6 +11,7 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 RESEND_FROM = os.environ.get("RESEND_FROM", "NeuralQuant <alerts@neuralquant.ai>")
+from nq_api.config import FRONTEND_URL
 
 
 def _resend_client():
@@ -66,7 +67,7 @@ def send_alert_email(
         <p style="font-size: 14px; color: #a0a0a0; margin-top: 16px;">
           You set this alert on NeuralQuant. This is not investment advice.
         </p>
-        <a href="https://neuralquant.vercel.app/stocks/{ticker}?market={market}"
+        <a href="{FRONTEND_URL}/stocks/{ticker}?market={market}"
            style="display: inline-block; margin-top: 16px; padding: 10px 24px;
                   background: linear-gradient(135deg, #c1c1ff, #bdf4ff);
                   color: #0e0e0e; border-radius: 8px; text-decoration: none; font-weight: 600;">
@@ -113,8 +114,8 @@ _NQ_BRAND_FOOT = """
   <div style="padding: 20px 32px; border-top: 1px solid #1e1e30;">
     <p style="margin: 0; font-size: 12px; color: #a0a0b0;">
       NeuralQuant · AI-powered stock intelligence<br>
-      <a href="https://neuralquant.vercel.app" style="color: #bdf4ff;">neuralquant.vercel.app</a>
-       · <a href="https://neuralquant.vercel.app/pricing" style="color: #bdf4ff;">Upgrade</a>
+      <a href="{FRONTEND_URL}" style="color: #bdf4ff;">neuralquant.ai</a>
+       · <a href="{FRONTEND_URL}/pricing" style="color: #bdf4ff;">Upgrade</a>
     </p>
   </div>
 </div>
@@ -164,13 +165,13 @@ def send_welcome_email(to: str, name: str | None = None) -> bool:
       </p>
 
       <div style="margin: 8px 0 0;">
-        <a href="https://neuralquant.vercel.app/stocks/RELIANCE.NS?market=IN"
+        <a href="{FRONTEND_URL}/stocks/RELIANCE.NS?market=IN"
            style="display: inline-block; padding: 8px 16px; margin-right: 8px;
                   background: #1e1e30; border-radius: 6px; color: #c1c1ff;
                   text-decoration: none; font-weight: 600;">
           RELIANCE.NS →
         </a>
-        <a href="https://neuralquant.vercel.app/stocks/AAPL?market=US"
+        <a href="{FRONTEND_URL}/stocks/AAPL?market=US"
            style="display: inline-block; padding: 8px 16px;
                   background: #1e1e30; border-radius: 6px; color: #c1c1ff;
                   text-decoration: none; font-weight: 600;">
@@ -212,7 +213,7 @@ def send_debate_demo_email(to: str) -> bool:
         verdict so you see <em>both</em> sides before you trade.
       </p>
 
-      {_NQ_CTA.format(url="https://neuralquant.vercel.app/query", label="Try PARA-DEBATE now →")}
+      {_NQ_CTA.format(url=f"{FRONTEND_URL}/query", label="Try PARA-DEBATE now →")}
     </div>
     {_NQ_BRAND_FOOT}
     """
@@ -248,7 +249,7 @@ def send_screener_email(to: str) -> bool:
         them in seconds.
       </p>
 
-      {_NQ_CTA.format(url="https://neuralquant.vercel.app/screener", label="Open Screener →")}
+      {_NQ_CTA.format(url=f"{FRONTEND_URL}/screener", label="Open Screener →")}
     </div>
     {_NQ_BRAND_FOOT}
     """
@@ -295,7 +296,7 @@ def send_upgrade_email(to: str) -> bool:
         </tr>
       </table>
 
-      {_NQ_CTA.format(url="https://neuralquant.vercel.app/pricing", label="See Investor plan →")}
+      {_NQ_CTA.format(url=f"{FRONTEND_URL}/pricing", label="See Investor plan →")}
     </div>
     {_NQ_BRAND_FOOT}
     """

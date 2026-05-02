@@ -20,6 +20,7 @@ descriptive User-Agent with a contact email (set below).
 """
 from __future__ import annotations
 import logging
+import os
 import re
 import warnings
 import xml.etree.ElementTree as ET
@@ -36,8 +37,8 @@ EDGAR_HEADERS = {
     "User-Agent": "NeuralQuant research@neuralquant.ai",
     "Accept-Encoding": "gzip, deflate",
 }
-EDGAR_SEARCH = "https://efts.sec.gov/LATEST/search-index"
-EDGAR_ARCHIVES = "https://www.sec.gov/Archives"
+EDGAR_SEARCH = os.environ.get("EDGAR_SEARCH_URL", "https://efts.sec.gov/LATEST/search-index")
+EDGAR_ARCHIVES = os.environ.get("EDGAR_ARCHIVES_URL", "https://www.sec.gov/Archives")
 
 # Shape of the filing-id we receive from EDGAR's hit list. Example:
 #   "0001127602-25-022123:0001127602-25-022123-index.htm"

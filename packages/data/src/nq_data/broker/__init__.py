@@ -132,12 +132,13 @@ def deep_link_trade(symbol: str, side: str, broker: str = "alpaca") -> str:
     Opens broker's trade ticket with symbol pre-filled.
     User confirms in broker app — we never execute automatically.
     """
+    alpaca_dashboard = os.environ.get("ALPACA_DASHBOARD_URL", "https://app.alpaca.markets/trade/{symbol}")
+    zerodha_trade = os.environ.get("ZERODHA_TRADE_URL", "https://kite.zerodha.com/chart/web/trade/{symbol}")
     if broker == "alpaca":
-        # Alpaca doesn't have deep links, direct to dashboard
-        return f"https://app.alpaca.markets/trade/{symbol.upper()}"
+        return alpaca_dashboard.format(symbol=symbol.upper())
     elif broker == "zerodha":
-        return f"https://kite.zerodha.com/chart/web/trade/{symbol}"
-    return f"https://app.alpaca.markets/trade/{symbol.upper()}"
+        return zerodha_trade.format(symbol=symbol)
+    return alpaca_dashboard.format(symbol=symbol.upper())
 
 
 def get_alpaca_config_from_env() -> AlpacaConfig | None:

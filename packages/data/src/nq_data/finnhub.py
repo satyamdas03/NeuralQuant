@@ -35,7 +35,7 @@ _TTLS: dict[str, int] = {
 class FinnhubClient:
     """Finnhub API client with rate limiting and in-process caching."""
 
-    BASE_URL = "https://finnhub.io/api/v1"
+    BASE_URL = os.environ.get("FINNHUB_BASE_URL", "https://finnhub.io/api/v1")
 
     def __init__(self, api_key: str | None = None):
         self._api_key = api_key or os.environ.get("FINNHUB_API_KEY", "")

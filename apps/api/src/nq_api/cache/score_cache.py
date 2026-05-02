@@ -118,6 +118,27 @@ def read_top(
     return data if isinstance(data, list) else []
 
 
+def read_top_picks(
+    market: str = "US",
+    limit: int = 5,
+    max_age_days: int = 7,
+) -> list[dict[str, Any]]:
+    """Return top-scored tickers with score and sector for market wrap emails."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=max_age_days)).isoformat()
+    data = _supabase_rest(
+        "score_cache",
+        method="GET",
+        query={
+            "select": "ticker,composite_score,sector",
+            "market": f"eq.{market}",
+            "composite_at": f"gte.{cutoff}",
+            "order": "composite_score.desc",
+            "limit": str(limit),
+        },
+    )
+    return data if isinstance(data, list) else []
+
+
 def upsert_scores(rows: list[dict[str, Any]]) -> int:
     """Batch upsert rows keyed on (ticker, market). Returns count."""
     if not rows:

@@ -49,12 +49,17 @@ def _compute_crash_protection(context: dict) -> str:
     atr = context.get("atr_14")
     price = context.get("price") or context.get("finnhub_price")
 
-    if rsi is not None and rsi > 80:
-        signals.append("RSI overbought (>80)")
+    if rsi is not None and rsi > 70:
+        signals.append("RSI overbought (>70)")
+    if rsi is not None and rsi < 30:
+        signals.append("RSI oversold (<30)")
     if macd_hist is not None and macd_hist < 0:
         signals.append("MACD bearish crossover")
     if atr and price and (atr / price) > 0.04:
         signals.append("High volatility (ATR/Price >4%)")
+    volume_ratio = context.get("volume_ratio")
+    if volume_ratio is not None and volume_ratio > 2.0:
+        signals.append("Unusual volume (>2x avg)")
 
     if not signals:
         return "No crash signals"

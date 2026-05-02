@@ -7,6 +7,7 @@ Sources:
 """
 from __future__ import annotations
 import logging
+import os
 import time
 from dataclasses import dataclass
 from typing import Optional
@@ -31,7 +32,8 @@ def fetch_stocktwits_public(ticker: str) -> SocialItem | None:
     Rate limit: ~200 req/hr from same IP.
     """
     try:
-        url = f"https://api.stocktwits.com/api/2/streams/symbol/{ticker}.json"
+        _stocktwits_base = os.environ.get("STOCKTWITS_URL", "https://api.stocktwits.com/api/2/streams/symbol/{ticker}.json")
+        url = _stocktwits_base.format(ticker=ticker)
         resp = httpx.get(url, timeout=8.0)
         if resp.status_code != 200:
             return None
