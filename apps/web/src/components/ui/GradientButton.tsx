@@ -20,7 +20,7 @@ export default function GradientButton({
   type,
 }: Props) {
   const base =
-    "gradient-cta gradient-cta-shadow press-scale inline-flex items-center gap-2 rounded-xl font-semibold text-on-primary-container transition-shadow hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed";
+    "press-scale inline-flex items-center gap-2 rounded-xl font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed glass-strong ghost-border text-on-surface hover:bg-surface-high hover:shadow-[0_0_24px_rgba(193,193,255,0.12)]";
   const sizes = size === "sm" ? "px-3 py-1.5 text-xs" : "px-5 py-2.5 text-sm";
 
   if (href) {

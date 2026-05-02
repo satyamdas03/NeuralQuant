@@ -29,7 +29,7 @@ export default async function Landing() {
           <h1 className="font-headline text-4xl md:text-6xl font-bold tracking-tight leading-[1.05]">
             Institutional-grade equity research.
             <br />
-            <span className="gradient-cta bg-clip-text text-transparent">
+            <span className="text-primary">
               Powered by multi-agent AI.
             </span>
           </h1>
@@ -149,7 +149,7 @@ export default async function Landing() {
           {/* Free Tier */}
           <div className="relative rounded-2xl ghost-border bg-surface-low/40 p-6 flex flex-col">
             <h3 className="font-headline text-xl font-bold">Free</h3>
-            <div className="mt-3 font-headline text-3xl font-bold gradient-cta bg-clip-text text-transparent">
+            <div className="mt-3 font-headline text-3xl font-bold text-primary">
               $0
             </div>
             <p className="mt-1 text-xs text-tertiary font-medium">Free for everyone till 30th May 2026</p>
@@ -181,14 +181,14 @@ export default async function Landing() {
               Most popular
             </span>
             <h3 className="font-headline text-xl font-bold">Investor</h3>
-            <div className="mt-3 font-headline text-3xl font-bold gradient-cta bg-clip-text text-transparent">
+            <div className="mt-3 font-headline text-3xl font-bold text-primary">
               $9<span className="text-base font-normal text-on-surface-variant">/mo</span>
             </div>
             <p className="mt-1 text-xs text-on-surface-variant">or ₹299/mo</p>
             <ul className="mt-6 space-y-3 text-sm text-on-surface-variant flex-1">
               <li>✓ 25 watchlists</li>
               <li>✓ 100 AI queries/day</li>
-              <li>✓ 5 backtests/day</li>
+              <li>✓ 25 backtests/day</li>
               <li>✓ Everything in Free, plus:</li>
               <li>✓ Priority support</li>
               <li>✓ Faster response times</li>
@@ -197,7 +197,7 @@ export default async function Landing() {
             <div className="mt-6">
               <Link
                 href="/signup"
-                className="block text-center px-6 py-3 rounded-xl bg-gradient-to-r from-[#c1c1ff] to-[#bdf4ff] text-[#0f0f1a] font-semibold text-sm hover:opacity-90 transition-opacity"
+                className="block text-center px-6 py-3 rounded-xl glass-strong ghost-border text-on-surface hover:bg-surface-high hover:shadow-[0_0_24px_rgba(193,193,255,0.12)] font-semibold text-sm transition-all duration-200"
               >
                 Upgrade to Investor
               </Link>
@@ -207,7 +207,7 @@ export default async function Landing() {
           {/* Pro Tier */}
           <div className="relative rounded-2xl ghost-border bg-surface-low/40 p-6 flex flex-col">
             <h3 className="font-headline text-xl font-bold">Pro</h3>
-            <div className="mt-3 font-headline text-3xl font-bold gradient-cta bg-clip-text text-transparent">
+            <div className="mt-3 font-headline text-3xl font-bold text-primary">
               $29<span className="text-base font-normal text-on-surface-variant">/mo</span>
             </div>
             <p className="mt-1 text-xs text-on-surface-variant">or ₹999/mo</p>
@@ -347,7 +347,7 @@ function Feature({ title, body }: { title: string; body: string }) {
 function Stat({ num, label }: { num: string; label: string }) {
   return (
     <div>
-      <div className="font-headline text-4xl font-bold gradient-cta bg-clip-text text-transparent">
+      <div className="font-headline text-4xl font-bold text-primary">
         {num}
       </div>
       <div className="mt-2 text-sm text-on-surface-variant">{label}</div>

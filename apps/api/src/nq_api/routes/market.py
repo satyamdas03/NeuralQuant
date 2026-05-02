@@ -4,6 +4,8 @@ import time
 from fastapi import APIRouter
 import yfinance as yf
 import pandas as pd
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -14,10 +16,21 @@ _INDICES = {
     "^VIX": "VIX",
 }
 
+_INDICES_IN = {
+    "^NSEI": "Nifty 50",
+    "^BSESN": "Sensex",
+    "^INDIAVIX": "India VIX",
+    "^NSEBANK": "Bank Nifty",
+}
+
 _FUTURES = {
     "ES=F": "S&P Futures",
     "NQ=F": "NASDAQ Futures",
     "YM=F": "Dow Futures",
+}
+
+_FUTURES_IN = {
+    "SGXCN1.NV": "GIFT Nifty Futures",
 }
 
 _SECTORS = {
@@ -54,23 +67,26 @@ def _pct_change(sym: str) -> dict:
             "change_pct": round(change_pct, 2),
             "change_abs": round(change_abs, 2),
         }
-    except Exception:
+    except Exception as e:
+        logger.debug("Non-critical enrichment failed: %s", e)
         return {"price": 0.0, "change_pct": 0.0, "change_abs": 0.0}
 
 
 @router.get("/overview")
-async def market_overview():
-    data = await asyncio.to_thread(_market_overview_sync)
+async def market_overview(market: str = "US"):
+    data = await asyncio.to_thread(_market_overview_sync, market.upper())
     return data
 
 
-def _market_overview_sync():
+def _market_overview_sync(market: str = "US"):
+    idx_map = _INDICES_IN if market == "IN" else _INDICES
+    fut_map = _FUTURES_IN if market == "IN" else _FUTURES
     indices = []
-    for sym, name in _INDICES.items():
+    for sym, name in idx_map.items():
         d = _pct_change(sym)
         indices.append({"symbol": sym, "name": name, **d})
     futures = []
-    for sym, name in _FUTURES.items():
+    for sym, name in fut_map.items():
         d = _pct_change(sym)
         futures.append({"symbol": sym, "name": name, **d})
     return {"indices": indices, "futures": futures}

@@ -20,6 +20,7 @@ from nq_api.auth.deps import get_current_user_optional
 from nq_api.auth.models import User
 from nq_api.cache import score_cache
 from nq_api.data_builder import _yf_symbol
+logger = logging.getLogger(__name__)
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -175,7 +176,8 @@ def _build_analyst_context(ticker: str, market: str) -> dict:
     # Additional stock-specific fields agents reference
     try:
         info = yf.Ticker(_yf_symbol(ticker, market)).info or {}
-    except Exception:
+    except Exception as e:
+        logger.debug("Non-critical enrichment failed: %s", e)
         info = {}
 
     context = {
@@ -224,7 +226,8 @@ def _build_analyst_context(ticker: str, market: str) -> dict:
                 for k, v in sector_medians.items():
                     if v is not None:
                         context[f"sector_median_{k}"] = round(v, 3)
-        except Exception:
+        except Exception as e:
+            logger.debug("Non-critical enrichment failed: %s", e)
             pass  # Sector medians are best-effort enrichment
 
     # Post-hoc algorithmic guardrails — override LLM stances when data is unambiguous
@@ -390,7 +393,8 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
             cached = score_cache.read_one(ticker, market, max_age_seconds=999999999)
             if cached:
                 log.warning("analyst: serving very old cache for %s/%s", ticker, market)
-    except Exception:
+    except Exception as e:
+        logger.debug("Non-critical enrichment failed: %s", e)
         return None
     if not cached:
         return None
@@ -406,7 +410,8 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
         fund = _fetch_one(ticker, market)
         try:
             info = yf.Ticker(_yf_symbol(ticker, market)).info or {}
-        except Exception:
+        except Exception as e:
+            logger.debug("Non-critical enrichment failed: %s", e)
             info = {}
 
         context = {

@@ -19,6 +19,7 @@ from nq_api.universe import UNIVERSE_BY_MARKET
 from nq_api.data_builder import build_real_snapshot, _fund_cache, fetch_real_macro
 from nq_api.cache import score_cache
 from nq_signals.engine import SignalEngine
+logger = logging.getLogger(__name__)
 
 # In-memory TTL cache for stock meta — serves stale data when Yahoo rate-limits
 _META_CACHE: dict[str, tuple[dict, float]] = {}
@@ -223,7 +224,8 @@ def _fetch_chart_yahoo_direct(sym: str, period: str) -> list[dict]:
                 "low":    round(float(lo), 2) if lo is not None else round(float(c), 2),
                 "volume": int(v or 0),
             })
-        except Exception:
+        except Exception as e:
+            logger.debug("Non-critical enrichment failed: %s", e)
             continue
     return out
 
@@ -491,7 +493,8 @@ def _persist_meta(ticker: str, market: str, data: dict) -> None:
             body=[row],
             query={"ticker": f"eq.{ticker}", "market": f"eq.{market}"},
         )
-    except Exception:
+    except Exception as e:
+        logger.debug("Non-critical enrichment failed: %s", e)
         # Try INSERT if PATCH fails (row doesn't exist yet)
         try:
             _supabase_rest("stock_meta", method="POST", body=[row])

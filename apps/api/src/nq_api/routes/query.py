@@ -19,6 +19,7 @@ from nq_api.auth.rate_limit import enforce_tier_quota
 from nq_api.auth.models import User
 from nq_api.auth.deps import get_current_user_optional
 import nq_api.dart_router as dart
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -348,7 +349,8 @@ def _build_macro_context(question: str, market: str, today: str) -> str | None:
                 f"Fed funds rate={macro.fed_funds_rate:.2f}%"
                 + (" [FRED-sourced]" if macro.fred_sourced else " [partial]")
             )
-        except Exception:
+        except Exception as e:
+            logger.debug("Non-critical enrichment failed: %s", e)
             return None
 
 
@@ -402,7 +404,8 @@ def _fetch_finnhub_news_summaries(ticker: str | None, market: str = "US", n: int
     try:
         from nq_data.finnhub import get_finnhub_client
         client = get_finnhub_client()
-    except Exception:
+    except Exception as e:
+        logger.debug("Non-critical enrichment failed: %s", e)
         return []
 
     try:
@@ -417,7 +420,8 @@ def _fetch_finnhub_news_summaries(ticker: str | None, market: str = "US", n: int
                 "source": a.get("source", ""),
             })
         return results
-    except Exception:
+    except Exception as e:
+        logger.debug("Non-critical enrichment failed: %s", e)
         return []
 
 
@@ -448,7 +452,8 @@ def _save_conversation_turn(user_id: str | None, session_key: str, role: str, co
             "ticker": ticker,
             "market": market,
         }])
-    except Exception:
+    except Exception as e:
+        logger.debug("Non-critical enrichment failed: %s", e)
         pass  # Best-effort — never block the main query flow
 
 
@@ -512,7 +517,8 @@ def _fetch_india_macro() -> str | None:
             lines.append(f"India VIX: {ivix:.1f} ({'elevated' if ivix > 20 else 'normal'})")
 
         return "Indian Market Context: " + " | ".join(lines) if lines else None
-    except Exception:
+    except Exception as e:
+        logger.debug("Non-critical enrichment failed: %s", e)
         return None
 
 
@@ -552,7 +558,8 @@ def _fetch_dynamic_nse_stock(word: str) -> dict | None:
             "sector": info.get("sector", ""),
             "longName": info.get("longName", word),
         }
-    except Exception:
+    except Exception as e:
+        logger.debug("Non-critical enrichment failed: %s", e)
         return None
 
 

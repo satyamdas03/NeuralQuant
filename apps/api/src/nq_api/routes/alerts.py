@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from nq_api.auth import User, get_current_user
 from nq_api.schemas_alerts import (
+logger = logging.getLogger(__name__)
     AlertSubscriptionCreate,
     AlertSubscription,
     AlertSubscriptionListResponse,
@@ -107,7 +108,8 @@ def create_subscription(
     content_range = count_resp["headers"].get("content-range", "0/0")
     try:
         current = int(content_range.split("/")[-1])
-    except Exception:
+    except Exception as e:
+        logger.debug("Non-critical enrichment failed: %s", e)
         current = len(count_resp["data"] or [])
     if current >= limit:
         raise HTTPException(

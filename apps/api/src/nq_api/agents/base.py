@@ -181,7 +181,8 @@ class BaseAnalystAgent(ABC):
                 thesis=thesis[:500],
                 key_points=points[:5],
             )
-        except Exception:
+        except Exception as e:
+            logger.debug("Non-critical enrichment failed: %s", e)
             return self._neutral_fallback(ticker, context)
 
     def _neutral_fallback(self, ticker: str = "", context: dict | None = None) -> AgentOutput:

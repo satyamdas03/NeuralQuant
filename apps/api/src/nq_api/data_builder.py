@@ -28,6 +28,7 @@ import pandas as pd
 import yfinance as yf
 
 from nq_signals.engine import UniverseSnapshot
+logger = logging.getLogger(__name__)
 
 log = logging.getLogger(__name__)
 
@@ -88,7 +89,8 @@ def _safe(val, default: float = 0.0) -> float:
     try:
         f = float(val)
         return f if math.isfinite(f) else default
-    except Exception:
+    except Exception as e:
+        logger.debug("Non-critical enrichment failed: %s", e)
         return default
 
 
@@ -461,7 +463,8 @@ def fetch_fundamentals_batch(tickers: list[str], market: str = "US") -> dict[str
                 t = futures[fut]
                 try:
                     results[t] = fut.result()
-                except Exception:
+                except Exception as e:
+                    logger.debug("Non-critical enrichment failed: %s", e)
                     results[t] = _synthetic_row(t)
 
     return results
@@ -530,7 +533,8 @@ def _add_insider_percentile(df: pd.DataFrame, market: str) -> pd.DataFrame:
                 t = futures[fut]
                 try:
                     fut.result()
-                except Exception:
+                except Exception as e:
+                    logger.debug("Non-critical enrichment failed: %s", e)
                     with _lock:
                         _insider_cache[t] = 0.5
                         _insider_ts[t] = now

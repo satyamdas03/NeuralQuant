@@ -8,6 +8,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from functools import lru_cache
+import logging
+logger = logging.getLogger(__name__)
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]  # apps/api/src/nq_api/universe.py -> repo root
 _UNIVERSE_DIR = _REPO_ROOT / "data" / "universe"
@@ -37,7 +39,8 @@ def _load_json(path: Path) -> list[dict] | None:
         return None
     try:
         return json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
+    except Exception as e:
+        logger.debug("Non-critical enrichment failed: %s", e)
         return None
 
 

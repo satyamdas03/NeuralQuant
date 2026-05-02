@@ -47,7 +47,8 @@ def _get_live_regime_id(market: str = "US") -> int:
         engine = get_signal_engine()
         regime = engine._get_regime(macro, market)
         return regime.regime_id
-    except Exception:
+    except Exception as e:
+        logger.debug("Non-critical enrichment failed: %s", e)
         return 1
 
 

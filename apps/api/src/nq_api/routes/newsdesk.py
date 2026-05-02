@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 log = logging.getLogger(__name__)
@@ -224,7 +225,8 @@ def _relative_time(ts: int | str | None) -> str:
         if seconds < 604800:
             return f"{int(seconds // 86400)}d ago"
         return dt.strftime("%b %d")
-    except Exception:
+    except Exception as e:
+        logger.debug("Non-critical enrichment failed: %s", e)
         return str(ts)
 
 

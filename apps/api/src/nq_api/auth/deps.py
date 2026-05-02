@@ -89,14 +89,16 @@ def _load_user_row(user_id: str, email: str) -> dict:
     """Fetch users row; insert default tier='free' if missing."""
     try:
         rows = _rest("GET", "users", query={"select": "*", "id": f"eq.{user_id}"})
-    except Exception:
+    except Exception as e:
+        logger.debug("Non-critical enrichment failed: %s", e)
         rows = None
     if rows:
         return rows[0]
     # Fallback — trigger normally creates this, but insert defensively
     try:
         _rest("POST", "users", body={"id": user_id, "email": email, "tier": "free"})
-    except Exception:
+    except Exception as e:
+        logger.debug("Non-critical enrichment failed: %s", e)
         pass  # FK constraint or duplicate — return minimal row
     else:
         # New user — send welcome email (best-effort, never blocks)

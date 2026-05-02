@@ -7,6 +7,7 @@ that computes the same metrics (Sharpe, max drawdown, final return, trade count)
 Gated by tier quota (backtest_per_day).
 """
 from __future__ import annotations
+import logging
 from typing import Any, Literal
 import asyncio
 import math
@@ -18,6 +19,8 @@ from pydantic import BaseModel, Field
 
 from nq_api.auth.rate_limit import enforce_tier_quota
 from nq_api.auth.models import User
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -130,4 +133,134 @@ def _run_backtest_sync(req: BacktestRequest) -> BacktestResponse | HTTPException
         n_trades=m["n_trades"],
         n_days=len(close),
         equity_curve=curve,
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Accuracy Endpoint — walk-forward validation results
+# ═══════════════════════════════════════════════════════════════════
+
+
+class AccuracyResponse(BaseModel):
+    hit_rate_at_7plus: float
+    hit_rate_at_5plus: float
+    baseline_hit_rate: float
+    mean_return_top_decile: float
+    mean_return_bottom_decile: float
+    top_minus_bottom_spread: float
+    sharpe_top_quartile: float
+    max_drawdown_top_quartile: float
+    win_rate_top_quartile: float
+    observation_count: int
+    period_start: str
+    period_end: str
+    avg_stocks_per_period: float
+    methodology: str
+    comparison: str
+    note: str
+
+
+@router.get("/accuracy", response_model=AccuracyResponse)
+def get_accuracy() -> AccuracyResponse:
+    """
+    Returns walk-forward backtest accuracy metrics for NeuralQuant ForeCast scores.
+
+    Hit rate = % of stocks with positive forward 3-month return at each score threshold.
+    This is the same metric competitors (Danelfin: 70%, Trade Ideas: 65%) publish.
+    """
+    try:
+        from nq_signals.backtest import run_walk_forward
+        import yfinance as yf
+
+        rows = _score_cache_rows()
+        if not rows or len(rows) < 50:
+            return _accuracy_default("Insufficient score cache data (need 50+ stocks)")
+
+        score_history = pd.DataFrame(rows)
+        score_history["date"] = pd.to_datetime(
+            score_history.get("last_updated", score_history.get("scored_at", pd.Timestamp.now()))
+        )
+        score_history["ticker"] = score_history["ticker"].str.upper()
+
+        tickers = score_history["ticker"].unique()[:100]
+        prices = yf.download(tickers.tolist(), period="6mo", progress=False)
+        if prices is None or prices.empty:
+            return _accuracy_default("Failed to fetch price data")
+
+        if isinstance(prices.columns, pd.MultiIndex):
+            prices = prices.stack(level=1, future_stack=True).reset_index()
+            prices.rename(columns={"Close": "close", "level_0": "date"}, inplace=True)
+        else:
+            prices = prices.reset_index()
+            prices.rename(columns={"Close": "close"}, inplace=True)
+
+        if "ticker" not in prices.columns:
+            prices["ticker"] = tickers[0]
+
+        prices["date"] = pd.to_datetime(prices["date"])
+
+        result = run_walk_forward(score_history, prices, forward_months=3)
+
+        return AccuracyResponse(
+            hit_rate_at_7plus=round(result.hit_rate_at_7plus * 100, 1),
+            hit_rate_at_5plus=round(result.hit_rate_at_5plus * 100, 1),
+            baseline_hit_rate=round(result.baseline_hit_rate * 100, 1),
+            mean_return_top_decile=round(result.mean_return_top_decile * 100, 1),
+            mean_return_bottom_decile=round(result.mean_return_bottom_decile * 100, 1),
+            top_minus_bottom_spread=round(result.top_minus_bottom_spread * 100, 1),
+            sharpe_top_quartile=round(result.sharpe_top_quartile, 2),
+            max_drawdown_top_quartile=round(result.max_drawdown_top_quartile * 100, 1),
+            win_rate_top_quartile=round(result.win_rate_top_quartile * 100, 1),
+            observation_count=result.observation_count,
+            period_start=result.period_start,
+            period_end=result.period_end,
+            avg_stocks_per_period=result.avg_stocks_per_period,
+            methodology="Walk-forward: each month-end, composite scores predict forward 3-month returns. Hit rate = % of stocks with positive return at given score threshold.",
+            comparison="Danelfin: 70% at AI Score >=7 | Trade Ideas: 65% claimed | Prospero: ~54-60%",
+            note="Scores use free-tier data (15-min delayed). Publish date: " + pd.Timestamp.now().strftime("%Y-%m-%d"),
+        )
+    except Exception as e:
+        logger.warning("Backtest accuracy: %s", e)
+        return _accuracy_default(str(e))
+
+
+def _score_cache_rows() -> list[dict]:
+    """Fetch score cache rows from Supabase."""
+    try:
+        import httpx
+        import os
+        supabase_url = os.environ.get("SUPABASE_URL", "")
+        anon_key = os.environ.get("SUPABASE_ANON_KEY", "")
+        if not supabase_url or not anon_key:
+            return []
+        resp = httpx.get(
+            f"{supabase_url}/rest/v1/score_cache?select=*&limit=500",
+            headers={"apikey": anon_key, "Authorization": f"Bearer {anon_key}"},
+            timeout=15.0,
+        )
+        if resp.status_code == 200:
+            return resp.json()
+    except Exception:
+        pass
+    return []
+
+
+def _accuracy_default(reason: str) -> AccuracyResponse:
+    return AccuracyResponse(
+        hit_rate_at_7plus=0.0,
+        hit_rate_at_5plus=0.0,
+        baseline_hit_rate=0.0,
+        mean_return_top_decile=0.0,
+        mean_return_bottom_decile=0.0,
+        top_minus_bottom_spread=0.0,
+        sharpe_top_quartile=0.0,
+        max_drawdown_top_quartile=0.0,
+        win_rate_top_quartile=0.0,
+        observation_count=0,
+        period_start="",
+        period_end="",
+        avg_stocks_per_period=0.0,
+        methodology="Walk-forward validation",
+        comparison="Competitor benchmark",
+        note=f"Unavailable: {reason}",
     )

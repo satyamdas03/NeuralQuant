@@ -17,6 +17,7 @@ from nq_api.deps import get_signal_engine
 from nq_api.score_builder import _score_to_1_10
 from nq_api.agents.orchestrator import ParaDebateOrchestrator
 from nq_api.routes.analyst import _fetch_finnhub_data
+logger = logging.getLogger(__name__)
 
 log = logging.getLogger(__name__)
 
@@ -334,7 +335,8 @@ def _fetch_snap_yfinance(ticker: str, market: str) -> QueryResponse | None:
             ],
             route="SNAP",
         )
-    except Exception:
+    except Exception as e:
+        logger.debug("Non-critical enrichment failed: %s", e)
         return None
 
 
@@ -355,7 +357,8 @@ def _fetch_macro_in_with_timeout_dart() -> dict:
             "rbi_repo_rate": round(macro_in.rbi_repo_rate, 2),
             "sensex_close": round(macro_in.sensex_close, 0),
         }
-    except Exception:
+    except Exception as e:
+        logger.debug("Non-critical enrichment failed: %s", e)
         return {}
 
 
@@ -494,7 +497,8 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
             cached = score_cache.read_one(ticker, market, max_age_seconds=999999999)
             if cached:
                 log.warning("DEEP context: serving very old cache for %s/%s", ticker, market)
-    except Exception:
+    except Exception as e:
+        logger.debug("Non-critical enrichment failed: %s", e)
         return None
     if not cached:
         return None
