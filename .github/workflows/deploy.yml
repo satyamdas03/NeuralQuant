@@ -4,6 +4,10 @@ on:
   push:
     branches: [master]
 
+permissions:
+  contents: read
+  actions: write
+
 concurrency:
   group: deploy-${{ github.sha }}
   cancel-in-progress: false
@@ -19,6 +23,7 @@ jobs:
 
       - name: Trigger nightly-score workflow
         uses: actions/github-script@v7
+        continue-on-error: true
         with:
           script: |
             github.rest.actions.createWorkflowDispatch({
