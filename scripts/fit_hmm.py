@@ -50,40 +50,59 @@ def fetch_macro_history() -> pd.DataFrame:
     spx_vs_200ma = (spx_close - spx_200ma) / spx_200ma
     spx_df = pd.DataFrame({"spx_vs_200ma": spx_vs_200ma})
 
-    # --- HY Spreads + ISM PMI from FRED ---
-    print("  Fetching HY spreads and ISM PMI from FRED...")
-    try:
-        from fredapi import Fred
-        fred_key = os.environ.get("FRED_API_KEY", "")
-        fred = Fred(api_key=fred_key)
+    # --- HY Spreads (via HYG ETF from yfinance) + ISM PMI proxy from FRED ---
+    print("  Fetching HY proxy and macro indicators...")
+    import json, urllib.request
 
-        # BAMLH0A0HYM2 = ICE BofA US High Yield Option-Adjusted Spread
-        hy_spread = fred.get_series("BAMLH0A0HYM2")
-        hy_spread.name = "hy_spread_oas"
+    # Use HYG ETF price changes as credit stress proxy (inverse to spreads)
+    hyg = yf.download("HYG", start="2010-01-01", progress=False)
+    if hyg is None or hyg.empty:
+        raise RuntimeError("Failed to fetch HYG data")
+    if isinstance(hyg.columns, pd.MultiIndex):
+        hyg.columns = hyg.columns.get_level_values(0)
+    hyg_close = hyg["Close"].dropna()
+    # Normalize as % below 200-day MA (positive = stress, like spreads)
+    hyg_200ma = hyg_close.rolling(200).mean()
+    hyg_stress = -(hyg_close - hyg_200ma) / hyg_200ma * 100  # positive when HYG below MA
+    hyg_df = pd.DataFrame({"hy_spread_oas": hyg_stress * 40})  # scale to ~bps range
 
-        # NAPM = ISM Manufacturing PMI
-        ism_pmi = fred.get_series("NAPM")
-        ism_pmi.name = "ism_pmi"
+    # Try FRED for industrial production
+    fred_key = os.environ.get("FRED_API_KEY", "")
+    if fred_key:
+        try:
+            url = f"https://api.stlouisfed.org/fred/series/observations?api_key={fred_key}&file_type=json&series_id=INDPRO&sort_order=desc&limit=5000"
+            req = urllib.request.Request(url)
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                data = json.loads(resp.read())
+            obs = data.get("observations", [])
+            dates = [o["date"] for o in obs if o["value"] != "."]
+            vals = [float(o["value"]) for o in obs if o["value"] != "."]
+            indpro = pd.Series(vals, index=pd.to_datetime(dates), name="ism_pmi")
+            indpro = indpro.sort_index()
+            # Normalize to 50-ish scale like PMI
+            indpro = indpro / indpro.iloc[-250] * 50  # rebase to recent avg ~50
+            fred_df = pd.DataFrame({"ism_pmi": indpro})
+            print(f"    INDPRO from FRED: {len(indpro)} obs ({indpro.index[0].date()} -> {indpro.index[-1].date()})")
+            fred_sourced = True
+        except Exception as e:
+            warnings.warn(f"FRED INDPRO failed: {e}")
+            fred_sourced = False
+    else:
+        fred_sourced = False
 
-        fred_df = pd.DataFrame({"hy_spread_oas": hy_spread, "ism_pmi": ism_pmi})
-        print(f"  FRED: {len(fred_df.dropna())} rows with complete data")
-    except Exception as e:
-        warnings.warn(f"FRED failed ({e}), using heuristic fallback values")
-        # Fallback: create synthetic-ish data with reasonable values
+    if not fred_sourced:
         idx = vix_df.index
-        fred_df = pd.DataFrame({
-            "hy_spread_oas": np.full(len(idx), 400.0),  # ~400bps average
-            "ism_pmi": np.full(len(idx), 51.0),  # ~51 average
-        }, index=idx)
+        fred_df = pd.DataFrame({"ism_pmi": np.full(len(idx), 51.0)}, index=idx)
+        print("    Using heuristic ism_pmi (51.0)")
 
     # --- Merge all data ---
-    df = vix_df.join(spx_df, how="inner").join(fred_df, how="inner")
+    df = vix_df.join(spx_df, how="inner").join(hyg_df, how="inner").join(fred_df, how="inner")
     df["vix_20d_change"] = df["vix"].diff(20).fillna(0)
 
     # Forward fill any missing values, then drop any remaining
     df = df.ffill().dropna()
 
-    print(f"  Complete dataset: {len(df)} rows ({df.index[0].date()} → {df.index[-1].date()})")
+    print(f"  Complete dataset: {len(df)} rows ({df.index[0].date()} -> {df.index[-1].date()})")
     return df
 
 
@@ -106,7 +125,7 @@ def fit_and_save(df: pd.DataFrame, output_path: str) -> None:
     for hmm_state, semantic_id in detector._regime_map.items():
         label = REGIME_LABELS[semantic_id]
         m = means[hmm_state]
-        print(f"  {label} (state {hmm_state}→regime {semantic_id}): "
+        print(f"  {label} (state {hmm_state}->regime {semantic_id}): "
               f"VIX={m[0]:.1f}, SPX_vs_200MA={m[2]:.3f}, "
               f"HY={m[3]:.0f}bps, PMI={m[4]:.1f}")
 
