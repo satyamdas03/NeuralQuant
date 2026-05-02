@@ -15,7 +15,7 @@ log = logging.getLogger(__name__)
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from nq_api.routes import stocks, screener, analyst, query, market, auth, watchlists, sentiment, backtest, alerts, newsdesk, smart_money, team, broker
+from nq_api.routes import stocks, screener, analyst, query, market, auth, watchlists, sentiment, backtest, alerts, newsdesk, team, broker
 from nq_api.slack.router import router as slack_router
 from nq_api.routes.checkout import router as checkout_router
 from nq_api.routes.webhooks_stripe import router as stripe_webhook_router
@@ -49,13 +49,6 @@ async def lifespan(app: FastAPI):
                 prewarm_cache(US_DEFAULT, "US")
             except Exception as exc:
                 log.warning("Cache prewarm failed: %s", exc)
-
-        def _warm_smart_money():
-            try:
-                from nq_api.routes.smart_money import refresh_cache_in_thread
-                refresh_cache_in_thread()
-            except Exception as exc:
-                log.warning("Smart-money prewarm failed: %s", exc)
 
         def _warm_news():
             try:
@@ -97,7 +90,6 @@ async def lifespan(app: FastAPI):
                 log.warning("News prewarm failed: %s", exc)
 
         threading.Thread(target=_warm, daemon=True).start()
-        threading.Timer(10.0, _warm_smart_money).start()
         threading.Timer(20.0, _warm_news).start()
 
         # Background: refresh score_cache if empty or stale (for dashboard + screener)
@@ -173,7 +165,9 @@ async def lifespan(app: FastAPI):
                 from nq_api.deps import get_signal_engine
                 import pandas as pd
                 for mkt in ("US", "IN"):
-                    tickers = UNIVERSE_BY_MARKET.get(mkt, UNIVERSE_BY_MARKET["US"])[:20]
+                    all_tickers = UNIVERSE_BY_MARKET.get(mkt, UNIVERSE_BY_MARKET["US"])
+                    # Take top 50 to cover popular tickers (was 20 — missed mid-cap India)
+                    tickers = all_tickers[:50]
                     try:
                         snapshot = build_real_snapshot(tickers, mkt)
                     except Exception as e:
@@ -267,7 +261,6 @@ app.include_router(sentiment.router, prefix="/sentiment", tags=["sentiment"])
 app.include_router(backtest.router,  prefix="/backtest",  tags=["backtest"])
 app.include_router(alerts.router)
 app.include_router(newsdesk.router)
-app.include_router(smart_money.router)
 app.include_router(checkout_router)
 app.include_router(stripe_webhook_router)
 app.include_router(referral_router)

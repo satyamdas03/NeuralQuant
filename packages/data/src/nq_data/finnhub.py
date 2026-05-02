@@ -79,7 +79,9 @@ class FinnhubClient:
         macd_line, macd_signal, macd_hist = _compute_macd(closes)
         if macd_line is not None:
             indicators["macd_line"] = round(macd_line, 4)
+        if macd_signal is not None:
             indicators["macd_signal"] = round(macd_signal, 4)
+        if macd_hist is not None:
             indicators["macd_hist"] = round(macd_hist, 4)
 
         # ATR-14

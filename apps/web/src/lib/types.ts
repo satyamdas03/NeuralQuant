@@ -261,31 +261,6 @@ export interface AlertDelivery {
   delivered_at: string;
 }
 
-export interface SmartMoneyTransaction {
-  id: string;
-  ticker: string;
-  insider_name: string;
-  insider_title: string;
-  transaction_type: "Buy" | "Sell";
-  shares: number;
-  price: number;
-  date: string;
-  sentiment_score: number;
-}
-
-export interface SmartMoneyAggregate {
-  ticker: string;
-  total_shares: number;
-  total_value: number;
-  transactions: number;
-}
-
-export interface SmartMoneyData {
-  transactions: SmartMoneyTransaction[];
-  most_bought: SmartMoneyAggregate[];
-  most_sold: SmartMoneyAggregate[];
-  last_updated: string;
-}
 
 // ── Structured Query Response (v2) ──────────────────────────────────────────
 

@@ -127,6 +127,9 @@ def run_walk_forward(
         merged["hit"] = (merged["forward_return"] > 0).astype(int)
         merged["decile"] = pd.qcut(merged["composite_score"], q=10, labels=False, duplicates="drop")
 
+        # Drop rows where decile is NaN (happens with tied scores)
+        merged = merged.dropna(subset=["decile"])
+
         # Collect hit data
         for _, row in merged.iterrows():
             all_hits.append((row.get("score_1_10", row["composite_score"] * 10), int(row["hit"])))

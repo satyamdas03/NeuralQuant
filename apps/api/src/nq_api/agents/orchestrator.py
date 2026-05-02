@@ -150,10 +150,10 @@ class ParaDebateOrchestrator:
         weighted_outputs = []
         for o in specialist_outputs:
             weighted_outputs.append((STANCE_SCORE[o.stance], CONVICTION_MULT[o.conviction]))
-        # Adversarial gets 2x weight (it's the only guaranteed bear counterweight)
+        # Adversarial gets 1.5x weight (was 2x — caused systematic SELL bias)
         adv_score = STANCE_SCORE[adversarial_output.stance]
         adv_conv = CONVICTION_MULT[adversarial_output.conviction]
-        weighted_outputs.append((adv_score, adv_conv * 2.0))
+        weighted_outputs.append((adv_score, adv_conv * 1.5))
 
         total_weight = sum(w for _, w in weighted_outputs)
         consensus = (
@@ -161,13 +161,13 @@ class ParaDebateOrchestrator:
         ) if total_weight > 0 else 0.0
 
         # Step 4: HEAD ANALYST synthesis (with consensus guardrails)
-        # Map consensus to expected verdict range to prevent systematic BUY bias
-        # Wider HOLD zone: ±0.25 instead of ±0.15
+        # Map consensus to expected verdict range to prevent systematic bias
+        # Wider HOLD zone: ±0.35 (was ±0.25) to counter bearish drag from adversarial
         if consensus <= -0.5:
             verdict_guidance = "STRONG SELL or SELL"
-        elif consensus <= -0.25:
+        elif consensus <= -0.35:
             verdict_guidance = "SELL or HOLD"
-        elif consensus <= 0.25:
+        elif consensus <= 0.35:
             verdict_guidance = "HOLD"
         elif consensus <= 0.5:
             verdict_guidance = "HOLD or BUY"

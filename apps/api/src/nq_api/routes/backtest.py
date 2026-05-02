@@ -177,27 +177,85 @@ def get_accuracy() -> AccuracyResponse:
             return _accuracy_default("Insufficient score cache data (need 50+ stocks)")
 
         score_history = pd.DataFrame(rows)
-        score_history["date"] = pd.to_datetime(
-            score_history.get("last_updated", score_history.get("scored_at", pd.Timestamp.now()))
+        date_col = next(
+            (c for c in ("computed_at", "last_updated", "scored_at", "created_at")
+             if c in score_history.columns),
+            None,
         )
+        if date_col:
+            score_history["date"] = pd.to_datetime(score_history[date_col])
+        else:
+            score_history["date"] = pd.Timestamp.now()
         score_history["ticker"] = score_history["ticker"].str.upper()
 
-        tickers = score_history["ticker"].unique()[:100]
-        prices = yf.download(tickers.tolist(), period="6mo", progress=False)
+        # Use US tickers only — yfinance can't download Indian tickers without .NS suffix
+        us_rows = score_history[score_history.get("market", "US") == "US"]
+        if len(us_rows) < 20:
+            us_rows = score_history  # fallback: use all if too few US rows
+        tickers = us_rows["ticker"].unique()[:100]
+
+        # Add .NS suffix for Indian tickers so yfinance can find them
+        yf_tickers = []
+        for t in tickers:
+            market = us_rows.loc[us_rows["ticker"] == t, "market"].iloc[0] if "market" in us_rows.columns else "US"
+            yf_tickers.append(f"{t}.NS" if market == "IN" else t)
+
+        prices = yf.download(yf_tickers, period="6mo", progress=False)
         if prices is None or prices.empty:
             return _accuracy_default("Failed to fetch price data")
 
+        # Normalize yfinance output into [date, ticker, close] format
         if isinstance(prices.columns, pd.MultiIndex):
             prices = prices.stack(level=1, future_stack=True).reset_index()
-            prices.rename(columns={"Close": "close", "level_0": "date"}, inplace=True)
         else:
             prices = prices.reset_index()
-            prices.rename(columns={"Close": "close"}, inplace=True)
 
+        # yfinance returns "Date"/"Ticker"/"Close" — normalize to lowercase
+        rename = {}
+        for c in list(prices.columns):
+            name = c[0] if isinstance(c, tuple) else c
+            if isinstance(name, str):
+                nl = name.lower()
+                if nl in ("date", "level_0"):
+                    rename[c] = "date"
+                elif nl == "close":
+                    rename[c] = "close"
+                elif nl == "ticker":
+                    rename[c] = "ticker"
+        prices.rename(columns=rename, inplace=True)
+
+        # Ensure we have the required columns
         if "ticker" not in prices.columns:
-            prices["ticker"] = tickers[0]
+            prices["ticker"] = yf_tickers[0] if len(yf_tickers) == 1 else prices.get("Ticker", yf_tickers[0])
+        if "date" not in prices.columns:
+            for c in prices.columns:
+                if pd.api.types.is_datetime64_any_dtype(prices[c]):
+                    prices.rename(columns={c: "date"}, inplace=True)
+                    break
+
+        # Drop rows with missing close prices
+        prices = prices.dropna(subset=["close"])
+
+        if prices.empty:
+            return _accuracy_default("No valid price data after cleanup")
 
         prices["date"] = pd.to_datetime(prices["date"])
+
+        # Strip .NS suffix so tickers match score_history
+        prices["ticker"] = prices["ticker"].str.replace(r"\.(NS|BO)$", "", regex=True)
+
+        # Normalize timezones: strip tz info to avoid tz-aware vs tz-naive comparisons
+        score_history["date"] = pd.to_datetime(score_history["date"]).dt.tz_localize(None)
+        prices["date"] = pd.to_datetime(prices["date"]).dt.tz_localize(None)
+
+        # Filter score_history to only tickers we have price data for
+        available_tickers = set(prices["ticker"].unique())
+        score_history = score_history[score_history["ticker"].isin(available_tickers)]
+
+        # Drop rows with NaN composite_score — pd.qcut cannot handle NaN
+        score_history = score_history.dropna(subset=["composite_score"])
+        if len(score_history) < 20:
+            return _accuracy_default(f"Insufficient matching score data ({len(score_history)} rows)")
 
         result = run_walk_forward(score_history, prices, forward_months=3)
 
@@ -220,29 +278,16 @@ def get_accuracy() -> AccuracyResponse:
             note="Scores use free-tier data (15-min delayed). Publish date: " + pd.Timestamp.now().strftime("%Y-%m-%d"),
         )
     except Exception as e:
-        logger.warning("Backtest accuracy: %s", e)
+        import traceback
+        logger.warning("Backtest accuracy: %s\n%s", e, traceback.format_exc())
         return _accuracy_default(str(e))
 
 
 def _score_cache_rows() -> list[dict]:
-    """Fetch score cache rows from Supabase."""
-    try:
-        import httpx
-        import os
-        supabase_url = os.environ.get("SUPABASE_URL", "")
-        anon_key = os.environ.get("SUPABASE_ANON_KEY", "")
-        if not supabase_url or not anon_key:
-            return []
-        resp = httpx.get(
-            f"{supabase_url}/rest/v1/score_cache?select=*&limit=500",
-            headers={"apikey": anon_key, "Authorization": f"Bearer {anon_key}"},
-            timeout=15.0,
-        )
-        if resp.status_code == 200:
-            return resp.json()
-    except Exception:
-        pass
-    return []
+    """Fetch score cache rows from Supabase via the canonical REST helper."""
+    from nq_api.cache.score_cache import _supabase_rest
+    data = _supabase_rest("score_cache", "GET", {"select": "*", "limit": "500"})
+    return data if isinstance(data, list) else []
 
 
 def _accuracy_default(reason: str) -> AccuracyResponse:

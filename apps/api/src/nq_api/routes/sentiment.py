@@ -6,7 +6,6 @@ Pulls headlines from yfinance Ticker.news (free, no API key).
 from __future__ import annotations
 from typing import Any
 import asyncio
-import json
 import logging
 
 from fastapi import APIRouter, HTTPException
@@ -99,147 +98,76 @@ def _get_sentiment_sync(ticker: str, market: str, limit: int) -> dict[str, Any]:
 
 
 # ---------- Social Sentiment Endpoints ----------
+# Uses StockTwits public API (free, no key) + yfinance news aggregation as social buzz.
+# Reddit/StockTwits premium connectors replaced with free alternatives.
 
-from nq_data.social import RedditConnector, StockTwitsConnector
-from nq_data.store import DataStore
-
-_social_store: DataStore | None = None
-
-
-def _get_social_store() -> DataStore:
-    global _social_store
-    if _social_store is None:
-        _social_store = DataStore()
-    return _social_store
-
-
-def _social_from_cache(ticker_list: list[str]) -> list[dict]:
-    """Read social sentiment from DuckDB cache. Returns list of dicts, one per ticker."""
-    store = _get_social_store()
-    results: list[dict] = []
-    for t in ticker_list:
-        cached = store.get_social_sentiment(t, max_age_hours=4)
-        reddit_data = None
-        st_data = None
-        if cached:
-            for row in cached:
-                source = row[1]
-                if source == "reddit":
-                    reddit_data = row
-                elif source == "stocktwits":
-                    st_data = row
-        results.append({
-            "ticker": t,
-            "reddit_bullish_pct": reddit_data[2] if reddit_data else None,
-            "reddit_mentions": reddit_data[3] if reddit_data else 0,
-            "stocktwits_bullish_pct": st_data[2] if st_data else None,
-            "stocktwits_mentions": st_data[3] if st_data else 0,
-            "total_mentions": (reddit_data[3] if reddit_data else 0) + (st_data[3] if st_data else 0),
-            "topics": json.loads(reddit_data[4]) if reddit_data and reddit_data[4] else
-                      (json.loads(st_data[4]) if st_data and st_data[4] else []),
-        })
-    return results
-
-
-def _fetch_social(tickers: list[str]) -> dict[str, Any]:
-    """Fetch social sentiment from cache or live sources."""
-    store = _get_social_store()
-    reddit = RedditConnector()
-    st = StockTwitsConnector()
-
-    # Fetch fresh data
-    reddit_items = reddit.fetch(tickers)
-    st_items = st.fetch(tickers)
-
-    # Upsert into cache
-    all_items = reddit_items + st_items
-    if all_items:
-        store.upsert_social_sentiment(all_items)
-
-    # Aggregate by ticker
-    agg: dict[str, dict] = {}
-    for item in all_items:
-        t = item.ticker
-        if t not in agg:
-            agg[t] = {"reddit_bullish_pct": None, "reddit_mentions": 0,
-                      "stocktwits_bullish_pct": None, "stocktwits_mentions": 0,
-                      "total_mentions": 0, "topics": []}
-        if item.source == "reddit":
-            agg[t]["reddit_bullish_pct"] = item.bullish_pct
-            agg[t]["reddit_mentions"] = item.mention_count
-        elif item.source == "stocktwits":
-            agg[t]["stocktwits_bullish_pct"] = item.bullish_pct
-            agg[t]["stocktwits_mentions"] = item.mention_count
-        agg[t]["total_mentions"] += item.mention_count
-        for topic in item.top_topics:
-            if topic not in agg[t]["topics"]:
-                agg[t]["topics"].append(topic)
-
-    return agg
+from nq_data.social_free import fetch_stocktwits_public, fetch_social_buzz_yfinance, fetch_all_free
 
 
 @router.get("/social")
 async def get_social_sentiment_all(tickers: str = "AAPL,MSFT,GOOGL,TSLA,NVDA") -> dict[str, Any]:
-    """Return aggregated social sentiment for top tickers. Cache-first; background refresh."""
+    """Return aggregated social sentiment for top tickers using free sources (StockTwits + yfinance news)."""
     ticker_list = [t.strip().upper() for t in tickers.split(",") if t.strip()]
 
-    # Run cache lookup in thread pool to avoid blocking event loop
-    results = await asyncio.to_thread(_social_from_cache, ticker_list)
-    any_cached = any(r.get("reddit_bullish_pct") is not None or r.get("stocktwits_bullish_pct") is not None for r in results)
+    # Fetch live from free sources in thread pool
+    items = await asyncio.to_thread(fetch_all_free, ticker_list, "US")
 
-    # Trigger background refresh (always, so stale data gets updated)
-    asyncio.create_task(_refresh_social(ticker_list))
+    results = []
+    for item in items:
+        results.append({
+            "ticker": item.ticker,
+            "stocktwits_bullish_pct": item.bullish_pct if item.source == "stocktwits" else None,
+            "stocktwits_mentions": item.mention_count if item.source == "stocktwits" else 0,
+            "social_buzz_bullish_pct": item.bullish_pct if item.source == "social_buzz" else None,
+            "social_buzz_mentions": item.mention_count if item.source == "social_buzz" else 0,
+            "source": item.source,
+            "topics": item.top_topics,
+        })
 
-    if any_cached:
-        return {"tickers": results, "count": len(results)}
-
-    # No cache at all — return loading indicator
-    return {
-        "tickers": [{"ticker": t, "reddit_bullish_pct": None, "reddit_mentions": 0,
-                      "stocktwits_bullish_pct": None, "stocktwits_mentions": 0,
-                      "total_mentions": 0, "topics": [], "loading": True}
-                     for t in ticker_list],
-        "count": len(ticker_list),
-    }
-
-
-async def _refresh_social(ticker_list: list[str]) -> None:
-    """Background task: fetch social sentiment and cache it."""
-    try:
-        agg = await asyncio.to_thread(_fetch_social, ticker_list)
-        # Data is already upserted into DuckDB by _fetch_social
-        log.info("Social sentiment refresh complete for %s", ticker_list)
-    except Exception as exc:
-        log.warning("Social sentiment background refresh failed: %s", exc)
+    return {"tickers": results, "count": len(results)}
 
 
 @router.get("/social/{ticker}")
-async def get_social_sentiment_ticker(ticker: str) -> dict[str, Any]:
-    """Return social sentiment for a specific ticker. Cache-first; background refresh."""
+async def get_social_sentiment_ticker(ticker: str, market: str = "US") -> dict[str, Any]:
+    """Return social sentiment for a specific ticker using free sources."""
     t = ticker.upper()
 
-    # Run cache lookup in thread pool to avoid blocking event loop
-    cached_rows = await asyncio.to_thread(_social_from_cache, [t])
-    row = cached_rows[0] if cached_rows else None
+    # Try StockTwits first, fall back to yfinance social buzz
+    st_item = await asyncio.to_thread(fetch_stocktwits_public, t)
 
-    # Trigger background refresh anyway (so stale data gets updated)
-    asyncio.create_task(_refresh_social([t]))
-
-    if row and (row.get("reddit_bullish_pct") is not None or row.get("stocktwits_bullish_pct") is not None):
+    if st_item and st_item.bullish_pct is not None:
         return {
             "ticker": t,
-            "reddit": {
-                "bullish_pct": row["reddit_bullish_pct"],
-                "mentions": row["reddit_mentions"],
-                "topics": row.get("topics", []),
-            } if row.get("reddit_bullish_pct") is not None else None,
             "stocktwits": {
-                "bullish_pct": row["stocktwits_bullish_pct"],
-                "mentions": row["stocktwits_mentions"],
-                "topics": row.get("topics", []),
-            } if row.get("stocktwits_bullish_pct") is not None else None,
-            "cached": True,
+                "bullish_pct": st_item.bullish_pct,
+                "mentions": st_item.mention_count,
+                "topics": st_item.top_topics,
+            },
+            "social_buzz": None,
+            "source": "stocktwits",
+            "cached": False,
         }
 
-    # No cache — return loading state
-    return {"ticker": t, "reddit": None, "stocktwits": None, "cached": False, "loading": True}
+    # Fallback to yfinance social buzz
+    buzz_item = await asyncio.to_thread(fetch_social_buzz_yfinance, t, market)
+    if buzz_item and buzz_item.bullish_pct is not None:
+        return {
+            "ticker": t,
+            "stocktwits": None,
+            "social_buzz": {
+                "bullish_pct": buzz_item.bullish_pct,
+                "mentions": buzz_item.mention_count,
+                "topics": buzz_item.top_topics,
+            },
+            "source": "social_buzz",
+            "cached": False,
+        }
+
+    return {
+        "ticker": t,
+        "stocktwits": None,
+        "social_buzz": None,
+        "source": "unavailable",
+        "cached": False,
+        "loading": True,
+    }
