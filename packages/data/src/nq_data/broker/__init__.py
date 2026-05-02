@@ -1,19 +1,17 @@
 """
-Alpaca Markets broker integration for NeuralQuant.
-Supports paper trading (free) and live trading.
+NeuralQuant broker package — rate limiter + Alpaca integration.
 
-Connection flow:
-  1. User connects Alpaca account via API key/secret (stored in Supabase, encrypted)
-  2. NeuralQuant sends trade signals as orders via Alpaca API
-  3. Orders execute on Alpaca (we never hold funds or route orders)
-
-Paper trading is free. Live trading requires Alpaca brokerage account.
+Rate limiter (from _rate_limiter): DataBroker, SourceConfig, broker singleton.
+Alpaca (below): paper/live trading, account info, positions, orders, deep links.
 """
 from __future__ import annotations
 import os
 import logging
 from dataclasses import dataclass
 from typing import Optional, Literal
+
+# Re-export rate limiter from the original broker module (now _rate_limiter)
+from nq_data.broker._rate_limiter import DataBroker, SourceConfig, broker  # noqa: F401
 
 logger = logging.getLogger(__name__)
 

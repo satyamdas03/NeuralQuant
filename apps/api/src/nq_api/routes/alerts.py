@@ -15,7 +15,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from nq_api.auth import User, get_current_user
 from nq_api.schemas_alerts import (
-logger = logging.getLogger(__name__)
     AlertSubscriptionCreate,
     AlertSubscription,
     AlertSubscriptionListResponse,
