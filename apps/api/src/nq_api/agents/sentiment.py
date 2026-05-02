@@ -39,7 +39,9 @@ KEY_POINTS:
 - [Point 2 - must cite specific numbers from the provided data]
 - [Point 3 - must cite specific numbers from the provided data]
 
-You must be equally willing to output BEAR as BULL — if insider selling or high short interest dominates, say BEAR."""
+You must be equally willing to output BEAR as BULL — if insider selling or high short interest dominates, say BEAR.
+
+LIMITED DATA PROTOCOL: When enrichment data is sparse (e.g., insider_cluster_score near 0.5, news_sentiment N/A, few data points available), you MUST still produce a definitive stance. Use the data that IS present. A NEUTRAL/LOW stance based on limited real data is MORE valuable than a NEUTRAL/LOW stance based on no data. State clearly: "Based on limited available data..." and proceed with your best assessment using whatever signals are present. Never default to NEUTRAL/LOW simply because data is incomplete."""
 
 
 class SentimentAgent(BaseAnalystAgent):

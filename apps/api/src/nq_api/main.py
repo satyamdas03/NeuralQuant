@@ -219,6 +219,40 @@ async def lifespan(app: FastAPI):
         threading.Timer(30.0, _render_cache_refresh).start()
         log.info("Render detected — score_cache refresh scheduled (top-20 subset)")
 
+    # Pre-warm enrichment cache for top-50 tickers (RSI/MACD/ATR/insider/news)
+    # Runs after 45s delay to avoid conflicting with score_cache refresh
+    _TOP_ENRICHMENT_TICKERS = [
+        "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "BRK-B", "JPM", "V",
+        "UNH", "JNJ", "WMT", "XOM", "PG", "MA", "HD", "CVX", "MRK", "AVGO",
+        "ABBV", "KO", "PEP", "COST", "CSCO", "ADBE", "NFLX", "CRM", "AMD", "INTC",
+        "CMCSA", "NKE", "DIS", "PYPL", "VZ", "T", "PFE", "ABT", "MRK", "TMO",
+        "ORCL", "QCOM", "TXN", "LLY", "BMY", "UPS", "COP", "LOW", "IBM",
+    ]
+
+    def _warm_enrichment():
+        """Pre-fetch RSI/MACD/ATR/insider/news for top tickers. Cache in Supabase (1h TTL)."""
+        try:
+            from nq_api.cache.score_cache import read_enrichment, write_enrichment
+            from nq_api.routes.analyst import _fetch_finnhub_data
+            warmed = 0
+            for ticker in _TOP_ENRICHMENT_TICKERS:
+                # Skip if already cached
+                if read_enrichment(ticker, "US"):
+                    warmed += 1
+                    continue
+                try:
+                    data = _fetch_finnhub_data(ticker, "US")
+                    if data:
+                        write_enrichment(ticker, "US", data)
+                        warmed += 1
+                except Exception as exc:
+                    log.debug("Enrichment prewarm failed for %s: %s", ticker, exc)
+            log.info("Enrichment prewarm complete: %d/%d tickers cached", warmed, len(_TOP_ENRICHMENT_TICKERS))
+        except Exception as exc:
+            log.warning("Enrichment prewarm failed: %s", exc)
+
+    threading.Timer(45.0, lambda: threading.Thread(target=_warm_enrichment, daemon=True).start()).start()
+
     # Start Slack agent system (graceful: no crash if tokens missing)
     from nq_api.slack.app import start_slack_handler, stop_slack_handler
     from nq_api.slack.scheduler import start_scheduler, stop_scheduler

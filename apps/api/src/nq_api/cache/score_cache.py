@@ -252,3 +252,71 @@ def read_sector_median(
                     pass
         result[field] = statistics.median(values) if values else None
     return result
+
+
+# ── Enrichment cache (1-hour TTL) ────────────────────────────────────────────
+# Stores RSI/MACD/ATR/SMA/insider/news data per ticker so subsequent requests
+# hit Supabase instead of re-computing from yfinance/Finnhub (which takes 5-30s).
+
+_ENRICHMENT_TTL = 3600  # 1 hour
+
+
+def read_enrichment(ticker: str, market: str) -> dict[str, Any] | None:
+    """Return cached enrichment data if fresh (< 1 hour), else None."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(seconds=_ENRICHMENT_TTL)).isoformat()
+    data = _supabase_rest(
+        "enrichment_cache",
+        method="GET",
+        query={
+            "select": "*",
+            "ticker": f"eq.{ticker.upper()}",
+            "market": f"eq.{market}",
+            "cached_at": f"gte.{cutoff}",
+            "limit": "1",
+        },
+    )
+    if isinstance(data, list) and data:
+        row = data[0]
+        # Remove metadata fields, return only enrichment data
+        for meta_key in ("id", "ticker", "market", "cached_at"):
+            row.pop(meta_key, None)
+        # Remove None values — callers expect missing keys, not None
+        return {k: v for k, v in row.items() if v is not None}
+    return None
+
+
+def write_enrichment(ticker: str, market: str, data: dict[str, Any]) -> bool:
+    """Store enrichment data in Supabase. Returns True on success."""
+    if not data:
+        return False
+    row = {"ticker": ticker.upper(), "market": market, "cached_at": datetime.now(timezone.utc).isoformat()}
+    # Only store JSON-serializable values (float, int, str, bool, None)
+    for k, v in data.items():
+        if isinstance(v, (int, float, str, bool)) or v is None:
+            row[k] = v
+        elif isinstance(v, dict):
+            import json
+            row[k] = json.dumps(v)
+    # Filter out keys that don't exist in the table (will be created on first upsert)
+    # Use POST with Prefer: return=representation for upsert
+    _load_env()
+    url = os.environ.get("SUPABASE_URL", "")
+    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+    if not url or not key:
+        return False
+    endpoint = f"{url}/rest/v1/enrichment_cache"
+    headers = {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation,resolution=merge-duplicates",
+    }
+    try:
+        with httpx.Client(timeout=10) as client:
+            r = client.post(endpoint, json=row, headers=headers)
+            r.raise_for_status()
+            log.info("Cached enrichment for %s/%s: %d fields", ticker, market, len(data))
+            return True
+    except Exception as e:
+        log.warning("Failed to cache enrichment for %s/%s: %s", ticker, market, e)
+        return False

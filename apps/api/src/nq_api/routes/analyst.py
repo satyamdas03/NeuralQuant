@@ -482,18 +482,27 @@ async def run_analyst(
         # Slow path: fetch just the one ticker's data (2-5s, not 503 tickers)
         context = await asyncio.to_thread(_build_analyst_context, ticker, req.market)
 
-    # Enrichment with timeout (yfinance/VADER/EDGAR)
-    try:
-        enrichment = await asyncio.wait_for(
-            asyncio.to_thread(_fetch_finnhub_data, ticker, req.market),
-            timeout=20.0,
-        )
-    except asyncio.TimeoutError:
-        log.warning("Enrichment timed out for %s", ticker)
-        enrichment = {}
-    except Exception as exc:
-        log.warning("Enrichment failed for %s: %s", ticker, exc)
-        enrichment = {}
+    # Enrichment: try cache first, then live fetch, then write back to cache
+    from nq_api.cache.score_cache import read_enrichment, write_enrichment
+    enrichment = read_enrichment(ticker, req.market)
+    if enrichment:
+        log.info("Enrichment cache HIT for %s/%s: %d fields", ticker, req.market, len(enrichment))
+    else:
+        # Live fetch with 30s timeout (EDGAR needs 10-30s)
+        try:
+            enrichment = await asyncio.wait_for(
+                asyncio.to_thread(_fetch_finnhub_data, ticker, req.market),
+                timeout=30.0,
+            )
+        except asyncio.TimeoutError:
+            log.warning("Enrichment timed out for %s", ticker)
+            enrichment = {}
+        except Exception as exc:
+            log.warning("Enrichment failed for %s: %s", ticker, exc)
+            enrichment = {}
+        # Cache the result for 1 hour (even partial results are useful)
+        if enrichment:
+            asyncio.create_task(asyncio.to_thread(write_enrichment, ticker, req.market, enrichment))
     if enrichment:
         _merge_enrichment(context, enrichment)
 
@@ -536,17 +545,23 @@ async def run_analyst_stream(
                 if ctx is None:
                     ctx = await asyncio.to_thread(_build_analyst_context, ticker, market)
                 context = ctx
-                # Enrichment with timeout
-                try:
-                    enrichment_data = await asyncio.wait_for(
-                        asyncio.to_thread(_fetch_finnhub_data, ticker, market),
-                        timeout=20.0,
-                    )
-                except (asyncio.TimeoutError, Exception):
-                    enrichment_data = {}
+                # Enrichment: cache-first, then live fetch + write-back
+                from nq_api.cache.score_cache import read_enrichment, write_enrichment
+                enrichment_data = read_enrichment(ticker, market)
+                if enrichment_data:
+                    log.info("Stream enrichment cache HIT for %s/%s", ticker, market)
                 else:
+                    try:
+                        enrichment_data = await asyncio.wait_for(
+                            asyncio.to_thread(_fetch_finnhub_data, ticker, market),
+                            timeout=30.0,
+                        )
+                    except (asyncio.TimeoutError, Exception):
+                        enrichment_data = {}
                     if enrichment_data:
-                        _merge_enrichment(ctx, enrichment_data)
+                        asyncio.create_task(asyncio.to_thread(write_enrichment, ticker, market, enrichment_data))
+                if enrichment_data:
+                    _merge_enrichment(ctx, enrichment_data)
             except Exception as exc:
                 log.exception("PARA-DEBATE context build failed for %s", ticker)
                 context_error = str(exc)

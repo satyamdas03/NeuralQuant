@@ -427,12 +427,29 @@ def _fetch_finnhub_news_summaries(ticker: str | None, market: str = "US", n: int
 
 
 def _fetch_enrichment(ticker: str | None, market: str = "US") -> dict:
-    """Fetch technical indicators + insider + news sentiment for Ask AI."""
+    """Fetch technical indicators + insider + news sentiment for Ask AI.
+    Cache-first: reads from enrichment_cache (1h TTL) before live fetch."""
     if not ticker:
         return {}
+    # Try cache first (1-hour TTL)
+    try:
+        from nq_api.cache.score_cache import read_enrichment, write_enrichment
+        cached = read_enrichment(ticker, market)
+        if cached:
+            log.info('Ask AI enrichment cache HIT for %s/%s: %d fields', ticker, market, len(cached))
+            return cached
+    except Exception:
+        pass  # Cache miss — fall through to live fetch
     try:
         from nq_api.routes.analyst import _fetch_finnhub_data
-        return _fetch_finnhub_data(ticker, market)
+        result = _fetch_finnhub_data(ticker, market)
+        if result:
+            try:
+                from nq_api.cache.score_cache import write_enrichment
+                write_enrichment(ticker, market, result)
+            except Exception:
+                pass  # Cache write failure is non-critical
+        return result
     except Exception as exc:
         log.warning('Enrichment for Ask AI failed %s: %s', ticker, exc)
         return {}
@@ -858,7 +875,7 @@ async def run_nl_query(
             return default
 
     enrichment, headlines, macro_ctx, platform_ctx, finnhub_news = await asyncio.gather(
-        _timed(asyncio.to_thread(_fetch_enrichment, req.ticker, req.market or 'US'), 15.0, {}),
+        _timed(asyncio.to_thread(_fetch_enrichment, req.ticker, req.market or 'US'), 25.0, {}),
         _timed(asyncio.to_thread(_fetch_relevant_news, req.question, req.ticker, 5), 8.0, []),
         _timed(asyncio.to_thread(_build_macro_context, req.question, req.market or "US", today), 10.0, None),
         _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, req.market or "US"), 22.0, None),
@@ -1353,7 +1370,7 @@ async def run_nl_query_v2(
         _timed(asyncio.to_thread(_build_macro_context, req.question, req.market or "US", today), 10.0, None),
         _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, req.market or "US"), 22.0, None),
         _timed(asyncio.to_thread(_fetch_finnhub_news_summaries, req.ticker, req.market or "US", 5), 8.0, []),
-        _timed(asyncio.to_thread(_fetch_enrichment, req.ticker, req.market or 'US'), 15.0, {}),
+        _timed(asyncio.to_thread(_fetch_enrichment, req.ticker, req.market or 'US'), 25.0, {}),
     )
 
     context_parts = [
@@ -1723,7 +1740,7 @@ async def run_nl_query_v2_stream(
                 _timed(asyncio.to_thread(_build_macro_context, req.question, req.market or "US", today), 10.0, None),
                 _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, req.market or "US"), 22.0, None),
                 _timed(asyncio.to_thread(_fetch_finnhub_news_summaries, req.ticker, req.market or "US", 5), 8.0, []),
-                _timed(asyncio.to_thread(_fetch_enrichment, req.ticker, req.market or 'US'), 15.0, {}),
+                _timed(asyncio.to_thread(_fetch_enrichment, req.ticker, req.market or 'US'), 25.0, {}),
             )
             context_parts = [f"Today's date: {today}", f"User question: {req.question}"]
             if macro_ctx:

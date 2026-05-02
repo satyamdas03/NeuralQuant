@@ -166,39 +166,53 @@ class FinnhubClient:
     def _fetch_candles_yfinance(
         self, ticker: str, days: int = 250
     ) -> list[dict] | None:
-        """Fetch OHLCV from yfinance as free fallback for candles."""
-        try:
-            import yfinance as yf
-            with broker.acquire("yfinance"):
-                df = yf.download(
-                    self._resolve_symbol(ticker),
-                    period=f"{days}d",
-                    interval="1d",
-                    progress=False,
-                    auto_adjust=True,
-                    timeout=15,
-                )
-            if df is None or df.empty or len(df) < 50:
-                log.warning("yfinance returned %d rows for %s (need 50+)", len(df) if df is not None else 0, ticker)
+        """Fetch OHLCV from yfinance as free fallback for candles.
+
+        Includes exponential backoff retry for rate-limit responses.
+        """
+        import time as _time
+        max_retries = 2
+        for attempt in range(max_retries):
+            try:
+                import yfinance as yf
+                with broker.acquire("yfinance"):
+                    df = yf.download(
+                        self._resolve_symbol(ticker),
+                        period=f"{days}d",
+                        interval="1d",
+                        progress=False,
+                        auto_adjust=True,
+                        timeout=15,
+                    )
+                if df is None or df.empty or len(df) < 50:
+                    log.warning("yfinance returned %d rows for %s (need 50+)", len(df) if df is not None else 0, ticker)
+                    return None
+                # Handle MultiIndex columns from yfinance (ticker name as level 0)
+                if isinstance(df.columns, pd.MultiIndex):
+                    df.columns = df.columns.get_level_values(0)
+                candles = []
+                for idx, row in df.iterrows():
+                    candles.append({
+                        "timestamp": int(idx.timestamp()),
+                        "open": float(row["Open"]),
+                        "high": float(row["High"]),
+                        "low": float(row["Low"]),
+                        "close": float(row["Close"]),
+                        "volume": float(row["Volume"]),
+                    })
+                log.info("yfinance OHLCV for %s: %d candles", ticker, len(candles))
+                return candles
+            except Exception as exc:
+                err_msg = str(exc).lower()
+                is_rate_limit = any(s in err_msg for s in ("too many", "rate limit", "429", "throttl"))
+                if is_rate_limit and attempt < max_retries - 1:
+                    wait = 3 * (2 ** attempt)  # 3s, 6s
+                    log.warning("yfinance rate-limited for %s, retrying in %ds (attempt %d/%d)", ticker, wait, attempt + 1, max_retries)
+                    _time.sleep(wait)
+                    continue
+                log.warning("yfinance OHLCV failed for %s: %s", ticker, exc)
                 return None
-            # Handle MultiIndex columns from yfinance (ticker name as level 0)
-            if isinstance(df.columns, pd.MultiIndex):
-                df.columns = df.columns.get_level_values(0)
-            candles = []
-            for idx, row in df.iterrows():
-                candles.append({
-                    "timestamp": int(idx.timestamp()),
-                    "open": float(row["Open"]),
-                    "high": float(row["High"]),
-                    "low": float(row["Low"]),
-                    "close": float(row["Close"]),
-                    "volume": float(row["Volume"]),
-                })
-            log.info("yfinance OHLCV for %s: %d candles", ticker, len(candles))
-            return candles
-        except Exception as exc:
-            log.warning("yfinance OHLCV failed for %s: %s", ticker, exc)
-            return None
+        return None
 
     def get_news(self, ticker: str, days: int = 7) -> list[dict] | None:
         """Company news with summaries."""
