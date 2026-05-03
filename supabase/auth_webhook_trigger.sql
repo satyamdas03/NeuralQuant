@@ -1,68 +1,24 @@
 -- ============================================================
--- Supabase Auth Webhook Trigger — Welcome Email on Signup
---
--- This uses pg_catalog (always available) instead of pg_net
--- (which requires Supabase Pro). Works on free tier.
+-- Supabase Auth Webhook — Welcome Email on Signup
 --
 -- Run in: Supabase Dashboard → SQL Editor
+-- This fires POST to /auth/webhook when a new user signs up.
 -- ============================================================
 
--- 1. Create the trigger function using Supabase's built-in
---    pg_catalog.pg_notify for real-time events, combined with
---    the existing /auth/welcome POST endpoint.
---    Since free tier lacks pg_net, we use a simpler approach:
---    the frontend already calls POST /auth/welcome after signup.
---    This SQL creates a DATABASE webhook via Supabase's native
---    feature instead.
---
--- ALTERNATIVE (RECOMMENDED): Use Supabase Dashboard UI instead:
---
--- Go to: Database → Webhooks → Create a new webhook
---   - Table: auth.users
---   - Events: INSERT
---   - Type: HTTP
---   - URL: https://neuralquant.onrender.com/auth/webhook
---   - HTTP Method: POST
---   - Headers: Content-Type: application/json
---
--- This avoids the pg_net extension entirely.
+-- Step 1: Enable pg_net extension (required for HTTP calls from Postgres)
+CREATE EXTENSION IF NOT EXISTS pg_net SCHEMA extensions;
 
--- If you want to try the SQL approach on a plan with pg_net,
--- uncomment below:
+-- Step 2: Create the database webhook trigger
+-- Uses supabase_functions.http_request (built into Supabase)
+DROP TRIGGER IF EXISTS on_user_created ON auth.users;
 
--- CREATE EXTENSION IF NOT EXISTS pg_net SCHEMA extensions;
---
--- CREATE OR REPLACE FUNCTION public.send_welcome_webhook()
--- RETURNS TRIGGER
--- LANGUAGE plpgsql
--- SECURITY DEFINER
--- AS $$
--- DECLARE
---   webhook_url TEXT := 'https://neuralquant.onrender.com/auth/webhook';
---   request_id UUID;
--- BEGIN
---   IF TG_OP = 'INSERT' THEN
---     SELECT INTO request_id net.http_post(
---       url := webhook_url,
---       headers := jsonb_build('Content-Type', 'application/json'),
---       body := jsonb_build(
---         'type', 'auth.user.created',
---         'record', jsonb_build_object(
---           'id', NEW.id,
---           'email', NEW.email,
---           'raw_user_meta_data', NEW.raw_user_meta_data
---         ),
---         'schema_name', 'auth',
---         'table', 'users'
---       )
---     );
---   END IF;
---   RETURN NEW;
--- END;
--- $$;
---
--- DROP TRIGGER IF EXISTS on_user_created ON auth.users;
--- CREATE TRIGGER on_user_created
---   AFTER INSERT ON auth.users
---   FOR EACH ROW
---   EXECUTE FUNCTION public.send_welcome_webhook();
+CREATE TRIGGER on_user_created
+AFTER INSERT ON auth.users
+FOR EACH ROW
+EXECUTE FUNCTION supabase_functions.http_request(
+  'https://neuralquant.onrender.com/auth/webhook',
+  'POST',
+  '{"Content-Type":"application/json"}',
+  '{}',
+  '5000'
+);
