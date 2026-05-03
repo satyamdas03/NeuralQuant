@@ -171,16 +171,26 @@ async def lifespan(app: FastAPI):
         def _render_cache_refresh():
             try:
                 from nq_api.cache.score_cache import read_top, upsert_scores, age_seconds
-                age = age_seconds("US")
-                if age is not None and age < 3600:
-                    log.info("Render: score_cache fresh (%d min old), skipping", age // 60)
+                age_us = age_seconds("US")
+                age_in = age_seconds("IN")
+                # Skip refresh if BOTH markets are fresh (< 1 hour)
+                us_fresh = age_us is not None and age_us < 3600
+                in_fresh = age_in is not None and age_in < 3600
+                if us_fresh and in_fresh:
+                    log.info("Render: score_cache fresh (US %d min, IN %d min), skipping",
+                             age_us // 60 if age_us else 0, age_in // 60 if age_in else 0)
                     return
-                log.info("Render: score_cache stale or empty (age=%s), refreshing top-20...", age)
+                log.info("Render: score_cache stale (US age=%s, IN age=%s), refreshing top-50...", age_us, age_in)
                 from nq_api.data_builder import build_real_snapshot
                 from nq_api.universe import UNIVERSE_BY_MARKET
                 from nq_api.deps import get_signal_engine
                 import pandas as pd
                 for mkt in ("US", "IN"):
+                    # Skip markets that are already fresh
+                    mkt_age = age_us if mkt == "US" else age_in
+                    if mkt_age is not None and mkt_age < 3600:
+                        log.info("Render: %s score_cache fresh (%d min), skipping", mkt, mkt_age // 60)
+                        continue
                     all_tickers = UNIVERSE_BY_MARKET.get(mkt, UNIVERSE_BY_MARKET["US"])
                     # Take top 50 to cover popular tickers (was 20 — missed mid-cap India)
                     tickers = all_tickers[:50]
@@ -230,16 +240,22 @@ async def lifespan(app: FastAPI):
                 log.warning("Render: score_cache refresh failed: %s", exc)
 
         threading.Timer(30.0, _render_cache_refresh).start()
-        log.info("Render detected — score_cache refresh scheduled (top-20 subset)")
+        log.info("Render detected — score_cache refresh scheduled (top-50 per market)")
 
-    # Pre-warm enrichment cache for top-50 tickers (RSI/MACD/ATR/insider/news)
+    # Pre-warm enrichment cache for top tickers (RSI/MACD/ATR/insider/news)
     # Runs after 45s delay to avoid conflicting with score_cache refresh
-    _TOP_ENRICHMENT_TICKERS = [
+    _TOP_ENRICHMENT_TICKERS_US = [
         "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "BRK-B", "JPM", "V",
         "UNH", "JNJ", "WMT", "XOM", "PG", "MA", "HD", "CVX", "MRK", "AVGO",
         "ABBV", "KO", "PEP", "COST", "CSCO", "ADBE", "NFLX", "CRM", "AMD", "INTC",
-        "CMCSA", "NKE", "DIS", "PYPL", "VZ", "T", "PFE", "ABT", "MRK", "TMO",
+        "CMCSA", "NKE", "DIS", "PYPL", "VZ", "T", "PFE", "ABT", "TMO",
         "ORCL", "QCOM", "TXN", "LLY", "BMY", "UPS", "COP", "LOW", "IBM",
+    ]
+    _TOP_ENRICHMENT_TICKERS_IN = [
+        "RELIANCE", "TCS", "HDFCBANK", "INFY", "HINDUNILVR", "ICICIBANK",
+        "SBIN", "BHARTIARTL", "KOTAKBANK", "LT", "HCLTECH", "WIPRO",
+        "ASIANPAINT", "MARUTI", "SUNPHARMA", "ULTRACEMCO", "BAJFINANCE",
+        "TITAN", "NESTLEIND", "POWERGRID",
     ]
 
     def _warm_enrichment():
@@ -248,7 +264,8 @@ async def lifespan(app: FastAPI):
             from nq_api.cache.score_cache import read_enrichment, write_enrichment
             from nq_api.routes.analyst import _fetch_finnhub_data
             warmed = 0
-            for ticker in _TOP_ENRICHMENT_TICKERS:
+            total = len(_TOP_ENRICHMENT_TICKERS_US) + len(_TOP_ENRICHMENT_TICKERS_IN)
+            for ticker in _TOP_ENRICHMENT_TICKERS_US:
                 # Skip if already cached
                 if read_enrichment(ticker, "US"):
                     warmed += 1
@@ -260,7 +277,19 @@ async def lifespan(app: FastAPI):
                         warmed += 1
                 except Exception as exc:
                     log.debug("Enrichment prewarm failed for %s: %s", ticker, exc)
-            log.info("Enrichment prewarm complete: %d/%d tickers cached", warmed, len(_TOP_ENRICHMENT_TICKERS))
+            # India tickers — Finnhub free tier has limited IN coverage, skip gracefully
+            for ticker in _TOP_ENRICHMENT_TICKERS_IN:
+                if read_enrichment(ticker, "IN"):
+                    warmed += 1
+                    continue
+                try:
+                    data = _fetch_finnhub_data(ticker, "IN")
+                    if data:
+                        write_enrichment(ticker, "IN", data)
+                        warmed += 1
+                except Exception as exc:
+                    log.debug("Enrichment prewarm IN failed for %s: %s", ticker, exc)
+            log.info("Enrichment prewarm complete: %d/%d tickers cached", warmed, total)
         except Exception as exc:
             log.warning("Enrichment prewarm failed: %s", exc)
 

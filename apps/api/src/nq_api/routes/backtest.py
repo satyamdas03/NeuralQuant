@@ -184,6 +184,15 @@ def get_accuracy() -> AccuracyResponse:
         )
         if date_col:
             score_history["date"] = pd.to_datetime(score_history[date_col])
+            # Check staleness: if newest data > 30 days old, accuracy is unreliable
+            newest = score_history["date"].max()
+            age_days = (pd.Timestamp.now(tz=newest.tz) - newest).days if newest.tz else (pd.Timestamp.now() - newest).days
+            if age_days > 30:
+                logger.warning("Backtest accuracy: score_cache data is %d days old (stale)", age_days)
+                return _accuracy_default(
+                    f"Score cache data is {age_days} days old. Accuracy metrics require fresh data. "
+                    "Trigger nightly-score GHA workflow to refresh."
+                )
         else:
             score_history["date"] = pd.Timestamp.now()
         score_history["ticker"] = score_history["ticker"].str.upper()

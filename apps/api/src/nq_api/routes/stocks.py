@@ -44,6 +44,13 @@ def _yf_sym(ticker: str, market: str) -> str:
     return ticker
 
 
+def _normalize_ticker(ticker: str, market: str) -> str:
+    """Strip exchange suffixes (.NS, .BO) for cache lookup — cache stores bare tickers."""
+    if market == "IN":
+        return ticker.upper().replace(".NS", "").replace(".BO", "")
+    return ticker.upper()
+
+
 def _fmt_mcap(mc: float, market: str = "US") -> str:
     # India: Indian convention uses Crores (1 Cr = 10M = 1e7) and Lakh Crores (1 LCr = 1e12)
     if market == "IN":
@@ -63,7 +70,7 @@ async def get_stock_score(
     market: Literal["US", "IN", "GLOBAL"] = Query("US"),
     engine: SignalEngine = Depends(get_signal_engine),
 ) -> AIScore:
-    ticker_upper = ticker.upper()
+    ticker_upper = _normalize_ticker(ticker, market)
 
     # --- Fast path: read from Supabase score_cache (sub-100ms) ---
     # Tiered: try 5min → 24h → any age → live compute
