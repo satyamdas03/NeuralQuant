@@ -10,7 +10,7 @@ type Props = {
 export default function ScreenerCard({
   stock,
   onClick,
-  currency = "$",
+  currency: _currency = "$",
 }: Props) {
   const scoreColor =
     stock.score_1_10 >= 7

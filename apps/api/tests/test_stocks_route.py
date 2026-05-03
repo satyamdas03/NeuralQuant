@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from fastapi.testclient import TestClient
 from unittest.mock import MagicMock, patch
 import pandas as pd
@@ -5,6 +6,7 @@ from nq_api.main import app
 from nq_api.deps import get_signal_engine
 
 client = TestClient(app)
+
 
 def _mock_engine_result():
     """Minimal engine output for a single ticker."""
@@ -18,8 +20,38 @@ def _mock_engine_result():
     }])
 
 
+@dataclass
+class MockSnapshot:
+    """Minimal mock of UniverseSnapshot with fundamentals attribute."""
+    tickers: list
+    market: str
+    fundamentals: pd.DataFrame
+    macro: object = None
+
+
 def _mock_snapshot(*args, **kwargs):
-    return []
+    """Return a mock UniverseSnapshot with non-empty fundamentals."""
+    return MockSnapshot(
+        tickers=["AAPL"],
+        market="US",
+        fundamentals=pd.DataFrame([{
+            "ticker": "AAPL",
+            "composite_score": 0.78,
+            "quality_percentile": 0.85,
+            "momentum_percentile": 0.70,
+            "short_interest_percentile": 0.60,
+            "regime_id": 1,
+        }]),
+    )
+
+
+def _mock_snapshot_empty(*args, **kwargs):
+    """Return a mock UniverseSnapshot with empty fundamentals (unknown ticker)."""
+    return MockSnapshot(
+        tickers=["FAKE999"],
+        market="US",
+        fundamentals=pd.DataFrame(),
+    )
 
 
 def test_get_stock_score_returns_ai_score():
@@ -27,7 +59,9 @@ def test_get_stock_score_returns_ai_score():
     engine.compute.return_value = _mock_engine_result()
     app.dependency_overrides[get_signal_engine] = lambda: engine
     try:
-        with patch("nq_api.routes.stocks.build_real_snapshot", side_effect=_mock_snapshot):
+        with patch("nq_api.routes.stocks.build_real_snapshot", side_effect=_mock_snapshot), \
+             patch("nq_api.routes.stocks.score_cache") as mock_cache:
+            mock_cache.read_one.return_value = None  # Force cache miss → live compute
             response = client.get("/stocks/AAPL?market=US")
         assert response.status_code == 200
         data = response.json()
@@ -45,7 +79,9 @@ def test_get_stock_score_unknown_ticker_returns_404():
     engine.compute.return_value = pd.DataFrame()
     app.dependency_overrides[get_signal_engine] = lambda: engine
     try:
-        with patch("nq_api.routes.stocks.build_real_snapshot", side_effect=_mock_snapshot):
+        with patch("nq_api.routes.stocks.build_real_snapshot", side_effect=_mock_snapshot_empty), \
+             patch("nq_api.routes.stocks.score_cache") as mock_cache:
+            mock_cache.read_one.return_value = None  # Force cache miss → live compute
             response = client.get("/stocks/FAKE999?market=US")
         assert response.status_code == 404
     finally:

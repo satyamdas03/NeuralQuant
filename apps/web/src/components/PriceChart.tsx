@@ -11,6 +11,7 @@ import GhostBorderCard from "@/components/ui/GhostBorderCard";
 const PERIODS = ["1d", "5d", "1mo", "3mo", "1y", "5y"] as const;
 type Period = typeof PERIODS[number];
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function CustomTooltip({ active, payload, label, symbol }: any) {
   if (!active || !payload?.length) return null;
   return (
@@ -29,6 +30,7 @@ export function PriceChart({ ticker, market = "US" }: { ticker: string; market?:
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     api.getStockChart(ticker, period, market)
       .then(d => { setData(d.data); setPctChange(d.period_change_pct); })

@@ -1,7 +1,7 @@
 import type {
   AIScore, Market, ScreenerRequest, ScreenerResponse,
   AnalystRequest, AnalystResponse,
-  QueryRequest, QueryResponse, StructuredQueryResponse,
+  QueryRequest, StructuredQueryResponse,
   MarketOverview, MarketNews, MarketSectors,
   MarketMovers, StockChart, StockMeta,
   SentimentResponse, BacktestRequest, BacktestResponse,

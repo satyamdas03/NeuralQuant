@@ -22,6 +22,7 @@ type Props = {
 export default function AIThinkingTimeline({ phases }: Props) {
   if (phases.length === 0) return null;
 
+  // eslint-disable-next-line react-hooks/purity -- Date.now is needed for real-time elapsed calculation
   const now = Date.now();
   const activeIdx = phases.findIndex((p) => p.completedAt === undefined);
   const totalElapsed = phases[0]

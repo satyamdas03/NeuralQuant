@@ -14,7 +14,6 @@ import { RegimeContextPanel } from "@/components/RegimeContextPanel";
 import { TransparencyPanel } from "@/components/TransparencyPanel";
 import GhostBorderCard from "@/components/ui/GhostBorderCard";
 import GradientButton from "@/components/ui/GradientButton";
-import GlassPanel from "@/components/ui/GlassPanel";
 import { Star, ArrowRight, Loader2 } from "lucide-react";
 
 export default function StockPage() {
@@ -47,7 +46,7 @@ export default function StockPage() {
       const supabase = createClient();
       const { data } = await supabase.auth.getSession();
       if (!data.session?.access_token) {
-        setReport({ ticker: ticker.toUpperCase(), market, debate: [], consensus: "", verdict: "Sign in required to run PARA-DEBATE." } as any);
+        setReport({ ticker: ticker.toUpperCase(), market, debate: [], consensus: "", verdict: "Sign in required to run PARA-DEBATE." } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
         return;
       }
     } catch { /* proceed */ }
@@ -70,7 +69,7 @@ export default function StockPage() {
         risk_factors: [],
         agent_outputs: [],
         consensus_score: 0,
-      } as any);
+      } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
     } finally {
       setAnalysing(false);
     }
@@ -214,7 +213,7 @@ function StockPageSkeleton({ ticker }: { ticker: string }) {
   );
 }
 
-function SentimentCard({ s, ticker, market }: { s: SentimentResponse | null; ticker: string; market: Market }) {
+function SentimentCard({ s, ticker, market: _market }: { s: SentimentResponse | null; ticker: string; market: Market }) {
   const color =
     !s ? "text-on-surface-variant"
     : s.label === "Bullish" ? "text-tertiary"

@@ -6,9 +6,7 @@ import {
   LayoutDashboard,
   ScanSearch,
   MessageSquareText,
-  FlaskConical,
   Newspaper,
-  Star,
   Database,
   GitCompareArrows,
 } from "lucide-react";

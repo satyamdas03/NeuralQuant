@@ -13,8 +13,6 @@ import SuggestionChips from "@/components/ui/SuggestionChips";
 import ChatInputArea from "@/components/ui/ChatInputArea";
 import AIResponseCard from "@/components/ui/AIResponseCard";
 import GlassPanel from "@/components/ui/GlassPanel";
-import MetricCard from "@/components/ui/MetricCard";
-import GradientButton from "@/components/ui/GradientButton";
 import { ArrowUpRight, ArrowDownRight, TrendingUp, Newspaper, Zap, Swords } from "lucide-react";
 import SocialBuzzCard from "@/components/ui/SocialBuzzCard";
 
@@ -377,6 +375,7 @@ function TopAIPicks({ stocks, regime, loading }: { stocks: AIScore[]; regime: st
           <TrendingUp size={14} className="text-tertiary" />
           <h2 className="font-headline text-sm font-semibold text-on-surface">Top ForeCast Picks</h2>
         </div>
+        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
         {regime && <RegimeBadge label={regime as any} />}
       </div>
 
@@ -437,6 +436,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const seen = localStorage.getItem("nq_onboarding_seen");
     if (!seen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShowOnboarding(true);
       localStorage.setItem("nq_onboarding_seen", "1");
     }

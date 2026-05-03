@@ -6,7 +6,6 @@ import { api } from "@/lib/api";
 import type { ScreenerResponse } from "@/lib/types";
 import { ScreenerTable } from "@/components/ScreenerTable";
 import RegimeBadge from "@/components/ui/RegimeBadge";
-import GlassPanel from "@/components/ui/GlassPanel";
 import GhostBorderCard from "@/components/ui/GhostBorderCard";
 import ScreenerPresets from "@/components/ui/ScreenerPresets";
 import { PRESETS, type ScreenerPreset } from "@/data/screener-presets";
@@ -54,6 +53,7 @@ function ScreenerInner() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMarket(urlMarket);
     load(urlMarket);
   }, [urlMarket]);

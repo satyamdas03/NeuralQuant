@@ -26,23 +26,16 @@ def _mock_analyst_response(ticker: str) -> AnalystResponse:
 
 @contextlib.contextmanager
 def _patch_analyst(ticker: str):
-    """Patches both the orchestrator AND signal engine for analyst tests."""
+    """Patches the orchestrator for analyst tests.
+    Note: analyst.py does not import get_signal_engine, so we don't mock it."""
     with patch("nq_api.routes.analyst.ParaDebateOrchestrator") as MockOrch, \
-         patch("nq_api.routes.analyst.get_signal_engine") as mock_engine_factory:
+         patch("nq_api.routes.analyst.score_cache") as mock_cache:
         orch_instance = MagicMock()
         orch_instance.analyse = AsyncMock(return_value=_mock_analyst_response(ticker))
         MockOrch.return_value = orch_instance
-        engine = MagicMock()
-        engine.compute.return_value = pd.DataFrame([{
-            "ticker": ticker,
-            "composite_score": 0.75,
-            "quality_percentile": 0.8,
-            "momentum_percentile": 0.7,
-            "short_interest_percentile": 0.6,
-            "regime_id": 1,
-            "momentum_raw": 0.1,
-        }])
-        mock_engine_factory.return_value = engine
+        # Mock score_cache to return empty (no enrichment data needed for test)
+        mock_cache.read_one.return_value = None
+        mock_cache.read_enrichment.return_value = None
         yield
 
 

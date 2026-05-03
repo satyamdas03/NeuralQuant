@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
 import type { AgentOutput, AnalystResponse } from "@/lib/types";
-import GhostBorderCard from "@/components/ui/GhostBorderCard";
 import GlassPanel from "@/components/ui/GlassPanel";
 
 const STANCE_COLORS: Record<string, string> = {

@@ -10,7 +10,7 @@ type Props = {
 export default function ScreenerTableRow({
   stock,
   onClick,
-  currency = "$",
+  currency: _currency = "$",
 }: Props) {
   return (
     <tr

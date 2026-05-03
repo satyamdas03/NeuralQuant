@@ -335,15 +335,6 @@ function UpgradeCard({ icon, title, body }: { icon: string; title: string; body:
   );
 }
 
-function Feature({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="rounded-xl ghost-border bg-surface-low/40 p-6 hover-glow transition-colors">
-      <h3 className="font-semibold text-on-surface">{title}</h3>
-      <p className="mt-2 text-sm text-on-surface-variant leading-relaxed">{body}</p>
-    </div>
-  );
-}
-
 function Stat({ num, label }: { num: string; label: string }) {
   return (
     <div>

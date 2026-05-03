@@ -32,7 +32,7 @@ interface Position {
   side: string;
 }
 
-export default function BrokerPageClient({ email, tier }: BrokerPageClientProps) {
+export default function BrokerPageClient({ email: _email, tier: _tier }: BrokerPageClientProps) {
   const [symbol, setSymbol] = useState("");
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [broker, setBroker] = useState<"alpaca" | "zerodha">("alpaca");
