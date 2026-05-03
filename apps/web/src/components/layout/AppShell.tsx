@@ -2,7 +2,6 @@
 
 import { usePathname } from "next/navigation";
 import SideNavBar from "./SideNavBar";
-import TopNavBar from "./TopNavBar";
 import BottomMobileNav from "./BottomMobileNav";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -12,8 +11,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       {!isLanding && <SideNavBar />}
-      {!isLanding && <TopNavBar />}
-      <main className={isLanding ? "" : "pt-14 pb-20 lg:pl-64 lg:pb-0"}>{children}</main>
+      <main className={isLanding ? "" : "pb-20 lg:pl-64 lg:pb-0"}>{children}</main>
       {!isLanding && <BottomMobileNav />}
     </>
   );
