@@ -172,7 +172,7 @@ export default function StockPage() {
             )}
           </GradientButton>
           <p className="text-on-surface-variant text-sm mt-2">
-            7 Claude AI analysts debate the stock in parallel (~5–10 s)
+            7 Claude AI analysts debate the stock in parallel, and give you a detailed insight (~1 minute)
           </p>
         </div>
       ) : (
