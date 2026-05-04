@@ -63,7 +63,7 @@ class BaseAnalystAgent(ABC):
                 "ANTHROPIC_API_KEY environment variable is not set. "
                 "Set it before instantiating any agent."
             )
-        client_timeout = 90.0 if _is_ollama() else 60.0
+        client_timeout = 120.0 if _is_ollama() else 90.0
         self._client = anthropic.Anthropic(api_key=api_key, timeout=client_timeout)
         # Resolve fast model — fall back to MODEL if preferred model is unavailable
         self._model = _resolve_model(FAST_MODEL, MODEL)
