@@ -12,8 +12,6 @@ import numpy as np
 import pandas as pd
 from dataclasses import dataclass
 from typing import Optional
-from sklearn.preprocessing import StandardScaler
-from hmmlearn.hmm import GaussianHMM
 
 FEATURE_COLS = ["vix", "vix_20d_change", "spx_vs_200ma", "hy_spread_oas", "ism_pmi"]
 
@@ -44,18 +42,30 @@ REGIME_WEIGHTS = {
 class RegimeDetector:
     def __init__(self, n_regimes: int = 4, random_state: int = 42):
         self.n_regimes = n_regimes
+        self._scaler = None
+        self._hmm = None
+        self._n_regimes = n_regimes
+        self._random_state = random_state
+        self._fitted = False
+        self._regime_map: dict[int, int] = {}
+
+    def _ensure_models(self):
+        """Lazy-load sklearn and hmmlearn — defers ~100MB until first use."""
+        if self._scaler is not None:
+            return
+        from sklearn.preprocessing import StandardScaler
+        from hmmlearn.hmm import GaussianHMM
         self._scaler = StandardScaler()
         self._hmm = GaussianHMM(
-            n_components=n_regimes,
+            n_components=self._n_regimes,
             covariance_type="full",
             n_iter=100,
-            random_state=random_state,
+            random_state=self._random_state,
         )
-        self._fitted = False
-        self._regime_map: dict[int, int] = {}  # HMM state → semantic regime 1-4
 
     def fit(self, macro_df: pd.DataFrame) -> "RegimeDetector":
         """Fit HMM on historical macro data."""
+        self._ensure_models()
         X = macro_df[FEATURE_COLS].ffill().fillna(0).values
         X_scaled = self._scaler.fit_transform(X)
         self._hmm.fit(X_scaled)
@@ -113,6 +123,7 @@ class RegimeDetector:
         """Return soft posterior probabilities. Shape: (n_rows, n_regimes)."""
         if not self._fitted:
             raise RuntimeError("Call fit() before predict_proba()")
+        self._ensure_models()
         X = macro_df[FEATURE_COLS].ffill().fillna(0).values
         X_scaled = self._scaler.transform(X)
         # hmmlearn predict_proba returns shape (n_samples, n_components)

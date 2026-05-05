@@ -1,6 +1,7 @@
 # apps/api/src/nq_api/routes/screener.py
 import asyncio
 import logging
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 from fastapi import APIRouter, Depends
@@ -10,9 +11,9 @@ from nq_api.schemas import ScreenerRequest, ScreenerResponse
 from nq_api.score_builder import row_to_ai_score, rank_scores_in_universe, REGIME_LABELS
 from nq_api.universe import UNIVERSE_BY_MARKET
 from nq_api.data_builder import build_real_snapshot, fetch_real_macro
-from nq_signals.engine import SignalEngine
 from nq_api.auth.rate_limit import enforce_tier_quota
 from nq_api.auth.models import User, TIER_LIMITS
+from nq_api.deps import get_signal_engine
 from nq_api.cache import score_cache
 
 logger = logging.getLogger(__name__)
@@ -177,7 +178,7 @@ def _apply_preset_filters(scores: list, req: ScreenerRequest) -> list:
 @router.post("", response_model=ScreenerResponse)
 async def run_screener(
     req: ScreenerRequest,
-    engine: SignalEngine = Depends(get_signal_engine),
+    engine: Any = Depends(get_signal_engine),
     user: User = Depends(enforce_tier_quota("screener")),
 ) -> ScreenerResponse:
     # Try cache first for full-universe requests
@@ -207,7 +208,7 @@ async def run_screener(
     return await asyncio.to_thread(_run_screener_sync, req, engine)
 
 
-def _run_screener_sync(req: ScreenerRequest, engine: SignalEngine) -> ScreenerResponse:
+def _run_screener_sync(req: ScreenerRequest, engine: Any) -> ScreenerResponse:
     """Blocking screener compute — runs in thread pool."""
     tickers = req.tickers or UNIVERSE_BY_MARKET.get(req.market, UNIVERSE_BY_MARKET["US"])
     snapshot = build_real_snapshot(tickers, req.market)

@@ -47,7 +47,7 @@ FUND_TTL  = 4 * 3600   # 4 hours
 PRICE_TTL = 3600        # 1 hour
 MACRO_TTL = 3600        # 1 hour
 INSIDER_TTL = 24 * 3600  # 24 hours — EDGAR filings are daily anyway
-MAX_WORKERS = 12
+MAX_WORKERS = 4 if os.environ.get("RENDER") else 12
 
 # Separate cache for insider scores (keyed by ticker — US-only)
 _insider_cache: dict[str, float] = {}

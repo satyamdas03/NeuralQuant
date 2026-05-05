@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Literal
+from typing import Literal, Any
 import asyncio
 import json
 
@@ -19,8 +19,6 @@ from nq_api.score_builder import row_to_ai_score, rank_scores_in_universe
 from nq_api.universe import UNIVERSE_BY_MARKET
 from nq_api.data_builder import build_real_snapshot, _fund_cache, fetch_real_macro
 from nq_api.cache import score_cache
-from nq_signals.engine import SignalEngine
-logger = logging.getLogger(__name__)
 
 # In-memory TTL cache for stock meta — serves stale data when Yahoo rate-limits
 _META_CACHE: dict[str, tuple[dict, float]] = {}
@@ -68,7 +66,7 @@ def _fmt_mcap(mc: float, market: str = "US") -> str:
 async def get_stock_score(
     ticker: str,
     market: Literal["US", "IN", "GLOBAL"] = Query("US"),
-    engine: SignalEngine = Depends(get_signal_engine),
+    engine: Any = Depends(get_signal_engine),
 ) -> AIScore:
     ticker_upper = _normalize_ticker(ticker, market)
 
@@ -700,7 +698,7 @@ def _fetch_stock_meta(ticker: str, market: str) -> dict | Exception:
 async def stream_stock_score(
     ticker: str,
     market: Literal["US", "IN", "GLOBAL"] = Query("US"),
-    engine: SignalEngine = Depends(get_signal_engine),
+    engine: Any = Depends(get_signal_engine),
 ):
     """SSE endpoint: emits score updates every 60 seconds for the given ticker.
     Uses cache first, falls back to live compute only on cache miss.

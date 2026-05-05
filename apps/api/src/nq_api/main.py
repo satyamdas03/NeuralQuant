@@ -322,7 +322,7 @@ app.add_middleware(
     allow_origin_regex=CORS_ORIGIN_REGEX,
     allow_methods=["*"],
     allow_credentials=True,
-    allow_headers=["Authorization", "Content-Type"],
+    allow_headers=["*"],
 )
 
 app.include_router(stocks.router,   prefix="/stocks",   tags=["stocks"])

@@ -275,23 +275,25 @@ _NSE_NAME_MAP = {
 # Words that should never be treated as stock tickers
 _TICKER_STOP_WORDS = {
     "SHOULD", "INVEST", "INDIA", "INDIAN", "STOCK", "SHARE", "SHARES",
-    "MARKET", "NIFTY", "SENSEX", "RUPEE", "LAKH", "LACS", "CRORE", "MILLION",
-    "BILLION", "WANT", "GIVE", "TELL", "BEST", "GOOD", "HIGH", "LARGE",
-    "SMALL", "LONG", "TERM", "CURRENT", "TODAY", "YEAR", "MONTH", "WEEK",
-    "PLEASE", "WHICH", "ABOUT", "PORTFOLIO", "INVEST", "ADVICE", "RETURN",
-    "GROWTH", "VALUE", "STRONG", "WEAK", "RISK", "SAFE", "SECTOR", "NSE",
-    "BSE", "BULL", "BEAR", "TRADE", "PRICE", "RANGE", "TARGET",
+    "MARKET", "NIFTY", "SENSEX", "RUPEE", "LAKH", "LAKHS", "LACS", "CRORE", "CRORES",
+    "MILLION", "BILLION", "WANT", "GIVE", "TELL", "BEST", "GOOD", "HIGH", "LARGE",
+    "SMALL", "LONG", "TERM", "CURRENT", "TODAY", "YEAR", "YEARS", "MONTH", "MONTHS",
+    "WEEK", "WEEKS", "PLEASE", "WHICH", "ABOUT", "PORTFOLIO", "INVEST", "ADVICE",
+    "RETURN", "RETURNS", "GROWTH", "VALUE", "STRONG", "WEAK", "RISK", "SAFE",
+    "SECTOR", "NSE", "BSE", "BULL", "BEAR", "TRADE", "PRICE", "RANGE", "TARGET",
+    "PROFIT", "PROFITS", "EARN", "EARNINGS",
     # Common English words that look like tickers
     "THE", "AND", "FOR", "WITH", "NOT", "BUT", "ARE", "WAS", "THIS",
     "THAT", "HAVE", "FROM", "OR", "ONE", "ALL", "WERE", "WHAT", "HOW",
     "CAN", "WILL", "EACH", "MAKE", "LIKE", "LONG", "OVER", "SUCH",
     "A", "AN", "IS", "IT", "OF", "TO", "IN", "ON", "BY", "MY", "ME",
-    "EARN", "NEXT", "PLAN", "SOLID", "WOULD", "SOME", "VERY", "JUST",
+    "NEXT", "PLAN", "SOLID", "WOULD", "SOME", "VERY", "JUST",
     "THAN", "ALSO", "INTO", "THEIR", "MUCH", "MANY", "EVEN", "ONLY",
     "MOST", "BEEN", "BEING", "BEFORE", "AFTER", "BETWEEN", "THROUGH",
     "DURING", "WITHOUT", "WITHIN", "ALONG", "FOLLOWING", "ACROSS",
     "BEHIND", "BEYOND", "PLUS", "UNDER", "UPON", "DESPITE", "UNTIL",
     "WHILE", "WHERE", "WHEN", "WHY", "WHO", "WHOM", "WHOSE",
+    "AMONG", "OTHER", "COULD", "THESE", "THOSE",
 }
 
 _SCREENER_KEYWORDS = {
@@ -370,7 +372,7 @@ def _fetch_relevant_news(question: str, ticker: str | None, n: int = 8) -> list[
     extra: list[str] = []
     for word in q_upper.split():
         clean = re.sub(r"[^A-Z]", "", word)
-        if 2 <= len(clean) <= 5 and clean not in _STOP_WORDS and clean not in priority:
+        if 2 <= len(clean) <= 5 and clean not in _STOP_WORDS and clean not in _TICKER_STOP_WORDS and clean not in priority:
             extra.append(clean)
 
     candidates = priority + extra
@@ -587,13 +589,19 @@ def _detect_tickers_in_question(question: str, market: str = "US") -> tuple[list
     out_of_universe_words: words that look like NSE tickers but aren't in universe.
     """
     from nq_api.universe import US_DEFAULT, IN_DEFAULT
-    known = set(US_DEFAULT) | set(IN_DEFAULT)
+    known_us = set(US_DEFAULT)
+    known_in = set(IN_DEFAULT)
     in_universe = []
     q_upper = question.upper()
 
-    # Check known universe tickers (strip .NS / .BO for matching)
-    for t in known:
+    # Check known universe tickers — skip single-letter tickers (A, T, F, etc.)
+    # to avoid false positives from common English words.
+    # When market=IN, only check Indian tickers.
+    search_pool = known_in if market == "IN" else (known_us | known_in)
+    for t in search_pool:
         base = t.replace(".NS", "").replace(".BO", "")
+        if len(base) <= 2:
+            continue  # single/double-letter tickers match too many English words
         if re.search(r'\b' + re.escape(base) + r'\b', q_upper):
             in_universe.append(t)
 

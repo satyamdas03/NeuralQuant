@@ -1,21 +1,25 @@
 # apps/api/src/nq_api/deps.py
-"""Shared FastAPI dependencies — singletons loaded once at startup."""
+"""Shared FastAPI dependencies — singletons loaded once at startup.
+
+Heavy imports (sklearn, hmmlearn) are deferred to avoid loading ~100MB
+at module level, which causes OOM on Render's 512MB instances.
+"""
 import os
 import pickle
 import logging
 from functools import lru_cache
 from pathlib import Path
 
-from nq_signals.engine import SignalEngine
-from nq_signals.regime.hmm_detector import RegimeDetector
-
 logger = logging.getLogger(__name__)
 
 _HMM_MODEL_PATH = Path(__file__).resolve().parent.parent.parent.parent.parent / "packages" / "signals" / "src" / "nq_signals" / "regime" / "hmm_regime.pkl"
 
 
-def _load_hmm_model() -> RegimeDetector | None:
+def _load_hmm_model():
     """Try to load fitted HMM model. Returns None if unavailable."""
+    # Defer heavy imports until actually needed
+    from nq_signals.regime.hmm_detector import RegimeDetector
+
     alt_path = os.environ.get("HMM_MODEL_PATH", "")
     paths = [alt_path, str(_HMM_MODEL_PATH)] if alt_path else [_HMM_MODEL_PATH]
     for p in paths:
@@ -33,7 +37,8 @@ def _load_hmm_model() -> RegimeDetector | None:
 
 
 @lru_cache(maxsize=1)
-def get_signal_engine() -> SignalEngine:
+def get_signal_engine():
+    from nq_signals.engine import SignalEngine
     regime_detector = _load_hmm_model()
     return SignalEngine(regime_detector=regime_detector)
 
