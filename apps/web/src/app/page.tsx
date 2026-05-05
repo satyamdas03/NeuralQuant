@@ -36,16 +36,10 @@ export default function Landing() {
             of specialist AI analysts into a single verdict per stock — across the
             S&amp;P 500 and NIFTY 500.
           </p>
-          <div className="mt-8 flex flex-wrap gap-3">
+          <div className="mt-8">
             <GradientButton href="/dashboard" size="md">
               Get started free
             </GradientButton>
-            <Link
-              href="/login"
-              className="px-6 py-2.5 rounded-xl ghost-border text-on-surface-variant hover:text-on-surface hover:bg-surface-high font-medium text-sm transition-colors"
-            >
-              Sign in
-            </Link>
           </div>
           <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-tertiary/10 text-tertiary text-sm font-medium">
             <span className="w-2 h-2 rounded-full bg-tertiary animate-pulse" />
