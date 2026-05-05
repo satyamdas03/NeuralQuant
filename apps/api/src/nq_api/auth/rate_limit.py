@@ -19,6 +19,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import uuid
 from datetime import datetime, timezone
 
 import httpx
@@ -127,11 +128,14 @@ def enforce_tier_quota(endpoint: str):
     return _dep
 
 
+_GUEST_NAMESPACE = uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")  # DNS namespace UUID
+
+
 def _ip_to_guest_id(request: Request) -> str:
-    """Hash the client IP into a stable guest identifier."""
+    """Hash the client IP into a stable UUID-v5 identifier (valid for PostgREST uuid columns)."""
     forwarded = request.headers.get("x-forwarded-for", "")
     ip = forwarded.split(",")[0].strip() if forwarded else request.client.host if request.client else "unknown"
-    return f"guest_{hashlib.sha256(ip.encode()).hexdigest()[:12]}"
+    return str(uuid.uuid5(_GUEST_NAMESPACE, ip))
 
 
 def enforce_guest_quota(endpoint: str):
@@ -167,14 +171,14 @@ def enforce_guest_quota(endpoint: str):
                 log.exception("rate_limit _record failed")
                 raise HTTPException(500, f"usage log insert failed: {exc}") from exc
             return user
-        # Anonymous: free-tier limits tracked by IP hash
+        # Anonymous: free-tier limits tracked by IP hash (as UUID-v5)
         guest_id = _ip_to_guest_id(request)
         cap = _cap_for("free", endpoint)
         try:
             used = _today_count(guest_id, endpoint)
         except Exception as exc:
-            log.exception("rate_limit _today_count (guest) failed")
-            raise HTTPException(500, f"quota check failed: {exc}") from exc
+            log.warning("rate_limit _today_count (guest) failed: %s — allowing request (fail-open)", exc)
+            return None
         if used >= cap:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -183,8 +187,7 @@ def enforce_guest_quota(endpoint: str):
         try:
             _record(guest_id, endpoint)
         except Exception as exc:
-            log.exception("rate_limit _record (guest) failed")
-            raise HTTPException(500, f"usage log insert failed: {exc}") from exc
+            log.warning("rate_limit _record (guest) failed: %s — allowing request (fail-open)", exc)
         return None
 
     return _dep
