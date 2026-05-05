@@ -13,7 +13,6 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from nq_api.auth import User, get_current_user
-from nq_api.auth.models import TIER_LIMITS
 from nq_api.schemas_watchlist import (
     WatchlistItem,
     WatchlistAddRequest,
@@ -90,29 +89,7 @@ def list_watchlist(user: User = Depends(get_current_user)) -> WatchlistListRespo
 def add_watchlist(
     req: WatchlistAddRequest, user: User = Depends(get_current_user)
 ) -> WatchlistItem:
-    limit = TIER_LIMITS[user.tier].watchlist_max
-
-    count_resp = _rest(
-        "GET",
-        query={
-            "select": "id",
-            "user_id": f"eq.{user.id}",
-        },
-        extra_headers={"Prefer": "count=exact"},
-    )
-    content_range = count_resp["headers"].get("content-range", "0/0")
-    try:
-        current = int(content_range.split("/")[-1])
-    except Exception as e:
-        logger.debug("Non-critical enrichment failed: %s", e)
-        current = len(count_resp["data"] or [])
-
-    if current >= limit:
-        raise HTTPException(
-            status_code=status.HTTP_402_PAYMENT_REQUIRED,
-            detail=f"watchlist limit reached ({limit} for tier={user.tier})",
-        )
-
+    # Quota-free until 2026-05-30 — no watchlist limit enforcement
     ticker = req.ticker.upper().strip()
     insert_body = [{
         "user_id": user.id,

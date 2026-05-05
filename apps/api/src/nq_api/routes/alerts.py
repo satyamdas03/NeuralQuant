@@ -92,30 +92,7 @@ def list_subscriptions(user: User = Depends(get_current_user)) -> AlertSubscript
 def create_subscription(
     req: AlertSubscriptionCreate, user: User = Depends(get_current_user)
 ) -> AlertSubscription:
-    limit = ALERT_LIMITS.get(user.tier, 5)
-
-    # Quota count via Prefer: count=exact
-    count_resp = _rest(
-        "alert_subscriptions",
-        method="GET",
-        query={
-            "select": "id",
-            "user_id": f"eq.{user.id}",
-        },
-        extra_headers={"Prefer": "count=exact"},
-    )
-    content_range = count_resp["headers"].get("content-range", "0/0")
-    try:
-        current = int(content_range.split("/")[-1])
-    except Exception as e:
-        logger.debug("Non-critical enrichment failed: %s", e)
-        current = len(count_resp["data"] or [])
-    if current >= limit:
-        raise HTTPException(
-            status_code=status.HTTP_402_PAYMENT_REQUIRED,
-            detail=f"alert limit reached ({limit} for tier={user.tier})",
-        )
-
+    # Quota-free until 2026-05-30 — no alert limit enforcement
     ticker = req.ticker.upper().strip()
     insert_body = [{
         "user_id": user.id,

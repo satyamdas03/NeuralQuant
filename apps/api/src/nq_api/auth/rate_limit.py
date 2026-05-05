@@ -1,5 +1,8 @@
 """Per-tier daily rate limiting via public.usage_log.
 
+QUOTA_FREE_UNTIL: 2026-05-30 — all limits bypassed for launch period.
+After this date, full quota enforcement resumes.
+
 enforce_tier_quota(endpoint) -> FastAPI dep that:
   1. Requires authed user (get_current_user).
   2. Counts today's usage_log rows for (user, endpoint) via direct httpx REST.
@@ -20,7 +23,7 @@ import hashlib
 import logging
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 
 import httpx
 from fastapi import Depends, HTTPException, Request, status
@@ -29,6 +32,13 @@ from .deps import get_current_user, get_current_user_optional
 from .models import User, TIER_LIMITS
 
 log = logging.getLogger(__name__)
+
+QUOTA_FREE_UNTIL = date(2026, 5, 30)
+
+
+def _quota_free() -> bool:
+    """Return True during the quota-free launch window (until 2026-05-30)."""
+    return date.today() <= QUOTA_FREE_UNTIL
 
 
 def _usage_rest(
@@ -99,6 +109,9 @@ def enforce_tier_quota(endpoint: str):
     """Return a dep that enforces the daily cap on `endpoint` for the user."""
 
     def _dep(user: User = Depends(get_current_user)) -> User:
+        # Launch window: skip all quota checks until 2026-05-30
+        if _quota_free():
+            return user
         # Dev-mode bypass: skip tier gates entirely in development
         if os.environ.get("ENVIRONMENT") == "development":
             return user
@@ -145,6 +158,9 @@ def enforce_guest_quota(endpoint: str):
         request: Request,
         user: User | None = Depends(get_current_user_optional),
     ) -> User | None:
+        # Launch window: skip all quota checks until 2026-05-30
+        if _quota_free():
+            return user
         if os.environ.get("ENVIRONMENT") == "development":
             return user
         # Authed users: normal tier limits
