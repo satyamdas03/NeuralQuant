@@ -21,7 +21,7 @@ from nq_api.routes.auth_webhook import router as auth_webhook_router
 from nq_api.routes.market_wrap import router as market_wrap_router
 from nq_api.slack.router import router as slack_router
 from nq_api.routes.checkout import router as checkout_router
-from nq_api.routes.webhooks_stripe import router as stripe_webhook_router
+from nq_api.routes.webhooks_paypal import router as paypal_webhook_router
 from nq_api.routes.referrals import router as referral_router
 
 
@@ -337,7 +337,7 @@ app.include_router(backtest.router,  prefix="/backtest",  tags=["backtest"])
 app.include_router(alerts.router)
 app.include_router(newsdesk.router)
 app.include_router(checkout_router)
-app.include_router(stripe_webhook_router)
+app.include_router(paypal_webhook_router)
 app.include_router(referral_router)
 app.include_router(slack_router)
 app.include_router(team.router)

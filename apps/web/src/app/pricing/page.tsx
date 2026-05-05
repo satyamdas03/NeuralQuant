@@ -15,9 +15,9 @@ export default function PricingPage() {
     setCurrency(detectCurrency());
   }, []);
 
-  async function handleCheckout(tier: string, curr: Currency) {
+  async function handleCheckout(tier: string) {
     setLoading(tier);
-    trackEvent("checkout_started", { tier, currency: curr });
+    trackEvent("checkout_started", { tier, currency: "USD" });
     try {
       const token = (() => {
         if (typeof window === "undefined") return "";
@@ -25,7 +25,7 @@ export default function PricingPage() {
         if (stored) { try { return JSON.parse(stored).access_token; } catch { /* */ } }
         return "";
       })();
-      const res = await fetch(`${API_URL}/checkout/session?tier=${tier}&currency=${curr}`, {
+      const res = await fetch(`${API_URL}/checkout/session?tier=${tier}&currency=USD`, {
         method: "POST",
         headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       });
@@ -44,6 +44,14 @@ export default function PricingPage() {
 
   return (
     <div className="min-h-screen bg-surface text-on-surface">
+      {/* Urgency Banner */}
+      <div className="bg-gradient-to-r from-[#c1c1ff]/20 to-[#bdf4ff]/20 border-b border-[#c1c1ff]/30">
+        <div className="max-w-6xl mx-auto px-6 py-3 text-center">
+          <p className="text-sm font-medium text-on-surface">
+            Free access ends <span className="text-[#bdf4ff] font-bold">May 30, 2026</span>. Lock in your free tier now — upgrade anytime.
+          </p>
+        </div>
+      </div>
       <div className="max-w-6xl mx-auto px-6 py-20">
         <h1 className="font-headline text-4xl md:text-5xl font-bold tracking-tight text-center">
           Simple, transparent pricing
@@ -62,7 +70,7 @@ export default function PricingPage() {
                 : "ghost-border text-on-surface-variant hover:text-on-surface"
             }`}
           >
-            ₹ INR
+            ₹ INR (approx)
           </button>
           <button
             onClick={() => setCurrency("USD")}
@@ -75,6 +83,11 @@ export default function PricingPage() {
             $ USD
           </button>
         </div>
+        {currency === "INR" && (
+          <p className="mt-2 text-center text-xs text-on-surface-variant">
+            INR prices are approximate. All payments processed in USD via PayPal.
+          </p>
+        )}
 
         {/* Tier Cards */}
         <div className="mt-12 grid md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -111,11 +124,11 @@ export default function PricingPage() {
                   </Link>
                 ) : (
                   <button
-                    onClick={() => handleCheckout(tier.key, currency)}
+                    onClick={() => handleCheckout(tier.key)}
                     disabled={loading !== null}
                     className="w-full px-6 py-3 rounded-xl bg-gradient-to-r from-[#c1c1ff] to-[#bdf4ff] text-[#0f0f1a] font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
                   >
-                    {loading === tier.key ? "Redirecting…" : `Upgrade to ${tier.name}`}
+                    {loading === tier.key ? "Redirecting…" : "Subscribe with PayPal"}
                   </button>
                 )}
               </div>
@@ -124,7 +137,7 @@ export default function PricingPage() {
         </div>
 
         <p className="mt-8 text-center text-xs text-on-surface-variant">
-          All prices exclude applicable taxes. Cancel anytime. No lock-in.
+          Secure payment via PayPal. All charges in USD. Cancel anytime. No lock-in.
         </p>
       </div>
     </div>

@@ -17,6 +17,14 @@ export default async function Landing() {
 
   return (
     <div className="min-h-screen bg-surface text-on-surface">
+      {/* Urgency Banner */}
+      <div className="bg-gradient-to-r from-[#c1c1ff]/20 to-[#bdf4ff]/20 border-b border-[#c1c1ff]/30">
+        <div className="max-w-6xl mx-auto px-6 py-3 text-center">
+          <p className="text-sm font-medium text-on-surface">
+            Free access ends <span className="text-[#bdf4ff] font-bold">May 30, 2026</span>. Sign up now to lock in your free tier.
+          </p>
+        </div>
+      </div>
       {/* Hero */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(193,193,255,0.12),transparent_60%)]" />

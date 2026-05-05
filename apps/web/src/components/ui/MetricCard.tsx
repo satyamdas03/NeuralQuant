@@ -1,32 +1,27 @@
-type Props = {
+import { cn } from "@/lib/utils";
+
+interface MetricCardProps {
   label: string;
-  value: string;
-  subtext?: string;
-  accent?: "primary" | "secondary" | "tertiary" | "error";
-};
+  value: string | number;
+  accent?: "primary" | "secondary" | "tertiary" | "error" | "default";
+  className?: string;
+}
 
-const ACCENT: Record<string, string> = {
-  primary: "text-primary",
-  secondary: "text-secondary",
-  tertiary: "text-tertiary",
-  error: "text-error",
-};
-
-export default function MetricCard({
-  label,
-  value,
-  subtext,
-  accent = "primary",
-}: Props) {
+export default function MetricCard({ label, value, accent = "default", className }: MetricCardProps) {
   return (
-    <div className="rounded-xl bg-surface-container ghost-border p-3">
+    <div className={cn("rounded-xl ghost-border bg-surface-low/40 p-3", className)}>
       <p className="text-xs text-on-surface-variant">{label}</p>
-      <p className={`tabular-nums text-xl font-bold ${ACCENT[accent]}`}>
+      <p
+        className={cn("font-headline text-lg font-bold", {
+          "text-primary": accent === "primary",
+          "text-secondary": accent === "secondary",
+          "text-tertiary": accent === "tertiary",
+          "text-red-400": accent === "error",
+          "text-on-surface": accent === "default",
+        })}
+      >
         {value}
       </p>
-      {subtext && (
-        <p className="text-[10px] text-on-surface-variant">{subtext}</p>
-      )}
     </div>
   );
 }

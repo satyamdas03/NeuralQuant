@@ -11,17 +11,23 @@ log = logging.getLogger(__name__)
 
 async def run_pending():
     """Check if required tables exist. Log warnings for missing ones."""
-    from nq_api.config import SUPABASE_URL, SUPABASE_SERVICE_KEY
+    import os
     import httpx
+
+    supabase_url = os.environ.get("SUPABASE_URL", "")
+    supabase_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+    if not supabase_url or not supabase_key:
+        log.warning("SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY not set — skipping migration check")
+        return
 
     required_tables = ["enrichment_cache"]
 
     for table in required_tables:
         resp = httpx.get(
-            f"{SUPABASE_URL}/rest/v1/{table}",
+            f"{supabase_url}/rest/v1/{table}",
             headers={
-                "apikey": SUPABASE_SERVICE_KEY,
-                "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+                "apikey": supabase_key,
+                "Authorization": f"Bearer {supabase_key}",
             },
             params={"select": "id", "limit": "1"},
             timeout=10.0,

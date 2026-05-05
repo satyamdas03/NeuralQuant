@@ -1,1 +1,0 @@
-export { default as RegimeBadge } from "@/components/ui/RegimeBadge";

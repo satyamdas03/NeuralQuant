@@ -1,16 +1,20 @@
-"""Stripe Checkout Session creation."""
+"""PayPal Subscription creation.
+
+All payments processed in USD. INR prices shown on frontend are approximate.
+PayPal doesn't support INR recurring billing.
+"""
 import os
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Query
-import stripe
 
 from nq_api.auth.deps import get_current_user
-from nq_api.auth.models import User, STRIPE_PRICES
+from nq_api.auth.models import User, PAYPAL_PRICES
+from nq_api.paypal import create_subscription_link
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/checkout", tags=["checkout"])
-
-stripe.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
-SUCCESS_URL = os.environ.get("STRIPE_SUCCESS_URL", "https://neuralquant.vercel.app/dashboard?upgraded=1")
-CANCEL_URL = os.environ.get("STRIPE_CANCEL_URL", "https://neuralquant.vercel.app/pricing")
 
 
 @router.post("/session")
@@ -19,28 +23,24 @@ async def create_checkout_session(
     currency: str = Query("USD", pattern=r"^(INR|USD)$"),
     user: User = Depends(get_current_user),
 ):
-    """Create a Stripe Checkout Session for the given tier + currency."""
-    price_id = STRIPE_PRICES.get(tier, {}).get(currency)
-    if not price_id:
-        raise HTTPException(400, f"No price configured for {tier}/{currency}")
+    """Create a PayPal subscription and return the approval URL.
 
-    # Reuse existing Stripe customer if available
-    customer_kwargs = {}
-    if user.stripe_customer_id:
-        customer_kwargs["customer"] = user.stripe_customer_id
-    else:
-        customer_kwargs["customer_email"] = user.email
+    All payments are in USD. The currency param is accepted for
+    backward compatibility but PayPal always charges USD.
+    """
+    plan_id = PAYPAL_PRICES.get(tier)
+    if not plan_id:
+        raise HTTPException(400, f"No plan configured for {tier}")
 
     try:
-        session = stripe.checkout.Session.create(
-            mode="subscription",
-            line_items=[{"price": price_id, "quantity": 1}],
-            success_url=SUCCESS_URL,
-            cancel_url=CANCEL_URL,
-            metadata={"user_id": user.id, "tier": tier},
-            **customer_kwargs,
+        approval_url = create_subscription_link(
+            plan_id=plan_id,
+            user_id=user.id,
+            user_email=user.email,
+            tier=tier,
         )
-    except stripe.error.StripeError as e:
-        raise HTTPException(400, str(e))
+    except Exception as e:
+        log.error("PayPal subscription creation failed: %s", e)
+        raise HTTPException(400, f"Payment setup failed: {e}")
 
-    return {"url": session.url, "session_id": session.id}
+    return {"url": approval_url}
