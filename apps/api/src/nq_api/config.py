@@ -40,7 +40,7 @@ ALPACA_LIVE_URL = os.environ.get(
 )
 
 # ── Frontend base URL (for email links) ──────────────────────────────────────
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://neuralquant.vercel.app")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://neuralquant.co")
 
 # ── App URLs (for broker deep links) ─────────────────────────────────────────
 ALPACA_DASHBOARD_URL = os.environ.get(

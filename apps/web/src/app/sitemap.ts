@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://neuralquant.vercel.app";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://neuralquant.co";
 
 // Core NSE tickers for SEO (top 200 by market cap)
 const NSE_TICKERS = [

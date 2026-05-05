@@ -28,7 +28,7 @@ function SignupForm() {
       options: {
         data: refCode ? { referral_code: refCode } : undefined,
         emailRedirectTo: (() => {
-          const envUrl = process.env.NEXT_PUBLIC_SITE_URL;
+          const envUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
           const base =
             envUrl ||
             (typeof window !== "undefined" ? window.location.origin : "");
