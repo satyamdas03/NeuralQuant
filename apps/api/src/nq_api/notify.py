@@ -10,7 +10,7 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-RESEND_FROM = os.environ.get("RESEND_FROM", "NeuralQuant <alerts@neuralquant.ai>")
+RESEND_FROM = os.environ.get("RESEND_FROM", "NeuralQuant <alerts@neuralquant.co>")
 from nq_api.config import FRONTEND_URL
 
 

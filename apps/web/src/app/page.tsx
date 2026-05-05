@@ -1,20 +1,10 @@
-// Public landing page. Authed users redirect to /dashboard.
+// Public landing page — no auth wall, all routes accessible.
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import GradientButton from "@/components/ui/GradientButton";
 import CitationCard from "@/components/ui/CitationCard";
 import DebateShowcase from "@/components/ui/DebateShowcase";
 
-export const dynamic = "force-dynamic";
-
-export default async function Landing() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (user) redirect("/dashboard");
-
+export default function Landing() {
   return (
     <div className="min-h-screen bg-surface text-on-surface">
       {/* Urgency Banner */}
@@ -47,7 +37,7 @@ export default async function Landing() {
             S&amp;P 500 and NIFTY 500.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <GradientButton href="/signup" size="md">
+            <GradientButton href="/dashboard" size="md">
               Get started free
             </GradientButton>
             <Link
@@ -134,7 +124,7 @@ export default async function Landing() {
         </div>
         <DebateShowcase />
         <div className="mt-8 text-center">
-          <GradientButton href="/query" size="md">
+          <GradientButton href="/dashboard" size="md">
             Watch them debate →
           </GradientButton>
         </div>
@@ -175,7 +165,7 @@ export default async function Landing() {
             </ul>
             <div className="mt-6">
               <Link
-                href="/signup"
+                href="/dashboard"
                 className="block text-center px-6 py-3 rounded-xl ghost-border text-on-surface-variant hover:text-on-surface font-medium text-sm transition-colors"
               >
                 Get started free
@@ -204,7 +194,7 @@ export default async function Landing() {
             </ul>
             <div className="mt-6">
               <Link
-                href="/signup"
+                href="/dashboard"
                 className="block text-center px-6 py-3 rounded-xl glass-strong ghost-border text-on-surface hover:bg-surface-high hover:shadow-[0_0_24px_rgba(193,193,255,0.12)] font-semibold text-sm transition-all duration-200"
               >
                 Upgrade to Investor
@@ -231,7 +221,7 @@ export default async function Landing() {
             </ul>
             <div className="mt-6">
               <Link
-                href="/signup"
+                href="/dashboard"
                 className="block text-center px-6 py-3 rounded-xl ghost-border text-on-surface-variant hover:text-on-surface font-medium text-sm transition-colors"
               >
                 Upgrade to Pro
@@ -320,7 +310,7 @@ export default async function Landing() {
             Create a free account — screener, watchlist, portfolio builder, and
             AI debate unlock instantly.
           </p>
-          <GradientButton href="/signup" size="md" className="mt-8">
+          <GradientButton href="/dashboard" size="md" className="mt-8">
             Create free account
           </GradientButton>
         </div>

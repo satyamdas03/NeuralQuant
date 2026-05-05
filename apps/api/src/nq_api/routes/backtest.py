@@ -17,7 +17,7 @@ import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from nq_api.auth.rate_limit import enforce_tier_quota
+from nq_api.auth.rate_limit import enforce_guest_quota
 from nq_api.auth.models import User
 
 logger = logging.getLogger(__name__)
@@ -79,7 +79,7 @@ def _metrics(equity: pd.Series, signal: pd.Series) -> dict[str, float]:
 @router.post("", response_model=BacktestResponse)
 async def run_backtest(
     req: BacktestRequest,
-    user: User = Depends(enforce_tier_quota("backtest")),
+    user: User | None = Depends(enforce_guest_quota("backtest")),
 ) -> BacktestResponse:
     if req.fast >= req.slow:
         raise HTTPException(status_code=400, detail="fast must be < slow")

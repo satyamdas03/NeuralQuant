@@ -1,20 +1,8 @@
-// Refresh Supabase auth cookie + gate protected routes.
+// Refresh Supabase auth cookie. Auth wall removed — all routes public.
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 type CookieToSet = { name: string; value: string; options?: CookieOptions };
-
-const PROTECTED = [
-  /^\/watchlist(\/|$)/,
-  /^\/dashboard(\/|$)/,
-  /^\/ask(\/|$)/,
-  /^\/query(\/|$)/,
-  /^\/screener(\/|$)/,
-  /^\/stocks(\/|$)/,
-  /^\/backtest(\/|$)/,
-  /^\/analyst(\/|$)/,
-  /^\/account(\/|$)/,
-];
 
 export async function middleware(req: NextRequest) {
   let response = NextResponse.next({ request: req });
@@ -33,25 +21,15 @@ export async function middleware(req: NextRequest) {
           );
           response = NextResponse.next({ request: req });
           cookiesToSet.forEach(({ name, value, options }: CookieToSet) =>
-            response.cookies.set(name, value, options)
+            response.cookies.set(name, value, options as CookieOptions)
           );
         },
       },
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const path = req.nextUrl.pathname;
-  const isProtected = PROTECTED.some((re) => re.test(path));
-  if (isProtected && !user) {
-    const redirect = req.nextUrl.clone();
-    redirect.pathname = "/login";
-    redirect.searchParams.set("next", path);
-    return NextResponse.redirect(redirect);
-  }
+  // Refresh session cookie so logged-in users stay authenticated.
+  await supabase.auth.getUser();
 
   return response;
 }

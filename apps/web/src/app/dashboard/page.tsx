@@ -137,24 +137,6 @@ function HomeAskAI() {
     if (!q || loading) return;
     setSlowLoad(false);
 
-    // Check auth first to avoid redirect on 401
-    try {
-      const { createClient } = await import("@/lib/supabase/client");
-      const supabase = createClient();
-      const { data } = await supabase.auth.getSession();
-      if (!data.session?.access_token) {
-        const userMsg: ChatMsg = { id: Date.now().toString(), role: "user", content: q };
-        const authMsg: ChatMsg = {
-          id: (Date.now() + 1).toString(),
-          role: "assistant",
-          content: "Sign in required to ask questions.",
-          loading: false,
-        };
-        setMessages((prev) => [...prev, userMsg, authMsg]);
-        return;
-      }
-    } catch { /* proceed without check */ }
-
     const userMsg: ChatMsg = { id: Date.now().toString(), role: "user", content: q };
     const phId = (Date.now() + 1).toString();
     const ph: ChatMsg = { id: phId, role: "assistant", content: "", loading: true, phaseLabel: "Thinking..." };

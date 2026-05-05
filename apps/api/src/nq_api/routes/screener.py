@@ -11,7 +11,7 @@ from nq_api.schemas import ScreenerRequest, ScreenerResponse
 from nq_api.score_builder import row_to_ai_score, rank_scores_in_universe, REGIME_LABELS
 from nq_api.universe import UNIVERSE_BY_MARKET
 from nq_api.data_builder import build_real_snapshot, fetch_real_macro
-from nq_api.auth.rate_limit import enforce_tier_quota
+from nq_api.auth.rate_limit import enforce_guest_quota
 from nq_api.auth.models import User, TIER_LIMITS
 from nq_api.deps import get_signal_engine
 from nq_api.cache import score_cache
@@ -179,7 +179,7 @@ def _apply_preset_filters(scores: list, req: ScreenerRequest) -> list:
 async def run_screener(
     req: ScreenerRequest,
     engine: Any = Depends(get_signal_engine),
-    user: User = Depends(enforce_tier_quota("screener")),
+    user: User | None = Depends(enforce_guest_quota("screener")),
 ) -> ScreenerResponse:
     # Try cache first for full-universe requests
     custom_tickers = bool(req.tickers)

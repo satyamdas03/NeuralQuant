@@ -7,18 +7,24 @@ enforce_tier_quota(endpoint) -> FastAPI dep that:
      (or .backtest_per_day when endpoint == "backtest").
   4. Inserts usage_log row on pass; raises 429 on cap.
 
+enforce_guest_quota(endpoint) -> FastAPI dep that:
+  Same as enforce_tier_quota, but allows anonymous users.
+  Authed users get their tier limits; guests get free-tier limits
+  tracked by a hashed IP identifier.
+
 Uses direct httpx REST to PostgREST — avoids RemoteProtocolError from
 supabase Python SDK in uvicorn's asyncio context.
 """
 from __future__ import annotations
+import hashlib
 import logging
 import os
 from datetime import datetime, timezone
 
 import httpx
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 
-from .deps import get_current_user
+from .deps import get_current_user, get_current_user_optional
 from .models import User, TIER_LIMITS
 
 log = logging.getLogger(__name__)
@@ -117,5 +123,68 @@ def enforce_tier_quota(endpoint: str):
             log.exception("rate_limit _record failed")
             raise HTTPException(500, f"usage log insert failed: {exc}") from exc
         return user
+
+    return _dep
+
+
+def _ip_to_guest_id(request: Request) -> str:
+    """Hash the client IP into a stable guest identifier."""
+    forwarded = request.headers.get("x-forwarded-for", "")
+    ip = forwarded.split(",")[0].strip() if forwarded else request.client.host if request.client else "unknown"
+    return f"guest_{hashlib.sha256(ip.encode()).hexdigest()[:12]}"
+
+
+def enforce_guest_quota(endpoint: str):
+    """Like enforce_tier_quota, but allows anonymous users (free-tier limits via IP hash)."""
+
+    def _dep(
+        request: Request,
+        user: User | None = Depends(get_current_user_optional),
+    ) -> User | None:
+        if os.environ.get("ENVIRONMENT") == "development":
+            return user
+        # Authed users: normal tier limits
+        if user is not None:
+            cap = _cap_for(user.tier, endpoint) + user.referral_bonus_queries
+            if cap == 0:
+                raise HTTPException(
+                    status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                    detail=f"{endpoint} not available on {user.tier} tier — upgrade required",
+                )
+            try:
+                used = _today_count(user.id, endpoint)
+            except Exception as exc:
+                log.exception("rate_limit _today_count failed")
+                raise HTTPException(500, f"quota check failed: {exc}") from exc
+            if used >= cap:
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail=f"daily cap reached ({used}/{cap}) on {user.tier} tier — upgrade or retry tomorrow",
+                )
+            try:
+                _record(user.id, endpoint)
+            except Exception as exc:
+                log.exception("rate_limit _record failed")
+                raise HTTPException(500, f"usage log insert failed: {exc}") from exc
+            return user
+        # Anonymous: free-tier limits tracked by IP hash
+        guest_id = _ip_to_guest_id(request)
+        cap = _cap_for("free", endpoint)
+        try:
+            used = _today_count(guest_id, endpoint)
+        except Exception as exc:
+            log.exception("rate_limit _today_count (guest) failed")
+            raise HTTPException(500, f"quota check failed: {exc}") from exc
+        if used >= cap:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"daily cap reached ({used}/{cap}) for free tier — sign up for more or retry tomorrow",
+            )
+        try:
+            _record(guest_id, endpoint)
+        except Exception as exc:
+            log.exception("rate_limit _record (guest) failed")
+            raise HTTPException(500, f"usage log insert failed: {exc}") from exc
+        return None
 
     return _dep

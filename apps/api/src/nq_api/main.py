@@ -325,6 +325,44 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── Visitor tracking (IP-based unique visitors per day) ─────────────────────
+import hashlib
+from starlette.requests import Request
+from starlette.responses import Response
+
+_visitor_store: dict[str, set[str]] = {}  # date_str -> set of ip_hashes
+
+
+@app.middleware("http")
+async def track_visitors(request: Request, call_next):
+    response: Response = await call_next(request)
+    # Skip health checks, static assets, webhooks
+    path = request.url.path
+    if path.startswith(("/docs", "/openapi", "/redoc", "/auth/webhook", "/webhooks")):
+        return response
+    try:
+        forwarded = request.headers.get("x-forwarded-for", "")
+        ip = forwarded.split(",")[0].strip() if forwarded else (request.client.host if request.client else "unknown")
+        today = time.strftime("%Y-%m-%d")
+        ip_hash = hashlib.sha256(ip.encode()).hexdigest()[:16]
+        if today not in _visitor_store:
+            _visitor_store[today] = set()
+        _visitor_store[today].add(ip_hash)
+        # Prune old dates (keep last 7)
+        if len(_visitor_store) > 7:
+            oldest = sorted(_visitor_store.keys())[:-7]
+            for d in oldest:
+                del _visitor_store[d]
+    except Exception:
+        pass
+    return response
+
+
+@app.get("/stats/visitors")
+def visitor_stats():
+    """Return unique visitor counts per day."""
+    return {date: len(ips) for date, ips in sorted(_visitor_store.items())}
+
 app.include_router(stocks.router,   prefix="/stocks",   tags=["stocks"])
 app.include_router(screener.router, prefix="/screener", tags=["screener"])
 app.include_router(analyst.router,  prefix="/analyst",  tags=["analyst"])
