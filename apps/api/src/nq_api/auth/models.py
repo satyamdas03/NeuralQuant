@@ -39,5 +39,3 @@ PAYPAL_PRICES: dict[str, str] = {
     "pro": os.environ.get("PAYPAL_PLAN_PRO_USD", ""),
     "api": os.environ.get("PAYPAL_PLAN_API_USD", ""),
 }
-
-STRIPE_PRICES = PAYPAL_PRICES
