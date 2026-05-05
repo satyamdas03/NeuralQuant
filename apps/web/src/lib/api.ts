@@ -250,13 +250,27 @@ export const api = {
     apiFetch<SentimentResponse>(`/sentiment/news/${ticker}?market=${market}&limit=${limit}`),
 };
 
-// Authed — counts against backtest_per_day tier cap
-export const authedBacktest = {
-  run: (body: BacktestRequest) =>
-    authedFetch<BacktestResponse>("/backtest", {
+// Guest-aware — counts against backtest_per_day tier cap (works without login)
+export const guestBacktest = {
+  run: async (body: BacktestRequest): Promise<BacktestResponse> => {
+    // Try authed first (higher tier limits), fall back to anonymous
+    const { createClient } = await import("./supabase/client");
+    const supabase = createClient();
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const response = await fetch(`${API_BASE}/backtest`, {
       method: "POST",
+      headers,
       body: JSON.stringify(body),
-    }),
+    });
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`API ${response.status}: ${error}`);
+    }
+    return response.json();
+  },
 };
 
 // Broker integration — deep-link trade tickets

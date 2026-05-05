@@ -40,17 +40,6 @@ export default function StockPage() {
   }, [ticker, market]);
 
   const runDebate = async () => {
-    // Check auth first
-    try {
-      const { createClient } = await import("@/lib/supabase/client");
-      const supabase = createClient();
-      const { data } = await supabase.auth.getSession();
-      if (!data.session?.access_token) {
-        setReport({ ticker: ticker.toUpperCase(), market, debate: [], consensus: "", verdict: "Sign in required to run PARA-DEBATE." } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
-        return;
-      }
-    } catch { /* proceed */ }
-
     setAnalysing(true);
     try {
       // Use SSE streaming variant so Render's 30 s idle-connection timeout

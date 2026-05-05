@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { authedBacktest } from "@/lib/api";
+import { guestBacktest } from "@/lib/api";
 import type { BacktestResponse, Market } from "@/lib/types";
 import GhostBorderCard from "@/components/ui/GhostBorderCard";
 import MetricCard from "@/components/ui/MetricCard";
@@ -31,7 +31,7 @@ function BacktestForm() {
     setLoading(true);
     setResult(null);
     try {
-      const r = await authedBacktest.run({ ticker, market, fast, slow, period });
+      const r = await guestBacktest.run({ ticker, market, fast, slow, period });
       setResult(r);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Backtest failed");
