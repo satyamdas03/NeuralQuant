@@ -357,7 +357,7 @@ def write_enrichment(ticker: str, market: str, data: dict[str, Any]) -> bool:
                 )
                 r2.raise_for_status()
             else:
-                r.raise_for_status()()
+                r.raise_for_status()
             log.info("Cached enrichment for %s/%s: %d fields", ticker, market, len(data))
             return True
     except Exception as e:

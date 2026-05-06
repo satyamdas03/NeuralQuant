@@ -11,8 +11,6 @@ class User(BaseModel):
     id: str
     email: str
     tier: Tier = "free"
-    stripe_customer_id: str | None = None
-    stripe_subscription_id: str | None = None
     paypal_subscription_id: str | None = None
     subscription_status: str | None = None
     referral_bonus_queries: int = 0

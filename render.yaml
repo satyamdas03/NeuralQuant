@@ -45,5 +45,5 @@ services:
         sync: false
       - key: PAYPAL_PLAN_API_USD
         sync: false
-    plan: free
+    plan: pro
     healthCheckPath: /health

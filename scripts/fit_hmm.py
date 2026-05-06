@@ -17,7 +17,7 @@ import numpy as np
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-os.environ.setdefault("FRED_API_KEY", os.environ.get("FRED_API_KEY", "b09c2aae58f65cd63fffd0109aabc2ec"))
+os.environ.setdefault("FRED_API_KEY", os.environ.get("FRED_API_KEY", ""))
 
 
 def fetch_macro_history() -> pd.DataFrame:

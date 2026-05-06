@@ -13,7 +13,6 @@ from nq_api.universe import UNIVERSE_BY_MARKET
 from nq_api.data_builder import build_real_snapshot, fetch_real_macro
 from nq_api.auth.rate_limit import enforce_guest_quota
 from nq_api.auth.models import User, TIER_LIMITS
-from nq_api.deps import get_signal_engine
 from nq_api.cache import score_cache
 
 logger = logging.getLogger(__name__)

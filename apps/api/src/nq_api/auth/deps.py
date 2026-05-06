@@ -140,8 +140,6 @@ def get_current_user(
         id=row["id"],
         email=row.get("email", email),
         tier=row.get("tier", "free"),
-        stripe_customer_id=row.get("stripe_customer_id"),
-        stripe_subscription_id=row.get("stripe_subscription_id"),
         paypal_subscription_id=row.get("paypal_subscription_id"),
         subscription_status=row.get("subscription_status"),
         referral_bonus_queries=row.get("referral_bonus_queries", 0),
