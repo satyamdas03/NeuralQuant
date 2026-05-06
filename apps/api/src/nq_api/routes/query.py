@@ -143,7 +143,7 @@ Required fields:
   "verdict": "STRONG BUY | BUY | HOLD | SELL | STRONG SELL",
   "confidence": 0-100,
   "timeframe": "Short-term | Medium-term | Long-term",
-  "summary": "DETAILED 4-8 sentence summary covering the core thesis, key data points, and actionable conclusion. This is the MAIN output the user reads — make it comprehensive, specific, and data-rich. Include specific numbers: prices, P/E, scores, percentages. For portfolio questions: list each stock with its allocation % and one-line rationale.",
+  "summary": "DETAILED 4-8 sentence summary. FIRST SENTENCE MUST state the stock's current price and key valuation (e.g. 'NVDA trades at $196.50 with P/E 40.2x and beta 2.24'). Then cover the core thesis, key data points, and actionable conclusion. Include specific numbers: prices, P/E, scores, percentages. For portfolio questions: list each stock with its allocation % and one-line rationale.",
   "metrics": [{"name": "string", "value": "string", "benchmark": "string|null", "status": "positive|negative|neutral"}],
   "reasoning": {
     "why_this": "2-4 sentences explaining WHY you chose this recommendation with 3+ specific data points (P/E, ForeCast score, momentum percentile, revenue growth, etc.)",
@@ -433,12 +433,13 @@ def _fetch_finnhub_news_summaries(ticker: str | None, market: str = "US", n: int
 
 def _fetch_enrichment(ticker: str | None, market: str = "US") -> dict:
     """Fetch technical indicators + insider + news sentiment for Ask AI.
-    Cache-first: reads from enrichment_cache (1h TTL) before live fetch."""
+    Cache-first: reads from enrichment_cache (1h TTL) before live fetch.
+    Falls back to stale cache when Finnhub is rate-limited."""
     if not ticker:
         return {}
     # Try cache first (1-hour TTL)
     try:
-        from nq_api.cache.score_cache import read_enrichment, write_enrichment
+        from nq_api.cache.score_cache import read_enrichment, write_enrichment, read_enrichment_stale
         cached = read_enrichment(ticker, market)
         if cached:
             log.info('Ask AI enrichment cache HIT for %s/%s: %d fields', ticker, market, len(cached))
@@ -450,13 +451,29 @@ def _fetch_enrichment(ticker: str | None, market: str = "US") -> dict:
         result = _fetch_finnhub_data(ticker, market)
         if result:
             try:
-                from nq_api.cache.score_cache import write_enrichment
                 write_enrichment(ticker, market, result)
             except Exception:
                 pass  # Cache write failure is non-critical
-        return result
+            return result
+        # Finnhub returned empty (rate-limited). Try stale cache.
+        try:
+            stale = read_enrichment_stale(ticker, market)
+            if stale:
+                log.info('Ask AI enrichment stale cache fallback for %s/%s: %d fields', ticker, market, len(stale))
+                return stale
+        except Exception:
+            pass
+        return {}
     except Exception as exc:
         log.warning('Enrichment for Ask AI failed %s: %s', ticker, exc)
+        # Last resort: try stale cache
+        try:
+            stale = read_enrichment_stale(ticker, market)
+            if stale:
+                log.info('Ask AI enrichment stale cache fallback (after error) for %s/%s', ticker, market)
+                return stale
+        except Exception:
+            pass
         return {}
 
 def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, platform_ctx: str | None) -> StockSummary | None:
@@ -469,10 +486,15 @@ def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, plat
     if not effective_ticker and enrichment:
         effective_ticker = enrichment.get("symbol", "")
 
-    # If still no ticker, try to extract from platform_ctx (e.g. "AAPL | Apple Inc. | ForeCast: 7.2/10 | ...")
+    # If still no ticker, try to extract from platform_ctx
+    # Format: "  NVDA: ForeCast=8.1/10 | CURRENT_PRICE=$196.50 | ..." or "AAPL | Apple Inc. | ..."
     if not effective_ticker and platform_ctx:
         import re as _re
-        m = _re.search(r"^([A-Z]{1,5}(?:\.[A-Z]{2})?)\s*\|", platform_ctx.strip())
+        # Try "TICKER:" format (enrich_with_platform_data)
+        m = _re.search(r"^\s*([A-Z]{1,5}(?:\.[A-Z]{2})?)\s*:", platform_ctx, _re.MULTILINE)
+        if not m:
+            # Try "TICKER |" format (screener)
+            m = _re.search(r"^([A-Z]{1,5}(?:\.[A-Z]{2})?)\s*\|", platform_ctx.strip())
         if m:
             effective_ticker = m.group(1)
 

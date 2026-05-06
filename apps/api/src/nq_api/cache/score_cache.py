@@ -140,7 +140,7 @@ def read_top_picks(
 
 
 def upsert_scores(rows: list[dict[str, Any]]) -> int:
-    """Batch upsert rows keyed on (ticker, market). Returns count."""
+    """Batch upsert rows keyed on (ticker, market). Also inserts into score_cache_history for walk-forward."""
     if not rows:
         return 0
     known = _get_known_columns()
@@ -150,6 +150,17 @@ def upsert_scores(rows: list[dict[str, Any]]) -> int:
     # Filter to only columns that exist in the table (PostgREST rejects unknown columns)
     filtered = [{k: v for k, v in r.items() if k in known} for r in rows]
     result = _supabase_rest("score_cache", method="POST", body=filtered)
+    # Also INSERT into score_cache_history (append-only for walk-forward validation)
+    # Uses same data but INSERT only — no upsert, preserving historical snapshots
+    try:
+        history_cols = {"ticker", "market", "composite_score", "score_1_10", "regime_id",
+                        "regime_label", "quality_percentile", "momentum_percentile",
+                        "value_percentile", "low_vol_percentile", "short_interest_percentile",
+                        "insider_percentile", "pe_ttm", "pb_ratio", "gross_profit_margin", "roe", "computed_at"}
+        history_rows = [{k: v for k, v in r.items() if k in history_cols} for r in rows]
+        _supabase_rest("score_cache_history", method="POST", body=history_rows)
+    except Exception:
+        pass  # Table may not exist yet — non-critical
     return len(rows) if result is not None else 0
 
 
@@ -285,6 +296,27 @@ def read_enrichment(ticker: str, market: str) -> dict[str, Any] | None:
     return None
 
 
+def read_enrichment_stale(ticker: str, market: str) -> dict[str, Any] | None:
+    """Return cached enrichment data regardless of age (fallback when Finnhub is rate-limited)."""
+    data = _supabase_rest(
+        "enrichment_cache",
+        method="GET",
+        query={
+            "select": "*",
+            "ticker": f"eq.{ticker.upper()}",
+            "market": f"eq.{market}",
+            "order": "cached_at.desc",
+            "limit": "1",
+        },
+    )
+    if isinstance(data, list) and data:
+        row = data[0]
+        for meta_key in ("id", "ticker", "market", "cached_at"):
+            row.pop(meta_key, None)
+        return {k: v for k, v in row.items() if v is not None}
+    return None
+
+
 def write_enrichment(ticker: str, market: str, data: dict[str, Any]) -> bool:
     """Store enrichment data in Supabase. Returns True on success."""
     if not data:
@@ -313,8 +345,19 @@ def write_enrichment(ticker: str, market: str, data: dict[str, Any]) -> bool:
     }
     try:
         with httpx.Client(timeout=10) as client:
+            # Try upsert first (POST with resolution=merge-duplicates)
             r = client.post(endpoint, json=row, headers=headers)
-            r.raise_for_status()
+            if r.status_code == 409:
+                # Conflict — row exists. PATCH instead.
+                patch_headers = {**headers, "Prefer": "return=representation"}
+                r2 = client.patch(
+                    f"{endpoint}?ticker=eq.{ticker.upper()}&market=eq.{market}",
+                    json={k: v for k, v in row.items() if k not in ("ticker", "market")},
+                    headers=patch_headers,
+                )
+                r2.raise_for_status()
+            else:
+                r.raise_for_status()()
             log.info("Cached enrichment for %s/%s: %d fields", ticker, market, len(data))
             return True
     except Exception as e:

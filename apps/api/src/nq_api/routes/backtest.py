@@ -323,8 +323,17 @@ def _get_accuracy_sync() -> AccuracyResponse:
 
 
 def _score_cache_rows() -> list[dict]:
-    """Fetch score cache rows from Supabase via the canonical REST helper."""
+    """Fetch score cache rows from Supabase. Prefers score_cache_history (all snapshots)
+    over score_cache (latest only) for walk-forward validation depth."""
     from nq_api.cache.score_cache import _supabase_rest
+    # Try history table first (has multiple dates for walk-forward)
+    try:
+        data = _supabase_rest("score_cache_history", "GET", {"select": "*", "limit": "2000", "order": "computed_at.asc"})
+        if isinstance(data, list) and len(data) >= 50:
+            return data
+    except Exception:
+        pass  # Table may not exist yet
+    # Fallback to current score_cache
     data = _supabase_rest("score_cache", "GET", {"select": "*", "limit": "500"})
     return data if isinstance(data, list) else []
 
