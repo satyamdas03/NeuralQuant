@@ -490,8 +490,12 @@ def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, plat
     # Format: "  NVDA: ForeCast=8.1/10 | CURRENT_PRICE=$196.50 | ..." or "AAPL | Apple Inc. | ..."
     if not effective_ticker and platform_ctx:
         import re as _re
-        # Try "TICKER:" format (enrich_with_platform_data)
-        m = _re.search(r"^\s*([A-Z]{1,5}(?:\.[A-Z]{2})?)\s*:", platform_ctx, _re.MULTILINE)
+        # Try "TICKER:" format — only match lines with ForeCast or CURRENT_PRICE to avoid
+        # false matches on common English words (e.g. "TECH:" from "tech portfolio")
+        m = _re.search(r"^\s*([A-Z]{1,5}(?:\.[A-Z]{2})?)\s*:\s*(?:ForeCast|CURRENT_PRICE)", platform_ctx, _re.MULTILINE)
+        if not m:
+            # Broader fallback: "TICKER:" followed by stock data patterns
+            m = _re.search(r"^\s*([A-Z]{1,5}(?:\.[A-Z]{2})?)\s*:\s*\d+/10", platform_ctx, _re.MULTILINE)
         if not m:
             # Try "TICKER |" format (screener)
             m = _re.search(r"^([A-Z]{1,5}(?:\.[A-Z]{2})?)\s*\|", platform_ctx.strip())
@@ -528,7 +532,7 @@ def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, plat
     forecast_score = None
     if platform_ctx:
         import re as _re
-        m = _re.search(rf"{_re.escape(effective_ticker)}[^|]*?(\d+)/10", platform_ctx)
+        m = _re.search(rf"{_re.escape(effective_ticker)}[^|]*?(\d+\.?\d*)/10", platform_ctx)
         if m:
             try:
                 forecast_score = float(m.group(1))
@@ -553,9 +557,9 @@ def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, plat
                 if not mcap:
                     mcap = fund.get("market_cap")
                 if not high52:
-                    high52 = fund.get("week_52_high")
+                    high52 = fund.get("week52_high") or fund.get("week_52_high")
                 if not low52:
-                    low52 = fund.get("week_52_low")
+                    low52 = fund.get("week52_low") or fund.get("week_52_low")
                 if not target:
                     target = fund.get("analyst_target")
                 if not rec:

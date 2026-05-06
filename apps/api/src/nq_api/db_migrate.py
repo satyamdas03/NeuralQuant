@@ -20,7 +20,7 @@ async def run_pending():
         log.warning("SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY not set — skipping migration check")
         return
 
-    required_tables = ["enrichment_cache"]
+    required_tables = ["enrichment_cache", "score_cache_history"]
 
     for table in required_tables:
         resp = httpx.get(
@@ -35,10 +35,14 @@ async def run_pending():
         if resp.status_code == 200:
             log.info("Table %s exists", table)
         elif resp.status_code == 404:
+            migration_map = {
+                "enrichment_cache": "009_enrichment_cache.sql",
+                "score_cache_history": "010_score_cache_history.sql",
+            }
+            sql_file = migration_map.get(table, "migration")
             log.warning(
-                "Table %s NOT found — enrichment cache will be disabled. "
-                "Apply migration 009_enrichment_cache.sql via Supabase SQL editor.",
-                table,
+                "Table %s NOT found — apply migration %s via Supabase SQL editor.",
+                table, sql_file,
             )
         else:
             log.warning("Table %s check returned status %d: %s", table, resp.status_code, resp.text[:200])
