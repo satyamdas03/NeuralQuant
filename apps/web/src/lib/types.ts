@@ -327,6 +327,7 @@ export interface StockSummary {
   price: number | null;
   change_pct: number | null;
   pe_ttm: number | null;
+  eps_ttm: number | null;
   pb_ratio: number | null;
   market_cap: number | null;
   week_52_high: number | null;

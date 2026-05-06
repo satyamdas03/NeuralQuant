@@ -137,6 +137,7 @@ class StockSummary(BaseModel):
     price: float | None = None
     change_pct: float | None = None
     pe_ttm: float | None = None
+    eps_ttm: float | None = None
     pb_ratio: float | None = None
     market_cap: float | None = None
     week_52_high: float | None = None

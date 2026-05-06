@@ -162,7 +162,7 @@ class AccuracyResponse(BaseModel):
 
 
 @router.get("/accuracy", response_model=AccuracyResponse)
-def get_accuracy() -> AccuracyResponse:
+async def get_accuracy() -> AccuracyResponse:
     """
     Returns walk-forward backtest accuracy metrics for NeuralQuant ForeCast scores.
 
@@ -170,9 +170,26 @@ def get_accuracy() -> AccuracyResponse:
     This is the same metric competitors (Danelfin: 70%, Trade Ideas: 65%) publish.
     """
     try:
-        from nq_signals.backtest import run_walk_forward
-        import yfinance as yf
+        result = await asyncio.wait_for(
+            asyncio.to_thread(_get_accuracy_sync),
+            timeout=45.0,
+        )
+        return result
+    except asyncio.TimeoutError:
+        logger.warning("Backtest accuracy: timed out after 45s")
+        return _accuracy_default("Accuracy calculation timed out. Score data is accumulating — check back later.")
+    except Exception as e:
+        import traceback
+        logger.warning("Backtest accuracy: %s\n%s", e, traceback.format_exc())
+        return _accuracy_default(str(e))
 
+
+def _get_accuracy_sync() -> AccuracyResponse:
+    """Blocking accuracy compute — runs in thread pool with 45s timeout."""
+    from nq_signals.backtest import run_walk_forward
+    import yfinance as yf
+
+    try:
         rows = _score_cache_rows()
         if not rows or len(rows) < 50:
             return _accuracy_default("Insufficient score cache data (need 50+ stocks)")

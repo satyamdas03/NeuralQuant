@@ -272,9 +272,20 @@ export const guestBacktest = {
     return response.json();
   },
   accuracy: async (): Promise<AccuracyResponse> => {
-    const response = await fetch(`${API_BASE}/backtest/accuracy`);
-    if (!response.ok) throw new Error(`API ${response.status}`);
-    return response.json();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 45000); // 45s timeout for accuracy endpoint
+    try {
+      const response = await fetch(`${API_BASE}/backtest/accuracy`, { signal: controller.signal });
+      clearTimeout(timeout);
+      if (!response.ok) throw new Error(`API ${response.status}`);
+      return response.json();
+    } catch (e) {
+      clearTimeout(timeout);
+      if (e instanceof DOMException && e.name === "AbortError") {
+        throw new Error("Accuracy data is still computing. Please try again in a moment.");
+      }
+      throw e;
+    }
   },
 };
 

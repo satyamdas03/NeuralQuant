@@ -88,8 +88,9 @@ _SYSTEM = """You are NeuralQuant — an institutional-grade AI stock intelligenc
 5. Competitor comparison data — nearby ranked stocks and their scores
 
 ## HARD RULES — NEVER VIOLATE
-1. **NEVER say "I don't have data/scores for this stock" when price or fundamentals are injected above.** If live price is injected, USE IT. Quote exact numbers.
-2. **NEVER deflect to a different stock when the user asks about a specific one.** If asked about Trent, answer about Trent — not Bharti, not Maruti.
+1. **NEVER use price data from your training data.** If a live price is injected in the user message, USE THAT EXACT PRICE — even if your training data says a different price. Stocks split (NVDA split 10:1 in June 2024). Your training data is STALE. The injected CURRENT_PRICE is the ONLY correct price.
+2. **NEVER say "I don't have data/scores for this stock" when price or fundamentals are injected above.** If live price is injected, USE IT. Quote exact numbers.
+3. **NEVER deflect to a different stock when the user asks about a specific one.** If asked about Trent, answer about Trent — not Bharti, not Maruti.
 3. **NEVER mention US indices (S&P 500, VIX, HY spreads, 2s10s) as primary context for India-specific questions.** For India queries: lead with Nifty/Sensex/INR, mention global risk only as a footnote.
 4. **NEVER give indirect or vague investment advice.** If asked "which stocks to buy for ₹10L", name SPECIFIC stocks with specific rupee allocations.
 5. **NEVER start with "Based on available data, I cannot..."** — you always have data. Use it.
@@ -134,6 +135,8 @@ _SYSTEM_STRUCTURED = _SYSTEM + """
 
 ## STRUCTURED OUTPUT MODE
 You MUST respond with ONLY a JSON object matching this schema. No markdown, no prose outside the JSON. Do NOT truncate — provide ALL fields with FULL detail.
+
+CRITICAL PRICE ACCURACY: When live market data is injected above (e.g. "CURRENT_PRICE=$196.50"), you MUST use that EXACT price in every metric, scenario target, and summary. NEVER substitute with your training data price. Stocks like NVDA have split — your training data price of ~$1,000+ is WRONG. Use ONLY the injected CURRENT_PRICE.
 
 Required fields:
 {
@@ -497,6 +500,7 @@ def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, plat
     beta = enrichment.get("beta")
     sector = enrichment.get("sector", "")
     name = enrichment.get("long_name") or enrichment.get("shortName") or effective_ticker
+    eps = enrichment.get("eps_ttm")
 
     # Try to get ForeCast score from platform_ctx text
     forecast_score = None
@@ -527,6 +531,7 @@ def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, plat
                 beta = fund.get("beta")
                 sector = fund.get("sector", "")
                 name = fund.get("long_name", effective_ticker)
+                eps = fund.get("eps_ttm")
         except Exception:
             pass
 
@@ -540,6 +545,7 @@ def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, plat
         price=round(float(price), 2) if price else None,
         change_pct=round(float(change_pct), 2) if change_pct is not None else None,
         pe_ttm=round(float(pe), 1) if pe else None,
+        eps_ttm=round(float(eps), 2) if eps else None,
         pb_ratio=round(float(pb), 2) if pb else None,
         market_cap=float(mcap) if mcap else None,
         week_52_high=round(float(high52), 2) if high52 else None,
@@ -792,7 +798,7 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
             if not cached:
                 cached = score_cache.read_top(target_market, 20, max_age_seconds=999999999)
             if cached:
-                lines = [f"NeuralQuant {target_market} Screener — Top 20 (cached scores):"]
+                lines = [f"NeuralQuant {target_market} Screener — Top 20 (cached scores). LIVE PRICES for top 5 — USE THESE, NOT training data:"]
                 for i, row in enumerate(cached[:20]):
                     t = row.get("ticker", "")
                     sc = int(row.get("composite_score", 0.5) * 10)
@@ -818,7 +824,7 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                     if value: details.append(f"Value={value:.0%}")
                     det_str = " | ".join(details) if details else ""
                     lines.append(f"#{i+1} {t}: {sc}/10 | {price_str} | {det_str}")
-                lines.append("NOTE: Live prices for top 5, rest cached. Do NOT use prices from training data.")
+                lines.append("IMPORTANT: Live prices for top 5, rest cached. Do NOT use prices from training data — stocks may have split (e.g. NVDA 10:1 in June 2024).")
                 parts.append("\n".join(lines))
             else:
                 # No cache — fetch top 5 stocks only (fast)
@@ -840,7 +846,9 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
 
         # Fetch specific stock data with live prices (fast: 1-3 calls, ~5s)
         if in_universe_tickers:
-            lines = ["NeuralQuant scores + LIVE prices for mentioned stocks:"]
+            from datetime import date as _date
+            today_str = _date.today().strftime("%B %d, %Y")
+            lines = [f"CRITICAL — LIVE MARKET DATA AS OF {today_str} — USE THESE EXACT PRICES, NOT YOUR TRAINING DATA:"]
             cached_all = score_cache.read_top(target_market, 50, max_age_seconds=300)
             if not cached_all:
                 cached_all = score_cache.read_top(target_market, 50, max_age_seconds=86400)
@@ -854,19 +862,41 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                 price = fund.get("current_price")
                 chg = fund.get("change_pct", 0)
                 pe = fund.get("pe_ttm")
+                pb = fund.get("pb_ratio")
                 target = fund.get("analyst_target")
                 rec = fund.get("analyst_rec", "")
+                w52h = fund.get("week52_high")
+                w52l = fund.get("week52_low")
+                beta_val = fund.get("beta")
+                mcap = fund.get("market_cap")
+                eps = fund.get("eps_ttm")
                 cur = "Rs." if target_market == "IN" else "$"
-                price_str = f"{cur}{price:,.2f} ({chg:+.1f}%)" if price else "N/A"
-                target_str = f"analyst target {cur}{target:,.0f} ({rec})" if target else ""
-                pe_str = f"P/E={pe:.1f}" if pe else ""
+                # Build a very explicit data block the LLM cannot ignore
+                detail_parts = [f"ForeCast={sc}/10"]
+                if price: detail_parts.append(f"CURRENT_PRICE={cur}{price:,.2f}")
+                if chg: detail_parts.append(f"CHANGE={chg:+.1f}%")
+                if pe: detail_parts.append(f"P/E_TTM={pe:.1f}")
+                if eps: detail_parts.append(f"EPS={eps:.2f}")
+                if pb: detail_parts.append(f"P/B={pb:.2f}")
+                if beta_val: detail_parts.append(f"Beta={beta_val:.2f}")
+                if mcap:
+                    if cur == "Rs.":
+                        if mcap >= 1e13: detail_parts.append(f"Mcap=₹{mcap/1e13:.1f}L Cr")
+                        elif mcap >= 1e11: detail_parts.append(f"Mcap=₹{mcap/1e11:.1f}K Cr")
+                        else: detail_parts.append(f"Mcap=₹{mcap/1e7:.0f} Cr")
+                    else:
+                        if mcap >= 1e12: detail_parts.append(f"Mcap=${mcap/1e12:.1f}T")
+                        elif mcap >= 1e9: detail_parts.append(f"Mcap=${mcap/1e9:.1f}B")
+                        else: detail_parts.append(f"Mcap=${mcap/1e6:.0f}M")
+                if w52l and w52h: detail_parts.append(f"52wk={cur}{w52l:,.0f}-{cur}{w52h:,.0f}")
+                if target: detail_parts.append(f"AnalystTarget={cur}{target:,.0f}({rec})")
                 momentum = cached_row.get("momentum_percentile")
                 quality = cached_row.get("quality_percentile")
-                factor_str = ""
-                if momentum: factor_str += f" Momentum={momentum:.0%}"
-                if quality: factor_str += f" Quality={quality:.0%}"
-                lines.append(f"  {t}: {sc}/10 | {price_str} | {pe_str}{factor_str} | {target_str}")
-            lines.append("IMPORTANT: Use these live prices. Do NOT use training data prices.")
+                if momentum: detail_parts.append(f"Momentum={momentum:.0%}")
+                if quality: detail_parts.append(f"Quality={quality:.0%}")
+                lines.append(f"  {t}: {' | '.join(detail_parts)}")
+            lines.append("")
+            lines.append("⚠ MANDATORY: The CURRENT_PRICE above is the REAL price TODAY. Stocks may have split (e.g. NVDA 10:1 split in June 2024). NEVER use pre-split prices from your training data. ALWAYS quote the exact CURRENT_PRICE shown above in your response.")
             parts.append("\n".join(lines))
 
         # Inject competitor comparison for specific stocks
@@ -1534,6 +1564,10 @@ async def run_nl_query_v2(
 
     user_msg = "\n".join(context_parts)
 
+    # Reinforce: if platform_ctx contains CURRENT_PRICE, add an extra reminder at the end
+    if platform_ctx and "CURRENT_PRICE" in platform_ctx:
+        user_msg += "\n\nREMINDER: Use the CURRENT_PRICE values shown above. They reflect TODAY's market. Your training data prices are STALE and WRONG for stocks that have split (NVDA 10:1 June 2024)."
+
     # Load persistent conversation memory if session_key provided
     user_id = str(user.id) if user else None
     persistent_history = []
@@ -1901,6 +1935,9 @@ async def run_nl_query_v2_stream(
                 if len(tech_lines) > 1:
                     context_parts.append("\n".join(tech_lines))
             result_holder["user_msg"] = "\n".join(context_parts)
+            # Reinforce: if platform_ctx contains CURRENT_PRICE, add reminder
+            if platform_ctx and "CURRENT_PRICE" in platform_ctx:
+                result_holder["user_msg"] += "\n\nREMINDER: Use the CURRENT_PRICE values shown above. They reflect TODAY's market. Your training data prices are STALE and WRONG for stocks that have split (NVDA 10:1 June 2024)."
             result_holder["enrichment"] = enrichment
             result_holder["platform_ctx"] = platform_ctx
             context_done.set()

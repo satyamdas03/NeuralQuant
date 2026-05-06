@@ -38,6 +38,9 @@ export default function StockSummaryCard({ summary }: Props) {
   if (summary.pe_ttm !== null) {
     rows.push({ label: "P/E (TTM)", value: fmtNum(summary.pe_ttm, 1) });
   }
+  if (summary.eps_ttm !== null) {
+    rows.push({ label: "EPS (TTM)", value: `${cur}${fmtNum(summary.eps_ttm, 2)}` });
+  }
   if (summary.pb_ratio !== null) {
     rows.push({ label: "P/B", value: fmtNum(summary.pb_ratio, 2) });
   }

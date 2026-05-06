@@ -401,6 +401,13 @@ def _fetch_one(ticker: str, market: str) -> dict:
                 except Exception:
                     pass
 
+        eps_ttm = info.get("trailingEps") or info.get("dilutedEPS") or (info.get("netIncomeToCommon") / info.get("sharesOutstanding", 1) if info.get("netIncomeToCommon") and info.get("sharesOutstanding") else None)
+        if eps_ttm is not None:
+            try:
+                eps_ttm = round(float(eps_ttm), 2)
+            except (TypeError, ValueError):
+                eps_ttm = None
+
         result = {
             "gross_profit_margin": float(gpm),
             "roe":                 float(roe),
@@ -430,6 +437,7 @@ def _fetch_one(ticker: str, market: str) -> dict:
             "debt_equity":          round(float(info.get("debtToEquity", 100.0)) / 100, 2) if info.get("debtToEquity") is not None else None,
             "revenue_growth_yoy":   round(float(info.get("revenueGrowth", 0.0)) * 100, 1) if info.get("revenueGrowth") is not None else None,
             "fcf_yield":            round(fcf_val / market_cap, 4) if (fcf_val := _safe(info.get("freeCashflow")) or 0) > 0 and market_cap else None,
+            "eps_ttm":             eps_ttm,
         }
     except Exception as exc:
         log.debug("yfinance fetch failed for %s: %s — using synthetic", ticker, exc)
