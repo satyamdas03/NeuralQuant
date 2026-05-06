@@ -4,7 +4,7 @@ import type {
   QueryRequest, StructuredQueryResponse,
   MarketOverview, MarketNews, MarketSectors,
   MarketMovers, StockChart, StockMeta,
-  SentimentResponse, BacktestRequest, BacktestResponse,
+  SentimentResponse, BacktestRequest, BacktestResponse, AccuracyResponse,
   AlertSubscription, AlertDelivery, NewsDeskResponse,
 } from "./types";
 
@@ -269,6 +269,11 @@ export const guestBacktest = {
       const error = await response.text();
       throw new Error(`API ${response.status}: ${error}`);
     }
+    return response.json();
+  },
+  accuracy: async (): Promise<AccuracyResponse> => {
+    const response = await fetch(`${API_BASE}/backtest/accuracy`);
+    if (!response.ok) throw new Error(`API ${response.status}`);
     return response.json();
   },
 };

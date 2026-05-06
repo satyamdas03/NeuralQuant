@@ -216,7 +216,7 @@ export interface BacktestRequest {
   strategy?: "sma_crossover";
   fast?: number;
   slow?: number;
-  period?: "1y" | "2y" | "5y" | "10y" | "max";
+  period?: "1y" | "2y" | "3y" | "5y" | "10y" | "max";
   initial_capital?: number;
 }
 
@@ -236,6 +236,25 @@ export interface BacktestResponse {
   n_trades: number;
   n_days: number;
   equity_curve: BacktestPoint[];
+}
+
+export interface AccuracyResponse {
+  hit_rate_at_7plus: number;
+  hit_rate_at_5plus: number;
+  baseline_hit_rate: number;
+  mean_return_top_decile: number;
+  mean_return_bottom_decile: number;
+  top_minus_bottom_spread: number;
+  sharpe_top_quartile: number;
+  max_drawdown_top_quartile: number;
+  win_rate_top_quartile: number;
+  observation_count: number;
+  period_start: string;
+  period_end: string;
+  avg_stocks_per_period: number;
+  methodology: string;
+  comparison: string;
+  note: string;
 }
 
 export type AlertType = "score_change" | "regime_change" | "threshold";
@@ -301,11 +320,30 @@ export interface ReasoningBlock {
   confidence_gap: string;
 }
 
+export interface StockSummary {
+  ticker: string;
+  name: string | null;
+  price: number | null;
+  change_pct: number | null;
+  pe_ttm: number | null;
+  pb_ratio: number | null;
+  market_cap: number | null;
+  week_52_high: number | null;
+  week_52_low: number | null;
+  analyst_target: number | null;
+  analyst_recommendation: string | null;
+  beta: number | null;
+  sector: string | null;
+  forecast_score: number | null;
+  currency: string;
+}
+
 export interface StructuredQueryResponse {
   verdict: string;
   confidence: number;
   timeframe: string;
   summary: string;
+  stock_summary: StockSummary | null;
   metrics: MetricItem[];
   reasoning: ReasoningBlock;
   scenarios: ScenarioItem[];

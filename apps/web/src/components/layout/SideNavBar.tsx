@@ -12,6 +12,7 @@ import {
   Newspaper,
   Database,
   GitCompareArrows,
+  BarChart3,
   LogIn,
 } from "lucide-react";
 import GradientButton from "@/components/ui/GradientButton";
@@ -22,6 +23,7 @@ const NAV = [
   { href: "/screener", label: "Screener", icon: ScanSearch },
   { href: "/query", label: "Ask AI", icon: MessageSquareText },
   { href: "/backtest", label: "Backtest", icon: FlaskConical },
+  { href: "/performance", label: "Performance", icon: BarChart3 },
   { href: "/sources", label: "Data Sources", icon: Database },
   { href: "/compare", label: "Compare", icon: GitCompareArrows },
   { href: "/watchlist", label: "Watchlist", icon: Star },

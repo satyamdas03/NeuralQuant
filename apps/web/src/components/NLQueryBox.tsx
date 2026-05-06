@@ -170,6 +170,7 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
                 answer={msg.content}
                 sources={msg.sources}
                 structured={msg.structured}
+                hideVerdict
               />
             )
           )}

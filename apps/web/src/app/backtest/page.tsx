@@ -21,7 +21,7 @@ function BacktestForm() {
   const [market, setMarket] = useState<Market>(initialMarket);
   const [fast, setFast] = useState(20);
   const [slow, setSlow] = useState(50);
-  const [period, setPeriod] = useState<"1y" | "2y" | "5y" | "10y" | "max">("2y");
+  const [period, setPeriod] = useState<"1y" | "2y" | "3y" | "5y" | "10y" | "max">("2y");
   const [result, setResult] = useState<BacktestResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -82,6 +82,7 @@ function BacktestForm() {
             options={[
               { value: "1y", label: "1 year" },
               { value: "2y", label: "2 years" },
+              { value: "3y", label: "3 years" },
               { value: "5y", label: "5 years" },
               { value: "10y", label: "10 years" },
               { value: "max", label: "Max" },

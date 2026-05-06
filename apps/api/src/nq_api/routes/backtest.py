@@ -31,7 +31,7 @@ class BacktestRequest(BaseModel):
     strategy: Literal["sma_crossover"] = "sma_crossover"
     fast: int = Field(20, ge=2, le=200)
     slow: int = Field(50, ge=5, le=400)
-    period: Literal["1y", "2y", "5y", "10y", "max"] = "2y"
+    period: Literal["1y", "2y", "3y", "5y", "10y", "max"] = "2y"
     initial_capital: float = 10_000.0
 
 

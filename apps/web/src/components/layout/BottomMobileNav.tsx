@@ -9,6 +9,7 @@ import {
   Newspaper,
   Database,
   GitCompareArrows,
+  BarChart3,
 } from "lucide-react";
 
 const NAV = [
@@ -16,8 +17,8 @@ const NAV = [
   { href: "/news", label: "NewsDesk", icon: Newspaper },
   { href: "/screener", label: "Screener", icon: ScanSearch },
   { href: "/query", label: "Ask AI", icon: MessageSquareText, center: true },
+  { href: "/performance", label: "Perf", icon: BarChart3 },
   { href: "/sources", label: "Sources", icon: Database },
-  { href: "/compare", label: "Compare", icon: GitCompareArrows },
 ];
 
 export default function BottomMobileNav() {

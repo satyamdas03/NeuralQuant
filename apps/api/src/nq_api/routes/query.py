@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 import logging
 
-from nq_api.schemas import QueryRequest, QueryResponse, StructuredQueryResponse, ReasoningBlock, MetricItem, ScenarioItem, ComparisonItem
+from nq_api.schemas import QueryRequest, QueryResponse, StructuredQueryResponse, ReasoningBlock, MetricItem, ScenarioItem, ComparisonItem, StockSummary
 
 log = logging.getLogger(__name__)
 from nq_api.auth.rate_limit import enforce_tier_quota
@@ -117,7 +117,7 @@ _SYSTEM = """You are NeuralQuant — an institutional-grade AI stock intelligenc
   - Stop-loss: entry_mid × 0.90 (10% below entry) for every stock — consistent across the portfolio.
   - **For EACH allocation, explain WHY this stock and WHY NOT the next-best alternative.** This is mandatory.
   - Keep the entire portfolio block under 1200 characters so it renders cleanly.
-- **For specific stock queries:** Lead with: score/10 (if available), current price, 1-line verdict (BUY / HOLD / AVOID), then justify with data. ALWAYS compare to the nearest competitor or sector average.
+- **For specific stock queries:** Lead with: score/10 (if available), current price, then justify with data. ALWAYS compare to the nearest competitor or sector average. Do NOT start with a BUY/SELL/HOLD verdict — the user should reach their own conclusion from the analysis.
 - **Avoid:** Internal scoring jargon (don't say "Quality score 41%") — translate to plain English ("Strong balance sheet, improving margins").
 - **For Indian stocks:** Use ₹ symbol, crore/lakh notation where appropriate.
 
@@ -160,7 +160,7 @@ Required fields:
 }
 
 MANDATORY FIELD RULES — EVERY field must be filled with substantive, data-rich content:
-1. summary: MUST be 4-8 sentences, NOT 1-2 sentences. Include specific numbers, allocations, verdict. This is the user's primary read.
+1. summary: MUST be 4-8 sentences, NOT 1-2 sentences. Include specific numbers, allocations. Do NOT start with the verdict word (BUY/SELL/HOLD) — let the data speak. This is the user's primary read.
 2. metrics: MUST include at least 4 metrics with values, benchmarks, and status. For stock queries: P/E, momentum, quality, ForeCast score. For portfolio queries: target return, risk level, diversification score.
 3. reasoning.why_this: MUST cite 3+ specific data points with numbers. Not "strong momentum" — "92nd percentile momentum, P/E 18 vs sector 25, revenue growth +22% YoY".
 4. reasoning.why_not_alt: MUST name a specific alternative stock and explain with data why it's inferior. "Similar P/E but lower ForeCast score (6 vs 8) and weaker momentum (65th vs 92nd percentile)".
@@ -455,6 +455,91 @@ def _fetch_enrichment(ticker: str | None, market: str = "US") -> dict:
     except Exception as exc:
         log.warning('Enrichment for Ask AI failed %s: %s', ticker, exc)
         return {}
+
+def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, platform_ctx: str | None) -> StockSummary | None:
+    """Build a StockSummary from enrichment + platform data for the quick-glance card."""
+    if not ticker and not enrichment and not platform_ctx:
+        return None
+
+    # Determine the ticker to use
+    effective_ticker = ticker or ""
+    if not effective_ticker and enrichment:
+        effective_ticker = enrichment.get("symbol", "")
+
+    if not effective_ticker:
+        return None
+
+    is_india = market == "IN" or effective_ticker.endswith(".NS") or effective_ticker.endswith(".BO")
+    cur = "₹" if is_india else "$"
+
+    # Try to get price/fundamentals from enrichment first
+    price = enrichment.get("current_price") or enrichment.get("regularMarketPrice")
+    change_pct = enrichment.get("change_pct") or enrichment.get("regularMarketChangePercent")
+    pe = enrichment.get("pe_ttm") or enrichment.get("trailingPE")
+    pb = enrichment.get("pb_ratio") or enrichment.get("priceToBook")
+    mcap = enrichment.get("market_cap") or enrichment.get("marketCap")
+    high52 = enrichment.get("week_52_high") or enrichment.get("fiftyTwoWeekHigh")
+    low52 = enrichment.get("week_52_low") or enrichment.get("fiftyTwoWeekLow")
+    target = enrichment.get("analyst_target") or enrichment.get("targetMeanPrice")
+    rec = enrichment.get("analyst_rec") or enrichment.get("recommendationKey", "")
+    beta = enrichment.get("beta")
+    sector = enrichment.get("sector", "")
+    name = enrichment.get("long_name") or enrichment.get("shortName") or effective_ticker
+
+    # Try to get ForeCast score from platform_ctx text
+    forecast_score = None
+    if platform_ctx:
+        import re as _re
+        m = _re.search(rf"{_re.escape(effective_ticker)}[^|]*?(\d+)/10", platform_ctx)
+        if m:
+            try:
+                forecast_score = float(m.group(1))
+            except ValueError:
+                pass
+
+    # If enrichment is empty, try fetching from _fetch_one
+    if not enrichment and effective_ticker:
+        try:
+            from nq_api.data_builder import _fetch_one
+            fund = _fetch_one(effective_ticker, market)
+            if fund and fund.get("_is_real"):
+                price = fund.get("current_price")
+                change_pct = fund.get("change_pct")
+                pe = fund.get("pe_ttm")
+                pb = fund.get("pb_ratio")
+                mcap = fund.get("market_cap")
+                high52 = fund.get("week_52_high")
+                low52 = fund.get("week_52_low")
+                target = fund.get("analyst_target")
+                rec = fund.get("analyst_rec", "")
+                beta = fund.get("beta")
+                sector = fund.get("sector", "")
+                name = fund.get("long_name", effective_ticker)
+        except Exception:
+            pass
+
+    # Only return summary if we have at least a price
+    if price is None:
+        return None
+
+    return StockSummary(
+        ticker=effective_ticker,
+        name=name if name else None,
+        price=round(float(price), 2) if price else None,
+        change_pct=round(float(change_pct), 2) if change_pct is not None else None,
+        pe_ttm=round(float(pe), 1) if pe else None,
+        pb_ratio=round(float(pb), 2) if pb else None,
+        market_cap=float(mcap) if mcap else None,
+        week_52_high=round(float(high52), 2) if high52 else None,
+        week_52_low=round(float(low52), 2) if low52 else None,
+        analyst_target=round(float(target), 2) if target else None,
+        analyst_recommendation=rec.upper() if rec else None,
+        beta=round(float(beta), 2) if beta else None,
+        sector=sector if sector else None,
+        forecast_score=forecast_score,
+        currency=cur,
+    )
+
 
 def _save_conversation_turn(user_id: str | None, session_key: str, role: str, content: str,
                             ticker: str | None = None, market: str = "US") -> None:
@@ -990,7 +1075,7 @@ async def run_nl_query(
         )
 
 
-def _structured_from_markdown(raw: str, freeform_resp: QueryResponse, route: str) -> StructuredQueryResponse:
+def _structured_from_markdown(raw: str, freeform_resp: QueryResponse, route: str, stock_summary: StockSummary | None = None) -> StructuredQueryResponse:
     """Convert freeform markdown LLM output into a rich StructuredQueryResponse.
     Called when JSON parsing fails — extracts verdict, metrics, scenarios, etc.
     from the markdown text so the frontend card components have real data."""
@@ -1125,6 +1210,7 @@ def _structured_from_markdown(raw: str, freeform_resp: QueryResponse, route: str
         data_sources=freeform_resp.data_sources,
         follow_up_questions=freeform_resp.follow_up_questions,
         route=freeform_resp.route,
+        stock_summary=stock_summary,
     )
 
 
@@ -1487,6 +1573,8 @@ async def run_nl_query_v2(
                         "confidence_gap": "N/A",
                     }
                 result = StructuredQueryResponse(**parsed)
+                # Attach stock summary from enrichment data
+                result.stock_summary = _build_stock_summary(req.ticker, req.market or "US", enrichment, platform_ctx)
                 # Persist conversation turn (best-effort)
                 if user_id and req.session_key:
                     await asyncio.to_thread(
@@ -1508,7 +1596,8 @@ async def run_nl_query_v2(
                 raw = block.text
                 break
         freeform_resp = _parse_query_response(raw, route)
-        return _structured_from_markdown(raw, freeform_resp, route)
+        result = _structured_from_markdown(raw, freeform_resp, route, _build_stock_summary(req.ticker, req.market or "US", enrichment, platform_ctx))
+        return result
 
     except anthropic.APITimeoutError:
         return StructuredQueryResponse(
@@ -1800,6 +1889,8 @@ async def run_nl_query_v2_stream(
                 if len(tech_lines) > 1:
                     context_parts.append("\n".join(tech_lines))
             result_holder["user_msg"] = "\n".join(context_parts)
+            result_holder["enrichment"] = enrichment
+            result_holder["platform_ctx"] = platform_ctx
             context_done.set()
 
         context_task = asyncio.create_task(_gather_context())
@@ -1883,6 +1974,12 @@ async def run_nl_query_v2_stream(
                                 "confidence_gap": "N/A",
                             }
                         result_holder["result"] = StructuredQueryResponse(**parsed)
+                        # Attach stock summary from enrichment data
+                        result_holder["result"].stock_summary = _build_stock_summary(
+                            req.ticker, req.market or "US",
+                            result_holder.get("enrichment", {}),
+                            result_holder.get("platform_ctx"),
+                        )
                         # Persist conversation turn (best-effort, streaming)
                         if user_id_stream and req.session_key:
                             try:
@@ -1908,7 +2005,10 @@ async def run_nl_query_v2_stream(
                             raw = block.text
                             break
                     freeform_resp = _parse_query_response(raw, route)
-                    result_holder["result"] = _structured_from_markdown(raw, freeform_resp, route)
+                    result_holder["result"] = _structured_from_markdown(
+                        raw, freeform_resp, route,
+                        _build_stock_summary(req.ticker, req.market or "US", result_holder.get("enrichment", {}), result_holder.get("platform_ctx")),
+                    )
             except anthropic.APITimeoutError:
                 result_holder["result"] = StructuredQueryResponse(
                     verdict="HOLD", confidence=0, timeframe="Medium-term",

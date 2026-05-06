@@ -5,6 +5,7 @@ import ReasoningBlock from "./ReasoningBlock";
 import ScenarioBar from "./ScenarioBar";
 import AllocationTable from "./AllocationTable";
 import ComparisonBlock from "./ComparisonBlock";
+import StockSummaryCard from "./StockSummaryCard";
 import type { RegimeLabel, StructuredQueryResponse } from "@/lib/types";
 
 type Props = {
@@ -13,6 +14,7 @@ type Props = {
   regime?: RegimeLabel;
   score?: number;
   structured?: StructuredQueryResponse | null;
+  hideVerdict?: boolean;
 };
 
 function tryParseStructured(answer: string): StructuredQueryResponse | null {
@@ -32,6 +34,7 @@ export default function AIResponseCard({
   regime,
   score,
   structured,
+  hideVerdict = false,
 }: Props) {
   const parsed = structured ?? tryParseStructured(answer);
 
@@ -43,11 +46,17 @@ export default function AIResponseCard({
           <span className="text-[10px] text-on-surface-variant uppercase">{parsed.route}</span>
         </div>
 
-        <VerdictBanner
-          verdict={parsed.verdict}
-          confidence={parsed.confidence}
-          timeframe={parsed.timeframe}
-        />
+        {parsed.stock_summary && (
+          <StockSummaryCard summary={parsed.stock_summary} />
+        )}
+
+        {!hideVerdict && (
+          <VerdictBanner
+            verdict={parsed.verdict}
+            confidence={parsed.confidence}
+            timeframe={parsed.timeframe}
+          />
+        )}
 
         <p className="text-sm text-on-surface leading-relaxed">{parsed.summary}</p>
 

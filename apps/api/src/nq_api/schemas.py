@@ -131,11 +131,30 @@ class ReasoningBlock(BaseModel):
     second_best: str     # Name of the runner-up stock we rejected
     confidence_gap: str  # How much better X is than Y (e.g. "Score 8 vs 6, +2 edge")
 
+class StockSummary(BaseModel):
+    ticker: str
+    name: str | None = None
+    price: float | None = None
+    change_pct: float | None = None
+    pe_ttm: float | None = None
+    pb_ratio: float | None = None
+    market_cap: float | None = None
+    week_52_high: float | None = None
+    week_52_low: float | None = None
+    analyst_target: float | None = None
+    analyst_recommendation: str | None = None
+    beta: float | None = None
+    sector: str | None = None
+    forecast_score: float | None = None  # 1-10
+    currency: str = "$"
+
+
 class StructuredQueryResponse(BaseModel):
     verdict: str                              # STRONG BUY | BUY | HOLD | SELL | STRONG SELL
     confidence: float                         # 0-100
     timeframe: str                            # Short-term | Medium-term | Long-term
     summary: str                              # 4-8 sentence detailed summary with data points
+    stock_summary: StockSummary | None = None  # quick-glance stock data card
     metrics: list[MetricItem] = []
     reasoning: ReasoningBlock                 # comparative reasoning — why X not Y
     scenarios: list[ScenarioItem] = []
