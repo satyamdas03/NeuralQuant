@@ -51,7 +51,7 @@ _SECTORS = {
 def _pct_change(sym: str) -> dict:
     try:
         t = yf.Ticker(sym)
-        hist = t.history(period="2d", auto_adjust=True)
+        hist = t.history(period="5d", auto_adjust=True)
         if len(hist) >= 2:
             price = float(hist["Close"].iloc[-1])
             prev = float(hist["Close"].iloc[-2])
@@ -123,17 +123,58 @@ def _market_news_sync(n: int = 8):
         return {"news": [], "error": str(exc)}
 
 
+_sector_cache: dict = {}
+_sector_ts: float = 0.0
+SECTOR_TTL = 300  # 5 minutes
+
+
 @router.get("/sectors")
 async def market_sectors():
+    global _sector_cache, _sector_ts
+    if _sector_cache and time.time() - _sector_ts < SECTOR_TTL:
+        return _sector_cache
+    if _sector_cache:
+        asyncio.create_task(_refresh_sectors())
+        return {**_sector_cache, "stale": True}
     return await asyncio.to_thread(_market_sectors_sync)
 
 
+async def _refresh_sectors():
+    """Background refresh for sector cache."""
+    await asyncio.to_thread(_market_sectors_sync)
+
+
 def _market_sectors_sync():
-    sectors = []
-    for sym, name in _SECTORS.items():
-        d = _pct_change(sym)
-        sectors.append({"symbol": sym, "name": name, "change_pct": d["change_pct"]})
-    return {"sectors": sectors}
+    global _sector_cache, _sector_ts
+    try:
+        syms = list(_SECTORS.keys())
+        raw = yf.download(
+            syms, period="5d", progress=False,
+            auto_adjust=True, threads=True,
+        )
+        close = raw["Close"] if isinstance(raw.columns, pd.MultiIndex) else raw[["Close"]]
+        sectors = []
+        for sym, name in _SECTORS.items():
+            try:
+                closes = close[sym].dropna()
+                if len(closes) >= 2:
+                    price = float(closes.iloc[-1])
+                    prev = float(closes.iloc[-2])
+                    change_pct = round((price - prev) / prev * 100, 2) if prev else 0.0
+                elif len(closes) == 1:
+                    change_pct = 0.0
+                else:
+                    change_pct = 0.0
+                sectors.append({"symbol": sym, "name": name, "change_pct": change_pct})
+            except Exception:
+                sectors.append({"symbol": sym, "name": name, "change_pct": 0.0})
+        result = {"sectors": sectors}
+        _sector_cache = result
+        _sector_ts = time.time()
+        return result
+    except Exception as exc:
+        logger.warning("Sector data batch fetch failed: %s", exc)
+        return _sector_cache or {"sectors": []}
 
 
 _MOVERS_UNIVERSE = [
