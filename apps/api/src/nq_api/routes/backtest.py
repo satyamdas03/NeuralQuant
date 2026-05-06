@@ -211,8 +211,10 @@ def _get_accuracy_sync() -> AccuracyResponse:
                     f"Score cache data is {age_days} days old. Accuracy metrics require fresh data. "
                     "Trigger nightly-score GHA workflow to refresh."
                 )
-            # Guard: need at least 2 distinct dates for walk-forward validation
-            n_dates = score_history["date"].nunique()
+            # Guard: need at least 2 distinct CALENDAR dates for walk-forward validation
+            # Normalize to date-only to avoid same-day timestamps passing the check
+            score_history["date_only"] = score_history["date"].dt.normalize()
+            n_dates = score_history["date_only"].nunique()
             if n_dates < 2:
                 return _accuracy_default(
                     f"Walk-forward validation requires 2+ distinct score dates (found {n_dates}). "
@@ -220,6 +222,7 @@ def _get_accuracy_sync() -> AccuracyResponse:
                 )
         else:
             score_history["date"] = pd.Timestamp.now()
+            score_history["date_only"] = score_history["date"].dt.normalize()
         score_history["ticker"] = score_history["ticker"].str.upper()
 
         # Use US tickers only — yfinance can't download Indian tickers without .NS suffix
@@ -279,7 +282,9 @@ def _get_accuracy_sync() -> AccuracyResponse:
         prices["ticker"] = prices["ticker"].str.replace(r"\.(NS|BO)$", "", regex=True)
 
         # Normalize timezones: strip tz info to avoid tz-aware vs tz-naive comparisons
-        score_history["date"] = pd.to_datetime(score_history["date"]).dt.tz_localize(None)
+        # Use date_only (date-normalized) so same-day timestamps don't create fake periods
+        score_history["date"] = pd.to_datetime(score_history["date_only"]).dt.tz_localize(None)
+        score_history.drop(columns=["date_only"], inplace=True)
         prices["date"] = pd.to_datetime(prices["date"]).dt.tz_localize(None)
 
         # Filter score_history to only tickers we have price data for
