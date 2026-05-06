@@ -51,7 +51,7 @@ export default function PerformancePage() {
     );
   }
 
-  const hasData = data && data.observation_count > 0;
+  const hasData = data && data.observation_count > 0 && !data.is_fallback;
 
   return (
     <div className="space-y-6 p-4 lg:p-6 max-w-5xl mx-auto">

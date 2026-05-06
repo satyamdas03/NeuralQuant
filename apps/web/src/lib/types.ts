@@ -255,6 +255,7 @@ export interface AccuracyResponse {
   methodology: string;
   comparison: string;
   note: string;
+  is_fallback?: boolean;
 }
 
 export type AlertType = "score_change" | "regime_change" | "threshold";

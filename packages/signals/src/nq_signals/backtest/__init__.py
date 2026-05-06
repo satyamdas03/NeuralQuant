@@ -161,9 +161,13 @@ def run_walk_forward(
     # Risk metrics (top quartile)
     top_q_arr = np.array(top_quartile_returns)
     sharpe = float(np.mean(top_q_arr) / np.std(top_q_arr) * np.sqrt(12 / forward_months)) if np.std(top_q_arr) > 0 else 0.0
-    peak = np.maximum.accumulate(top_q_arr)
-    drawdowns = (peak - top_q_arr) / peak
+    # Build equity curve from returns for proper drawdown
+    equity = np.cumprod(1 + top_q_arr)
+    peak_equity = np.maximum.accumulate(equity)
+    drawdowns = (peak_equity - equity) / peak_equity
     max_dd = float(np.max(drawdowns)) if len(drawdowns) > 0 else 0.0
+    # Clamp drawdown to [0, 1] — cannot exceed 100%
+    max_dd = min(max(max_dd, 0.0), 1.0)
     win_rate = float(np.mean(top_q_arr > 0))
 
     return BacktestResult(

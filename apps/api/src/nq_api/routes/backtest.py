@@ -158,6 +158,7 @@ class AccuracyResponse(BaseModel):
     methodology: str
     comparison: str
     note: str
+    is_fallback: bool = False
 
 
 @router.get("/accuracy", response_model=AccuracyResponse)
@@ -192,6 +193,13 @@ def get_accuracy() -> AccuracyResponse:
                 return _accuracy_default(
                     f"Score cache data is {age_days} days old. Accuracy metrics require fresh data. "
                     "Trigger nightly-score GHA workflow to refresh."
+                )
+            # Guard: need at least 2 distinct dates for walk-forward validation
+            n_dates = score_history["date"].nunique()
+            if n_dates < 2:
+                return _accuracy_default(
+                    f"Walk-forward validation requires 2+ distinct score dates (found {n_dates}). "
+                    "Historical score snapshots are being accumulated — check back soon."
                 )
         else:
             score_history["date"] = pd.Timestamp.now()
@@ -317,4 +325,5 @@ def _accuracy_default(reason: str) -> AccuracyResponse:
         methodology="Walk-forward validation",
         comparison="Competitor benchmark",
         note=f"Unavailable: {reason}",
+        is_fallback=True,
     )

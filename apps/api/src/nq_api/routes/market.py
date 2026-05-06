@@ -146,35 +146,14 @@ async def _refresh_sectors():
 
 def _market_sectors_sync():
     global _sector_cache, _sector_ts
-    try:
-        syms = list(_SECTORS.keys())
-        raw = yf.download(
-            syms, period="5d", progress=False,
-            auto_adjust=True, threads=True,
-        )
-        close = raw["Close"] if isinstance(raw.columns, pd.MultiIndex) else raw[["Close"]]
-        sectors = []
-        for sym, name in _SECTORS.items():
-            try:
-                closes = close[sym].dropna()
-                if len(closes) >= 2:
-                    price = float(closes.iloc[-1])
-                    prev = float(closes.iloc[-2])
-                    change_pct = round((price - prev) / prev * 100, 2) if prev else 0.0
-                elif len(closes) == 1:
-                    change_pct = 0.0
-                else:
-                    change_pct = 0.0
-                sectors.append({"symbol": sym, "name": name, "change_pct": change_pct})
-            except Exception:
-                sectors.append({"symbol": sym, "name": name, "change_pct": 0.0})
-        result = {"sectors": sectors}
-        _sector_cache = result
-        _sector_ts = time.time()
-        return result
-    except Exception as exc:
-        logger.warning("Sector data batch fetch failed: %s", exc)
-        return _sector_cache or {"sectors": []}
+    sectors = []
+    for sym, name in _SECTORS.items():
+        d = _pct_change(sym)
+        sectors.append({"symbol": sym, "name": name, "change_pct": d["change_pct"]})
+    result = {"sectors": sectors}
+    _sector_cache = result
+    _sector_ts = time.time()
+    return result
 
 
 _MOVERS_UNIVERSE = [

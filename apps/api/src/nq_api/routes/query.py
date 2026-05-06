@@ -466,10 +466,22 @@ def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, plat
     if not effective_ticker and enrichment:
         effective_ticker = enrichment.get("symbol", "")
 
+    # If still no ticker, try to extract from platform_ctx (e.g. "AAPL | Apple Inc. | ForeCast: 7.2/10 | ...")
+    if not effective_ticker and platform_ctx:
+        import re as _re
+        m = _re.search(r"^([A-Z]{1,5}(?:\.[A-Z]{2})?)\s*\|", platform_ctx.strip())
+        if m:
+            effective_ticker = m.group(1)
+
     if not effective_ticker:
         return None
 
-    is_india = market == "IN" or effective_ticker.endswith(".NS") or effective_ticker.endswith(".BO")
+    # Auto-detect market from ticker suffix
+    detected_market = market
+    if effective_ticker.endswith(".NS") or effective_ticker.endswith(".BO"):
+        detected_market = "IN"
+
+    is_india = detected_market == "IN" or effective_ticker.endswith(".NS") or effective_ticker.endswith(".BO")
     cur = "₹" if is_india else "$"
 
     # Try to get price/fundamentals from enrichment first
@@ -501,7 +513,7 @@ def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, plat
     if not enrichment and effective_ticker:
         try:
             from nq_api.data_builder import _fetch_one
-            fund = _fetch_one(effective_ticker, market)
+            fund = _fetch_one(effective_ticker, detected_market)
             if fund and fund.get("_is_real"):
                 price = fund.get("current_price")
                 change_pct = fund.get("change_pct")
