@@ -488,7 +488,7 @@ def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, plat
     cur = "₹" if is_india else "$"
 
     # Try to get price/fundamentals from enrichment first
-    price = enrichment.get("current_price") or enrichment.get("regularMarketPrice")
+    price = enrichment.get("current_price") or enrichment.get("regularMarketPrice") or enrichment.get("finnhub_price")
     change_pct = enrichment.get("change_pct") or enrichment.get("regularMarketChangePercent")
     pe = enrichment.get("pe_ttm") or enrichment.get("trailingPE")
     pb = enrichment.get("pb_ratio") or enrichment.get("priceToBook")
@@ -519,7 +519,6 @@ def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, plat
         try:
             from nq_api.data_builder import _fetch_one
             fund = _fetch_one(effective_ticker, detected_market)
-            log.info("StockSummary _fetch_one(%s): got %d fields, _is_real=%s", effective_ticker, len(fund) if fund else 0, fund.get("_is_real") if fund else None)
             if fund and fund.get("_is_real"):
                 if not price:
                     price = fund.get("current_price")
@@ -552,7 +551,6 @@ def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, plat
 
     # Only return summary if we have at least a price
     if price is None:
-        log.warning("StockSummary(%s): no price found (enrichment had %d keys, needs_fundamentals=%s)", effective_ticker, len(enrichment) if enrichment else 0, needs_fundamentals)
         return None
 
     return StockSummary(
