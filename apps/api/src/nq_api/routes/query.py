@@ -575,6 +575,39 @@ def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, plat
         except Exception:
             pass
 
+    # Fallback: try score_cache for fundamentals if _fetch_one failed
+    if price is None and effective_ticker:
+        try:
+            from nq_api.cache import score_cache
+            cached = score_cache.read_one(effective_ticker, detected_market, max_age_seconds=999999999)
+            if cached:
+                if not pe:
+                    pe = cached.get("pe_ttm")
+                if not pb:
+                    pb = cached.get("pb_ratio")
+                if not mcap:
+                    mcap = cached.get("market_cap")
+                if not beta:
+                    beta = cached.get("beta")
+                if not sector:
+                    sector = cached.get("sector", "")
+        except Exception:
+            pass
+
+    # Fallback: extract price from platform_ctx if _fetch_one failed
+    if price is None and platform_ctx and effective_ticker:
+        import re as _re
+        cur_pat = r"Rs." if is_india else r"\$"
+        m = _re.search(
+            rf"{_re.escape(effective_ticker)}[^|]*?CURRENT_PRICE={cur_pat}([\d,]+\.?\d*)",
+            platform_ctx,
+        )
+        if m:
+            try:
+                price = float(m.group(1).replace(",", ""))
+            except (ValueError, IndexError):
+                pass
+
     # Only return summary if we have at least a price
     if price is None:
         return None
