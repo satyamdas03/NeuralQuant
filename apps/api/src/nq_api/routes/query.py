@@ -478,7 +478,9 @@ def _fetch_enrichment(ticker: str | None, market: str = "US") -> dict:
 
 def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, platform_ctx: str | None) -> StockSummary | None:
     """Build a StockSummary from enrichment + platform data for the quick-glance card."""
+    log.debug("_build_stock_summary: ticker=%s market=%s enrichment=%s platform_ctx=%s", ticker, market, bool(enrichment), bool(platform_ctx))
     if not ticker and not enrichment and not platform_ctx:
+        log.debug("_build_stock_summary: early return — all empty")
         return None
 
     # Determine the ticker to use
@@ -503,6 +505,7 @@ def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, plat
             effective_ticker = m.group(1)
 
     if not effective_ticker:
+        log.debug("_build_stock_summary: no effective_ticker after extraction")
         return None
 
     # Auto-detect market from ticker suffix
@@ -610,6 +613,7 @@ def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, plat
 
     # Only return summary if we have at least a price
     if price is None:
+        log.warning("_build_stock_summary: no price found for %s/%s, enrichment_empty=%s, has_platform_ctx=%s", effective_ticker, detected_market, not bool(enrichment), bool(platform_ctx))
         return None
 
     return StockSummary(
