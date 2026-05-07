@@ -360,8 +360,14 @@ def _yf_symbol(ticker: str, market: str) -> str:
     return ticker
 
 
-def _fetch_one(ticker: str, market: str) -> dict:
-    """Fetch real fundamentals + price-derived signals for one ticker."""
+def _fetch_one(ticker: str, market: str, fast_pe: bool = True) -> dict:
+    """Fetch real fundamentals + price-derived signals for one ticker.
+
+    Args:
+        fast_pe: If True, skip slow valuation_measures/quarterly_income_stmt calls.
+                  Used during PARA-DEBATE context building where latency matters.
+                  If False, use full 3-tier P/E computation.
+    """
     cache_key = f"{ticker}:{market}"
     now = time.time()
     with _lock:
@@ -407,10 +413,18 @@ def _fetch_one(ticker: str, market: str) -> dict:
 
         # ── Valuation multiples (TTM P/E from valuation_measures + quarterly stmt) ────
         pe_raw = info.get("trailingPE")
-        pe_ttm, vm_pb = _compute_ttm_pe(t, info, pe_raw)
-        if pe_ttm is None:
+        vm_pb = None
+        if fast_pe:
+            # Fast path: use info['trailingPE'] directly (already TTM in yfinance 1.3+)
             pe_ttm = _safe(pe_raw, 25.0)
-            _synthetic.add("pe_ttm")
+            if pe_raw is None:
+                _synthetic.add("pe_ttm")
+        else:
+            # Full path: valuation_measures → quarterly income stmt → fallback
+            pe_ttm, vm_pb = _compute_ttm_pe(t, info, pe_raw)
+            if pe_ttm is None:
+                pe_ttm = _safe(pe_raw, 25.0)
+                _synthetic.add("pe_ttm")
         # Use Price/Book from valuation_measures if available (more accurate than info dict)
         pb_raw = vm_pb if vm_pb else info.get("priceToBook")
         pb_ratio = _safe(pb_raw, 3.0)
@@ -554,7 +568,7 @@ def _fetch_one(ticker: str, market: str) -> dict:
     return result
 
 
-def fetch_fundamentals_batch(tickers: list[str], market: str = "US") -> dict[str, dict]:
+def fetch_fundamentals_batch(tickers: list[str], market: str = "US", fast_pe: bool = True) -> dict[str, dict]:
     """Fetch fundamentals for all tickers in parallel (cached)."""
     results: dict[str, dict] = {}
     missing: list[str] = []
@@ -571,7 +585,7 @@ def fetch_fundamentals_batch(tickers: list[str], market: str = "US") -> dict[str
     if missing:
         workers = min(MAX_WORKERS, len(missing))
         with ThreadPoolExecutor(max_workers=workers) as pool:
-            futures = {pool.submit(_fetch_one, t, market): t for t in missing}
+            futures = {pool.submit(_fetch_one, t, market, fast_pe): t for t in missing}
             for fut in as_completed(futures):
                 t = futures[fut]
                 try:

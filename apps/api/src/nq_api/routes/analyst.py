@@ -133,7 +133,8 @@ def _build_analyst_context(ticker: str, market: str) -> dict:
     macro_in = _fetch_macro_in_with_timeout() if market == "IN" else {}
 
     # 2. Fundamentals for just the requested ticker (1-3 yfinance calls, ~2-5s)
-    fund = _fetch_one(ticker, market)
+    # Use fast_pe=True for PARA-DEBATE — speed matters, and info['trailingPE'] is accurate in yfinance 1.3+
+    fund = _fetch_one(ticker, market, fast_pe=True)
 
     # 3. Regime from macro (VIX-based heuristic — use India VIX for IN market)
     if market == "IN" and macro_in:
@@ -473,7 +474,7 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
 
         # Enrich cache data with yfinance info for fields agents reference
         from nq_api.data_builder import _fetch_one
-        fund = _fetch_one(ticker, market)
+        fund = _fetch_one(ticker, market, fast_pe=True)
         try:
             info = yf.Ticker(_yf_symbol(ticker, market)).info or {}
         except Exception as e:

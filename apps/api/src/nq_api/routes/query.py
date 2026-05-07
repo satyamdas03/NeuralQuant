@@ -618,7 +618,7 @@ def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, plat
     if needs_fundamentals and effective_ticker:
         try:
             from nq_api.data_builder import _fetch_one
-            fund = _fetch_one(effective_ticker, detected_market)
+            fund = _fetch_one(effective_ticker, detected_market, fast_pe=False)
             if fund and fund.get("_is_real"):
                 if not price:
                     price = fund.get("current_price")
