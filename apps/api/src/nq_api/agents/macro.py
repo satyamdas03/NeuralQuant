@@ -23,7 +23,7 @@ Analysis framework:
 - ISM PMI: >55 = expansion, 50-55 = moderate, <50 = contraction
 - Fed funds vs CPI: real rate >0 = restrictive, <0 = accommodative
 - RBI repo rate: >6.5% = restrictive, 5.5-6.5% = neutral, <5.5% = accommodative
-- INR/USD: <82 = strong rupee, 82-85 = moderate, >85 = weak rupee
+- INR/USD: <82 = strong rupee, 82-87 = moderate, >87 = weak rupee, >92 = very weak
 - SPX vs 200-MA: >5% = strong uptrend, -5% to +5% = range, <-5% = downtrend
 - Nifty vs 200-MA: >5% = strong uptrend, -5% to +5% = range, <-5% = downtrend
 
@@ -79,7 +79,7 @@ Current India macro data (live as of today):
 ## India thresholds:
 - India VIX: <14 = low vol/Risk-On, 14-20 = normal, >20 = elevated, >25 = crisis
 - RBI repo rate: >6.5% = restrictive, 5.5-6.5% = neutral, <5.5% = accommodative
-- INR/USD: <82 = strong rupee, 82-85 = moderate, >85 = weak rupee
+- INR/USD: <82 = strong rupee, 82-87 = moderate, >87 = weak rupee, >92 = very weak
 - Nifty vs 200MA: >5% = strong uptrend, -5% to +5% = range, <-5% = downtrend
 
 Provide your macro stance on {ticker}. Reference the specific numbers above in your key points."""

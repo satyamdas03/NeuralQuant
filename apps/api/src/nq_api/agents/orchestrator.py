@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 
 from nq_api.schemas import AgentOutput, AnalystResponse
 
@@ -18,6 +19,91 @@ from nq_api.agents.head_analyst import HeadAnalystAgent
 
 STANCE_SCORE = {"BULL": 1.0, "NEUTRAL": 0.0, "BEAR": -1.0}
 CONVICTION_MULT = {"HIGH": 1.0, "MEDIUM": 0.7, "LOW": 0.4}
+
+# Metric validation patterns — correct agent hallucinations against injected data
+_METRIC_PATTERNS = [
+    # P/E ratio: "P/E of 3x", "P/E at 28.9x", "trading at 32x P/E", "PE of 8"
+    (re.compile(r"(P/[\sE]?E[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)(x?)", re.I), "pe_ttm", 0.5),
+    (re.compile(r"(price[\s-]to[\s-]earnings[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)", re.I), "pe_ttm", 0.5),
+    # Price: "$196.50", "price of $284"
+    (re.compile(r"(\$)(\d+\.?\d*)", re.I), "current_price", 0.5),
+    # Beta: "beta of 0.89", "beta: 2.24"
+    (re.compile(r"(beta[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)", re.I), "beta", 0.5),
+]
+
+
+def _validate_agent_metrics(output: AgentOutput, context: dict) -> AgentOutput:
+    """Scan agent thesis and key_points for metric values that diverge from injected data.
+
+    Corrects obvious hallucinations like "P/E of 3x" when context shows P/E=19.3.
+    Tolerance is relative (0.5 = 50% divergence triggers correction).
+    """
+    verified = {}
+    for key in ("pe_ttm", "current_price", "beta"):
+        val = context.get(key)
+        if val is not None:
+            try:
+                verified[key] = float(val)
+            except (TypeError, ValueError):
+                pass
+
+    if not verified:
+        return output
+
+    corrected_thesis = output.thesis
+    corrected_points = list(output.key_points)
+    corrections = []
+
+    for pattern, metric_key, tolerance in _METRIC_PATTERNS:
+        if metric_key not in verified:
+            continue
+        true_val = verified[metric_key]
+        min_val = true_val * (1 - tolerance)
+        max_val = true_val * (1 + tolerance)
+
+        # Check thesis
+        for text_field, is_points in [(corrected_thesis, False), (None, True)]:
+            source = corrected_points if is_points else [text_field] if text_field else []
+            for idx, text in enumerate(source if is_points else [text_field]):
+                if text is None:
+                    continue
+                for match in pattern.finditer(text):
+                    try:
+                        claimed = float(match.group(2))
+                    except (ValueError, IndexError):
+                        continue
+                    # Skip very small numbers likely not metric values (e.g., "3%" or "0.5x leverage")
+                    if metric_key == "pe_ttm" and claimed < 3:
+                        # P/E below 3 is almost certainly not a P/E ratio — it's probably a percentage or multiplier
+                        continue
+                    if min_val <= claimed <= max_val:
+                        continue  # Within tolerance, no correction needed
+                    # Correction needed
+                    if metric_key == "pe_ttm":
+                        replacement = f"P/E {true_val:.1f}x"
+                    elif metric_key == "current_price":
+                        replacement = f"${true_val:.2f}"
+                    elif metric_key == "beta":
+                        replacement = f"beta {true_val:.2f}"
+                    else:
+                        replacement = f"{true_val:.1f}"
+
+                    old_text = match.group(0)
+                    if is_points:
+                        corrected_points[idx] = corrected_points[idx].replace(old_text, replacement)
+                    else:
+                        corrected_thesis = corrected_thesis.replace(old_text, replacement)
+                    corrections.append(f"{output.agent}: {metric_key} {claimed}→{true_val:.1f}")
+
+    if corrections:
+        log.info("Agent metric corrections for %s: %s", output.agent, "; ".join(corrections))
+
+    if corrected_thesis != output.thesis or corrected_points != output.key_points:
+        return output.model_copy(update={
+            "thesis": corrected_thesis,
+            "key_points": corrected_points,
+        })
+    return output
 
 def _is_ollama() -> bool:
     """Runtime Ollama detection — avoids module-level env var issues in uvicorn."""
@@ -91,6 +177,8 @@ class ParaDebateOrchestrator:
             ]
 
         # Step 2: build bull and bear thesis summaries + pass all specialist outputs to adversarial
+        # Validate specialist outputs against injected context metrics
+        specialist_outputs = [_validate_agent_metrics(o, context) for o in specialist_outputs]
         bull_summary = "; ".join(
             o.thesis for o in specialist_outputs if o.stance == "BULL"
         ) or "Mixed signals from panel."
@@ -127,6 +215,9 @@ class ParaDebateOrchestrator:
         # (defence against LLM disobeying its system prompt constraint)
         if adversarial_output.stance == "BULL":
             adversarial_output = adversarial_output.model_copy(update={"stance": "BEAR"})
+
+        # Validate adversarial output against injected metrics (correct "P/E of 3x" hallucinations)
+        adversarial_output = _validate_agent_metrics(adversarial_output, context)
 
         # Step 2b: algorithmic guardrails — override LLM optimism on SEVERE red flags only
         red_flags = context.get("_fundamental_red_flags", [])

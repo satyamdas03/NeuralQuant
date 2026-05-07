@@ -129,8 +129,10 @@ def warm_stock_meta(market: str = "US") -> int:
     written = 0
     for i, entry in enumerate(tickers):
         sym = entry["ticker"] if isinstance(entry, dict) else str(entry)
+        # Append .NS suffix for India tickers (yfinance requires it)
+        yf_sym = sym + ".NS" if market == "IN" and "." not in sym else sym
         try:
-            t = yf.Ticker(sym)
+            t = yf.Ticker(yf_sym)
             info = t.info or {}
             if not info:
                 continue

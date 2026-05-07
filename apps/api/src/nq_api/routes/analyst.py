@@ -264,6 +264,12 @@ def _build_analyst_context(ticker: str, market: str) -> dict:
         _data_quality.append("roe is N/A")
     if "short_interest_pct" in _synthetic:
         _data_quality.append("short_interest_pct is SYNTHETIC (random default, not real data)")
+    if "pe_ttm" in _synthetic:
+        _data_quality.append("pe_ttm is SYNTHETIC (default 25.0, not real data — DO NOT use in analysis)")
+    if "pb_ratio" in _synthetic:
+        _data_quality.append("pb_ratio is SYNTHETIC (default 3.0, not real data — DO NOT use in analysis)")
+    if "beta" in _synthetic:
+        _data_quality.append("beta is SYNTHETIC (default 1.0, not real data — DO NOT use in analysis)")
     if "momentum_raw" in _synthetic:
         _data_quality.append("momentum_raw is SYNTHETIC (random default, not real data)")
     if fund.get("piotroski") is None:

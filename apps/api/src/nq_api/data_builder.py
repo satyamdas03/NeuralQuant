@@ -94,6 +94,82 @@ def _safe(val, default: float = 0.0) -> float:
         return default
 
 
+def _compute_ttm_pe(ticker_obj: "yf.Ticker", info: dict, pe_raw) -> tuple[float | None, float | None]:
+    """Compute true TTM P/E using multiple methods, in priority order.
+
+    Priority:
+    1. yfinance get_valuation_measures() (v1.3.0+) — TTM P/E from Key Statistics page
+    2. Computed from quarterly income statements (price / TTM EPS)
+    3. Fall back to caller's pe_raw
+
+    Returns (pe_ttm, price_to_book) tuple. Both can be None if computation fails.
+    """
+    vm_pb = None  # Price/Book from valuation_measures
+
+    # Method 1: valuation_measures (yfinance 1.3.0+) — most accurate
+    try:
+        vm = ticker_obj.get_valuation_measures()
+        if vm is not None and not vm.empty:
+            # Get the most recent (first column "Current") Trailing P/E
+            if "Trailing P/E" in vm.index:
+                pe_val = vm.loc["Trailing P/E"].iloc[0]
+                if pe_val is not None and not (isinstance(pe_val, float) and math.isnan(pe_val)):
+                    computed = float(pe_val)
+                    if 0.5 <= computed <= 500:
+                        log.debug("P/E from valuation_measures: %.2f", computed)
+                        # Also extract Price/Book
+                        if "Price/Book" in vm.index:
+                            pb_val = vm.loc["Price/Book"].iloc[0]
+                            if pb_val is not None and not (isinstance(pb_val, float) and math.isnan(pb_val)):
+                                vm_pb = float(pb_val)
+                        return round(computed, 2), vm_pb
+            # Also extract Price/Book even if P/E not available
+            if "Price/Book" in vm.index:
+                pb_val = vm.loc["Price/Book"].iloc[0]
+                if pb_val is not None and not (isinstance(pb_val, float) and math.isnan(pb_val)):
+                    vm_pb = float(pb_val)
+    except Exception as exc:
+        log.debug("valuation_measures failed: %s", exc)
+
+    # Method 2: Compute from quarterly income statements
+    try:
+        current_price = info.get("currentPrice") or info.get("regularMarketPrice")
+        shares = info.get("sharesOutstanding")
+        if not current_price or not shares or shares <= 0:
+            return None, vm_pb
+
+        qis = ticker_obj.quarterly_income_stmt
+        if qis is None or qis.empty:
+            return None, vm_pb
+
+        # Find the net income row (varies by reporting style)
+        ni_row = None
+        for candidate in ("Net Income Common Stockholders", "Net Income", "Net Income Continuous Operations"):
+            if candidate in qis.index:
+                ni_row = qis.loc[candidate]
+                break
+        if ni_row is None:
+            return None, vm_pb
+
+        # Sum last 4 quarters
+        last_4 = ni_row.iloc[:4]
+        ttm_ni = float(last_4.sum())
+        if ttm_ni <= 0:
+            return None, vm_pb  # Loss-making company, P/E not meaningful
+
+        ttm_eps = ttm_ni / shares
+        computed_pe = current_price / ttm_eps
+
+        # Sanity check: computed PE should be in reasonable range
+        if 0.5 <= computed_pe <= 500:
+            log.debug("P/E from quarterly income stmt: %.2f", computed_pe)
+            return round(computed_pe, 2), vm_pb
+        return None, vm_pb
+    except Exception as exc:
+        log.debug("TTM P/E computation from income stmt failed: %s", exc)
+        return None, vm_pb
+
+
 # ─── Macro fetch ──────────────────────────────────────────────────────────────
 
 def fetch_real_macro() -> _LiveMacro:
@@ -207,13 +283,20 @@ def fetch_real_macro_in() -> _LiveMacroIN:
     except Exception:
         pass
 
-    # INR/USD
+    # USD/INR — use USDINR=X which returns ~83.5 (INR per USD).
+    # INRUSD=X returns ~0.012 (USD per INR) which is confusing for agents.
     try:
-        inr = yf.Ticker("INRUSD=X").history(period="5d", auto_adjust=True)
-        if not inr.empty:
-            m.inr_usd = float(inr["Close"].iloc[-1])
+        usdinr = yf.Ticker("USDINR=X").history(period="5d", auto_adjust=True)
+        if not usdinr.empty:
+            m.inr_usd = round(float(usdinr["Close"].iloc[-1]), 2)
     except Exception:
-        pass
+        # Fallback: try INRUSD=X and invert
+        try:
+            inrusd = yf.Ticker("INRUSD=X").history(period="5d", auto_adjust=True)
+            if not inrusd.empty:
+                m.inr_usd = round(1.0 / float(inrusd["Close"].iloc[-1]), 2)
+        except Exception:
+            pass
 
     # RBI repo rate — not available via yfinance; use known current value
     # Updated manually or via a future RBI API connector
@@ -322,16 +405,27 @@ def _fetch_one(ticker: str, market: str) -> dict:
         # ── Piotroski ─────────────────────────────────────────────────
         piotroski = _piotroski_from_info(info)
 
-        # ── Valuation multiples ───────────────────────────────────────
-        pe_ttm   = _safe(info.get("trailingPE"), 25.0)
-        pb_ratio = _safe(info.get("priceToBook"), 3.0)
+        # ── Valuation multiples (TTM P/E from valuation_measures + quarterly stmt) ────
+        pe_raw = info.get("trailingPE")
+        pe_ttm, vm_pb = _compute_ttm_pe(t, info, pe_raw)
+        if pe_ttm is None:
+            pe_ttm = _safe(pe_raw, 25.0)
+            _synthetic.add("pe_ttm")
+        # Use Price/Book from valuation_measures if available (more accurate than info dict)
+        pb_raw = vm_pb if vm_pb else info.get("priceToBook")
+        pb_ratio = _safe(pb_raw, 3.0)
+        if pb_raw is None and vm_pb is None:
+            _synthetic.add("pb_ratio")
         # Clamp to sane ranges — negative P/E (loss-making) treated as high
         pe_ttm   = max(1.0, min(200.0, pe_ttm))
         pb_ratio = max(0.1, min(50.0, pb_ratio))
 
         # ── Beta ──────────────────────────────────────────────────────
-        beta = _safe(info.get("beta"), 1.0)
-        beta = max(0.1, min(3.0, beta))
+        beta_raw = info.get("beta")
+        beta = _safe(beta_raw, 1.0)
+        if beta_raw is None:
+            _synthetic.add("beta")
+        beta = max(0.01, min(3.0, beta))
 
         # ── Price history: momentum + realized vol ────────────────────
         with _lock:
