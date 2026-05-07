@@ -18,6 +18,7 @@ log = logging.getLogger(__name__)
 from nq_api.auth.rate_limit import enforce_tier_quota
 from nq_api.auth.models import User
 from nq_api.auth.deps import get_current_user_optional
+from nq_api.data_builder import _yf_symbol
 import nq_api.dart_router as dart
 logger = logging.getLogger(__name__)
 
@@ -407,6 +408,7 @@ def _fetch_finnhub_news_summaries(ticker: str | None, market: str = "US", n: int
     """Fetch Finnhub news with full summaries for richer Ask AI context."""
     if not ticker:
         return []
+    yf_ticker = _yf_symbol(ticker, market)
     try:
         from nq_data.finnhub import get_finnhub_client
         client = get_finnhub_client()
@@ -415,7 +417,7 @@ def _fetch_finnhub_news_summaries(ticker: str | None, market: str = "US", n: int
         return []
 
     try:
-        articles = client.get_news(ticker, days=7)
+        articles = client.get_news(yf_ticker, days=7)
         if not articles:
             return []
         results = []

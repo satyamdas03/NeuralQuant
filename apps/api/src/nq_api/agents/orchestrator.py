@@ -116,15 +116,15 @@ class ParaDebateOrchestrator:
     # Sonnet is slower than Haiku; timeouts must accommodate 5 parallel Sonnet calls
     @property
     def SPECIALIST_TIMEOUT(self):
-        return 75 if _is_ollama() else 55
+        return 60 if _is_ollama() else 55
 
     @property
     def ADVERSARIAL_TIMEOUT(self):
-        return 60 if _is_ollama() else 45
+        return 45 if _is_ollama() else 45
 
     @property
     def HEAD_ANALYST_TIMEOUT(self):
-        return 90 if _is_ollama() else 75
+        return 75 if _is_ollama() else 75
 
     def __init__(self):
         self._specialists = [

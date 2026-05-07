@@ -46,7 +46,7 @@ def _is_ollama() -> bool:
 # Evaluated at runtime, not import time, so load_dotenv works correctly
 def _phase_timeouts():
     if _is_ollama():
-        return 60, 420  # 7 agents sequentially at ~60s each
+        return 60, 360  # 7 agents sequentially at ~50s each
     return 45, 180  # Phase 1: context build (45s), Phase 2: debate (3 min for Sonnet)
 MACRO_FETCH_TIMEOUT = 15
 
@@ -349,6 +349,9 @@ def _fetch_finnhub_data(ticker: str, market: str) -> dict:
 
     Returns empty dict on failure (graceful fallback).
     """
+    # Convert to yfinance symbol (adds .NS for India, .BO for BSE, etc.)
+    yf_ticker = _yf_symbol(ticker, market)
+
     try:
         from nq_data.finnhub import get_finnhub_client
         client = get_finnhub_client()
@@ -361,7 +364,7 @@ def _fetch_finnhub_data(ticker: str, market: str) -> dict:
     # Technical indicators (RSI, MACD, ATR, SMA, volume)
     # Uses Finnhub candles → falls back to yfinance OHLCV automatically
     try:
-        indicators = client.get_indicators(ticker)
+        indicators = client.get_indicators(yf_ticker)
         if indicators:
             result["rsi_14"] = indicators.get("rsi_14")
             result["macd_line"] = indicators.get("macd_line")
@@ -382,7 +385,7 @@ def _fetch_finnhub_data(ticker: str, market: str) -> dict:
     # Insider sentiment
     # Uses Finnhub → falls back to SEC EDGAR Form 4 automatically
     try:
-        insider = client.get_insider_sentiment(ticker)
+        insider = client.get_insider_sentiment(yf_ticker)
         if insider:
             result["insider_cluster_score"] = insider.get("cluster_score")
             result["insider_net_buy_ratio"] = insider.get("net_buy_ratio")
@@ -393,7 +396,7 @@ def _fetch_finnhub_data(ticker: str, market: str) -> dict:
     # News sentiment
     # Uses Finnhub → falls back to yfinance headlines + FinBERT/VADER automatically
     try:
-        news_sent = client.get_news_sentiment(ticker)
+        news_sent = client.get_news_sentiment(yf_ticker)
         if news_sent:
             result["news_sentiment_label"] = news_sent.get("sentiment_label")
             result["news_sentiment_score"] = news_sent.get("sentiment_score")
@@ -404,9 +407,9 @@ def _fetch_finnhub_data(ticker: str, market: str) -> dict:
         log.warning("News sentiment failed for %s: %s", ticker, exc)
 
     if result:
-        log.info("Enrichment for %s: %d fields", ticker, len(result))
+        log.info("Enrichment for %s (%s): %d fields", yf_ticker, ticker, len(result))
     else:
-        log.warning("Enrichment returned empty for %s", ticker)
+        log.warning("Enrichment returned empty for %s (%s)", yf_ticker, ticker)
 
     return result
 
