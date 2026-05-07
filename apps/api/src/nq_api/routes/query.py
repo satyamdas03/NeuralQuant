@@ -535,7 +535,7 @@ def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, plat
     forecast_score = None
     if platform_ctx:
         import re as _re
-        m = _re.search(rf"{_re.escape(effective_ticker)}[^|]*?(\d+\.?\d*)/10", platform_ctx)
+        m = _re.search(rf"{_re.escape(effective_ticker)}.*?(\d+\.?\d*)/10", platform_ctx)
         if m:
             try:
                 forecast_score = float(m.group(1))
@@ -600,9 +600,9 @@ def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, plat
     # Fallback: extract price from platform_ctx if _fetch_one failed
     if price is None and platform_ctx and effective_ticker:
         import re as _re
-        cur_pat = r"Rs." if is_india else r"\$"
+        cur_pat = r"Rs\." if is_india else r"\$"
         m = _re.search(
-            rf"{_re.escape(effective_ticker)}[^|]*?CURRENT_PRICE={cur_pat}([\d,]+\.?\d*)",
+            rf"{_re.escape(effective_ticker)}.*?CURRENT_PRICE={cur_pat}([\d,]+\.?\d*)",
             platform_ctx,
         )
         if m:
