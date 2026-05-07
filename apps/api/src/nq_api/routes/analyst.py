@@ -158,20 +158,53 @@ def _build_analyst_context(ticker: str, market: str) -> dict:
 
     # 4. Build context from the single ticker's data
     # Percentiles are estimated from raw values since we don't rank the full universe.
-    gpm = _safe_float(fund.get("gross_profit_margin"), 0.5)
-    mom = _safe_float(fund.get("momentum_raw"), 0.0)
+    # When data is missing/zero, use score_cache as fallback and flag as unreliable.
+    gpm_raw = fund.get("gross_profit_margin")
+    gpm = _safe_float(gpm_raw, 0.5) if gpm_raw is not None else None
+    gpm_is_real = gpm_raw is not None
+
+    mom_raw = fund.get("momentum_raw")
+    mom = _safe_float(mom_raw, 0.0) if mom_raw is not None else 0.0
+    # If momentum_raw is exactly 0.0, it's likely a data issue (not real zero momentum)
+    mom_is_reliable = mom_raw is not None and float(mom_raw) != 0.0
+
     vol = _safe_float(fund.get("realized_vol_1y"), 0.20)
     si  = _safe_float(fund.get("short_interest_pct"), 0.02)
 
-    # Rough composite: quality 30%, momentum 25%, value 20%, low-vol 15%, short-int 10%
-    quality_p = min(1.0, max(0.0, gpm))  # gross margin ≈ quality percentile
-    momentum_p = min(1.0, max(0.0, 0.5 + mom * 0.5))  # map momentum to 0-1
-    value_p = 1.0 / max(0.5, _safe_float(fund.get("pe_ttm"), 20.0) / 20.0)  # lower PE = higher value
-    lowvol_p = 1.0 / max(0.5, vol / 0.15)  # lower vol = higher low-vol score
-    shortint_p = 1.0 - min(1.0, si * 5)  # lower SI = higher score
+    # Try score_cache for more accurate percentiles when live data is unreliable
+    cache_row = None
+    try:
+        from nq_api.cache.score_cache import read_one
+        cache_row = read_one(ticker, market, max_age_seconds=86400)
+    except Exception:
+        pass
 
-    composite = (0.30 * quality_p + 0.25 * momentum_p + 0.20 * value_p
-                 + 0.15 * lowvol_p + 0.10 * shortint_p)
+    # Use score_cache percentiles when available and live data is unreliable
+    if cache_row:
+        quality_p = float(cache_row.get("quality_percentile", 0.5))
+        # Only override momentum_percentile if live data is unreliable
+        if mom_is_reliable:
+            momentum_p = min(1.0, max(0.0, 0.5 + mom * 0.5))
+        else:
+            momentum_p = float(cache_row.get("momentum_percentile", 0.5))
+            log.info("Analyst: using score_cache momentum_percentile=%.3f for %s (live mom=%.4f unreliable)",
+                     momentum_p, ticker, mom)
+        value_p = float(cache_row.get("value_percentile", 0.5))
+        lowvol_p = float(cache_row.get("low_vol_percentile", 0.5))
+        shortint_p = float(cache_row.get("short_interest_percentile", 0.5))
+        composite = float(cache_row.get("composite_score", 0.5))
+    else:
+        # No cache — estimate from raw values with quality flags
+        quality_p = min(1.0, max(0.0, gpm)) if gpm is not None else 0.5
+        momentum_p = min(1.0, max(0.0, 0.5 + mom * 0.5)) if mom_is_reliable else 0.5
+        value_p = 1.0 / max(0.5, _safe_float(fund.get("pe_ttm"), 20.0) / 20.0)
+        lowvol_p = 1.0 / max(0.5, vol / 0.15)
+        shortint_p = 1.0 - min(1.0, si * 5)
+        composite = (0.30 * quality_p + 0.25 * momentum_p + 0.20 * value_p
+                     + 0.15 * lowvol_p + 0.10 * shortint_p)
+
+    # Use live gpm if available, else None (agents will flag as missing)
+    gpm_final = gpm if gpm_is_real else None
 
     # Additional stock-specific fields agents reference
     try:
@@ -193,10 +226,10 @@ def _build_analyst_context(ticker: str, market: str) -> dict:
         "low_short_interest_rank":   round(shortint_p, 3),
         "short_interest_pct":        round(si * 100, 2),
         "momentum_raw":              round(mom, 4),
-        "gross_profit_margin":       round(gpm, 3),
-        "roe":                       round(_safe_float(fund.get("roe"), 0.12), 3),
+        "gross_profit_margin":       round(gpm_final, 3) if gpm_final is not None else None,
+        "roe":                       round(_safe_float(fund.get("roe"), 0.12), 3) if fund.get("roe") is not None else None,
         "accruals_ratio":            round(_safe_float(fund.get("accruals_ratio"), 0.0), 3),
-        "piotroski":                 int(_safe_float(fund.get("piotroski"), 5)),
+        "piotroski":                 int(_safe_float(fund.get("piotroski"), 5)) if fund.get("piotroski") is not None else None,
         "pe_ttm":                    round(_safe_float(fund.get("pe_ttm"), 20.0), 1),
         "pb_ratio":                  round(_safe_float(fund.get("pb_ratio"), 2.0), 2),
         "beta":                      round(_safe_float(fund.get("beta"), 1.0), 2),
@@ -214,6 +247,33 @@ def _build_analyst_context(ticker: str, market: str) -> dict:
         "revenue_growth":            round(float(info.get("revenueGrowth", 0.0)) * 100, 1) if info.get("revenueGrowth") else None,
         "insider_cluster_score":      _compute_insider_score(info, fund) or 0.5,
     }
+
+    # Data quality flags — tell agents which values are reliable vs missing/synthetic
+    _data_quality = []
+    if not mom_is_reliable:
+        _data_quality.append("momentum_raw is 0.0 (likely data issue, momentum_percentile from score_cache)")
+    # Flag synthetic fields from data_builder (random defaults)
+    _synthetic = fund.get("_is_synthetic", set())
+    if "gross_profit_margin" in _synthetic:
+        _data_quality.append("gross_profit_margin is SYNTHETIC (random default, not real data)")
+    elif gpm_final is None:
+        _data_quality.append("gross_profit_margin is N/A")
+    if "roe" in _synthetic:
+        _data_quality.append("roe is SYNTHETIC (random default, not real data)")
+    elif fund.get("roe") is None:
+        _data_quality.append("roe is N/A")
+    if "short_interest_pct" in _synthetic:
+        _data_quality.append("short_interest_pct is SYNTHETIC (random default, not real data)")
+    if "momentum_raw" in _synthetic:
+        _data_quality.append("momentum_raw is SYNTHETIC (random default, not real data)")
+    if fund.get("piotroski") is None:
+        _data_quality.append("piotroski is N/A")
+    if info.get("debtToEquity") is None:
+        _data_quality.append("debt_equity is N/A")
+    if info.get("revenueGrowth") is None:
+        _data_quality.append("revenue_growth is N/A")
+    if _data_quality:
+        context["_data_quality_flags"] = _data_quality
 
     # Sector median comparison (for agent context)
     sector = context.get("sector", "")

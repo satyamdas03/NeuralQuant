@@ -32,7 +32,7 @@ def _is_ollama_proxy() -> bool:
     return "127.0.0.1:11434" in url or "localhost:11434" in url
 
 
-def _query_client(api_key: str, timeout: float = 55.0) -> tuple[anthropic.Anthropic, str]:
+def _query_client(api_key: str, timeout: float = 120.0) -> tuple[anthropic.Anthropic, str]:
     """Create Anthropic client for Ask AI — bypasses Ollama proxy for speed.
 
     Returns (client, model_name) tuple.
@@ -88,12 +88,13 @@ _SYSTEM = """You are NeuralQuant — an institutional-grade AI stock intelligenc
 5. Competitor comparison data — nearby ranked stocks and their scores
 
 ## HARD RULES — NEVER VIOLATE
-1. **NEVER use price data from your training data.** If a live price is injected in the user message, USE THAT EXACT PRICE — even if your training data says a different price. Stocks split (NVDA split 10:1 in June 2024). Your training data is STALE. The injected CURRENT_PRICE is the ONLY correct price.
+1. **NEVER use ANY financial data from your training data.** When live data is injected (marked [VERIFIED]), you MUST use those EXACT values — for price, P/E, Beta, market cap, EPS, P/B, 52-week range, analyst target, and ALL other metrics. Your training data is STALE and WRONG. NVDA split 10:1 in June 2024 — your training data P/E of ~28x is WRONG (correct: ~42x), your training data beta of ~0.89 is WRONG (correct: ~2.24). ALWAYS use [VERIFIED] values.
 2. **NEVER say "I don't have data/scores for this stock" when price or fundamentals are injected above.** If live price is injected, USE IT. Quote exact numbers.
 3. **NEVER deflect to a different stock when the user asks about a specific one.** If asked about Trent, answer about Trent — not Bharti, not Maruti.
-3. **NEVER mention US indices (S&P 500, VIX, HY spreads, 2s10s) as primary context for India-specific questions.** For India queries: lead with Nifty/Sensex/INR, mention global risk only as a footnote.
-4. **NEVER give indirect or vague investment advice.** If asked "which stocks to buy for ₹10L", name SPECIFIC stocks with specific rupee allocations.
-5. **NEVER start with "Based on available data, I cannot..."** — you always have data. Use it.
+4. **NEVER mention US indices (S&P 500, VIX, HY spreads, 2s10s) as primary context for India-specific questions.** For India queries: lead with Nifty/Sensex/INR, mention global risk only as a footnote.
+5. **NEVER give indirect or vague investment advice.** If asked "which stocks to buy for ₹10L", name SPECIFIC stocks with specific rupee allocations.
+6. **NEVER start with "Based on available data, I cannot..."** — you always have data. Use it.
+7. **DATA ACCURACY AUDIT:** Before finalizing your response, verify EVERY numeric value against the injected [VERIFIED] data. If you wrote P/E=28.9 but the injected data says P/E_TTM=42.5, you MUST use 42.5. If you wrote Beta=0.89 but injected says Beta=2.24, you MUST use 2.24. Wrong financial data can cause real losses — this is the single most important rule.
 
 ## REASONING QUALITY — THE DIFFERENCE BETWEEN A CHATBOT AND A QUANT RESEARCHER
 6. **EVERY stock recommendation must explain WHY this stock and WHY NOT an alternative.** If you recommend AAPL, say why AAPL and not MSFT. If you recommend RELIANCE.NS, say why RELIANCE and not TCS. This is non-negotiable.
@@ -136,7 +137,7 @@ _SYSTEM_STRUCTURED = _SYSTEM + """
 ## STRUCTURED OUTPUT MODE
 You MUST respond with ONLY a JSON object matching this schema. No markdown, no prose outside the JSON. Do NOT truncate — provide ALL fields with FULL detail.
 
-CRITICAL PRICE ACCURACY: When live market data is injected above (e.g. "CURRENT_PRICE=$196.50"), you MUST use that EXACT price in every metric, scenario target, and summary. NEVER substitute with your training data price. Stocks like NVDA have split — your training data price of ~$1,000+ is WRONG. Use ONLY the injected CURRENT_PRICE.
+CRITICAL DATA ACCURACY: When live market data is injected above (e.g. "CURRENT_PRICE=$196.50 [VERIFIED]", "P/E_TTM=42.50 [VERIFIED]", "Beta=2.24 [VERIFIED]"), you MUST use those EXACT values in every metric, scenario target, and summary. NEVER substitute with your training data — stocks split (NVDA 10:1 in June 2024), P/E changes after earnings, beta recalculates with volatility. The [VERIFIED] marker means this is TODAY's real data from yfinance. Your training data P/E, Beta, Price, and Market Cap are WRONG for any stock that has had recent price moves.
 
 Required fields:
 {
@@ -475,6 +476,79 @@ def _fetch_enrichment(ticker: str | None, market: str = "US") -> dict:
         except Exception:
             pass
         return {}
+
+
+# ── Post-processing: validate LLM output against injected data ────────────────
+import re as _val_re
+
+_VALIDATION_RULES = [
+    (["P/E", "PE", "PRICE-EARNINGS"], "P/E_TTM", 0.15),
+    (["BETA"], "BETA", 0.20),
+    (["PRICE", "CURRENT_PRICE"], "CURRENT_PRICE", 0.05),
+]
+
+
+def _extract_verified_values(platform_ctx: str | None) -> dict[str, float]:
+    """Extract [VERIFIED] values from platform context for post-hoc validation."""
+    if not platform_ctx:
+        return {}
+    verified = {}
+    for m in _val_re.finditer(r'(\w[\w/]*)=([\$₹]?[\d,]+\.?\d*)\s*\[VERIFIED\]', platform_ctx):
+        key = m.group(1).upper().replace("/", "_")
+        val_str = m.group(2).replace(",", "").replace("$", "").replace("₹", "")
+        try:
+            verified[key] = float(val_str)
+        except ValueError:
+            pass
+    return verified
+
+
+def _validate_response_metrics(result, verified: dict[str, float]) -> "StructuredQueryResponse":
+    """Validate LLM metrics against [VERIFIED] data. Correct P/E, Beta, Price discrepancies > tolerance."""
+    if not verified or not hasattr(result, 'metrics') or not result.metrics:
+        return result
+
+    corrections_made = []
+
+    for metric in result.metrics:
+        name = metric.name.upper() if metric.name else ""
+        value_str = str(metric.value) if metric.value else ""
+        num_match = _val_re.search(r'[\d,]+\.?\d*', value_str.replace(",", ""))
+        if not num_match:
+            continue
+        try:
+            llm_val = float(num_match.group())
+        except ValueError:
+            continue
+
+        for patterns, ctx_key, tolerance in _VALIDATION_RULES:
+            if ctx_key not in verified:
+                continue
+            if not any(p in name for p in patterns):
+                continue
+            ctx_val = verified[ctx_key]
+            if ctx_val > 0 and abs(llm_val - ctx_val) / ctx_val > tolerance:
+                old_val = metric.value
+                if "P/E" in ctx_key or "PE" in ctx_key:
+                    metric.value = f"{ctx_val:.1f}x"
+                elif "BETA" in ctx_key:
+                    metric.value = f"{ctx_val:.2f}"
+                elif "PRICE" in ctx_key:
+                    cur = "₹" if "Rs" in value_str else "$"
+                    metric.value = f"{cur}{ctx_val:,.2f}"
+                else:
+                    metric.value = str(ctx_val)
+                corrections_made.append(f"{name}: {old_val} → {metric.value}")
+                logger.info("Corrected LLM metric %s from %s to %s (verified: %s)",
+                            name, old_val, metric.value, ctx_val)
+            break
+
+    if corrections_made and hasattr(result, 'summary') and result.summary:
+        if "Corrected" not in result.summary:
+            result.summary += f" [Corrected metrics: {'; '.join(corrections_made)}]"
+
+    return result
+
 
 def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, platform_ctx: str | None) -> StockSummary | None:
     """Build a StockSummary from enrichment + platform data for the quick-glance card."""
@@ -890,14 +964,14 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                     else:
                         price_str = "N/A (cached)"
                     details = []
-                    if pe: details.append(f"P/E={pe:.1f}")
+                    if pe: details.append(f"P/E={pe:.1f} [VERIFIED]")
                     if gpm: details.append(f"GPM={gpm:.0%}")
                     if momentum: details.append(f"Momentum={momentum:.0%}")
                     if quality: details.append(f"Quality={quality:.0%}")
                     if value: details.append(f"Value={value:.0%}")
                     det_str = " | ".join(details) if details else ""
                     lines.append(f"#{i+1} {t}: {sc}/10 | {price_str} | {det_str}")
-                lines.append("IMPORTANT: Live prices for top 5, rest cached. Do NOT use prices from training data — stocks may have split (e.g. NVDA 10:1 in June 2024).")
+                lines.append("IMPORTANT: Live prices for top 5, rest cached. Do NOT use prices from training data — stocks may have split (e.g. NVDA 10:1 in June 2024). [VERIFIED] values are from live data and MUST be used exactly.")
                 parts.append("\n".join(lines))
             else:
                 # No cache — fetch top 5 stocks only (fast)
@@ -911,8 +985,8 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                         chg = fund.get("change_pct", 0)
                         pe = fund.get("pe_ttm")
                         cur = "Rs." if target_market == "IN" else "$"
-                        price_str = f"{cur}{price:,.2f} ({chg:+.1f}%)" if price else "N/A"
-                        pe_str = f"P/E={pe:.1f}" if pe else ""
+                        price_str = f"{cur}{price:,.2f} ({chg:+.1f}%) [VERIFIED]" if price else "N/A"
+                        pe_str = f"P/E={pe:.1f} [VERIFIED]" if pe else ""
                         lines.append(f"  {t}: {price_str} | {pe_str}")
                 lines.append("NOTE: Full screener data not cached. Showing top 5 with live prices.")
                 parts.append("\n".join(lines))
@@ -946,30 +1020,30 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                 cur = "Rs." if target_market == "IN" else "$"
                 # Build a very explicit data block the LLM cannot ignore
                 detail_parts = [f"ForeCast={sc}/10"]
-                if price: detail_parts.append(f"CURRENT_PRICE={cur}{price:,.2f}")
+                if price: detail_parts.append(f"CURRENT_PRICE={cur}{price:,.2f} [VERIFIED]")
                 if chg: detail_parts.append(f"CHANGE={chg:+.1f}%")
-                if pe: detail_parts.append(f"P/E_TTM={pe:.1f}")
-                if eps: detail_parts.append(f"EPS={eps:.2f}")
-                if pb: detail_parts.append(f"P/B={pb:.2f}")
-                if beta_val: detail_parts.append(f"Beta={beta_val:.2f}")
+                if pe: detail_parts.append(f"P/E_TTM={pe:.1f} [VERIFIED]")
+                if eps: detail_parts.append(f"EPS={eps:.2f} [VERIFIED]")
+                if pb: detail_parts.append(f"P/B={pb:.2f} [VERIFIED]")
+                if beta_val: detail_parts.append(f"Beta={beta_val:.2f} [VERIFIED]")
                 if mcap:
                     if cur == "Rs.":
-                        if mcap >= 1e13: detail_parts.append(f"Mcap=₹{mcap/1e13:.1f}L Cr")
-                        elif mcap >= 1e11: detail_parts.append(f"Mcap=₹{mcap/1e11:.1f}K Cr")
-                        else: detail_parts.append(f"Mcap=₹{mcap/1e7:.0f} Cr")
+                        if mcap >= 1e13: detail_parts.append(f"Mcap=₹{mcap/1e13:.1f}L Cr [VERIFIED]")
+                        elif mcap >= 1e11: detail_parts.append(f"Mcap=₹{mcap/1e11:.1f}K Cr [VERIFIED]")
+                        else: detail_parts.append(f"Mcap=₹{mcap/1e7:.0f} Cr [VERIFIED]")
                     else:
-                        if mcap >= 1e12: detail_parts.append(f"Mcap=${mcap/1e12:.1f}T")
-                        elif mcap >= 1e9: detail_parts.append(f"Mcap=${mcap/1e9:.1f}B")
-                        else: detail_parts.append(f"Mcap=${mcap/1e6:.0f}M")
-                if w52l and w52h: detail_parts.append(f"52wk={cur}{w52l:,.0f}-{cur}{w52h:,.0f}")
-                if target: detail_parts.append(f"AnalystTarget={cur}{target:,.0f}({rec})")
+                        if mcap >= 1e12: detail_parts.append(f"Mcap=${mcap/1e12:.1f}T [VERIFIED]")
+                        elif mcap >= 1e9: detail_parts.append(f"Mcap=${mcap/1e9:.1f}B [VERIFIED]")
+                        else: detail_parts.append(f"Mcap=${mcap/1e6:.0f}M [VERIFIED]")
+                if w52l and w52h: detail_parts.append(f"52wk={cur}{w52l:,.0f}-{cur}{w52h:,.0f} [VERIFIED]")
+                if target: detail_parts.append(f"AnalystTarget={cur}{target:,.0f}({rec}) [VERIFIED]")
                 momentum = cached_row.get("momentum_percentile")
                 quality = cached_row.get("quality_percentile")
                 if momentum: detail_parts.append(f"Momentum={momentum:.0%}")
                 if quality: detail_parts.append(f"Quality={quality:.0%}")
                 lines.append(f"  {t}: {' | '.join(detail_parts)}")
             lines.append("")
-            lines.append("⚠ MANDATORY: The CURRENT_PRICE above is the REAL price TODAY. Stocks may have split (e.g. NVDA 10:1 split in June 2024). NEVER use pre-split prices from your training data. ALWAYS quote the exact CURRENT_PRICE shown above in your response.")
+            lines.append("⚠ MANDATORY: ALL values marked [VERIFIED] are REAL live data from yfinance for TODAY. P/E, Beta, Price, Market Cap — these change after earnings, splits, and volatility shifts. Your training data is WRONG for these values. ALWAYS quote the EXACT [VERIFIED] values shown above. Using different P/E or Beta values is a critical error.")
             parts.append("\n".join(lines))
 
         # Inject competitor comparison for specific stocks
@@ -1659,7 +1733,7 @@ async def run_nl_query_v2(
 
     # Reinforce: if platform_ctx contains CURRENT_PRICE, add an extra reminder at the end
     if platform_ctx and "CURRENT_PRICE" in platform_ctx:
-        user_msg += "\n\nREMINDER: Use the CURRENT_PRICE values shown above. They reflect TODAY's market. Your training data prices are STALE and WRONG for stocks that have split (NVDA 10:1 June 2024)."
+        user_msg += "\n\nREMINDER: ALL values marked [VERIFIED] above are TODAY's live market data (yfinance). You MUST use EXACT P/E, Beta, Price, and Market Cap values shown — your training data has WRONG values for stocks with recent earnings changes or splits (e.g. NVDA P/E is ~42x NOT ~28x, Beta is ~2.2 NOT ~0.9). Wrong financial data causes real investment losses."
 
     # Load persistent conversation memory if session_key provided
     user_id = str(user.id) if user else None
@@ -1712,6 +1786,9 @@ async def run_nl_query_v2(
                         "confidence_gap": "N/A",
                     }
                 result = StructuredQueryResponse(**parsed)
+                # Validate LLM metrics against injected [VERIFIED] data
+                verified = _extract_verified_values(platform_ctx)
+                result = _validate_response_metrics(result, verified)
                 # Attach stock summary from enrichment data
                 result.stock_summary = _build_stock_summary(effective_ticker_v2, req.market or "US", enrichment, platform_ctx)
                 # Persist conversation turn (best-effort)
@@ -1736,6 +1813,9 @@ async def run_nl_query_v2(
                 break
         freeform_resp = _parse_query_response(raw, route)
         result = _structured_from_markdown(raw, freeform_resp, route, _build_stock_summary(effective_ticker_v2, req.market or "US", enrichment, platform_ctx))
+        # Validate LLM metrics against injected [VERIFIED] data
+        verified = _extract_verified_values(platform_ctx)
+        result = _validate_response_metrics(result, verified)
         return result
 
     except anthropic.APITimeoutError:
@@ -2040,7 +2120,7 @@ async def run_nl_query_v2_stream(
             result_holder["user_msg"] = "\n".join(context_parts)
             # Reinforce: if platform_ctx contains CURRENT_PRICE, add reminder
             if platform_ctx and "CURRENT_PRICE" in platform_ctx:
-                result_holder["user_msg"] += "\n\nREMINDER: Use the CURRENT_PRICE values shown above. They reflect TODAY's market. Your training data prices are STALE and WRONG for stocks that have split (NVDA 10:1 June 2024)."
+                result_holder["user_msg"] += "\n\nREMINDER: ALL values marked [VERIFIED] above are TODAY's live market data (yfinance). You MUST use EXACT P/E, Beta, Price, and Market Cap values shown — your training data has WRONG values for stocks with recent earnings changes or splits (e.g. NVDA P/E is ~42x NOT ~28x, Beta is ~2.2 NOT ~0.9). Wrong financial data causes real investment losses."
             result_holder["enrichment"] = enrichment
             result_holder["platform_ctx"] = platform_ctx
             context_done.set()
@@ -2101,15 +2181,29 @@ async def run_nl_query_v2_stream(
 
                 # Force tool_use: model MUST call `respond_with_neuralquant_forecast`
                 # with arguments matching the schema. No more markdown leakage.
-                response = await asyncio.to_thread(
-                    client.messages.create,
-                    model=query_model,
-                    max_tokens=8000,
-                    system=_SYSTEM_STRUCTURED,
-                    tools=[_STRUCTURED_TOOL],
-                    tool_choice={"type": "tool", "name": _STRUCTURED_TOOL["name"]},
-                    messages=messages,
-                )
+                # 90s timeout prevents indefinite hangs on complex queries
+                try:
+                    response = await asyncio.wait_for(
+                        asyncio.to_thread(
+                            client.messages.create,
+                            model=query_model,
+                            max_tokens=8000,
+                            system=_SYSTEM_STRUCTURED,
+                            tools=[_STRUCTURED_TOOL],
+                            tool_choice={"type": "tool", "name": _STRUCTURED_TOOL["name"]},
+                            messages=messages,
+                        ),
+                        timeout=90.0,
+                    )
+                except asyncio.TimeoutError:
+                    result_holder["result"] = StructuredQueryResponse(
+                        verdict="HOLD", confidence=0, timeframe="Medium-term",
+                        summary="Query timed out — the AI took too long to respond. Try a shorter question.",
+                        reasoning=ReasoningBlock(why_this="N/A", why_not_alt="N/A", edge_summary="N/A", second_best="N/A", confidence_gap="N/A"),
+                        route=route,
+                    )
+                    llm_done.set()
+                    return
 
                 parsed = _extract_tool_use_input(response)
                 if parsed:
@@ -2126,6 +2220,9 @@ async def run_nl_query_v2_stream(
                                 "confidence_gap": "N/A",
                             }
                         result_holder["result"] = StructuredQueryResponse(**parsed)
+                        # Validate LLM metrics against injected [VERIFIED] data
+                        verified = _extract_verified_values(result_holder.get("platform_ctx"))
+                        result_holder["result"] = _validate_response_metrics(result_holder["result"], verified)
                         # Attach stock summary from enrichment data
                         result_holder["result"].stock_summary = _build_stock_summary(
                             stream_ticker, req.market or "US",
@@ -2161,6 +2258,9 @@ async def run_nl_query_v2_stream(
                         raw, freeform_resp, route,
                         _build_stock_summary(stream_ticker, req.market or "US", result_holder.get("enrichment", {}), result_holder.get("platform_ctx")),
                     )
+                    # Validate LLM metrics against injected [VERIFIED] data
+                    verified = _extract_verified_values(result_holder.get("platform_ctx"))
+                    result_holder["result"] = _validate_response_metrics(result_holder["result"], verified)
             except anthropic.APITimeoutError:
                 result_holder["result"] = StructuredQueryResponse(
                     verdict="HOLD", confidence=0, timeframe="Medium-term",

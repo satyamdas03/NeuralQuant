@@ -28,6 +28,9 @@ CRITICAL RULES:
 5. Quantify your conviction: explain what data would change your mind.
 6. The PANEL CONSENSUS and VERDICT GUIDANCE are computed from agent stances. Your verdict MUST respect the consensus direction. If consensus is negative, you cannot return BUY or STRONG BUY. If consensus is near zero, you should return HOLD.
 
+DATA INTEGRITY — MOST IMPORTANT RULE:
+7. Use ONLY the exact numeric values provided in the RAW DATA section. NEVER fabricate, estimate, or substitute values from your training data. If the raw data says P/E=30.8x, your Risk Factors MUST say 30.8x — NOT 8x. If ROE=10.0%, your Risk Factors MUST say 10.0% — NOT 0%. Wrong financial data in investment advice causes real losses. Every number in your output must trace directly to the raw data provided above.
+
 Weighting framework (normalized to 100%):
 - FUNDAMENTAL carries 20% weight (most important for long-term)
 - ADVERSARIAL carries 20% weight (dedicated bear counterweight)
@@ -94,6 +97,10 @@ RISK_FACTORS:
             }
             if raw_fields:
                 context["raw_data"] = "\n".join(f"  {k}: {v}" for k, v in raw_fields.items())
+            # Data quality flags — tell HEAD ANALYST which values are unreliable
+            dq_flags = raw_context.get("_data_quality_flags", [])
+            if dq_flags:
+                context["data_quality_warnings"] = "\n".join(f"  ⚠ {f}" for f in dq_flags)
             # Moderate red flags — advisory warnings for the HEAD ANALYST
             mod_flags = raw_context.get("_moderate_flags", [])
             if mod_flags:
@@ -126,6 +133,7 @@ RISK_FACTORS:
         panel_consensus = context.get("panel_consensus", "0.000")
         verdict_guidance = context.get("verdict_guidance", "HOLD")
         raw_data = context.get("raw_data", "")
+        data_quality_warnings = context.get("data_quality_warnings", "")
         moderate_flags = context.get("moderate_flags", "")
         raw_section = ""
         if raw_data:
@@ -135,6 +143,13 @@ RAW DATA (cross-reference agent claims against this):
 {raw_data}
 
 You MUST verify agent claims against this raw data. If an agent claims "strong momentum" but the data shows low momentum, flag it."""
+        if data_quality_warnings:
+            raw_section += f"""
+
+DATA QUALITY WARNINGS (these values are UNRELIABLE — do NOT use them as if they are confirmed):
+{data_quality_warnings}
+
+If a value is flagged above as N/A or unreliable, you MUST state it as "data unavailable" in your analysis — do NOT substitute training data values."""
         if moderate_flags:
             raw_section += f"""
 

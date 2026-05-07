@@ -248,6 +248,8 @@ def _synthetic_row(ticker: str) -> dict:
         "beta":                  float(rng(s + 7).uniform(0.5, 1.8)),
         "realized_vol_1y":       float(rng(s + 8).uniform(0.15, 0.50)),
         "_is_real":              False,
+        "_is_synthetic":        {"gross_profit_margin", "roe", "momentum_raw", "short_interest_pct",
+                                  "pe_ttm", "pb_ratio", "beta", "realized_vol_1y", "piotroski"},
     }
 
 
@@ -291,18 +293,25 @@ def _fetch_one(ticker: str, market: str) -> dict:
             raise ValueError("Empty info")
 
         # ── Gross profit margin ───────────────────────────────────────
-        gpm = _safe(info.get("grossMargins"),
-                    np.random.RandomState(hash(ticker) % (2**31)).uniform(0.1, 0.9))
+        _synthetic = set()
+        gpm_raw = info.get("grossMargins")
+        gpm = _safe(gpm_raw, np.random.RandomState(hash(ticker) % (2**31)).uniform(0.1, 0.9))
+        if gpm_raw is None:
+            _synthetic.add("gross_profit_margin")
 
         # ── Return on equity (sector-adjusted quality uses this for financials) ──
-        roe = _safe(info.get("returnOnEquity"),
-                    np.random.RandomState((hash(ticker) + 11) % (2**31)).uniform(0.05, 0.25))
+        roe_raw = info.get("returnOnEquity")
+        roe = _safe(roe_raw, np.random.RandomState((hash(ticker) + 11) % (2**31)).uniform(0.05, 0.25))
         # Clamp to sane band — yfinance occasionally returns 5.0 (i.e. 500%)
         roe = max(-0.50, min(0.80, roe))
+        if roe_raw is None:
+            _synthetic.add("roe")
 
         # ── Short interest % of float ─────────────────────────────────
-        si = _safe(info.get("shortPercentOfFloat"),
-                   np.random.RandomState((hash(ticker) + 4) % (2**31)).uniform(0.01, 0.18))
+        si_raw = info.get("shortPercentOfFloat")
+        si = _safe(si_raw, np.random.RandomState((hash(ticker) + 4) % (2**31)).uniform(0.01, 0.18))
+        if si_raw is None:
+            _synthetic.add("short_interest_pct")
 
         # ── Accruals ratio = (NI – OCF) / Total Assets ───────────────
         ni  = _safe(info.get("netIncomeToCommon"))
@@ -349,6 +358,7 @@ def _fetch_one(ticker: str, market: str) -> dict:
             momentum = float(
                 np.random.RandomState((hash(ticker) + 3) % (2**31)).uniform(-0.25, 0.55)
             )
+            _synthetic.add("momentum_raw")
 
         # Realized annualized volatility (252-day window)
         if len(hist_close) >= 30:
@@ -421,6 +431,7 @@ def _fetch_one(ticker: str, market: str) -> dict:
             "realized_vol_1y":      float(realized_vol),
             "delivery_pct":         None,  # filled by Bhavcopy for IN market
             "_is_real":             True,
+            "_is_synthetic":        _synthetic,   # field names with fabricated defaults
             # Live price fields — used by query.py to inject accurate prices into LLM context
             "current_price":        float(current_price) if current_price else None,
             "week52_high":          float(week52_high) if week52_high else None,
