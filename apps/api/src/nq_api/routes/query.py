@@ -1069,6 +1069,16 @@ async def run_nl_query(
     # REACT: existing LLM-powered logic with optimized context
     client, query_model = _query_client(api_key)
 
+    # ── Detect ticker from question when not provided ───────────────────────
+    effective_ticker = req.ticker
+    if not effective_ticker:
+        try:
+            detected, _ = _detect_tickers_in_question(req.question, req.market or "US")
+            if detected:
+                effective_ticker = detected[0].replace(".NS", "").replace(".BO", "")
+        except Exception:
+            pass
+
     # ── Offload blocking I/O to thread pool ──────────────────────────────────
     # Each task gets a hard cap so the total context-build phase completes in
     # ≤ 25 s — leaving ample headroom for the 300 s Anthropic timeout.
@@ -1083,7 +1093,7 @@ async def run_nl_query(
             return default
 
     enrichment, headlines, macro_ctx, platform_ctx, finnhub_news = await asyncio.gather(
-        _timed(asyncio.to_thread(_fetch_enrichment, req.ticker, req.market or 'US'), 25.0, {}),
+        _timed(asyncio.to_thread(_fetch_enrichment, effective_ticker, req.market or 'US'), 25.0, {}),
         _timed(asyncio.to_thread(_fetch_relevant_news, req.question, req.ticker, 5), 8.0, []),
         _timed(asyncio.to_thread(_build_macro_context, req.question, req.market or "US", today), 10.0, None),
         _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, req.market or "US"), 22.0, None),
@@ -1566,6 +1576,16 @@ async def run_nl_query_v2(
     # REACT or DEEP: use LLM with structured prompt
     client, query_model = _query_client(api_key)
 
+    # ── Detect ticker from question when not provided ───────────────────────
+    effective_ticker_v2 = req.ticker
+    if not effective_ticker_v2:
+        try:
+            detected, _ = _detect_tickers_in_question(req.question, req.market or "US")
+            if detected:
+                effective_ticker_v2 = detected[0].replace(".NS", "").replace(".BO", "")
+        except Exception:
+            pass
+
     today = date.today().strftime("%B %d, %Y")
 
     async def _timed(coro, timeout: float, default):
@@ -1579,7 +1599,7 @@ async def run_nl_query_v2(
         _timed(asyncio.to_thread(_build_macro_context, req.question, req.market or "US", today), 10.0, None),
         _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, req.market or "US"), 22.0, None),
         _timed(asyncio.to_thread(_fetch_finnhub_news_summaries, req.ticker, req.market or "US", 5), 8.0, []),
-        _timed(asyncio.to_thread(_fetch_enrichment, req.ticker, req.market or 'US'), 25.0, {}),
+        _timed(asyncio.to_thread(_fetch_enrichment, effective_ticker_v2, req.market or 'US'), 25.0, {}),
     )
 
     context_parts = [
@@ -1693,7 +1713,7 @@ async def run_nl_query_v2(
                     }
                 result = StructuredQueryResponse(**parsed)
                 # Attach stock summary from enrichment data
-                result.stock_summary = _build_stock_summary(req.ticker, req.market or "US", enrichment, platform_ctx)
+                result.stock_summary = _build_stock_summary(effective_ticker_v2, req.market or "US", enrichment, platform_ctx)
                 # Persist conversation turn (best-effort)
                 if user_id and req.session_key:
                     await asyncio.to_thread(
@@ -1715,7 +1735,7 @@ async def run_nl_query_v2(
                 raw = block.text
                 break
         freeform_resp = _parse_query_response(raw, route)
-        result = _structured_from_markdown(raw, freeform_resp, route, _build_stock_summary(req.ticker, req.market or "US", enrichment, platform_ctx))
+        result = _structured_from_markdown(raw, freeform_resp, route, _build_stock_summary(effective_ticker_v2, req.market or "US", enrichment, platform_ctx))
         return result
 
     except anthropic.APITimeoutError:
@@ -1937,6 +1957,16 @@ async def run_nl_query_v2_stream(
         query_start = time.monotonic()
         today = date.today().strftime("%B %d, %Y")
 
+        # ── Detect ticker from question when not provided ───────────────────────
+        stream_ticker = req.ticker
+        if not stream_ticker:
+            try:
+                detected, _ = _detect_tickers_in_question(req.question, req.market or "US")
+                if detected:
+                    stream_ticker = detected[0].replace(".NS", "").replace(".BO", "")
+            except Exception:
+                pass
+
         yield f'data: {_json.dumps({"status":"phase","phase":"news","label":_PHASE_LABELS["news"]})}\n\n'
         yield f'data: {_json.dumps({"status":"phase","phase":"macro","label":_PHASE_LABELS["macro"]})}\n\n'
         yield f'data: {_json.dumps({"status":"phase","phase":"platform","label":_PHASE_LABELS["platform"]})}\n\n'
@@ -1956,7 +1986,7 @@ async def run_nl_query_v2_stream(
                 _timed(asyncio.to_thread(_build_macro_context, req.question, req.market or "US", today), 10.0, None),
                 _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, req.market or "US"), 22.0, None),
                 _timed(asyncio.to_thread(_fetch_finnhub_news_summaries, req.ticker, req.market or "US", 5), 8.0, []),
-                _timed(asyncio.to_thread(_fetch_enrichment, req.ticker, req.market or 'US'), 25.0, {}),
+                _timed(asyncio.to_thread(_fetch_enrichment, stream_ticker, req.market or 'US'), 25.0, {}),
             )
             context_parts = [f"Today's date: {today}", f"User question: {req.question}"]
             if macro_ctx:
@@ -2098,7 +2128,7 @@ async def run_nl_query_v2_stream(
                         result_holder["result"] = StructuredQueryResponse(**parsed)
                         # Attach stock summary from enrichment data
                         result_holder["result"].stock_summary = _build_stock_summary(
-                            req.ticker, req.market or "US",
+                            stream_ticker, req.market or "US",
                             result_holder.get("enrichment", {}),
                             result_holder.get("platform_ctx"),
                         )
@@ -2129,7 +2159,7 @@ async def run_nl_query_v2_stream(
                     freeform_resp = _parse_query_response(raw, route)
                     result_holder["result"] = _structured_from_markdown(
                         raw, freeform_resp, route,
-                        _build_stock_summary(req.ticker, req.market or "US", result_holder.get("enrichment", {}), result_holder.get("platform_ctx")),
+                        _build_stock_summary(stream_ticker, req.market or "US", result_holder.get("enrichment", {}), result_holder.get("platform_ctx")),
                     )
             except anthropic.APITimeoutError:
                 result_holder["result"] = StructuredQueryResponse(
