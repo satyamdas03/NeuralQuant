@@ -783,11 +783,12 @@ def _detect_tickers_in_question(question: str, market: str = "US") -> tuple[list
 
     # For India queries, also check NSE name map keys
     out_of_universe = []
+    known_bases = {t.replace(".NS", "").replace(".BO", "") for t in search_pool}
     if market == "IN" or any(k in q_upper for k in _INDIA_KEYWORDS):
         # First check the name map directly
         for name_key in _NSE_NAME_MAP:
             if (re.search(r'\b' + re.escape(name_key) + r'\b', q_upper)
-                    and name_key not in {t.replace(".NS", "").replace(".BO", "") for t in known}):
+                    and name_key not in known_bases):
                 if name_key not in out_of_universe:
                     out_of_universe.append(name_key)
 
@@ -797,8 +798,7 @@ def _detect_tickers_in_question(question: str, market: str = "US") -> tuple[list
             if (3 <= len(clean) <= 12
                     and clean not in _STOP_WORDS
                     and clean not in _TICKER_STOP_WORDS
-                    and clean not in known
-                    and clean not in {t.replace(".NS", "").replace(".BO", "") for t in known}
+                    and clean not in known_bases
                     and clean not in out_of_universe
                     and clean not in _NSE_NAME_MAP):
                 out_of_universe.append(clean)
