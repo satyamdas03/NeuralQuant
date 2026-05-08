@@ -33,22 +33,24 @@ logger = logging.getLogger(__name__)
 
 log = logging.getLogger(__name__)
 
-# ─── Shared yfinance session (proper headers to reduce 401 crumb errors) ───────
-_yf_session: requests.Session | None = None
+# ─── Shared yfinance session ──────────────────────────────────────────────────────
+# yfinance >= 1.3.0 requires curl_cffi sessions. If curl_cffi is unavailable,
+# we return None and let yfinance manage its own session (which handles
+# impersonation internally). Passing a requests.Session causes YFDataException.
+_yf_session = None
 
-def _get_yf_session() -> requests.Session:
+def _get_yf_session():
+    """Return a curl_cffi session for yfinance, or None to let yfinance manage it."""
     global _yf_session
     if _yf_session is None:
-        _yf_session = requests.Session()
-        _yf_session.headers.update({
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.5",
-            "Accept-Encoding": "gzip, deflate, br",
-            "DNT": "1",
-            "Connection": "keep-alive",
-        })
-    return _yf_session
+        try:
+            from curl_cffi.requests import Session as CurlSession
+            _yf_session = CurlSession(impersonate="chrome")
+            log.info("Using curl_cffi session for yfinance (impersonate=chrome)")
+        except ImportError:
+            log.info("curl_cffi not available, letting yfinance manage its own session")
+            _yf_session = False  # sentinel: don't retry
+    return _yf_session if _yf_session else None
 
 _IS_RENDER = bool(os.environ.get("RENDER"))
 _lock = threading.Lock()
