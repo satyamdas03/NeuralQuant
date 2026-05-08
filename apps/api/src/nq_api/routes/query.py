@@ -873,22 +873,30 @@ def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, plat
         except Exception:
             pass
 
-    # Fallback: try score_cache for fundamentals if _fetch_one failed
-    if price is None and effective_ticker:
+    # Fallback: try score_cache for fundamentals if _fetch_one failed or returned incomplete data
+    # (Finnhub may provide price but miss P/E, Beta, etc. — score_cache often has them.)
+    needs_cache = (price is None or pe is None or beta is None or mcap is None) and effective_ticker
+    if needs_cache:
         try:
             from nq_api.cache import score_cache
             cached = score_cache.read_one(effective_ticker, detected_market, max_age_seconds=999999999)
             if cached:
-                if not pe:
+                if price is None:
+                    price = cached.get("current_price")
+                if pe is None:
                     pe = cached.get("pe_ttm")
-                if not pb:
+                if pb is None:
                     pb = cached.get("pb_ratio")
-                if not mcap:
+                if mcap is None:
                     mcap = cached.get("market_cap")
-                if not beta:
+                if beta is None:
                     beta = cached.get("beta")
                 if not sector:
                     sector = cached.get("sector", "")
+                if not name or name == effective_ticker:
+                    name = cached.get("long_name") or cached.get("name") or effective_ticker
+                if change_pct is None:
+                    change_pct = cached.get("change_pct")
         except Exception:
             pass
 
@@ -1333,6 +1341,38 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
     return "\n\n".join(parts) if parts else None
 
 
+async def _call_anthropic_with_retry(client, *, model: str, max_tokens: int, system: str, messages: list, tools: list | None = None, tool_choice: dict | None = None, timeout: float = 90.0):
+    """Call Anthropic API with exponential-backoff retry on 5xx / connection / rate-limit errors."""
+    kwargs: dict = dict(model=model, max_tokens=max_tokens, system=system, messages=messages)
+    if tools is not None:
+        kwargs["tools"] = tools
+    if tool_choice is not None:
+        kwargs["tool_choice"] = tool_choice
+    last_exc = None
+    for attempt in range(3):
+        try:
+            return await asyncio.wait_for(
+                asyncio.to_thread(client.messages.create, **kwargs),
+                timeout=timeout,
+            )
+        except anthropic.APIError as e:
+            status = getattr(e, "status_code", None)
+            if status and 500 <= status < 600:
+                last_exc = e
+                wait = 2 ** attempt
+                log.warning("Anthropic API error %s (attempt %d/3), retrying in %ds...", status, attempt + 1, wait)
+                await asyncio.sleep(wait)
+                continue
+            raise
+        except (anthropic.APIConnectionError, anthropic.RateLimitError) as e:
+            last_exc = e
+            wait = 2 ** attempt
+            log.warning("Anthropic connection/rate error (attempt %d/3), retrying in %ds...", attempt + 1, wait)
+            await asyncio.sleep(wait)
+            continue
+    raise last_exc
+
+
 @router.post("", response_model=QueryResponse)
 async def run_nl_query(
     req: QueryRequest,
@@ -1461,8 +1501,8 @@ async def run_nl_query(
             messages.append({"role": m.role, "content": content})
         messages.append({"role": "user", "content": user_msg})
 
-        response = await asyncio.to_thread(
-            client.messages.create,
+        response = await _call_anthropic_with_retry(
+            client,
             model=query_model,
             max_tokens=3000,
             system=_SYSTEM,
@@ -1482,7 +1522,7 @@ async def run_nl_query(
         answer_text = raw
 
         return _parse_query_response(answer_text, route="REACT")
-    except anthropic.APITimeoutError:
+    except (anthropic.APITimeoutError, asyncio.TimeoutError):
         return QueryResponse(
             answer="Query timed out — the AI took too long to respond. Try a shorter question.",
             data_sources=[],
@@ -2020,8 +2060,8 @@ async def run_nl_query_v2(
             messages[-1]["content"] = user_msg
 
         # Force tool_use for guaranteed structured output (no markdown leakage).
-        response = await asyncio.to_thread(
-            client.messages.create,
+        response = await _call_anthropic_with_retry(
+            client,
             model=query_model,
             max_tokens=8000,
             system=system_prompt,
@@ -2140,7 +2180,7 @@ async def run_nl_query_v2(
         result = _validate_response_metrics(result, verified)
         return result
 
-    except anthropic.APITimeoutError:
+    except (anthropic.APITimeoutError, asyncio.TimeoutError):
         return StructuredQueryResponse(
             verdict="HOLD", confidence=0, timeframe="Medium-term",
             summary="Query timed out — the AI took too long to respond. Try a shorter question.",
@@ -2625,16 +2665,14 @@ async def run_nl_query_v2_stream(
                 # with arguments matching the schema. No more markdown leakage.
                 # 90s timeout prevents indefinite hangs on complex queries
                 try:
-                    response = await asyncio.wait_for(
-                        asyncio.to_thread(
-                            client.messages.create,
-                            model=query_model,
-                            max_tokens=8000,
-                            system=system_prompt,
-                            tools=[_STRUCTURED_TOOL],
-                            tool_choice={"type": "tool", "name": _STRUCTURED_TOOL["name"]},
-                            messages=messages,
-                        ),
+                    response = await _call_anthropic_with_retry(
+                        client,
+                        model=query_model,
+                        max_tokens=8000,
+                        system=system_prompt,
+                        tools=[_STRUCTURED_TOOL],
+                        tool_choice={"type": "tool", "name": _STRUCTURED_TOOL["name"]},
+                        messages=messages,
                         timeout=90.0,
                     )
                 except asyncio.TimeoutError:

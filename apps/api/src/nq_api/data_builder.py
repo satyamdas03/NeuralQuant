@@ -371,17 +371,38 @@ def _fetch_one(ticker: str, market: str, fast_pe: bool = True) -> dict:
     cache_key = f"{ticker}:{market}"
     now = time.time()
     with _lock:
-        if cache_key in _fund_cache and now - _fund_ts.get(cache_key, 0) < FUND_TTL:
-            return _fund_cache[cache_key]
+        if cache_key in _fund_cache:
+            age = now - _fund_ts.get(cache_key, 0)
+            cached = _fund_cache[cache_key]
+            # Real data cached for full TTL; synthetic/failed for 30s only
+            max_age = FUND_TTL if cached.get("_is_real") else 30
+            if age < max_age:
+                return _fund_cache[cache_key]
 
     sym = _yf_symbol(ticker, market)
-    try:
-        t = yf.Ticker(sym)
-        info = t.info or {}
-        if not info or not info.get("symbol"):
-            raise ValueError("Empty info")
+    info: dict = {}
+    # Retry loop: yfinance is flaky for Indian (.NS) tickers — empty info on first attempt is common
+    for attempt in range(3):
+        try:
+            t = yf.Ticker(sym)
+            info = t.info or {}
+            if info and info.get("symbol"):
+                break
+            log.debug("yfinance empty info for %s (attempt %d/%d)", sym, attempt + 1, 3)
+        except Exception as exc:
+            log.debug("yfinance fetch exception for %s (attempt %d/%d): %s", sym, attempt + 1, 3, exc)
+        if attempt < 2:
+            time.sleep(1.0)
 
-        # ── Gross profit margin ───────────────────────────────────────
+    if not info or not info.get("symbol"):
+        log.warning("yfinance failed for %s after 3 attempts — using synthetic", sym)
+        result = _synthetic_row(ticker)
+        with _lock:
+            _fund_cache[cache_key] = result
+            _fund_ts[cache_key] = now
+        return result
+
+    try:
         _synthetic = set()
         gpm_raw = info.get("grossMargins")
         gpm = _safe(gpm_raw, np.random.RandomState(hash(ticker) % (2**31)).uniform(0.1, 0.9))
