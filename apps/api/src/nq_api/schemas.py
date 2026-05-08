@@ -82,12 +82,20 @@ class ConversationMessage(BaseModel):
     content: str
 
 
+class UserProfile(BaseModel):
+    risk_profile: str  # conservative | balanced | aggressive
+    time_horizon: str  # <1yr | 1-3yr | 3-5yr | 5yr+
+    goal: str  # wealth_building | retirement | education | passive_income | tax_saving
+    investable_amount: str | None = None
+
+
 class QueryRequest(BaseModel):
     question: str
     ticker: Optional[str] = None
     market: Literal["US", "IN", "GLOBAL"] = "US"
     history: list[ConversationMessage] = []  # previous turns for multi-turn chat
     session_key: Optional[str] = None  # persistent conversation key (client-generated UUID)
+    profile: UserProfile | None = None
 
 
 class QueryResponse(BaseModel):
@@ -216,3 +224,4 @@ class StructuredQueryResponse(BaseModel):
     action_prompts: Optional[list[ActionPrompt]] = None
     sebi_disclaimer: Optional[str] = None
     is_portfolio_response: Optional[bool] = None
+    profiler_needed: bool | None = None
