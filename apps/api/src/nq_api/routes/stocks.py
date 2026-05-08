@@ -306,8 +306,9 @@ async def get_stock_chart(
     }
 
 
-_NULL_FIELDS = ("pb_ratio", "beta", "earnings_date", "analyst_recommendation",
-                 "dividend_yield", "industry")
+_NULL_FIELDS = ("market_cap", "pe_ttm", "pb_ratio", "beta", "week_52_high", "week_52_low",
+                 "earnings_date", "analyst_target", "analyst_recommendation",
+                 "dividend_yield", "industry", "sector", "current_price")
 
 
 def _has_null_fields(meta: dict) -> bool:
@@ -326,7 +327,7 @@ def _merge_meta(base: dict, overlay: dict) -> dict:
 
 @router.get("/{ticker}/meta")
 async def get_stock_meta(ticker: str, market: str = Query("US")):
-    t_up = ticker.upper()
+    t_up = _normalize_ticker(ticker, market)
     cache_key = f"{t_up}:{market}"
 
     # Serve from in-memory cache if fresh AND complete
@@ -613,7 +614,7 @@ def _fetch_stock_meta_yahoo_direct(ticker: str, market: str) -> dict | Exception
         "ticker":                  ticker,
         "name":                    long_name,
         "market_cap":              mc,
-        "market_cap_fmt":          _fmt_mcap(float(mc), market) if mc else None,
+        "market_cap_fmt":          _fmt_mcap(float(mc), market) if mc is not None else None,
         "pe_ttm":                  round(float(pe_ttm), 1)  if pe_ttm   is not None else None,
         "pb_ratio":                round(float(pb_ratio), 2) if pb_ratio is not None else None,
         "beta":                    round(float(beta_v), 2)  if beta_v  is not None else None,
@@ -676,7 +677,7 @@ def _fetch_stock_meta(ticker: str, market: str) -> dict | Exception:
             "ticker":                  ticker,
             "name":                    info.get("longName") or info.get("shortName") or ticker,
             "market_cap":              mc,
-            "market_cap_fmt":          _fmt_mcap(float(mc), market) if mc else None,
+            "market_cap_fmt":          _fmt_mcap(float(mc), market) if mc is not None else None,
             "pe_ttm":                  round(float(info["trailingPE"]), 1)  if info.get("trailingPE")    else None,
             "pb_ratio":                round(float(info["priceToBook"]), 2) if info.get("priceToBook")   else None,
             "beta":                    round(float(info["beta"]), 2)        if info.get("beta")          else None,

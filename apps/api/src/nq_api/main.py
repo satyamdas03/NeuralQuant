@@ -295,6 +295,47 @@ async def lifespan(app: FastAPI):
 
     threading.Timer(45.0, lambda: threading.Thread(target=_warm_enrichment, daemon=True).start()).start()
 
+    # Pre-warm stock_meta for top tickers so first request after cold start is fast
+    _TOP_META_TICKERS_US = [
+        "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "JPM", "V", "XOM",
+        "JNJ", "WMT", "PG", "MA", "HD", "CVX", "MRK", "AVGO", "ABBV", "KO",
+        "PEP", "COST", "CSCO", "ADBE", "NFLX", "CRM", "AMD", "INTC", "NKE", "DIS",
+    ]
+    _TOP_META_TICKERS_IN = [
+        "RELIANCE", "TCS", "HDFCBANK", "INFY", "HINDUNILVR", "ICICIBANK",
+        "SBIN", "BHARTIARTL", "KOTAKBANK", "LT", "HCLTECH", "WIPRO",
+        "ASIANPAINT", "MARUTI", "SUNPHARMA", "BAJFINANCE", "TITAN",
+    ]
+
+    def _warm_stock_meta():
+        """Pre-fetch stock meta for top tickers into in-memory cache."""
+        try:
+            from nq_api.routes.stocks import _fetch_stock_meta, _META_CACHE, _META_CACHE_TTL
+            import time as _time
+            warmed = 0
+            total = len(_TOP_META_TICKERS_US) + len(_TOP_META_TICKERS_IN)
+            for ticker in _TOP_META_TICKERS_US:
+                try:
+                    data = _fetch_stock_meta(ticker, "US")
+                    if isinstance(data, dict):
+                        _META_CACHE[f"{ticker}:US"] = (data, _time.monotonic())
+                        warmed += 1
+                except Exception as exc:
+                    log.debug("Meta prewarm failed for %s: %s", ticker, exc)
+            for ticker in _TOP_META_TICKERS_IN:
+                try:
+                    data = _fetch_stock_meta(ticker, "IN")
+                    if isinstance(data, dict):
+                        _META_CACHE[f"{ticker}:IN"] = (data, _time.monotonic())
+                        warmed += 1
+                except Exception as exc:
+                    log.debug("Meta prewarm IN failed for %s: %s", ticker, exc)
+            log.info("Stock meta prewarm complete: %d/%d tickers cached", warmed, total)
+        except Exception as exc:
+            log.warning("Stock meta prewarm failed: %s", exc)
+
+    threading.Timer(60.0, lambda: threading.Thread(target=_warm_stock_meta, daemon=True).start()).start()
+
     # Start Slack agent system (graceful: no crash if tokens missing)
     from nq_api.slack.app import start_slack_handler, stop_slack_handler
     from nq_api.slack.scheduler import start_scheduler, stop_scheduler

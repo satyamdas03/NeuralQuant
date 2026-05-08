@@ -662,6 +662,76 @@ def _validate_response_metrics(result, verified: dict[str, float]) -> "Structure
     return result
 
 
+def _validate_portfolio_stocks(portfolio_stocks: list[dict], market: str) -> tuple[list[dict], list[str]]:
+    """Fetch real yfinance data for each portfolio stock and validate rationale claims.
+
+    Returns (corrected_stocks, correction_notes).
+    """
+    if not portfolio_stocks:
+        return portfolio_stocks, []
+
+    corrections = []
+    for stock in portfolio_stocks:
+        ticker = stock.get("ticker", "")
+        if not ticker:
+            continue
+        sym = ticker + ".NS" if market == "IN" and "." not in ticker else ticker
+        try:
+            info = yf.Ticker(sym).info or {}
+        except Exception:
+            continue
+
+        real_pe = info.get("trailingPE")
+        real_beta = info.get("beta")
+        real_price = info.get("currentPrice") or info.get("regularMarketPrice")
+        real_div = info.get("dividendYield")
+        if real_div and real_div < 1:
+            real_div = real_div * 100
+
+        rationale = stock.get("rationale", "")
+        if not rationale:
+            continue
+
+        # Check P/E claims in rationale (e.g., "P/E 20.2", "P/E: 16.1", "trading at 31.6x P/E")
+        pe_matches = list(re.finditer(r"P/E\s*(?:of|at|is|:|=)?\s*(\d+\.?\d*)", rationale, re.I))
+        for m in pe_matches:
+            claimed = float(m.group(1))
+            if real_pe and real_pe > 0 and abs(claimed - real_pe) / real_pe > 0.20:
+                old_r = rationale
+                rationale = re.sub(r"P/E\s*(?:of|at|is|:|=)?\s*" + re.escape(m.group(1)),
+                                   f"P/E {real_pe:.1f}", rationale, count=1, flags=re.I)
+                if rationale != old_r:
+                    corrections.append(f"{ticker} P/E: {claimed:.1f}x → {real_pe:.1f}x")
+
+        # Check beta claims
+        beta_matches = list(re.finditer(r"beta\s*(?:of|at|is|:|=)?\s*(\d+\.?\d*)", rationale, re.I))
+        for m in beta_matches:
+            claimed = float(m.group(1))
+            if real_beta and abs(claimed - real_beta) / max(real_beta, 0.1) > 0.25:
+                old_r = rationale
+                rationale = re.sub(r"beta\s*(?:of|at|is|:|=)?\s*" + re.escape(m.group(1)),
+                                   f"beta {real_beta:.2f}", rationale, count=1, flags=re.I)
+                if rationale != old_r:
+                    corrections.append(f"{ticker} Beta: {claimed:.2f} → {real_beta:.2f}")
+
+        # Check yield claims (e.g., "~5.8% yield", "dividend yield 3.4%")
+        if real_div and real_div > 0:
+            yield_matches = list(re.finditer(r"~?(\d+\.?\d*)%\s*(?:yield|dividend)", rationale, re.I))
+            for m in yield_matches:
+                claimed = float(m.group(1))
+                if abs(claimed - real_div) / real_div > 0.30:
+                    old_r = rationale
+                    rationale = re.sub(r"~?" + re.escape(m.group(1)) + r"%\s*(?=yield|dividend)",
+                                       f"~{real_div:.1f}%", rationale, count=1, flags=re.I)
+                    if rationale != old_r:
+                        corrections.append(f"{ticker} Yield: {claimed:.1f}% → {real_div:.1f}%")
+
+        if rationale != stock.get("rationale", ""):
+            stock["rationale"] = rationale
+
+    return portfolio_stocks, corrections
+
+
 def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, platform_ctx: str | None) -> StockSummary | None:
     """Build a StockSummary from enrichment + platform data for the quick-glance card."""
     if not ticker and not enrichment and not platform_ctx:
@@ -1985,6 +2055,14 @@ async def run_nl_query_v2(
                         parsed["market_context"] = []
                     if not parsed.get("action_prompts"):
                         parsed["action_prompts"] = []
+                    # Validate portfolio stock data against real yfinance
+                    if parsed.get("portfolio_stocks"):
+                        corrected_stocks, pf_corrections = await asyncio.to_thread(
+                            _validate_portfolio_stocks, parsed["portfolio_stocks"], req.market or "US"
+                        )
+                        parsed["portfolio_stocks"] = corrected_stocks
+                        if pf_corrections and parsed.get("summary"):
+                            parsed["summary"] += f" [Data verified: {'; '.join(pf_corrections)}]"
                 result = StructuredQueryResponse(**parsed)
                 # Validate LLM metrics against injected [VERIFIED] data
                 verified = _extract_verified_values(platform_ctx)
@@ -2611,6 +2689,14 @@ async def run_nl_query_v2_stream(
                             if len(scenarios) < 3:
                                 parsed.setdefault("data_quality_flags", [])
                                 parsed["data_quality_flags"].append("Scenario analysis incomplete")
+                            # Validate portfolio stock data against real yfinance
+                            if parsed.get("portfolio_stocks"):
+                                corrected_stocks, pf_corrections = await asyncio.to_thread(
+                                    _validate_portfolio_stocks, parsed["portfolio_stocks"], req.market or "US"
+                                )
+                                parsed["portfolio_stocks"] = corrected_stocks
+                                if pf_corrections and parsed.get("summary"):
+                                    parsed["summary"] += f" [Data verified: {'; '.join(pf_corrections)}]"
                         result_holder["result"] = StructuredQueryResponse(**parsed)
                         # Validate LLM metrics against injected [VERIFIED] data
                         verified = _extract_verified_values(result_holder.get("platform_ctx"))

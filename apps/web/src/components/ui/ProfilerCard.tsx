@@ -81,7 +81,7 @@ export default function ProfilerCard({ defaultAmount, onSubmit }: Props) {
           type="text"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          placeholder="e.g. ₹10,00,000 or $50,000"
+          placeholder="e.g. INR 10,00,000 or $50,000"
           className="w-full rounded-lg bg-surface-high px-3 py-2 text-sm text-on-surface border border-outline/20 focus:outline-none focus:ring-2 focus:ring-primary/40"
         />
       </div>

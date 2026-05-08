@@ -105,6 +105,113 @@ def _validate_agent_metrics(output: AgentOutput, context: dict) -> AgentOutput:
         })
     return output
 
+
+def _validate_analyst_response_text(response: AnalystResponse, context: dict) -> AnalystResponse:
+    """Scan HEAD_ANALYST text fields for metric hallucinations and correct them.
+
+    Corrects e.g. 'P/E of 8x' to 'P/E 30.8x' when context shows pe_ttm=30.8.
+    """
+    verified = {}
+    for key in ("pe_ttm", "current_price", "beta", "vix", "yield_10y", "cpi_yoy", "fed_funds_rate", "hy_spread_oas"):
+        val = context.get(key)
+        if val is not None:
+            try:
+                verified[key] = float(val)
+            except (TypeError, ValueError):
+                pass
+
+    if not verified:
+        return response
+
+    corrections = []
+    corrected = {
+        "investment_thesis": response.investment_thesis,
+        "bull_case": response.bull_case,
+        "bear_case": response.bear_case,
+        "risk_factors": list(response.risk_factors),
+    }
+
+    # Extended patterns for HEAD_ANALYST text (includes yield, VIX, CPI, etc.)
+    text_patterns = [
+        (re.compile(r"(P/[\sE]?E[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)(x?)", re.I), "pe_ttm", 0.20),
+        (re.compile(r"(price[\s-]to[\s-]earnings[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)", re.I), "pe_ttm", 0.20),
+        (re.compile(r"(ROE[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)", re.I), "roe", 0.20),
+        (re.compile(r"(beta[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)", re.I), "beta", 0.20),
+        (re.compile(r"(VIX[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)", re.I), "vix", 0.20),
+        (re.compile(r"(CPI[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)%?", re.I), "cpi_yoy", 0.20),
+        (re.compile(r"(10Y[\s]*(?:Treasury[\s]*)?(?:yield[\s]*)?(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)%?", re.I), "yield_10y", 0.20),
+        (re.compile(r"(Fed[\s]*Funds[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)%?", re.I), "fed_funds_rate", 0.20),
+        (re.compile(r"(HY[\s]*spread[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)%?", re.I), "hy_spread_oas", 0.20),
+    ]
+
+    for field_name, text in corrected.items():
+        if field_name == "risk_factors":
+            texts = text
+        else:
+            texts = [text]
+
+        for idx, t in enumerate(texts):
+            if not t:
+                continue
+            for pattern, metric_key, tolerance in text_patterns:
+                if metric_key not in verified:
+                    continue
+                true_val = verified[metric_key]
+                for match in pattern.finditer(t):
+                    try:
+                        claimed = float(match.group(2))
+                    except (ValueError, IndexError):
+                        continue
+                    # Skip very small numbers for P/E (likely percentages)
+                    if metric_key == "pe_ttm" and claimed < 3:
+                        continue
+                    min_val = true_val * (1 - tolerance)
+                    max_val = true_val * (1 + tolerance)
+                    if min_val <= claimed <= max_val:
+                        continue
+                    # Correct
+                    old_text = match.group(0)
+                    if metric_key == "pe_ttm":
+                        replacement = f"P/E {true_val:.1f}x"
+                    elif metric_key == "beta":
+                        replacement = f"beta {true_val:.2f}"
+                    elif metric_key == "vix":
+                        replacement = f"VIX {true_val:.1f}"
+                    elif metric_key == "yield_10y":
+                        replacement = f"10Y Yield {true_val:.2f}%"
+                    elif metric_key == "cpi_yoy":
+                        replacement = f"CPI {true_val:.1f}%"
+                    elif metric_key == "fed_funds_rate":
+                        replacement = f"Fed Funds {true_val:.2f}%"
+                    elif metric_key == "hy_spread_oas":
+                        replacement = f"HY spread {true_val:.0f}bps"
+                    else:
+                        replacement = f"{metric_key} {true_val:.1f}"
+                    t = t.replace(old_text, replacement)
+                    corrections.append(f"{field_name}: {metric_key} {claimed}→{true_val:.1f}")
+            texts[idx] = t
+
+        if field_name == "risk_factors":
+            corrected["risk_factors"] = texts
+        else:
+            corrected[field_name] = texts[0]
+
+    if corrections:
+        log.info("HEAD_ANALYST metric corrections: %s", "; ".join(corrections))
+
+    if (corrected["investment_thesis"] != response.investment_thesis or
+        corrected["bull_case"] != response.bull_case or
+        corrected["bear_case"] != response.bear_case or
+        corrected["risk_factors"] != list(response.risk_factors)):
+        return response.model_copy(update={
+            "investment_thesis": corrected["investment_thesis"],
+            "bull_case": corrected["bull_case"],
+            "bear_case": corrected["bear_case"],
+            "risk_factors": corrected["risk_factors"],
+        })
+    return response
+
+
 def _is_ollama() -> bool:
     """Runtime Ollama detection — avoids module-level env var issues in uvicorn."""
     url = os.environ.get("ANTHROPIC_BASE_URL", "")
@@ -277,7 +384,7 @@ class ParaDebateOrchestrator:
             log.warning("HEAD_ANALYST timed out after %ds for %s", self.HEAD_ANALYST_TIMEOUT, ticker)
             synthesis = self._head._fallback_synthesis()
 
-        return AnalystResponse(
+        response = AnalystResponse(
             ticker=ticker,
             head_analyst_verdict=self._clamp_verdict(synthesis["verdict"], verdict_guidance),
             investment_thesis=synthesis["investment_thesis"],
@@ -287,6 +394,9 @@ class ParaDebateOrchestrator:
             agent_outputs=all_outputs,
             consensus_score=round(consensus, 3),
         )
+        # Validate HEAD_ANALYST text for metric hallucinations
+        response = _validate_analyst_response_text(response, context)
+        return response
 
     @staticmethod
     def _clamp_verdict(verdict: str, guidance: str) -> str:
