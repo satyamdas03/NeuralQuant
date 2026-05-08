@@ -1302,6 +1302,7 @@ name = "nq-data"
 version = "0.1.0"
 source = { editable = "packages/data" }
 dependencies = [
+    { name = "curl-cffi" },
     { name = "duckdb" },
     { name = "feedparser" },
     { name = "fredapi" },
@@ -1320,6 +1321,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "curl-cffi", specifier = ">=0.7.0" },
     { name = "duckdb", specifier = ">=0.10" },
     { name = "feedparser", specifier = ">=6.0" },
     { name = "fredapi", specifier = ">=0.5" },

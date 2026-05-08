@@ -34,13 +34,12 @@ logger = logging.getLogger(__name__)
 log = logging.getLogger(__name__)
 
 # ─── Shared yfinance session ──────────────────────────────────────────────────────
-# yfinance >= 1.3.0 requires curl_cffi sessions. If curl_cffi is unavailable,
-# we return None and let yfinance manage its own session (which handles
-# impersonation internally). Passing a requests.Session causes YFDataException.
+# yfinance >= 1.3.0 REQUIRES curl_cffi — without it, Yahoo rejects requests
+# with 401 Invalid Crumb. We must use CurlSession(impersonate="chrome").
 _yf_session = None
 
 def _get_yf_session():
-    """Return a curl_cffi session for yfinance, or None to let yfinance manage it."""
+    """Return a curl_cffi session for yfinance. Fails hard if curl_cffi is missing."""
     global _yf_session
     if _yf_session is None:
         try:
@@ -48,7 +47,8 @@ def _get_yf_session():
             _yf_session = CurlSession(impersonate="chrome")
             log.info("Using curl_cffi session for yfinance (impersonate=chrome)")
         except ImportError:
-            log.info("curl_cffi not available, letting yfinance manage its own session")
+            log.error("curl_cffi is NOT installed — yfinance calls will fail on cloud IPs! "
+                       "Add curl_cffi to dependencies.")
             _yf_session = False  # sentinel: don't retry
     return _yf_session if _yf_session else None
 

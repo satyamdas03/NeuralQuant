@@ -120,7 +120,7 @@ def _batch_pct_change(symbols: list[str]) -> dict[str, dict]:
             except Exception:
                 continue
     except Exception as exc:
-        logger.debug("batch_pct_change failed: %s", exc)
+        logger.warning("batch_pct_change failed: %s", exc)
     return result
 
 
