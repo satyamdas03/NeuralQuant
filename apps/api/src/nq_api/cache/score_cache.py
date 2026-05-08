@@ -34,6 +34,7 @@ def _supabase_rest(
     method: str = "GET",
     query: dict | None = None,
     body: list[dict[str, Any]] | None = None,
+    extra_headers: dict | None = None,
 ) -> list[dict[str, Any]] | dict[str, Any] | None:
     """Direct REST call to Supabase PostgREST API (bypasses supabase-py)."""
     _load_env()
@@ -49,6 +50,8 @@ def _supabase_rest(
         "Content-Type": "application/json",
         "Prefer": "return=representation",
     }
+    if extra_headers:
+        headers.update(extra_headers)
 
     try:
         with httpx.Client(timeout=10) as client:

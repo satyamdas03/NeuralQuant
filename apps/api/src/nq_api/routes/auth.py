@@ -52,5 +52,6 @@ def save_user_profile(profile: UserProfile, user: User = Depends(get_current_use
         "user_profiles",
         method="POST",
         body=[payload],
+        extra_headers={"Prefer": "return=representation,resolution=merge-duplicates"},
     )
     return profile
