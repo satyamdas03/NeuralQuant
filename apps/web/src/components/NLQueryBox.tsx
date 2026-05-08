@@ -171,6 +171,7 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
                 sources={msg.sources}
                 structured={msg.structured}
                 hideVerdict
+                onFollowUp={ask}
               />
             )
           )}

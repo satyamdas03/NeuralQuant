@@ -6,6 +6,12 @@ import ScenarioBar from "./ScenarioBar";
 import AllocationTable from "./AllocationTable";
 import ComparisonBlock from "./ComparisonBlock";
 import StockSummaryCard from "./StockSummaryCard";
+import MarketContextStrip from "./MarketContextStrip";
+import AllocationBar from "./AllocationBar";
+import PortfolioStockCard from "./PortfolioStockCard";
+import ScenarioAnalysisPanel from "./ScenarioAnalysisPanel";
+import ActionPromptButtons from "./ActionPromptButtons";
+import SEBIDisclaimer from "./SEBIDisclaimer";
 import type { RegimeLabel, StructuredQueryResponse } from "@/lib/types";
 
 type Props = {
@@ -15,6 +21,7 @@ type Props = {
   score?: number;
   structured?: StructuredQueryResponse | null;
   hideVerdict?: boolean;
+  onFollowUp?: (text: string) => void;
 };
 
 function tryParseStructured(answer: string): StructuredQueryResponse | null {
@@ -35,10 +42,55 @@ export default function AIResponseCard({
   score,
   structured,
   hideVerdict = false,
+  onFollowUp,
 }: Props) {
   const parsed = structured ?? tryParseStructured(answer);
 
   if (parsed) {
+    if (parsed.is_portfolio_response) {
+      return (
+        <div className="rounded-xl bg-surface-container ghost-border p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-secondary">NeuralQuant Portfolio ForeCast</span>
+            <span className="text-[10px] text-on-surface-variant uppercase">{parsed.route}</span>
+          </div>
+
+          <MarketContextStrip cards={parsed.market_context ?? []} />
+          <AllocationBar segments={parsed.allocation_breakdown ?? []} />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {(parsed.portfolio_stocks ?? []).map((s) => (
+              <PortfolioStockCard key={s.ticker} stock={s} />
+            ))}
+          </div>
+
+          <ScenarioAnalysisPanel scenarios={parsed.scenario_analysis ?? []} />
+
+          {onFollowUp && (
+            <ActionPromptButtons
+              prompts={parsed.action_prompts ?? []}
+              onPromptClick={onFollowUp}
+            />
+          )}
+
+          <SEBIDisclaimer
+            text={
+              parsed.sebi_disclaimer ??
+              "This is AI-generated investment research, not SEBI-registered investment advice. Please consult a certified financial advisor before investing."
+            }
+          />
+
+          {parsed.data_sources.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {parsed.data_sources.map((s, i) => (
+                <span key={i} className="rounded-full bg-surface-high px-2 py-0.5 text-[10px] text-on-surface-variant">{s}</span>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
     return (
       <div className="rounded-xl bg-surface-container ghost-border p-4 space-y-4">
         <div className="flex items-center justify-between">
