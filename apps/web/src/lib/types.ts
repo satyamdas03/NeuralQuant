@@ -77,11 +77,20 @@ export interface AnalystRequest {
   market?: Market;
 }
 
+export interface UserProfile {
+  risk_profile: "conservative" | "balanced" | "aggressive";
+  time_horizon: "<1yr" | "1-3yr" | "3-5yr" | "5yr+";
+  goal: "wealth_building" | "retirement" | "education" | "passive_income" | "tax_saving";
+  investable_amount?: string;
+  updated_at?: string;
+}
+
 export interface QueryRequest {
   question: string;
   ticker?: string;
   market?: Market;
   history?: ConversationMessage[];
+  profile?: UserProfile;
 }
 
 export interface QueryResponse {
@@ -406,5 +415,6 @@ export interface StructuredQueryResponse {
   action_prompts?: ActionPrompt[];
   sebi_disclaimer?: string;
   is_portfolio_response?: boolean;
+  profiler_needed?: boolean;
 }
 
