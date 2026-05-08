@@ -13,6 +13,8 @@ import ScenarioAnalysisPanel from "./ScenarioAnalysisPanel";
 import ActionPromptButtons from "./ActionPromptButtons";
 import SEBIDisclaimer from "./SEBIDisclaimer";
 import type { RegimeLabel, StructuredQueryResponse } from "@/lib/types";
+import ProfilerCard from "./ProfilerCard";
+import type { UserProfile } from "@/lib/types";
 
 type Props = {
   answer: string;
@@ -22,6 +24,7 @@ type Props = {
   structured?: StructuredQueryResponse | null;
   hideVerdict?: boolean;
   onFollowUp?: (text: string) => void;
+  onProfilerSubmit?: (profile: UserProfile) => void;
 };
 
 function tryParseStructured(answer: string): StructuredQueryResponse | null {
@@ -43,10 +46,19 @@ export default function AIResponseCard({
   structured,
   hideVerdict = false,
   onFollowUp,
+  onProfilerSubmit,
 }: Props) {
   const parsed = structured ?? tryParseStructured(answer);
 
   if (parsed) {
+    if (parsed.profiler_needed) {
+      return (
+        <ProfilerCard
+          defaultAmount={undefined}
+          onSubmit={onProfilerSubmit || (() => {})}
+        />
+      );
+    }
     if (parsed.is_portfolio_response) {
       return (
         <div className="rounded-xl bg-surface-container ghost-border p-4 space-y-4">
