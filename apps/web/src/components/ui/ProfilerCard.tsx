@@ -13,9 +13,12 @@ export default function ProfilerCard({ defaultAmount, onSubmit }: Props) {
   const [horizon, setHorizon] = useState<UserProfile["time_horizon"]>("1-3yr");
   const [goal, setGoal] = useState<UserProfile["goal"]>("wealth_building");
   const [amount, setAmount] = useState(defaultAmount || "");
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
     onSubmit({
       risk_profile: risk,
       time_horizon: horizon,
@@ -88,9 +91,10 @@ export default function ProfilerCard({ defaultAmount, onSubmit }: Props) {
 
       <button
         type="submit"
-        className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary hover:bg-primary/90 transition-colors"
+        disabled={submitting}
+        className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        Build My Portfolio
+        {submitting ? "Building..." : "Build My Portfolio"}
       </button>
     </form>
   );

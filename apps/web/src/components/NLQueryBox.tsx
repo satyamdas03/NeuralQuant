@@ -80,7 +80,6 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
     setLastUserQuestion(q);
     setSlowLoad(false);
 
-    const userMsg: ChatMessage = { id: Date.now().toString(), role: "user", content: q };
     const phId = (Date.now() + 1).toString();
     const ph: ChatMessage = {
       id: phId,
@@ -90,7 +89,13 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
       phases: [],
     };
 
-    setMessages((prev) => [...prev, userMsg, ph]);
+    // On resend (profiler submit), do NOT re-add the user message — it already exists.
+    if (!overrideProfile) {
+      const userMsg: ChatMessage = { id: Date.now().toString(), role: "user", content: q };
+      setMessages((prev) => [...prev, userMsg, ph]);
+    } else {
+      setMessages((prev) => [...prev, ph]);
+    }
     setLoading(true);
     slowTimer.current = setTimeout(() => setSlowLoad(true), 12000);
 

@@ -37,7 +37,7 @@ export default function ReasoningBlock({ reasoning }: Props) {
         <div className="flex items-start gap-2">
           <XCircle size={14} className="text-red-400 shrink-0 mt-0.5" />
           <div>
-            <p className="text-xs font-medium text-on-surface">Why not {reasoning.second_best || "the alternative"}</p>
+            <p className="text-xs font-medium text-on-surface">Why not {_isPlaceholder(reasoning.second_best) ? "the alternative" : reasoning.second_best}</p>
             <p className="text-xs text-on-surface-variant leading-relaxed">{reasoning.why_not_alt}</p>
           </div>
         </div>

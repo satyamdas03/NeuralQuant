@@ -52,8 +52,12 @@ export default function AIResponseCard({
 
   if (parsed) {
     if (parsed.profiler_needed) {
-      const guest = typeof window !== "undefined" ? localStorage.getItem("nq_profile") : null;
-      const savedAmount = guest ? JSON.parse(guest).investable_amount : undefined;
+      let savedAmount: string | undefined;
+      try {
+        const guest = typeof window !== "undefined" ? localStorage.getItem("nq_profile") : null;
+        const parsedGuest = guest ? JSON.parse(guest) : null;
+        savedAmount = parsedGuest?.investable_amount;
+      } catch {}
       return (
         <ProfilerCard
           defaultAmount={savedAmount}
