@@ -340,6 +340,49 @@ export interface StockSummary {
   currency: string;
 }
 
+// ── Portfolio Output Types (Phase 1) ──────────────────────────────────────────
+
+export interface MarketContextCard {
+  label: string;
+  value: string;
+  change?: string;
+  sentiment?: string;
+}
+
+export interface AllocationSegment {
+  label: string;
+  percentage: number;
+  color?: string;
+  rationale?: string;
+}
+
+export interface PortfolioStockCard {
+  ticker: string;
+  name?: string;
+  allocation_pct: number;
+  entry_price?: string;
+  target_price?: string;
+  stop_loss?: string;
+  risk_reward?: string;
+  rationale?: string;
+  confidence?: number;
+  sector?: string;
+}
+
+export interface ScenarioCard {
+  label: string;
+  probability_pct?: number;
+  outcome?: string;
+  description?: string;
+  color?: string;
+}
+
+export interface ActionPrompt {
+  label: string;
+  prompt_text: string;
+  icon?: string;
+}
+
 export interface StructuredQueryResponse {
   verdict: string;
   confidence: number;
@@ -354,5 +397,14 @@ export interface StructuredQueryResponse {
   data_sources: string[];
   follow_up_questions: string[];
   route: "SNAP" | "REACT" | "DEEP";
+
+  // Phase 1 portfolio fields (all optional)
+  market_context?: MarketContextCard[];
+  allocation_breakdown?: AllocationSegment[];
+  portfolio_stocks?: PortfolioStockCard[];
+  scenario_analysis?: ScenarioCard[];
+  action_prompts?: ActionPrompt[];
+  sebi_disclaimer?: string;
+  is_portfolio_response?: boolean;
 }
 
