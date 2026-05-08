@@ -69,8 +69,15 @@ _news_ts: float = 0.0
 NEWS_TTL = 600  # 10 minutes
 
 
-def _pct_change(sym: str, retries: int = 3) -> dict:
-    """Get price and % change for a symbol with retry logic."""
+def _pct_change(sym: str, retries: int = 2) -> dict:
+    """Get price and % change. Tries .info cache first (works on Render),
+    falls back to .history() with retry. Returns 0.0 on failure."""
+    # Fast path: use cached .info (1h TTL, works on cloud IPs where .history() fails)
+    info_result = _pct_change_from_info(sym)
+    if info_result:
+        return info_result
+
+    # Slow path: .history() with retry (may 401 on Render cloud IPs)
     for attempt in range(retries):
         try:
             t = yf.Ticker(sym, session=_get_yf_session())
@@ -83,8 +90,12 @@ def _pct_change(sym: str, retries: int = 3) -> dict:
                 prev = price
             else:
                 if attempt < retries - 1:
-                    time.sleep(2.0 if _IS_RENDER else 0.5)
+                    time.sleep(1.5 if _IS_RENDER else 0.5)
                     continue
+                # Last resort: try .info one more time
+                info_fallback = _pct_change_from_info(sym)
+                if info_fallback:
+                    return info_fallback
                 return {"price": 0.0, "change_pct": 0.0, "change_abs": 0.0}
             change_abs = price - prev
             change_pct = (change_abs / prev * 100) if prev else 0.0
@@ -96,7 +107,12 @@ def _pct_change(sym: str, retries: int = 3) -> dict:
         except Exception as e:
             logger.debug("pct_change failed for %s (attempt %d/%d): %s", sym, attempt + 1, retries, e)
             if attempt < retries - 1:
-                time.sleep(2.0 if _IS_RENDER else 0.5)
+                time.sleep(1.5 if _IS_RENDER else 0.5)
+
+    # All attempts failed — try .info one last time
+    info_fallback = _pct_change_from_info(sym)
+    if info_fallback:
+        return info_fallback
     return {"price": 0.0, "change_pct": 0.0, "change_abs": 0.0}
 
 
