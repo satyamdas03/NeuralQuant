@@ -50,7 +50,7 @@ _SECTORS = {
     "XLC": "Communication Services",
 }
 
-# ─── In-memory caches for market data ──────────────────────────────────────────
+# ─── In-memory caches ──────────────────────────────────────────────────────────
 
 _overview_cache: dict = {}
 _overview_ts: float = 0.0
@@ -69,55 +69,8 @@ _news_ts: float = 0.0
 NEWS_TTL = 600  # 10 minutes
 
 
-def _pct_change(sym: str, retries: int = 2) -> dict:
-    """Get price and % change. Tries .info cache first (works on Render),
-    falls back to .history() with retry. Returns 0.0 on failure."""
-    # Fast path: use cached .info (1h TTL, works on cloud IPs where .history() fails)
-    info_result = _pct_change_from_info(sym)
-    if info_result:
-        return info_result
-
-    # Slow path: .history() with retry (may 401 on Render cloud IPs)
-    for attempt in range(retries):
-        try:
-            t = yf.Ticker(sym, session=_get_yf_session())
-            hist = t.history(period="5d", auto_adjust=True)
-            if len(hist) >= 2:
-                price = float(hist["Close"].iloc[-1])
-                prev = float(hist["Close"].iloc[-2])
-            elif len(hist) == 1:
-                price = float(hist["Close"].iloc[-1])
-                prev = price
-            else:
-                if attempt < retries - 1:
-                    time.sleep(1.5 if _IS_RENDER else 0.5)
-                    continue
-                # Last resort: try .info one more time
-                info_fallback = _pct_change_from_info(sym)
-                if info_fallback:
-                    return info_fallback
-                return {"price": 0.0, "change_pct": 0.0, "change_abs": 0.0}
-            change_abs = price - prev
-            change_pct = (change_abs / prev * 100) if prev else 0.0
-            return {
-                "price": round(price, 2),
-                "change_pct": round(change_pct, 2),
-                "change_abs": round(change_abs, 2),
-            }
-        except Exception as e:
-            logger.debug("pct_change failed for %s (attempt %d/%d): %s", sym, attempt + 1, retries, e)
-            if attempt < retries - 1:
-                time.sleep(1.5 if _IS_RENDER else 0.5)
-
-    # All attempts failed — try .info one last time
-    info_fallback = _pct_change_from_info(sym)
-    if info_fallback:
-        return info_fallback
-    return {"price": 0.0, "change_pct": 0.0, "change_abs": 0.0}
-
-
 def _pct_change_from_info(sym: str) -> dict | None:
-    """Try to get price/change from cached yfinance .info (faster, fewer API calls)."""
+    """Get price/change from cached yfinance .info (1h TTL, works on Render)."""
     info = _fetch_yf_info_cached(sym)
     if not info.get("_cached_ok"):
         return None
@@ -134,16 +87,52 @@ def _pct_change_from_info(sym: str) -> dict | None:
     return None
 
 
+def _batch_pct_change(symbols: list[str]) -> dict[str, dict]:
+    """Fetch price and % change for multiple symbols using yf.download (batch).
+    This works on Render where individual yf.Ticker().history() calls fail."""
+    result = {}
+    try:
+        raw = yf.download(
+            symbols, period="5d", progress=False,
+            auto_adjust=True, threads=False,
+            session=_get_yf_session(),
+        )
+        if raw.empty:
+            return result
+        close = raw["Close"] if isinstance(raw.columns, pd.MultiIndex) else raw[["Close"]]
+        for sym in symbols:
+            try:
+                if isinstance(close, pd.DataFrame) and sym in close.columns:
+                    closes = close[sym].dropna()
+                elif isinstance(close, pd.Series):
+                    closes = close.dropna()
+                else:
+                    continue
+                if len(closes) < 2:
+                    continue
+                price = float(closes.iloc[-1])
+                prev = float(closes.iloc[-2])
+                if prev <= 0:
+                    continue
+                chg_abs = round(price - prev, 2)
+                chg_pct = round((chg_abs / prev * 100), 2)
+                result[sym] = {"price": round(price, 2), "change_pct": chg_pct, "change_abs": chg_abs}
+            except Exception:
+                continue
+    except Exception as exc:
+        logger.debug("batch_pct_change failed: %s", exc)
+    return result
+
+
 @router.get("/overview")
 async def market_overview(market: str = "US"):
     global _overview_cache, _overview_ts
     now = time.time()
 
     # Return cached if fresh
-    if _overview_cache and now - _overview_ts < OVERVIEW_TTL:
-        cached = _overview_cache.get(market.upper())
-        if cached:
-            return cached
+    cached = _overview_cache.get(market.upper())
+    if cached and now - _overview_ts < OVERVIEW_TTL:
+        return cached
 
     data = await asyncio.to_thread(_market_overview_sync, market.upper())
     if _overview_cache is None:
@@ -156,13 +145,18 @@ async def market_overview(market: str = "US"):
 def _market_overview_sync(market: str = "US"):
     idx_map = _INDICES_IN if market == "IN" else _INDICES
     fut_map = _FUTURES_IN if market == "IN" else _FUTURES
+
+    # Batch download all indices + futures at once
+    all_syms = list(idx_map.keys()) + list(fut_map.keys())
+    batch_data = _batch_pct_change(all_syms)
+
     indices = []
     for sym, name in idx_map.items():
-        d = _pct_change(sym)
+        d = batch_data.get(sym) or _pct_change_from_info(sym) or {"price": 0.0, "change_pct": 0.0, "change_abs": 0.0}
         indices.append({"symbol": sym, "name": name, **d})
     futures = []
     for sym, name in fut_map.items():
-        d = _pct_change(sym)
+        d = batch_data.get(sym) or _pct_change_from_info(sym) or {"price": 0.0, "change_pct": 0.0, "change_abs": 0.0}
         futures.append({"symbol": sym, "name": name, **d})
     return {"indices": indices, "futures": futures}
 
@@ -210,24 +204,22 @@ async def market_sectors():
     global _sector_cache, _sector_ts
     if _sector_cache and time.time() - _sector_ts < SECTOR_TTL:
         return _sector_cache
-    if _sector_cache:
-        asyncio.create_task(_refresh_sectors())
-        return {**_sector_cache, "stale": True}
+    # Always compute fresh (5 min cache, no stale-while-revalidate to avoid 0.0)
     return await asyncio.to_thread(_market_sectors_sync)
-
-
-async def _refresh_sectors():
-    await asyncio.to_thread(_market_sectors_sync)
 
 
 def _market_sectors_sync():
     global _sector_cache, _sector_ts
+    # Use batch download for all sectors at once (fast, works on Render)
+    syms = list(_SECTORS.keys())
+    batch_data = _batch_pct_change(syms)
+
     sectors = []
     for sym, name in _SECTORS.items():
-        # Try .info cache first (fewer API calls), fall back to history
-        d = _pct_change_from_info(sym)
-        change_pct = d["change_pct"] if d else _pct_change(sym)["change_pct"]
+        d = batch_data.get(sym) or _pct_change_from_info(sym)
+        change_pct = d["change_pct"] if d else 0.0
         sectors.append({"symbol": sym, "name": name, "change_pct": change_pct})
+
     result = {"sectors": sectors}
     _sector_cache = result
     _sector_ts = time.time()
@@ -240,21 +232,15 @@ _MOVERS_UNIVERSE = [
     "NFLX","ORCL","ADBE","CRM","AMD","AVGO","WMT","MCD","PFE","ISRG",
 ]
 
-_movers_cache: dict = {}
-_movers_ts: float = 0.0
-MOVERS_TTL = 600  # 10 minutes
-
 
 @router.get("/movers")
 async def market_movers():
     global _movers_cache, _movers_ts
     if _movers_cache and time.time() - _movers_ts < MOVERS_TTL:
         return _movers_cache
-
     if _movers_cache:
         asyncio.create_task(_refresh_movers())
         return {**_movers_cache, "stale": True}
-
     return await asyncio.to_thread(_market_movers_sync)
 
 
@@ -267,7 +253,7 @@ def _market_movers_sync():
     try:
         raw = yf.download(
             _MOVERS_UNIVERSE, period="2d", progress=False,
-            auto_adjust=True, threads=True,
+            auto_adjust=True, threads=False,
             session=_get_yf_session(),
         )
         close = raw["Close"] if isinstance(raw.columns, pd.MultiIndex) else raw[["Close"]]
