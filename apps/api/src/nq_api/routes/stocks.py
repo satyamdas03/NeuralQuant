@@ -310,17 +310,37 @@ _NULL_FIELDS = ("market_cap", "pe_ttm", "pb_ratio", "beta", "week_52_high", "wee
                  "earnings_date", "analyst_target", "analyst_recommendation",
                  "dividend_yield", "industry", "sector", "current_price")
 
+# Numeric fields where 0 / 0.0 is a sentinel for "missing" — never a real value for a listed stock
+_NUMERIC_NULL_SENTINELS = {
+    "market_cap", "pe_ttm", "pb_ratio", "beta",
+    "week_52_high", "week_52_low", "current_price", "analyst_target",
+}
+
+
+def _is_nullish(meta: dict, key: str) -> bool:
+    v = meta.get(key)
+    if v is None:
+        return True
+    if key in _NUMERIC_NULL_SENTINELS and v == 0:
+        return True
+    if isinstance(v, str) and v.strip() == "":
+        return True
+    return False
+
 
 def _has_null_fields(meta: dict) -> bool:
-    """Check if critical fields are null in a meta dict."""
-    return any(meta.get(k) is None for k in _NULL_FIELDS)
+    """Check if critical fields are null (or 0-sentinel) in a meta dict."""
+    return any(_is_nullish(meta, k) for k in _NULL_FIELDS)
 
 
 def _merge_meta(base: dict, overlay: dict) -> dict:
-    """Merge overlay into base: overlay values replace nulls in base."""
+    """Merge overlay into base: overlay values replace nulls / 0-sentinels in base."""
     merged = {**base}
     for k, v in overlay.items():
-        if v is not None and merged.get(k) is None:
+        if _is_nullish(merged, k) and v is not None:
+            # Don't overwrite with another 0 sentinel
+            if isinstance(v, (int, float)) and v == 0 and k in _NUMERIC_NULL_SENTINELS:
+                continue
             merged[k] = v
     return merged
 
