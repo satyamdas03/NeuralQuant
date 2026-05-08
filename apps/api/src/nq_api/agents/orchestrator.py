@@ -25,6 +25,8 @@ _METRIC_PATTERNS = [
     # P/E ratio: "P/E of 3x", "P/E at 28.9x", "trading at 32x P/E", "PE of 8"
     (re.compile(r"(P/[\sE]?E[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)(x?)", re.I), "pe_ttm", 0.5),
     (re.compile(r"(price[\s-]to[\s-]earnings[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)", re.I), "pe_ttm", 0.5),
+    # Number-first formats: "8x P/E", "trading at 15x P/E"
+    (re.compile(r"()(\d+\.?\d*)\s*x?\s*P/E\b", re.I), "pe_ttm", 0.5),
     # Price: "$196.50", "price of $284"
     (re.compile(r"(\$)(\d+\.?\d*)", re.I), "current_price", 0.5),
     # Beta: "beta of 0.89", "beta: 2.24"
@@ -135,6 +137,8 @@ def _validate_analyst_response_text(response: AnalystResponse, context: dict) ->
     text_patterns = [
         (re.compile(r"(P/[\sE]?E[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)(x?)", re.I), "pe_ttm", 0.20),
         (re.compile(r"(price[\s-]to[\s-]earnings[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)", re.I), "pe_ttm", 0.20),
+        # Number-first formats: "8x P/E", "trading at 15x P/E"
+        (re.compile(r"()(\d+\.?\d*)\s*x?\s*P/E\b", re.I), "pe_ttm", 0.20),
         (re.compile(r"(ROE[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)", re.I), "roe", 0.20),
         (re.compile(r"(beta[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)", re.I), "beta", 0.20),
         (re.compile(r"(VIX[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)", re.I), "vix", 0.20),
