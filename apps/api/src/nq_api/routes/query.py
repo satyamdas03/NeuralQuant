@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 import logging
 
-from nq_api.schemas import QueryRequest, QueryResponse, StructuredQueryResponse, ReasoningBlock, MetricItem, ScenarioItem, ComparisonItem, StockSummary
+from nq_api.schemas import QueryRequest, QueryResponse, StructuredQueryResponse, ReasoningBlock, MetricItem, ScenarioItem, ComparisonItem, StockSummary, UserProfile
 
 log = logging.getLogger(__name__)
 from nq_api.auth.rate_limit import enforce_tier_quota
@@ -224,6 +224,35 @@ OLD fields to IGNORE for portfolio layout:
 - `scenarios` — leave empty; use `scenario_analysis` instead
 - `comparisons` — leave empty for portfolio questions
 """
+
+
+_PROFILE_PROMPT_TEMPLATE = """
+USER PROFILE (use this to personalize the portfolio):
+- Risk Profile: {risk_profile}
+- Time Horizon: {time_horizon}
+- Investment Goal: {goal}
+- Investable Amount: {investable_amount}
+
+Tailor the portfolio to this profile:
+- Conservative = lower equity %, more large-cap, wider stop-losses, focus on quality factors
+- Aggressive = higher equity %, more mid/small-cap, tighter stop-losses, focus on momentum
+- Short horizon (<1yr) = lower volatility stocks, shorter target timeframe, capital preservation
+- Long horizon (5yr+) = can absorb more drawdown, higher growth allocation
+- Goal-specific:
+  - retirement = income focus, dividend stocks, lower risk
+  - education = capital preservation, stable returns
+  - wealth_building = growth focus, higher equity allocation
+  - passive_income = dividend yield focus, REITs, utilities
+  - tax_saving = ELSS funds (India), tax-advantaged accounts
+"""
+
+def _build_profile_prompt(profile: UserProfile) -> str:
+    return _PROFILE_PROMPT_TEMPLATE.format(
+        risk_profile=profile.risk_profile,
+        time_horizon=profile.time_horizon,
+        goal=profile.goal,
+        investable_amount=profile.investable_amount or "Not specified",
+    )
 
 
 # NSE common stock name → ticker mappings (handles natural language names)
@@ -1845,13 +1874,38 @@ async def run_nl_query_v2(
 
         # Portfolio intent detection and prompt injection
         portfolio_intent = _is_portfolio_intent(req.question)
+
+        # Check if profile needed for portfolio questions
+        if portfolio_intent and not req.profile:
+            return StructuredQueryResponse(
+                verdict="HOLD",
+                confidence=0,
+                timeframe="Medium-term",
+                summary="Before I build your portfolio, I need to understand your goals.",
+                reasoning=ReasoningBlock(
+                    why_this="N/A", why_not_alt="N/A", edge_summary="N/A",
+                    second_best="N/A", confidence_gap="N/A",
+                ),
+                profiler_needed=True,
+                route="REACT",
+                data_sources=["NeuralQuant Profiler"],
+                follow_up_questions=[],
+                metrics=[],
+                scenarios=[],
+                allocations=[],
+                comparisons=[],
+            )
+
         system_prompt = _SYSTEM_STRUCTURED
         if portfolio_intent:
             system_prompt = _SYSTEM_STRUCTURED + "\n\n" + _PORTFOLIO_OUTPUT_RULES
             snap = _build_market_snapshot(req.market or "US")
             if snap:
                 user_msg = user_msg + "\n\n" + snap
-                messages[-1]["content"] = user_msg
+            # Inject profile if present
+            if req.profile:
+                user_msg = user_msg + "\n\n" + _build_profile_prompt(req.profile)
+            messages[-1]["content"] = user_msg
 
         # Force tool_use for guaranteed structured output (no markdown leakage).
         response = await asyncio.to_thread(
@@ -2411,13 +2465,29 @@ async def run_nl_query_v2_stream(
 
                 # Portfolio intent detection and prompt injection
                 portfolio_intent = _is_portfolio_intent(req.question)
+
+                # Check if profile needed for portfolio questions
+                if portfolio_intent and not req.profile:
+                    yield _sse_event("result", {
+                        "verdict": "HOLD",
+                        "confidence": 0,
+                        "timeframe": "Medium-term",
+                        "summary": "Before I build your portfolio, I need to understand your goals.",
+                        "profiler_needed": True,
+                        "route": "REACT",
+                    })
+                    return
+
                 system_prompt = _SYSTEM_STRUCTURED
                 if portfolio_intent:
                     system_prompt = _SYSTEM_STRUCTURED + "\n\n" + _PORTFOLIO_OUTPUT_RULES
                     snap = _build_market_snapshot(req.market or "US")
                     if snap:
                         result_holder["user_msg"] = result_holder["user_msg"] + "\n\n" + snap
-                        messages[-1]["content"] = result_holder["user_msg"]
+                    # Inject profile if present
+                    if req.profile:
+                        result_holder["user_msg"] = result_holder["user_msg"] + "\n\n" + _build_profile_prompt(req.profile)
+                    messages[-1]["content"] = result_holder["user_msg"]
 
                 # Force tool_use: model MUST call `respond_with_neuralquant_forecast`
                 # with arguments matching the schema. No more markdown leakage.
