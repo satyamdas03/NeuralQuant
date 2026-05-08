@@ -2468,14 +2468,24 @@ async def run_nl_query_v2_stream(
 
                 # Check if profile needed for portfolio questions
                 if portfolio_intent and not req.profile:
-                    yield _sse_event("result", {
-                        "verdict": "HOLD",
-                        "confidence": 0,
-                        "timeframe": "Medium-term",
-                        "summary": "Before I build your portfolio, I need to understand your goals.",
-                        "profiler_needed": True,
-                        "route": "REACT",
-                    })
+                    result_holder["result"] = StructuredQueryResponse(
+                        verdict="HOLD",
+                        confidence=0,
+                        timeframe="Medium-term",
+                        summary="Before I build your portfolio, I need to understand your goals.",
+                        reasoning=ReasoningBlock(
+                            why_this="N/A", why_not_alt="N/A", edge_summary="N/A",
+                            second_best="N/A", confidence_gap="N/A",
+                        ),
+                        profiler_needed=True,
+                        route="REACT",
+                        data_sources=["NeuralQuant Profiler"],
+                        follow_up_questions=[],
+                        metrics=[],
+                        scenarios=[],
+                        allocations=[],
+                        comparisons=[],
+                    )
                     return
 
                 system_prompt = _SYSTEM_STRUCTURED
