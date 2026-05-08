@@ -18,7 +18,7 @@ log = logging.getLogger(__name__)
 from nq_api.auth.rate_limit import enforce_tier_quota
 from nq_api.auth.models import User
 from nq_api.auth.deps import get_current_user_optional
-from nq_api.data_builder import _yf_symbol
+from nq_api.data_builder import _yf_symbol, _get_yf_session
 import nq_api.dart_router as dart
 logger = logging.getLogger(__name__)
 
@@ -495,7 +495,7 @@ def _fetch_relevant_news(question: str, ticker: str | None, n: int = 8) -> list[
     seen: set[str] = set()
     for sym in candidates[:8]:
         try:
-            items = yf.Ticker(sym).news or []
+            items = yf.Ticker(sym, session=_get_yf_session()).news or []
             for item in items[:3]:
                 content = item.get("content") or {}
                 title = content.get("title") or item.get("title", "")
@@ -680,7 +680,7 @@ def _validate_portfolio_stocks(portfolio_stocks: list[dict], market: str, summar
             continue
         sym = ticker + ".NS" if market == "IN" and "." not in ticker else ticker
         try:
-            info = yf.Ticker(sym).info or {}
+            info = yf.Ticker(sym, session=_get_yf_session()).info or {}
         except Exception:
             continue
         real_pe = info.get("trailingPE")
@@ -986,7 +986,7 @@ def _fetch_india_macro() -> str | None:
         lines = []
 
         # Nifty 50
-        nifty = yf.Ticker("^NSEI")
+        nifty = yf.Ticker("^NSEI", session=_get_yf_session())
         hist = nifty.history(period="5d", auto_adjust=True)
         if len(hist) >= 2:
             nifty_price = float(hist["Close"].iloc[-1])
@@ -995,7 +995,7 @@ def _fetch_india_macro() -> str | None:
             lines.append(f"Nifty 50: {nifty_price:,.0f} ({nifty_chg:+.2f}% today)")
 
         # BSE Sensex
-        sensex = yf.Ticker("^BSESN")
+        sensex = yf.Ticker("^BSESN", session=_get_yf_session())
         hist2 = sensex.history(period="5d", auto_adjust=True)
         if len(hist2) >= 2:
             sensex_price = float(hist2["Close"].iloc[-1])
@@ -1004,14 +1004,14 @@ def _fetch_india_macro() -> str | None:
             lines.append(f"BSE Sensex: {sensex_price:,.0f} ({sensex_chg:+.2f}% today)")
 
         # INR/USD exchange rate
-        inr = yf.Ticker("USDINR=X")
+        inr = yf.Ticker("USDINR=X", session=_get_yf_session())
         inr_hist = inr.history(period="5d", auto_adjust=True)
         if not inr_hist.empty:
             inr_rate = float(inr_hist["Close"].iloc[-1])
             lines.append(f"USD/INR: {inr_rate:.2f}")
 
         # India VIX
-        india_vix = yf.Ticker("^INDIAVIX")
+        india_vix = yf.Ticker("^INDIAVIX", session=_get_yf_session())
         vix_hist = india_vix.history(period="5d", auto_adjust=True)
         if not vix_hist.empty:
             ivix = float(vix_hist["Close"].iloc[-1])
@@ -1034,7 +1034,7 @@ def _fetch_dynamic_nse_stock(word: str) -> dict | None:
         nse_sym = f"{word}.NS"
 
     try:
-        t = yf.Ticker(nse_sym)
+        t = yf.Ticker(nse_sym, session=_get_yf_session())
         info = t.info
         price = info.get("currentPrice") or info.get("regularMarketPrice")
         if not price:
@@ -1284,7 +1284,7 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                 comp_lines = ["Competitor comparison:"]
                 for t in in_universe_tickers[:2]:
                     try:
-                        info = yf.Ticker(t).info
+                        info = yf.Ticker(t, session=_get_yf_session()).info
                         sector = info.get("sector", "")
                         industry = info.get("industry", "")
                         if sector or industry:

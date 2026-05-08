@@ -25,6 +25,7 @@ from datetime import date
 
 import numpy as np
 import pandas as pd
+import requests
 import yfinance as yf
 
 from nq_signals.engine import UniverseSnapshot
@@ -32,7 +33,24 @@ logger = logging.getLogger(__name__)
 
 log = logging.getLogger(__name__)
 
-# ─── Cache ─────────────────────────────────────────────────────────────────────
+# ─── Shared yfinance session (proper headers to reduce 401 crumb errors) ───────
+_yf_session: requests.Session | None = None
+
+def _get_yf_session() -> requests.Session:
+    global _yf_session
+    if _yf_session is None:
+        _yf_session = requests.Session()
+        _yf_session.headers.update({
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Accept-Encoding": "gzip, deflate, br",
+            "DNT": "1",
+            "Connection": "keep-alive",
+        })
+    return _yf_session
+
+_IS_RENDER = bool(os.environ.get("RENDER"))
 _lock = threading.Lock()
 _fund_cache: dict[str, dict] = {}
 _fund_ts: dict[str, float] = {}
@@ -47,7 +65,7 @@ FUND_TTL  = 4 * 3600   # 4 hours
 PRICE_TTL = 3600        # 1 hour
 MACRO_TTL = 3600        # 1 hour
 INSIDER_TTL = 24 * 3600  # 24 hours — EDGAR filings are daily anyway
-MAX_WORKERS = 4 if os.environ.get("RENDER") else 12
+MAX_WORKERS = 2 if _IS_RENDER else 12
 
 # Separate cache for insider scores (keyed by ticker — US-only)
 _insider_cache: dict[str, float] = {}
@@ -182,7 +200,7 @@ def fetch_real_macro() -> _LiveMacro:
 
     # --- yfinance: VIX ---
     try:
-        h = yf.Ticker("^VIX").history(period="5d", auto_adjust=True)
+        h = yf.Ticker("^VIX", session=_get_yf_session()).history(period="5d", auto_adjust=True)
         if not h.empty:
             m.vix = float(h["Close"].iloc[-1])
     except Exception:
@@ -190,7 +208,7 @@ def fetch_real_macro() -> _LiveMacro:
 
     # --- yfinance: SPX 200-day MA + 1-month return ---
     try:
-        spx = yf.Ticker("^GSPC").history(period="252d", auto_adjust=True)
+        spx = yf.Ticker("^GSPC", session=_get_yf_session()).history(period="252d", auto_adjust=True)
         if len(spx) >= 200:
             last = float(spx["Close"].iloc[-1])
             ma200 = float(spx["Close"].tail(200).mean())
@@ -233,8 +251,8 @@ def fetch_real_macro() -> _LiveMacro:
             log.warning("FRED fetch failed: %s — using yfinance proxies for missing fields", exc)
             # Fallback: yield curve from yfinance TNX/IRX
             try:
-                tnx = yf.Ticker("^TNX").history(period="5d", auto_adjust=True)
-                irx = yf.Ticker("^IRX").history(period="5d", auto_adjust=True)
+                tnx = yf.Ticker("^TNX", session=_get_yf_session()).history(period="5d", auto_adjust=True)
+                irx = yf.Ticker("^IRX", session=_get_yf_session()).history(period="5d", auto_adjust=True)
                 if not tnx.empty and not irx.empty:
                     t10 = float(tnx["Close"].iloc[-1])
                     t3m = float(irx["Close"].iloc[-1])
@@ -262,7 +280,7 @@ def fetch_real_macro_in() -> _LiveMacroIN:
 
     # India VIX
     try:
-        h = yf.Ticker("^INDIAVIX").history(period="5d", auto_adjust=True)
+        h = yf.Ticker("^INDIAVIX", session=_get_yf_session()).history(period="5d", auto_adjust=True)
         if not h.empty:
             m.india_vix = float(h["Close"].iloc[-1])
     except Exception:
@@ -270,7 +288,7 @@ def fetch_real_macro_in() -> _LiveMacroIN:
 
     # Nifty 50 — 200-day MA + 1-month return
     try:
-        nifty = yf.Ticker("^NSEI").history(period="252d", auto_adjust=True)
+        nifty = yf.Ticker("^NSEI", session=_get_yf_session()).history(period="252d", auto_adjust=True)
         if len(nifty) >= 200:
             last = float(nifty["Close"].iloc[-1])
             ma200 = float(nifty["Close"].tail(200).mean())
@@ -286,13 +304,13 @@ def fetch_real_macro_in() -> _LiveMacroIN:
     # USD/INR — use USDINR=X which returns ~83.5 (INR per USD).
     # INRUSD=X returns ~0.012 (USD per INR) which is confusing for agents.
     try:
-        usdinr = yf.Ticker("USDINR=X").history(period="5d", auto_adjust=True)
+        usdinr = yf.Ticker("USDINR=X", session=_get_yf_session()).history(period="5d", auto_adjust=True)
         if not usdinr.empty:
             m.inr_usd = round(float(usdinr["Close"].iloc[-1]), 2)
     except Exception:
         # Fallback: try INRUSD=X and invert
         try:
-            inrusd = yf.Ticker("INRUSD=X").history(period="5d", auto_adjust=True)
+            inrusd = yf.Ticker("INRUSD=X", session=_get_yf_session()).history(period="5d", auto_adjust=True)
             if not inrusd.empty:
                 m.inr_usd = round(1.0 / float(inrusd["Close"].iloc[-1]), 2)
         except Exception:
@@ -381,10 +399,14 @@ def _fetch_one(ticker: str, market: str, fast_pe: bool = True) -> dict:
 
     sym = _yf_symbol(ticker, market)
     info: dict = {}
+    # Stagger requests on Render to avoid Yahoo rate-limiting cloud IPs
+    if _IS_RENDER:
+        time.sleep(0.5)
     # Retry loop: yfinance is flaky for Indian (.NS) tickers — empty info on first attempt is common
+    # Also Yahoo blocks cloud IPs with 401 "Invalid Crumb" — longer delays + custom session help
     for attempt in range(3):
         try:
-            t = yf.Ticker(sym)
+            t = yf.Ticker(sym, session=_get_yf_session())
             info = t.info or {}
             if info and info.get("symbol"):
                 break
@@ -392,7 +414,7 @@ def _fetch_one(ticker: str, market: str, fast_pe: bool = True) -> dict:
         except Exception as exc:
             log.debug("yfinance fetch exception for %s (attempt %d/%d): %s", sym, attempt + 1, 3, exc)
         if attempt < 2:
-            time.sleep(1.0)
+            time.sleep(2.0 if _IS_RENDER else 1.0)
 
     if not info or not info.get("symbol"):
         log.warning("yfinance failed for %s after 3 attempts — using synthetic", sym)
