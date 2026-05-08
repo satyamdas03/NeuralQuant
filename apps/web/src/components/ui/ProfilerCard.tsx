@@ -69,7 +69,7 @@ export default function ProfilerCard({ defaultAmount, onSubmit }: Props) {
         >
           <option value="wealth_building">Wealth Building</option>
           <option value="retirement">Retirement</option>
-          <option value="education">Child's Education</option>
+          <option value="education">Child&apos;s Education</option>
           <option value="passive_income">Passive Income</option>
           <option value="tax_saving">Tax Saving</option>
         </select>
