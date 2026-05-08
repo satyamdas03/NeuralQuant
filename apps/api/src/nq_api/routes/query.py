@@ -662,15 +662,18 @@ def _validate_response_metrics(result, verified: dict[str, float]) -> "Structure
     return result
 
 
-def _validate_portfolio_stocks(portfolio_stocks: list[dict], market: str) -> tuple[list[dict], list[str]]:
-    """Fetch real yfinance data for each portfolio stock and validate rationale claims.
+def _validate_portfolio_stocks(portfolio_stocks: list[dict], market: str, summary: str = "") -> tuple[list[dict], str, list[str]]:
+    """Fetch real yfinance data for each portfolio stock and validate rationale + summary claims.
 
-    Returns (corrected_stocks, correction_notes).
+    Returns (corrected_stocks, corrected_summary, correction_notes).
     """
     if not portfolio_stocks:
-        return portfolio_stocks, []
+        return portfolio_stocks, summary, []
 
     corrections = []
+    ticker_to_real: dict[str, dict] = {}
+
+    # Batch-fetch real data
     for stock in portfolio_stocks:
         ticker = stock.get("ticker", "")
         if not ticker:
@@ -680,30 +683,48 @@ def _validate_portfolio_stocks(portfolio_stocks: list[dict], market: str) -> tup
             info = yf.Ticker(sym).info or {}
         except Exception:
             continue
-
         real_pe = info.get("trailingPE")
         real_beta = info.get("beta")
-        real_price = info.get("currentPrice") or info.get("regularMarketPrice")
         real_div = info.get("dividendYield")
         if real_div and real_div < 1:
             real_div = real_div * 100
+        ticker_to_real[ticker] = {
+            "pe": real_pe,
+            "beta": real_beta,
+            "div": real_div,
+        }
 
+    # Validate per-stock rationale
+    for stock in portfolio_stocks:
+        ticker = stock.get("ticker", "")
+        real = ticker_to_real.get(ticker)
+        if not real:
+            continue
         rationale = stock.get("rationale", "")
         if not rationale:
             continue
 
-        # Check P/E claims in rationale (e.g., "P/E 20.2", "P/E: 16.1", "trading at 31.6x P/E")
-        pe_matches = list(re.finditer(r"P/E\s*(?:of|at|is|:|=)?\s*(\d+\.?\d*)", rationale, re.I))
-        for m in pe_matches:
-            claimed = float(m.group(1))
-            if real_pe and real_pe > 0 and abs(claimed - real_pe) / real_pe > 0.20:
-                old_r = rationale
-                rationale = re.sub(r"P/E\s*(?:of|at|is|:|=)?\s*" + re.escape(m.group(1)),
-                                   f"P/E {real_pe:.1f}", rationale, count=1, flags=re.I)
-                if rationale != old_r:
-                    corrections.append(f"{ticker} P/E: {claimed:.1f}x → {real_pe:.1f}x")
+        real_pe = real["pe"]
+        real_beta = real["beta"]
+        real_div = real["div"]
 
-        # Check beta claims
+        # P/E claims — tolerance 10% (tighter than 20% to catch stock-to-stock swaps)
+        pe_patterns = [
+            re.compile(r"P/E\s*(?:of|at|is|:|=)?\s*\D{0,15}(\d+\.?\d*)", re.I),
+            re.compile(r"(\d+\.?\d*)\s*x?\s*P/E\b", re.I),
+        ]
+        for pe_pat in pe_patterns:
+            pe_matches = list(pe_pat.finditer(rationale))
+            for m in pe_matches:
+                claimed = float(m.group(1))
+                if real_pe and real_pe > 0 and abs(claimed - real_pe) / real_pe > 0.10:
+                    old_r = rationale
+                    rationale = re.sub(re.escape(m.group(0)),
+                                       f"P/E {real_pe:.1f}", rationale, count=1, flags=re.I)
+                    if rationale != old_r:
+                        corrections.append(f"{ticker} P/E: {claimed:.1f}x → {real_pe:.1f}x")
+
+        # Beta claims
         beta_matches = list(re.finditer(r"beta\s*(?:of|at|is|:|=)?\s*(\d+\.?\d*)", rationale, re.I))
         for m in beta_matches:
             claimed = float(m.group(1))
@@ -714,7 +735,7 @@ def _validate_portfolio_stocks(portfolio_stocks: list[dict], market: str) -> tup
                 if rationale != old_r:
                     corrections.append(f"{ticker} Beta: {claimed:.2f} → {real_beta:.2f}")
 
-        # Check yield claims (e.g., "~5.8% yield", "dividend yield 3.4%")
+        # Yield claims
         if real_div and real_div > 0:
             yield_matches = list(re.finditer(r"~?(\d+\.?\d*)%\s*(?:yield|dividend)", rationale, re.I))
             for m in yield_matches:
@@ -729,7 +750,28 @@ def _validate_portfolio_stocks(portfolio_stocks: list[dict], market: str) -> tup
         if rationale != stock.get("rationale", ""):
             stock["rationale"] = rationale
 
-    return portfolio_stocks, corrections
+    # Validate summary — replace P/E claims near ticker mentions
+    if summary and ticker_to_real:
+        for ticker, real in ticker_to_real.items():
+            real_pe = real["pe"]
+            if not real_pe:
+                continue
+            # Match ticker name followed by up to 70 chars (not crossing sentence boundary) then P/E claim
+            # Flexible: allows words like "only" / "attractive" between P/E and the number
+            pattern = re.compile(
+                rf"({re.escape(ticker)}[^.\n]{{0,70}}P/E\s*(?:of|at|is|:|=)?\s*\D{{0,15}})(\d+\.?\d*)",
+                re.I,
+            )
+            for m in pattern.finditer(summary):
+                claimed = float(m.group(2))
+                if abs(claimed - real_pe) / real_pe > 0.10:
+                    prefix = m.group(1)
+                    old_text = m.group(0)
+                    new_text = f"{prefix}{real_pe:.1f}"
+                    summary = summary.replace(old_text, new_text, 1)
+                    corrections.append(f"{ticker} summary P/E: {claimed:.1f}x → {real_pe:.1f}x")
+
+    return portfolio_stocks, summary, corrections
 
 
 def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, platform_ctx: str | None) -> StockSummary | None:
@@ -2057,10 +2099,12 @@ async def run_nl_query_v2(
                         parsed["action_prompts"] = []
                     # Validate portfolio stock data against real yfinance
                     if parsed.get("portfolio_stocks"):
-                        corrected_stocks, pf_corrections = await asyncio.to_thread(
-                            _validate_portfolio_stocks, parsed["portfolio_stocks"], req.market or "US"
+                        corrected_stocks, corrected_summary, pf_corrections = await asyncio.to_thread(
+                            _validate_portfolio_stocks, parsed["portfolio_stocks"], req.market or "US", parsed.get("summary", "")
                         )
                         parsed["portfolio_stocks"] = corrected_stocks
+                        if corrected_summary != parsed.get("summary", ""):
+                            parsed["summary"] = corrected_summary
                         if pf_corrections and parsed.get("summary"):
                             parsed["summary"] += f" [Data verified: {'; '.join(pf_corrections)}]"
                 result = StructuredQueryResponse(**parsed)
