@@ -177,7 +177,14 @@ Required fields:
   ],
   "allocations": [{"ticker": "X", "weight": 0-100, "rationale": "2-sentence rationale with data (e.g. 'ForeCast 8/10, P/E 18 vs sector 25, 15% revenue growth — quality at reasonable price')", "why_not_alt": "Name the alternative stock and what it lacks (e.g. 'BAJFINANCE has similar P/E but lower momentum percentile (65 vs 82)')"}],
   "comparisons": [{"ticker": "X", "metric": "P/E", "ours": "value", "theirs": "value", "edge": "why ours wins"}],
-  "follow_up_questions": ["q1", "q2", "q3"]
+  "follow_up_questions": ["q1", "q2", "q3"],
+  "market_context": [{"label": "S&P 500", "value": "5,200", "change": "+1.2%", "sentiment": "bullish"}],
+  "allocation_breakdown": [{"label": "Large-Cap Equity", "percentage": 60, "color": "#6366f1", "rationale": "Core exposure to quality leaders"}],
+  "portfolio_stocks": [{"ticker": "NVDA", "name": "NVIDIA", "allocation_pct": 20, "entry_price": "$287.50", "target_price": "$320.00", "stop_loss": "$260.00", "risk_reward": "1:2.3", "rationale": "AI infrastructure leader with 92nd percentile momentum", "confidence": 8, "sector": "Technology"}],
+  "scenario_analysis": [{"label": "Bull", "probability_pct": 25, "outcome": "+18% in 12 months", "description": "AI capex supercycle drives re-rating", "color": "#22c55e"}],
+  "action_prompts": [{"label": "Add more large-cap?", "prompt_text": "Add more large-cap stocks to this portfolio", "icon": "📊"}],
+  "sebi_disclaimer": "This is AI-generated investment research, not SEBI-registered investment advice. Please consult a certified financial advisor before investing.",
+  "is_portfolio_response": false
 }
 
 MANDATORY FIELD RULES — EVERY field must be filled with substantive, data-rich content:
@@ -186,21 +193,36 @@ MANDATORY FIELD RULES — EVERY field must be filled with substantive, data-rich
 3. reasoning.why_this: MUST cite 3+ specific data points with numbers. Not "strong momentum" — "92nd percentile momentum, P/E 18 vs sector 25, revenue growth +22% YoY".
 4. reasoning.why_not_alt: MUST name a specific alternative stock and explain with data why it's inferior. "Similar P/E but lower ForeCast score (6 vs 8) and weaker momentum (65th vs 92nd percentile)".
 5. scenarios: ALWAYS include Bear/Base/Bull with specific prices or percentages and named triggers.
-6. allocations: For portfolio/allocation questions, include 4-6 stocks with weight%, rationale with data, and why_not_alt naming the rejected alternative. For single-stock questions, include at least 1 allocation (the recommended stock at 100% or the suggested position size).
+6. allocations: For single-stock questions, include at least 1 allocation (the recommended stock at 100% or suggested position size). For portfolio questions: ALSO populate allocations, AND additionally populate market_context, allocation_breakdown, portfolio_stocks, scenario_analysis, action_prompts, sebi_disclaimer, AND set is_portfolio_response to true.
 7. comparisons: ALWAYS include at least 3 comparisons showing side-by-side metric advantages vs the alternative stock.
-8. NEVER use placeholder text like "N/A", "various", "multiple factors", or generic filler. Every field must contain SPECIFIC, DATA-DRIVEN content.
+8. market_context: For portfolio questions, include 3-5 cards with live index levels, VIX, and yields marked [VERIFIED].
+9. allocation_breakdown: For portfolio questions, show segments summing to 100% with rationale per segment.
+10. portfolio_stocks: For portfolio questions, include entry_price, target_price, stop_loss, risk_reward for each stock.
+11. scenario_analysis: For portfolio questions, include exactly 3 scenarios (Bull/Base/Bear) with probability_pct and outcome.
+12. action_prompts: For portfolio questions, include 2-3 clickable follow-up prompts.
+13. sebi_disclaimer: ALWAYS include for portfolio questions.
+14. is_portfolio_response: Set to true ONLY for portfolio/allocation/investment-plan questions. Set to false for single-stock queries.
+15. NEVER use placeholder text like "N/A", "various", "multiple factors", or generic filler. Every field must contain SPECIFIC, DATA-DRIVEN content.
 """
 
 _PORTFOLIO_OUTPUT_RULES = """
-PORTFOLIO OUTPUT RULES (activate ONLY if user asks about portfolio allocation, investment plan, or multiple-stock strategy):
+PORTFOLIO OUTPUT RULES (CRITICAL — when user asks about portfolio, allocation, or investment plan):
 
-- market_context: Include 3-5 live market context cards. Use real index levels, VIX, and 10Y yield if available. Mark live data with [VERIFIED].
-- allocation_breakdown: Show percentage allocation across asset classes / market-cap buckets. Total must sum to 100%. Provide rationale per segment.
-- portfolio_stocks: For each recommended stock, include ticker, allocation_pct within portfolio, suggested entry_price, target_price, stop_loss, and risk_reward ratio. Include a one-line rationale and ForeCast confidence 1-10.
-- scenario_analysis: Provide exactly 3 scenarios — Bull, Base, Bear. Each gets a probability percentage and 12-month outcome estimate.
-- action_prompts: Include 2-3 follow-up prompt buttons that help the user refine the portfolio (e.g., "Add more large-cap?", "Show me mid-cap options?", "Make it more conservative?").
-- sebi_disclaimer: Always include the SEBI disclaimer: "This is AI-generated investment research, not SEBI-registered investment advice. Please consult a certified financial advisor before investing."
-- is_portfolio_response: Set this field to true so the frontend knows to render the portfolio layout.
+You MUST output portfolio data using the NEW structured fields below. Do NOT put portfolio data in the old `allocations` array format — that field is for single-stock position sizing only.
+
+REQUIRED for portfolio questions:
+1. Set `is_portfolio_response` to `true`. This is mandatory.
+2. `market_context`: Array of 3-5 cards with label (e.g. "S&P 500"), value (e.g. "5,200"), change (e.g. "+1.2%"), sentiment ("bullish"/"bearish"/"neutral"). Use live [VERIFIED] data injected above.
+3. `allocation_breakdown`: Array of segments with label (e.g. "Large-Cap Equity"), percentage (number 0-100), color (hex e.g. "#6366f1"), rationale. Must sum to 100%.
+4. `portfolio_stocks`: Array of stock cards. Each card MUST have: ticker, allocation_pct (within portfolio), entry_price (e.g. "$287.50"), target_price (e.g. "$320.00"), stop_loss (e.g. "$260.00"), risk_reward (e.g. "1:2.3"), rationale (one-line), confidence (1-10), sector.
+5. `scenario_analysis`: Array of exactly 3 cards: Bull, Base, Bear. Each has: label, probability_pct (0-100), outcome (e.g. "+18% in 12 months"), description (1-2 sentences), color (hex).
+6. `action_prompts`: Array of 2-3 follow-up buttons. Each has: label (short), prompt_text (exact query text), icon (emoji optional).
+7. `sebi_disclaimer`: Always include: "This is AI-generated investment research, not SEBI-registered investment advice. Please consult a certified financial advisor before investing."
+
+OLD fields to IGNORE for portfolio layout:
+- `allocations` — leave empty or use only for single-stock position sizing
+- `scenarios` — leave empty; use `scenario_analysis` instead
+- `comparisons` — leave empty for portfolio questions
 """
 
 
@@ -1821,12 +1843,22 @@ async def run_nl_query_v2(
                 messages.append({"role": m.role, "content": content})
         messages.append({"role": "user", "content": user_msg})
 
+        # Portfolio intent detection and prompt injection
+        portfolio_intent = _is_portfolio_intent(req.question)
+        system_prompt = _SYSTEM_STRUCTURED
+        if portfolio_intent:
+            system_prompt = _SYSTEM_STRUCTURED + "\n\n" + _PORTFOLIO_OUTPUT_RULES
+            snap = _build_market_snapshot(req.market or "US")
+            if snap:
+                user_msg = user_msg + "\n\n" + snap
+                messages[-1]["content"] = user_msg
+
         # Force tool_use for guaranteed structured output (no markdown leakage).
         response = await asyncio.to_thread(
             client.messages.create,
             model=query_model,
             max_tokens=8000,
-            system=_SYSTEM_STRUCTURED,
+            system=system_prompt,
             tools=[_STRUCTURED_TOOL],
             tool_choice={"type": "tool", "name": _STRUCTURED_TOOL["name"]},
             messages=messages,
@@ -1846,6 +1878,59 @@ async def run_nl_query_v2(
                         "second_best": "N/A",
                         "confidence_gap": "N/A",
                     }
+                # Portfolio validation post-processing
+                if portfolio_intent:
+                    parsed["is_portfolio_response"] = True
+                    if not parsed.get("sebi_disclaimer") or "SEBI" not in parsed.get("sebi_disclaimer", "").upper():
+                        parsed["sebi_disclaimer"] = (
+                            "This is AI-generated investment research, not SEBI-registered investment advice. "
+                            "Please consult a certified financial advisor before investing."
+                        )
+                    if not parsed.get("portfolio_stocks") and parsed.get("allocations"):
+                        parsed["portfolio_stocks"] = []
+                        for a in parsed["allocations"]:
+                            ticker = a.get("ticker", "")
+                            weight = a.get("weight", 0)
+                            rationale = a.get("rationale", "")
+                            entry_match = re.search(r'Entry[:\s]+([^;\n]+)', rationale)
+                            entry_price = entry_match.group(1).strip() if entry_match else None
+                            target_match = re.search(r'Target[:\s]+([^;\n]+)', rationale)
+                            target_price = target_match.group(1).strip() if target_match else None
+                            stop_match = re.search(r'Stop[:\s]+([^;\n]+)', rationale)
+                            stop_loss = stop_match.group(1).strip() if stop_match else None
+                            parsed["portfolio_stocks"].append({
+                                "ticker": ticker,
+                                "allocation_pct": weight,
+                                "rationale": rationale,
+                                "entry_price": entry_price,
+                                "target_price": target_price,
+                                "stop_loss": stop_loss,
+                            })
+                    if not parsed.get("scenario_analysis") and parsed.get("scenarios"):
+                        parsed["scenario_analysis"] = []
+                        scenario_colors = {"Bull": "#22c55e", "Base": "#6366f1", "Bear": "#ef4444"}
+                        for s in parsed["scenarios"]:
+                            label = s.get("label", "")
+                            prob = int(s.get("probability", 0) * 100)
+                            parsed["scenario_analysis"].append({
+                                "label": label,
+                                "probability_pct": prob,
+                                "outcome": s.get("target", ""),
+                                "description": s.get("thesis", ""),
+                                "color": scenario_colors.get(label, "#6366f1"),
+                            })
+                    if not parsed.get("allocation_breakdown") and parsed.get("allocations"):
+                        parsed["allocation_breakdown"] = []
+                        for a in parsed["allocations"]:
+                            parsed["allocation_breakdown"].append({
+                                "label": a.get("ticker", ""),
+                                "percentage": a.get("weight", 0),
+                                "rationale": a.get("rationale", ""),
+                            })
+                    if not parsed.get("market_context"):
+                        parsed["market_context"] = []
+                    if not parsed.get("action_prompts"):
+                        parsed["action_prompts"] = []
                 result = StructuredQueryResponse(**parsed)
                 # Validate LLM metrics against injected [VERIFIED] data
                 verified = _extract_verified_values(platform_ctx)
@@ -2039,6 +2124,90 @@ _STRUCTURED_TOOL = {
                 "type": "array",
                 "items": {"type": "string"},
                 "description": "3 suggested follow-up questions.",
+            },
+            "market_context": {
+                "type": "array",
+                "description": "Live market context cards for portfolio layout. Only set when is_portfolio_response=true.",
+                "items": {
+                    "type": "object",
+                    "required": ["label", "value"],
+                    "properties": {
+                        "label": {"type": "string"},
+                        "value": {"type": "string"},
+                        "change": {"type": "string"},
+                        "sentiment": {"type": "string"},
+                    },
+                },
+            },
+            "allocation_breakdown": {
+                "type": "array",
+                "description": "Portfolio allocation segments. Must sum to 100%. Only set when is_portfolio_response=true.",
+                "items": {
+                    "type": "object",
+                    "required": ["label", "percentage"],
+                    "properties": {
+                        "label": {"type": "string"},
+                        "percentage": {"type": "number"},
+                        "color": {"type": "string"},
+                        "rationale": {"type": "string"},
+                    },
+                },
+            },
+            "portfolio_stocks": {
+                "type": "array",
+                "description": "Individual stock cards with entry/target/stop-loss. Only set when is_portfolio_response=true.",
+                "items": {
+                    "type": "object",
+                    "required": ["ticker", "allocation_pct"],
+                    "properties": {
+                        "ticker": {"type": "string"},
+                        "name": {"type": "string"},
+                        "allocation_pct": {"type": "number"},
+                        "entry_price": {"type": "string"},
+                        "target_price": {"type": "string"},
+                        "stop_loss": {"type": "string"},
+                        "risk_reward": {"type": "string"},
+                        "rationale": {"type": "string"},
+                        "confidence": {"type": "integer", "minimum": 1, "maximum": 10},
+                        "sector": {"type": "string"},
+                    },
+                },
+            },
+            "scenario_analysis": {
+                "type": "array",
+                "description": "Bull / Base / Bear scenario cards with probability bars. Only set when is_portfolio_response=true.",
+                "items": {
+                    "type": "object",
+                    "required": ["label"],
+                    "properties": {
+                        "label": {"type": "string"},
+                        "probability_pct": {"type": "integer", "minimum": 0, "maximum": 100},
+                        "outcome": {"type": "string"},
+                        "description": {"type": "string"},
+                        "color": {"type": "string"},
+                    },
+                },
+            },
+            "action_prompts": {
+                "type": "array",
+                "description": "Follow-up prompt buttons for portfolio refinement. Only set when is_portfolio_response=true.",
+                "items": {
+                    "type": "object",
+                    "required": ["label", "prompt_text"],
+                    "properties": {
+                        "label": {"type": "string"},
+                        "prompt_text": {"type": "string"},
+                        "icon": {"type": "string"},
+                    },
+                },
+            },
+            "sebi_disclaimer": {
+                "type": "string",
+                "description": "SEBI regulatory disclaimer for Indian/investment advice contexts.",
+            },
+            "is_portfolio_response": {
+                "type": "boolean",
+                "description": "Set to true when this response follows the portfolio output template (market_context, allocation_breakdown, portfolio_stocks, etc.).",
             },
         },
     },
@@ -2290,18 +2459,66 @@ async def run_nl_query_v2_stream(
                                 "second_best": "N/A",
                                 "confidence_gap": "N/A",
                             }
-                        result_holder["result"] = StructuredQueryResponse(**parsed)
-                        # Validate LLM metrics against injected [VERIFIED] data
-                        verified = _extract_verified_values(result_holder.get("platform_ctx"))
-                        result_holder["result"] = _validate_response_metrics(result_holder["result"], verified)
-                        # Portfolio validation post-processing
-                        if parsed.get("is_portfolio_response"):
+                        # Portfolio validation post-processing (before creating StructuredQueryResponse)
+                        log.info("Portfolio intent check: %s, parsed keys: %s", portfolio_intent, list(parsed.keys()))
+                        if portfolio_intent:
+                            parsed["is_portfolio_response"] = True
+                            log.info("Setting is_portfolio_response=True")
                             # Ensure SEBI disclaimer present
                             if not parsed.get("sebi_disclaimer") or "SEBI" not in parsed.get("sebi_disclaimer", "").upper():
                                 parsed["sebi_disclaimer"] = (
                                     "This is AI-generated investment research, not SEBI-registered investment advice. "
                                     "Please consult a certified financial advisor before investing."
                                 )
+                            # Auto-fill portfolio fields from old format if missing
+                            if not parsed.get("portfolio_stocks") and parsed.get("allocations"):
+                                parsed["portfolio_stocks"] = []
+                                for a in parsed["allocations"]:
+                                    ticker = a.get("ticker", "")
+                                    weight = a.get("weight", 0)
+                                    rationale = a.get("rationale", "")
+                                    # Extract entry price from rationale if present
+                                    entry_match = re.search(r'Entry[:\s]+([^;\n]+)', rationale)
+                                    entry_price = entry_match.group(1).strip() if entry_match else None
+                                    # Extract target from rationale if present
+                                    target_match = re.search(r'Target[:\s]+([^;\n]+)', rationale)
+                                    target_price = target_match.group(1).strip() if target_match else None
+                                    # Extract stop from rationale if present
+                                    stop_match = re.search(r'Stop[:\s]+([^;\n]+)', rationale)
+                                    stop_loss = stop_match.group(1).strip() if stop_match else None
+                                    parsed["portfolio_stocks"].append({
+                                        "ticker": ticker,
+                                        "allocation_pct": weight,
+                                        "rationale": rationale,
+                                        "entry_price": entry_price,
+                                        "target_price": target_price,
+                                        "stop_loss": stop_loss,
+                                    })
+                            if not parsed.get("scenario_analysis") and parsed.get("scenarios"):
+                                parsed["scenario_analysis"] = []
+                                scenario_colors = {"Bull": "#22c55e", "Base": "#6366f1", "Bear": "#ef4444"}
+                                for s in parsed["scenarios"]:
+                                    label = s.get("label", "")
+                                    prob = int(s.get("probability", 0) * 100)
+                                    parsed["scenario_analysis"].append({
+                                        "label": label,
+                                        "probability_pct": prob,
+                                        "outcome": s.get("target", ""),
+                                        "description": s.get("thesis", ""),
+                                        "color": scenario_colors.get(label, "#6366f1"),
+                                    })
+                            if not parsed.get("allocation_breakdown") and parsed.get("allocations"):
+                                parsed["allocation_breakdown"] = []
+                                for a in parsed["allocations"]:
+                                    parsed["allocation_breakdown"].append({
+                                        "label": a.get("ticker", ""),
+                                        "percentage": a.get("weight", 0),
+                                        "rationale": a.get("rationale", ""),
+                                    })
+                            if not parsed.get("market_context"):
+                                parsed["market_context"] = []
+                            if not parsed.get("action_prompts"):
+                                parsed["action_prompts"] = []
                             # Allocation sum check
                             alloc = parsed.get("allocation_breakdown") or []
                             if alloc:
@@ -2314,6 +2531,10 @@ async def run_nl_query_v2_stream(
                             if len(scenarios) < 3:
                                 parsed.setdefault("data_quality_flags", [])
                                 parsed["data_quality_flags"].append("Scenario analysis incomplete")
+                        result_holder["result"] = StructuredQueryResponse(**parsed)
+                        # Validate LLM metrics against injected [VERIFIED] data
+                        verified = _extract_verified_values(result_holder.get("platform_ctx"))
+                        result_holder["result"] = _validate_response_metrics(result_holder["result"], verified)
                         # Attach stock summary from enrichment data
                         result_holder["result"].stock_summary = _build_stock_summary(
                             stream_ticker, req.market or "US",
