@@ -6,6 +6,7 @@ import type {
   MarketMovers, StockChart, StockMeta,
   SentimentResponse, BacktestRequest, BacktestResponse, AccuracyResponse,
   AlertSubscription, AlertDelivery, NewsDeskResponse,
+  UserProfile,
 } from "./types";
 
 // Route all requests through Next.js /api/ rewrite proxy to avoid CORS issues.
@@ -74,6 +75,15 @@ export const authedApi = {
     authedFetch<void>(`/alerts/subscriptions/${id}`, { method: "DELETE" }),
   listAlertDeliveries: (limit = 20) =>
     authedFetch<{ items: AlertDelivery[]; count: number }>(`/alerts/deliveries?limit=${limit}`),
+
+  // User Profile
+  getUserProfile: () =>
+    authedFetch<UserProfile | null>("/auth/me/profile"),
+  saveUserProfile: (body: UserProfile) =>
+    authedFetch<UserProfile>("/auth/me/profile", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 
 };
 
