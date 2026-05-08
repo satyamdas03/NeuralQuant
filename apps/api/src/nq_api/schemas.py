@@ -150,6 +150,49 @@ class StockSummary(BaseModel):
     currency: str = "$"
 
 
+# ── Portfolio Output Models (Phase 1) ────────────────────────────────────────
+
+class MarketContextCard(BaseModel):
+    label: str
+    value: str
+    change: Optional[str] = None
+    sentiment: Optional[str] = None
+
+
+class AllocationSegment(BaseModel):
+    label: str
+    percentage: float
+    color: Optional[str] = None
+    rationale: Optional[str] = None
+
+
+class PortfolioStockCard(BaseModel):
+    ticker: str
+    name: Optional[str] = None
+    allocation_pct: float
+    entry_price: Optional[str] = None
+    target_price: Optional[str] = None
+    stop_loss: Optional[str] = None
+    risk_reward: Optional[str] = None
+    rationale: Optional[str] = None
+    confidence: Optional[int] = None
+    sector: Optional[str] = None
+
+
+class ScenarioCard(BaseModel):
+    label: str
+    probability_pct: Optional[int] = None
+    outcome: Optional[str] = None
+    description: Optional[str] = None
+    color: Optional[str] = None
+
+
+class ActionPrompt(BaseModel):
+    label: str
+    prompt_text: str
+    icon: Optional[str] = None
+
+
 class StructuredQueryResponse(BaseModel):
     verdict: str                              # STRONG BUY | BUY | HOLD | SELL | STRONG SELL
     confidence: float                         # 0-100
@@ -164,3 +207,12 @@ class StructuredQueryResponse(BaseModel):
     data_sources: list[str] = []
     follow_up_questions: list[str] = []
     route: Literal["SNAP", "REACT", "DEEP"] = "REACT"
+
+    # --- Phase 1: portfolio output fields (all optional) ---
+    market_context: Optional[list[MarketContextCard]] = None
+    allocation_breakdown: Optional[list[AllocationSegment]] = None
+    portfolio_stocks: Optional[list[PortfolioStockCard]] = None
+    scenario_analysis: Optional[list[ScenarioCard]] = None
+    action_prompts: Optional[list[ActionPrompt]] = None
+    sebi_disclaimer: Optional[str] = None
+    is_portfolio_response: Optional[bool] = None
