@@ -5,6 +5,7 @@ from fastapi import APIRouter
 import yfinance as yf
 import pandas as pd
 import logging
+from nq_api.data_builder import _get_yf_session
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -50,7 +51,7 @@ _SECTORS = {
 
 def _pct_change(sym: str) -> dict:
     try:
-        t = yf.Ticker(sym)
+        t = yf.Ticker(sym, session=_get_yf_session())
         hist = t.history(period="5d", auto_adjust=True)
         if len(hist) >= 2:
             price = float(hist["Close"].iloc[-1])
@@ -99,7 +100,7 @@ async def market_news(n: int = 8):
 
 def _market_news_sync(n: int = 8):
     try:
-        items = yf.Ticker("^GSPC").news or []
+        items = yf.Ticker("^GSPC", session=_get_yf_session()).news or []
         result = []
         for item in items[:n]:
             # yfinance v0.2.x uses nested "content" dict; fallback to flat dict

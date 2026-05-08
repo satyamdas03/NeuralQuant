@@ -19,7 +19,7 @@ from nq_api.auth.rate_limit import enforce_tier_quota
 from nq_api.auth.deps import get_current_user_optional
 from nq_api.auth.models import User
 from nq_api.cache import score_cache
-from nq_api.data_builder import _yf_symbol, _get_yf_session
+from nq_api.data_builder import _yf_symbol, _get_yf_session, _fetch_yf_info_cached
 logger = logging.getLogger(__name__)
 
 log = logging.getLogger(__name__)
@@ -209,7 +209,9 @@ def _build_analyst_context(ticker: str, market: str) -> dict:
 
     # Additional stock-specific fields agents reference
     try:
-        info = yf.Ticker(_yf_symbol(ticker, market), session=_get_yf_session()).info or {}
+        info = _fetch_yf_info_cached(_yf_symbol(ticker, market))
+        if not info.get("_cached_ok"):
+            info = {}
     except Exception as e:
         logger.debug("Non-critical enrichment failed: %s", e)
         info = {}
@@ -479,7 +481,9 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
         from nq_api.data_builder import _fetch_one
         fund = _fetch_one(ticker, market, fast_pe=True)
         try:
-            info = yf.Ticker(_yf_symbol(ticker, market), session=_get_yf_session()).info or {}
+            info = _fetch_yf_info_cached(_yf_symbol(ticker, market))
+            if not info.get("_cached_ok"):
+                info = {}
         except Exception as e:
             logger.debug("Non-critical enrichment failed: %s", e)
             info = {}

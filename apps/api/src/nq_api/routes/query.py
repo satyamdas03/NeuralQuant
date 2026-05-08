@@ -18,7 +18,7 @@ log = logging.getLogger(__name__)
 from nq_api.auth.rate_limit import enforce_tier_quota
 from nq_api.auth.models import User
 from nq_api.auth.deps import get_current_user_optional
-from nq_api.data_builder import _yf_symbol, _get_yf_session
+from nq_api.data_builder import _yf_symbol, _get_yf_session, _fetch_yf_info_cached
 import nq_api.dart_router as dart
 logger = logging.getLogger(__name__)
 
@@ -679,9 +679,8 @@ def _validate_portfolio_stocks(portfolio_stocks: list[dict], market: str, summar
         if not ticker:
             continue
         sym = ticker + ".NS" if market == "IN" and "." not in ticker else ticker
-        try:
-            info = yf.Ticker(sym, session=_get_yf_session()).info or {}
-        except Exception:
+        info = _fetch_yf_info_cached(sym)
+        if not info.get("_cached_ok"):
             continue
         real_pe = info.get("trailingPE")
         real_beta = info.get("beta")
@@ -1284,11 +1283,12 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                 comp_lines = ["Competitor comparison:"]
                 for t in in_universe_tickers[:2]:
                     try:
-                        info = yf.Ticker(t, session=_get_yf_session()).info
-                        sector = info.get("sector", "")
-                        industry = info.get("industry", "")
-                        if sector or industry:
-                            comp_lines.append(f"  {t} sector: {sector} | industry: {industry}")
+                        info = _fetch_yf_info_cached(t)
+                        if info.get("_cached_ok"):
+                            sector = info.get("sector", "")
+                            industry = info.get("industry", "")
+                            if sector or industry:
+                                comp_lines.append(f"  {t} sector: {sector} | industry: {industry}")
                     except Exception:
                         pass
                 # Show nearby alternatives from cache
@@ -2773,10 +2773,12 @@ async def run_nl_query_v2_stream(
                                 parsed["data_quality_flags"].append("Scenario analysis incomplete")
                             # Validate portfolio stock data against real yfinance
                             if parsed.get("portfolio_stocks"):
-                                corrected_stocks, pf_corrections = await asyncio.to_thread(
-                                    _validate_portfolio_stocks, parsed["portfolio_stocks"], req.market or "US"
+                                corrected_stocks, corrected_summary, pf_corrections = await asyncio.to_thread(
+                                    _validate_portfolio_stocks, parsed["portfolio_stocks"], req.market or "US", parsed.get("summary", "")
                                 )
                                 parsed["portfolio_stocks"] = corrected_stocks
+                                if corrected_summary != parsed.get("summary", ""):
+                                    parsed["summary"] = corrected_summary
                                 if pf_corrections and parsed.get("summary"):
                                     parsed["summary"] += f" [Data verified: {'; '.join(pf_corrections)}]"
                         result_holder["result"] = StructuredQueryResponse(**parsed)

@@ -12,7 +12,7 @@ import yfinance as yf
 from nq_api.schemas import QueryRequest, QueryResponse, AnalystResponse
 from nq_api.cache import score_cache
 from nq_api.universe import US_DEFAULT, IN_DEFAULT
-from nq_api.data_builder import build_real_snapshot, fetch_real_macro, fetch_real_macro_in, _fund_cache
+from nq_api.data_builder import build_real_snapshot, fetch_real_macro, fetch_real_macro_in, _fund_cache, _fetch_yf_info_cached
 from nq_api.deps import get_signal_engine
 from nq_api.score_builder import _score_to_1_10
 from nq_api.agents.orchestrator import ParaDebateOrchestrator
@@ -287,57 +287,54 @@ def _fetch_snap_yfinance(ticker: str, market: str) -> QueryResponse | None:
     if market == "IN" and "." not in ticker:
         sym = ticker + ".NS"
 
-    try:
-        t = yf.Ticker(sym)
-        info = t.info or {}
-        price = info.get("currentPrice") or info.get("regularMarketPrice")
-        if not price:
-            return None
-
-        is_india = market == "IN" or ticker.endswith(".NS") or ticker.endswith(".BO")
-        cur = "Rs." if is_india else "$"
-
-        name = info.get("longName") or ticker
-        mcap = info.get("marketCap")
-        pe = info.get("trailingPE")
-        pb = info.get("priceToBook")
-        beta = info.get("beta")
-        week52_high = info.get("fiftyTwoWeekHigh")
-        week52_low = info.get("fiftyTwoWeekLow")
-        change_pct = info.get("regularMarketChangePercent")
-
-        lines = [f"**{name} ({ticker})** — Live Snapshot"]
-        price_str = f"Price: {cur}{price:,.2f}"
-        if change_pct is not None:
-            price_str += f" ({change_pct:+.2f}%)"
-        lines.append(price_str)
-        if mcap:
-            if is_india:
-                lines.append(f"Market Cap: {cur}{mcap/1e7:,.0f} Cr")
-            else:
-                lines.append(f"Market Cap: {cur}{mcap/1e9:,.1f}B")
-        if pe:
-            lines.append(f"P/E (TTM): {pe:.1f}")
-        if pb:
-            lines.append(f"P/B: {pb:.2f}")
-        if beta:
-            lines.append(f"Beta: {beta:.2f}")
-        if week52_low and week52_high:
-            lines.append(f"52-Week Range: {cur}{week52_low:,.2f} – {cur}{week52_high:,.2f}")
-
-        return QueryResponse(
-            answer="\n".join(lines),
-            data_sources=["yfinance"],
-            follow_up_questions=[
-                f"NeuralQuant AI score for {ticker}",
-                f"Should I buy {ticker}?",
-                "Show me the top-ranked stocks",
-            ],
-            route="SNAP",
-        )
-    except Exception as e:
-        logger.debug("Non-critical enrichment failed: %s", e)
+    info = _fetch_yf_info_cached(sym)
+    if not info.get("_cached_ok"):
         return None
+    price = info.get("currentPrice") or info.get("regularMarketPrice")
+    if not price:
+        return None
+
+    is_india = market == "IN" or ticker.endswith(".NS") or ticker.endswith(".BO")
+    cur = "Rs." if is_india else "$"
+
+    name = info.get("longName") or ticker
+    mcap = info.get("marketCap")
+    pe = info.get("trailingPE")
+    pb = info.get("priceToBook")
+    beta = info.get("beta")
+    week52_high = info.get("fiftyTwoWeekHigh")
+    week52_low = info.get("fiftyTwoWeekLow")
+    change_pct = info.get("regularMarketChangePercent")
+
+    lines = [f"**{name} ({ticker})** — Live Snapshot"]
+    price_str = f"Price: {cur}{price:,.2f}"
+    if change_pct is not None:
+        price_str += f" ({change_pct:+.2f}%)"
+    lines.append(price_str)
+    if mcap:
+        if is_india:
+            lines.append(f"Market Cap: {cur}{mcap/1e7:,.0f} Cr")
+        else:
+            lines.append(f"Market Cap: {cur}{mcap/1e9:,.1f}B")
+    if pe:
+        lines.append(f"P/E (TTM): {pe:.1f}")
+    if pb:
+        lines.append(f"P/B: {pb:.2f}")
+    if beta:
+        lines.append(f"Beta: {beta:.2f}")
+    if week52_low and week52_high:
+        lines.append(f"52-Week Range: {cur}{week52_low:,.2f} – {cur}{week52_high:,.2f}")
+
+    return QueryResponse(
+        answer="\n".join(lines),
+        data_sources=["yfinance"],
+        follow_up_questions=[
+            f"NeuralQuant AI score for {ticker}",
+            f"Should I buy {ticker}?",
+            "Show me the top-ranked stocks",
+        ],
+        route="SNAP",
+    )
 
 
 # ── DEEP handler ─────────────────────────────────────────────────────────

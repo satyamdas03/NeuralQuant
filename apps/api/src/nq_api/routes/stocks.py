@@ -17,7 +17,7 @@ from nq_api.config import YAHOO_CHART_URL, YAHOO_QUOTE_URL
 from nq_api.schemas import AIScore
 from nq_api.score_builder import row_to_ai_score, rank_scores_in_universe
 from nq_api.universe import UNIVERSE_BY_MARKET
-from nq_api.data_builder import build_real_snapshot, _fund_cache, fetch_real_macro
+from nq_api.data_builder import build_real_snapshot, _fund_cache, fetch_real_macro, _get_yf_session
 from nq_api.cache import score_cache
 
 # In-memory TTL cache for stock meta — serves stale data when Yahoo rate-limits
@@ -251,7 +251,7 @@ async def get_stock_chart(
     def _fetch_chart():
         d: list[dict] = []
         try:
-            hist = yf.Ticker(sym).history(period=yf_period, interval=interval, auto_adjust=True)
+            hist = yf.Ticker(sym, session=_get_yf_session()).history(period=yf_period, interval=interval, auto_adjust=True)
             if hist is not None and not hist.empty:
                 for idx, row in hist.iterrows():
                     try:
@@ -654,7 +654,7 @@ def _fetch_stock_meta(ticker: str, market: str) -> dict | Exception:
     """Blocking yfinance calls — run in thread pool."""
     sym = _yf_sym(ticker, market)
     try:
-        t = yf.Ticker(sym)
+        t = yf.Ticker(sym, session=_get_yf_session())
         info = t.info or {}
 
         # Earnings date

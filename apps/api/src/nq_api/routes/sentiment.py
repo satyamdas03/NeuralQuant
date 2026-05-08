@@ -58,13 +58,14 @@ def _get_sentiment_sync(ticker: str, market: str, limit: int) -> dict[str, Any]:
     """Blocking sentiment compute — runs in thread pool."""
     try:
         import yfinance as yf
+        from nq_api.data_builder import _get_yf_session
     except ImportError as e:
         raise HTTPException(status_code=500, detail=f"yfinance missing: {e}")
 
     t = ticker.upper()
     yf_symbol = f"{t}.NS" if market == "IN" else t
     try:
-        raw_news = yf.Ticker(yf_symbol).news or []
+        raw_news = yf.Ticker(yf_symbol, session=_get_yf_session()).news or []
     except Exception as exc:
         log.warning("yfinance news fetch failed for %s: %s", yf_symbol, exc)
         raw_news = []

@@ -236,7 +236,8 @@ def _relative_time(ts: int | str | None) -> str:
 def _fetch_yf_news(ticker: str, limit: int = 10) -> list[dict[str, Any]]:
     try:
         import yfinance as yf  # type: ignore
-        items = yf.Ticker(ticker).news or []
+        from nq_api.data_builder import _get_yf_session
+        items = yf.Ticker(ticker, session=_get_yf_session()).news or []
         result = []
         for item in items[:limit]:
             content = item.get("content") or {}

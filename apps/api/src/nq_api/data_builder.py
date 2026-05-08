@@ -58,6 +58,52 @@ _price_cache: dict[str, pd.Series] = {}
 _price_ts: dict[str, float] = {}
 _macro_cache: "_LiveMacro | None" = None
 _macro_ts: float = 0.0
+
+# ─── yfinance .info cache (aggressive caching to reduce Yahoo rate-limit hits) ──
+_yf_info_cache: dict[str, dict] = {}
+_yf_info_ts: dict[str, float] = {}
+_YF_INFO_TTL = 3600  # 1 hour for successful fetches
+_YF_INFO_FAIL_TTL = 300  # 5 min for failed fetches (don't hammer Yahoo)
+
+
+def _fetch_yf_info_cached(sym: str) -> dict:
+    """Fetch yfinance Ticker.info with in-memory caching and staggered delays.
+    Designed to reduce Yahoo rate-limiting on cloud IPs (Render)."""
+    now = time.time()
+    cache_key = sym.upper()
+    with _lock:
+        if cache_key in _yf_info_cache:
+            age = now - _yf_info_ts.get(cache_key, 0)
+            max_age = _YF_INFO_TTL if _yf_info_cache[cache_key].get("_cached_ok") else _YF_INFO_FAIL_TTL
+            if age < max_age:
+                return _yf_info_cache[cache_key]
+
+    # Stagger requests on Render to avoid Yahoo rate-limiting cloud IPs
+    if _IS_RENDER:
+        time.sleep(5.0)
+
+    info: dict = {}
+    for attempt in range(3):
+        try:
+            t = yf.Ticker(sym, session=_get_yf_session())
+            info = t.info or {}
+            if info and info.get("symbol"):
+                break
+            log.debug("yfinance empty info for %s (attempt %d/%d)", sym, attempt + 1, 3)
+        except Exception as exc:
+            log.debug("yfinance fetch exception for %s (attempt %d/%d): %s", sym, attempt + 1, 3, exc)
+        if attempt < 2:
+            time.sleep(10.0 if _IS_RENDER else 1.0)
+
+    if info and info.get("symbol"):
+        info["_cached_ok"] = True
+    else:
+        info = {"_cached_ok": False}
+
+    with _lock:
+        _yf_info_cache[cache_key] = info
+        _yf_info_ts[cache_key] = now
+    return info
 _macro_in_cache: "_LiveMacroIN | None" = None
 _macro_in_ts: float = 0.0
 
@@ -65,7 +111,7 @@ FUND_TTL  = 4 * 3600   # 4 hours
 PRICE_TTL = 3600        # 1 hour
 MACRO_TTL = 3600        # 1 hour
 INSIDER_TTL = 24 * 3600  # 24 hours — EDGAR filings are daily anyway
-MAX_WORKERS = 2 if _IS_RENDER else 12
+MAX_WORKERS = 1 if _IS_RENDER else 12
 
 # Separate cache for insider scores (keyed by ticker — US-only)
 _insider_cache: dict[str, float] = {}
@@ -399,25 +445,12 @@ def _fetch_one(ticker: str, market: str, fast_pe: bool = True) -> dict:
 
     sym = _yf_symbol(ticker, market)
     info: dict = {}
-    # Stagger requests on Render to avoid Yahoo rate-limiting cloud IPs
-    if _IS_RENDER:
-        time.sleep(0.5)
-    # Retry loop: yfinance is flaky for Indian (.NS) tickers — empty info on first attempt is common
-    # Also Yahoo blocks cloud IPs with 401 "Invalid Crumb" — longer delays + custom session help
-    for attempt in range(3):
-        try:
-            t = yf.Ticker(sym, session=_get_yf_session())
-            info = t.info or {}
-            if info and info.get("symbol"):
-                break
-            log.debug("yfinance empty info for %s (attempt %d/%d)", sym, attempt + 1, 3)
-        except Exception as exc:
-            log.debug("yfinance fetch exception for %s (attempt %d/%d): %s", sym, attempt + 1, 3, exc)
-        if attempt < 2:
-            time.sleep(2.0 if _IS_RENDER else 1.0)
-
-    if not info or not info.get("symbol"):
-        log.warning("yfinance failed for %s after 3 attempts — using synthetic", sym)
+    # Use cached wrapper with aggressive delays on Render to avoid Yahoo blocks
+    raw_info = _fetch_yf_info_cached(sym)
+    if raw_info.get("_cached_ok"):
+        info = {k: v for k, v in raw_info.items() if not k.startswith("_")}
+    else:
+        log.warning("yfinance failed for %s — using synthetic", sym)
         result = _synthetic_row(ticker)
         with _lock:
             _fund_cache[cache_key] = result
@@ -823,7 +856,11 @@ def build_real_snapshot(tickers: list[str], market: str) -> UniverseSnapshot:
 
 
 def prewarm_cache(tickers: list[str], market: str = "US") -> None:
-    """Called on server startup to populate cache before first request."""
+    """Called on server startup to populate cache before first request.
+    Skipped on Render — Yahoo aggressively rate-limits cloud IPs."""
+    if _IS_RENDER:
+        log.info("Cache pre-warm skipped on Render (Yahoo rate-limit risk)")
+        return
     try:
         fetch_real_macro()
         fetch_fundamentals_batch(tickers[:20], market)
