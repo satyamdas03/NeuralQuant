@@ -80,7 +80,7 @@ def _fetch_yf_info_cached(sym: str) -> dict:
 
     # Stagger requests on Render to avoid Yahoo rate-limiting cloud IPs
     if _IS_RENDER:
-        time.sleep(5.0)
+        time.sleep(1.0)
 
     info: dict = {}
     for attempt in range(3):
@@ -93,7 +93,7 @@ def _fetch_yf_info_cached(sym: str) -> dict:
         except Exception as exc:
             log.debug("yfinance fetch exception for %s (attempt %d/%d): %s", sym, attempt + 1, 3, exc)
         if attempt < 2:
-            time.sleep(10.0 if _IS_RENDER else 1.0)
+            time.sleep(3.0 if _IS_RENDER else 1.0)
 
     if info and info.get("symbol"):
         info["_cached_ok"] = True

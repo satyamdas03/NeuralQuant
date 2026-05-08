@@ -1431,10 +1431,10 @@ async def run_nl_query(
             return default
 
     enrichment, headlines, macro_ctx, platform_ctx, finnhub_news = await asyncio.gather(
-        _timed(asyncio.to_thread(_fetch_enrichment, effective_ticker, req.market or 'US'), 25.0, {}),
+        _timed(asyncio.to_thread(_fetch_enrichment, effective_ticker, req.market or 'US'), 45.0, {}),
         _timed(asyncio.to_thread(_fetch_relevant_news, req.question, req.ticker, 5), 8.0, []),
         _timed(asyncio.to_thread(_build_macro_context, req.question, req.market or "US", today), 10.0, None),
-        _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, req.market or "US"), 22.0, None),
+        _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, req.market or "US"), 45.0, None),
         _timed(asyncio.to_thread(_fetch_finnhub_news_summaries, req.ticker, req.market or "US", 5), 8.0, []),
     )
 
@@ -2510,9 +2510,9 @@ async def run_nl_query_v2_stream(
             headlines, macro_ctx, platform_ctx, finnhub_news, enrichment = await asyncio.gather(
                 _timed(asyncio.to_thread(_fetch_relevant_news, req.question, req.ticker, 5), 8.0, []),
                 _timed(asyncio.to_thread(_build_macro_context, req.question, req.market or "US", today), 10.0, None),
-                _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, req.market or "US"), 22.0, None),
+                _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, req.market or "US"), 45.0, None),
                 _timed(asyncio.to_thread(_fetch_finnhub_news_summaries, req.ticker, req.market or "US", 5), 8.0, []),
-                _timed(asyncio.to_thread(_fetch_enrichment, stream_ticker, req.market or 'US'), 25.0, {}),
+                _timed(asyncio.to_thread(_fetch_enrichment, stream_ticker, req.market or 'US'), 45.0, {}),
             )
             context_parts = [f"Today's date: {today}", f"User question: {req.question}"]
             if macro_ctx:
