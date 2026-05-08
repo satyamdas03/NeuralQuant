@@ -1,11 +1,13 @@
-"""GET /market — live market data via yfinance."""
+"""GET /market — live market data via yfinance with caching and retry."""
 import asyncio
 import time
+import logging
 from fastapi import APIRouter
 import yfinance as yf
 import pandas as pd
-import logging
-from nq_api.data_builder import _get_yf_session
+
+from nq_api.data_builder import _get_yf_session, _fetch_yf_info_cached, _IS_RENDER
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -48,34 +50,90 @@ _SECTORS = {
     "XLC": "Communication Services",
 }
 
+# ─── In-memory caches for market data ──────────────────────────────────────────
 
-def _pct_change(sym: str) -> dict:
-    try:
-        t = yf.Ticker(sym, session=_get_yf_session())
-        hist = t.history(period="5d", auto_adjust=True)
-        if len(hist) >= 2:
-            price = float(hist["Close"].iloc[-1])
-            prev = float(hist["Close"].iloc[-2])
-        elif len(hist) == 1:
-            price = float(hist["Close"].iloc[-1])
-            prev = price
-        else:
-            return {"price": 0.0, "change_pct": 0.0, "change_abs": 0.0}
+_overview_cache: dict = {}
+_overview_ts: float = 0.0
+OVERVIEW_TTL = 300  # 5 minutes
+
+_sector_cache: dict = {}
+_sector_ts: float = 0.0
+SECTOR_TTL = 300  # 5 minutes
+
+_movers_cache: dict = {}
+_movers_ts: float = 0.0
+MOVERS_TTL = 600  # 10 minutes
+
+_news_cache: dict = {}
+_news_ts: float = 0.0
+NEWS_TTL = 600  # 10 minutes
+
+
+def _pct_change(sym: str, retries: int = 3) -> dict:
+    """Get price and % change for a symbol with retry logic."""
+    for attempt in range(retries):
+        try:
+            t = yf.Ticker(sym, session=_get_yf_session())
+            hist = t.history(period="5d", auto_adjust=True)
+            if len(hist) >= 2:
+                price = float(hist["Close"].iloc[-1])
+                prev = float(hist["Close"].iloc[-2])
+            elif len(hist) == 1:
+                price = float(hist["Close"].iloc[-1])
+                prev = price
+            else:
+                if attempt < retries - 1:
+                    time.sleep(2.0 if _IS_RENDER else 0.5)
+                    continue
+                return {"price": 0.0, "change_pct": 0.0, "change_abs": 0.0}
+            change_abs = price - prev
+            change_pct = (change_abs / prev * 100) if prev else 0.0
+            return {
+                "price": round(price, 2),
+                "change_pct": round(change_pct, 2),
+                "change_abs": round(change_abs, 2),
+            }
+        except Exception as e:
+            logger.debug("pct_change failed for %s (attempt %d/%d): %s", sym, attempt + 1, retries, e)
+            if attempt < retries - 1:
+                time.sleep(2.0 if _IS_RENDER else 0.5)
+    return {"price": 0.0, "change_pct": 0.0, "change_abs": 0.0}
+
+
+def _pct_change_from_info(sym: str) -> dict | None:
+    """Try to get price/change from cached yfinance .info (faster, fewer API calls)."""
+    info = _fetch_yf_info_cached(sym)
+    if not info.get("_cached_ok"):
+        return None
+    price = info.get("currentPrice") or info.get("regularMarketPrice")
+    prev = info.get("previousClose") or info.get("regularMarketPreviousClose")
+    if price and prev and prev > 0:
         change_abs = price - prev
-        change_pct = (change_abs / prev * 100) if prev else 0.0
+        change_pct = (change_abs / prev * 100)
         return {
             "price": round(price, 2),
             "change_pct": round(change_pct, 2),
             "change_abs": round(change_abs, 2),
         }
-    except Exception as e:
-        logger.debug("Non-critical enrichment failed: %s", e)
-        return {"price": 0.0, "change_pct": 0.0, "change_abs": 0.0}
+    return None
 
 
 @router.get("/overview")
 async def market_overview(market: str = "US"):
+    global _overview_cache, _overview_ts
+    now = time.time()
+
+    # Return cached if fresh
+    if _overview_cache and now - _overview_ts < OVERVIEW_TTL:
+        cached = _overview_cache.get(market.upper())
+        if cached:
+            return cached
+
     data = await asyncio.to_thread(_market_overview_sync, market.upper())
+    if _overview_cache is None:
+        _overview_cache = {}
+    _overview_cache[market.upper()] = data
+    _overview_ts = now
     return data
 
 
@@ -95,15 +153,19 @@ def _market_overview_sync(market: str = "US"):
 
 @router.get("/news")
 async def market_news(n: int = 8):
+    global _news_cache, _news_ts
+    now = time.time()
+    if _news_cache and now - _news_ts < NEWS_TTL:
+        return {**_news_cache, "n": min(n, len(_news_cache.get("news", [])))}
     return await asyncio.to_thread(_market_news_sync, n)
 
 
 def _market_news_sync(n: int = 8):
+    global _news_cache, _news_ts
     try:
         items = yf.Ticker("^GSPC", session=_get_yf_session()).news or []
         result = []
         for item in items[:n]:
-            # yfinance v0.2.x uses nested "content" dict; fallback to flat dict
             content = item.get("content") or {}
             title = content.get("title") or item.get("title", "")
             publisher = (
@@ -119,14 +181,12 @@ def _market_news_sync(n: int = 8):
                 result.append(
                     {"title": title, "publisher": publisher, "url": url, "time": pub_date}
                 )
+        _news_cache = {"news": result}
+        _news_ts = time.time()
         return {"news": result}
     except Exception as exc:
+        logger.debug("Market news fetch failed: %s", exc)
         return {"news": [], "error": str(exc)}
-
-
-_sector_cache: dict = {}
-_sector_ts: float = 0.0
-SECTOR_TTL = 300  # 5 minutes
 
 
 @router.get("/sectors")
@@ -141,7 +201,6 @@ async def market_sectors():
 
 
 async def _refresh_sectors():
-    """Background refresh for sector cache."""
     await asyncio.to_thread(_market_sectors_sync)
 
 
@@ -149,8 +208,10 @@ def _market_sectors_sync():
     global _sector_cache, _sector_ts
     sectors = []
     for sym, name in _SECTORS.items():
-        d = _pct_change(sym)
-        sectors.append({"symbol": sym, "name": name, "change_pct": d["change_pct"]})
+        # Try .info cache first (fewer API calls), fall back to history
+        d = _pct_change_from_info(sym)
+        change_pct = d["change_pct"] if d else _pct_change(sym)["change_pct"]
+        sectors.append({"symbol": sym, "name": name, "change_pct": change_pct})
     result = {"sectors": sectors}
     _sector_cache = result
     _sector_ts = time.time()
@@ -174,17 +235,14 @@ async def market_movers():
     if _movers_cache and time.time() - _movers_ts < MOVERS_TTL:
         return _movers_cache
 
-    # Serve stale immediately + background refresh
     if _movers_cache:
         asyncio.create_task(_refresh_movers())
         return {**_movers_cache, "stale": True}
 
-    # Cold start: block briefly to fill
     return await asyncio.to_thread(_market_movers_sync)
 
 
 async def _refresh_movers():
-    """Background refresh for market movers cache."""
     await asyncio.to_thread(_market_movers_sync)
 
 
@@ -194,9 +252,9 @@ def _market_movers_sync():
         raw = yf.download(
             _MOVERS_UNIVERSE, period="2d", progress=False,
             auto_adjust=True, threads=True,
+            session=_get_yf_session(),
         )
-        # yf.download returns MultiIndex columns when >1 ticker
-        close  = raw["Close"]  if isinstance(raw.columns, pd.MultiIndex) else raw[["Close"]]
+        close = raw["Close"] if isinstance(raw.columns, pd.MultiIndex) else raw[["Close"]]
         volume = raw["Volume"] if isinstance(raw.columns, pd.MultiIndex) else raw[["Volume"]]
 
         rows = []
@@ -205,11 +263,11 @@ def _market_movers_sync():
                 closes = close[sym].dropna()
                 if len(closes) < 2:
                     continue
-                price    = float(closes.iloc[-1])
-                prev     = float(closes.iloc[-2])
-                chg_abs  = round(price - prev, 2)
-                chg_pct  = round((chg_abs / prev * 100) if prev else 0.0, 2)
-                vol      = int(volume[sym].iloc[-1])
+                price = float(closes.iloc[-1])
+                prev = float(closes.iloc[-2])
+                chg_abs = round(price - prev, 2)
+                chg_pct = round((chg_abs / prev * 100) if prev else 0.0, 2)
+                vol = int(volume[sym].iloc[-1])
                 rows.append({"ticker": sym, "price": round(price, 2),
                               "change_pct": chg_pct, "change_abs": chg_abs, "volume": vol})
             except Exception:
@@ -218,13 +276,14 @@ def _market_movers_sync():
         rows_sorted = sorted(rows, key=lambda x: x["change_pct"], reverse=True)
         result = {
             "gainers": rows_sorted[:5],
-            "losers":  list(reversed(rows_sorted[-5:])),
-            "active":  sorted(rows, key=lambda x: x["volume"], reverse=True)[:5],
+            "losers": list(reversed(rows_sorted[-5:])),
+            "active": sorted(rows, key=lambda x: x["volume"], reverse=True)[:5],
         }
         _movers_cache = result
         _movers_ts = time.time()
         return result
     except Exception as exc:
+        logger.debug("Movers fetch failed: %s", exc)
         return {"gainers": [], "losers": [], "active": [], "error": str(exc)}
 
 
@@ -252,15 +311,15 @@ async def data_quality():
         "fred_sourced": getattr(m, "fred_sourced", False) if macro_fresh else False,
         "fred_key_configured": bool(os.environ.get("FRED_API_KEY", "").strip()),
         "macro": {
-            "vix":                getattr(m, "vix",                None) if macro_fresh else None,
-            "spx_vs_200ma_pct":   round(getattr(m, "spx_vs_200ma", 0) * 100, 2) if macro_fresh else None,
-            "spx_return_1m_pct":  round(getattr(m, "spx_return_1m", 0) * 100, 2) if macro_fresh else None,
-            "hy_spread_oas":      getattr(m, "hy_spread_oas",      None) if macro_fresh else None,
-            "ism_pmi":            getattr(m, "ism_pmi",            None) if macro_fresh else None,
-            "yield_10y":          getattr(m, "yield_10y",          None) if macro_fresh else None,
-            "yield_2y":           getattr(m, "yield_2y",           None) if macro_fresh else None,
+            "vix": getattr(m, "vix", None) if macro_fresh else None,
+            "spx_vs_200ma_pct": round(getattr(m, "spx_vs_200ma", 0) * 100, 2) if macro_fresh else None,
+            "spx_return_1m_pct": round(getattr(m, "spx_return_1m", 0) * 100, 2) if macro_fresh else None,
+            "hy_spread_oas": getattr(m, "hy_spread_oas", None) if macro_fresh else None,
+            "ism_pmi": getattr(m, "ism_pmi", None) if macro_fresh else None,
+            "yield_10y": getattr(m, "yield_10y", None) if macro_fresh else None,
+            "yield_2y": getattr(m, "yield_2y", None) if macro_fresh else None,
             "yield_spread_2y10y": getattr(m, "yield_spread_2y10y", None) if macro_fresh else None,
-            "cpi_yoy":            getattr(m, "cpi_yoy",            None) if macro_fresh else None,
-            "fed_funds_rate":     getattr(m, "fed_funds_rate",     None) if macro_fresh else None,
+            "cpi_yoy": getattr(m, "cpi_yoy", None) if macro_fresh else None,
+            "fed_funds_rate": getattr(m, "fed_funds_rate", None) if macro_fresh else None,
         } if macro_fresh else None,
     }
