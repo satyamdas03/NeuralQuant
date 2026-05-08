@@ -8,6 +8,8 @@ import AIThinkingTimeline, { type PhaseEntry } from "@/components/ui/AIThinkingT
 import SuggestionChips from "@/components/ui/SuggestionChips";
 import ChatInputArea from "@/components/ui/ChatInputArea";
 import GlassPanel from "@/components/ui/GlassPanel";
+import type { UserProfile } from "@/lib/types";
+import { authedApi } from "@/lib/api";
 
 const EXAMPLES = [
   "What is the effect of Iran-US tensions on oil stocks?",
@@ -34,6 +36,8 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
   const [slowLoad, setSlowLoad] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const slowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [savedProfile, setSavedProfile] = useState<UserProfile | null>(null);
+  const [lastUserQuestion, setLastUserQuestion] = useState<string>("");
 
   // Force re-render every 500ms while a request is in flight so the timeline's
   // elapsed-time counters update visually. Without this, "0.0s" stays frozen
@@ -49,9 +53,31 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Load saved profile on mount
+  useEffect(() => {
+    const guest = localStorage.getItem("nq_profile");
+    if (guest) {
+      try {
+        setSavedProfile(JSON.parse(guest));
+      } catch {}
+    }
+  }, []);
+
+  // Fetch auth profile when available
+  useEffect(() => {
+    async function fetchProfile() {
+      try {
+        const profile = await authedApi.getUserProfile();
+        if (profile) setSavedProfile(profile);
+      } catch {}
+    }
+    fetchProfile();
+  }, []);
+
   const ask = async (question: string) => {
     const q = question.trim();
     if (!q || loading) return;
+    setLastUserQuestion(q);
     setSlowLoad(false);
 
     const userMsg: ChatMessage = { id: Date.now().toString(), role: "user", content: q };
@@ -77,7 +103,7 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
 
     try {
       const res = await api.runQueryStream(
-        { question: q, ticker: defaultTicker, history },
+        { question: q, ticker: defaultTicker, history, profile: savedProfile || undefined },
         controller.signal,
         (phase, label) => {
           // Append new phase to the message's phase history; mark previous
@@ -134,6 +160,23 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
     }
   };
 
+  const handleProfilerSubmit = async (profile: UserProfile) => {
+    setSavedProfile(profile);
+
+    // Persist
+    localStorage.setItem("nq_profile", JSON.stringify(profile));
+    try {
+      await authedApi.saveUserProfile(profile);
+    } catch {
+      // Guest or API failure — localStorage is fallback
+    }
+
+    // Re-send last question with profile
+    if (lastUserQuestion) {
+      ask(lastUserQuestion);
+    }
+  };
+
   const clear = () => setMessages([]);
 
   return (
@@ -172,6 +215,7 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
                 structured={msg.structured}
                 hideVerdict
                 onFollowUp={ask}
+                onProfilerSubmit={handleProfilerSubmit}
               />
             )
           )}
