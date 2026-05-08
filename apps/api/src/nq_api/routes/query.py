@@ -79,6 +79,22 @@ _SECTOR_MAP: dict[str, list[str]] = {
     "SENSEX":   ["^BSESN"],
 }
 
+_PORTFOLIO_KEYWORDS = [
+    "portfolio", "allocate", "allocation", "diversify",
+    "how to invest", "where should i invest", "build a portfolio",
+    "investment plan", "invest my money", "investment strategy",
+    "split my money", "where to put", "how much in", "lump sum",
+    "monthly sip", "recurring investment", "long term plan",
+    "retirement plan", "child education", "goal based",
+    "i have", "i hold", "my holdings", "i own", "i bought",
+    "my portfolio", "i want to invest", "should i buy",
+]
+
+def _is_portfolio_intent(question: str) -> bool:
+    q = question.lower()
+    return any(kw in q for kw in _PORTFOLIO_KEYWORDS)
+
+
 _SYSTEM = """You are NeuralQuant — an institutional-grade AI stock intelligence engine. You have access to live data injected in every user message. Your job: give direct, data-driven, actionable answers with PERFECT reasoning. Every recommendation must be THE BEST available, justified by data, and compared against alternatives. No hedging. No disclaimers. No detours.
 
 ## DATA YOU HAVE ACCESS TO
@@ -173,6 +189,18 @@ MANDATORY FIELD RULES — EVERY field must be filled with substantive, data-rich
 6. allocations: For portfolio/allocation questions, include 4-6 stocks with weight%, rationale with data, and why_not_alt naming the rejected alternative. For single-stock questions, include at least 1 allocation (the recommended stock at 100% or the suggested position size).
 7. comparisons: ALWAYS include at least 3 comparisons showing side-by-side metric advantages vs the alternative stock.
 8. NEVER use placeholder text like "N/A", "various", "multiple factors", or generic filler. Every field must contain SPECIFIC, DATA-DRIVEN content.
+"""
+
+_PORTFOLIO_OUTPUT_RULES = """
+PORTFOLIO OUTPUT RULES (activate ONLY if user asks about portfolio allocation, investment plan, or multiple-stock strategy):
+
+- market_context: Include 3-5 live market context cards. Use real index levels, VIX, and 10Y yield if available. Mark live data with [VERIFIED].
+- allocation_breakdown: Show percentage allocation across asset classes / market-cap buckets. Total must sum to 100%. Provide rationale per segment.
+- portfolio_stocks: For each recommended stock, include ticker, allocation_pct within portfolio, suggested entry_price, target_price, stop_loss, and risk_reward ratio. Include a one-line rationale and ForeCast confidence 1-10.
+- scenario_analysis: Provide exactly 3 scenarios — Bull, Base, Bear. Each gets a probability percentage and 12-month outcome estimate.
+- action_prompts: Include 2-3 follow-up prompt buttons that help the user refine the portfolio (e.g., "Add more large-cap?", "Show me mid-cap options?", "Make it more conservative?").
+- sebi_disclaimer: Always include the SEBI disclaimer: "This is AI-generated investment research, not SEBI-registered investment advice. Please consult a certified financial advisor before investing."
+- is_portfolio_response: Set this field to true so the frontend knows to render the portfolio layout.
 """
 
 
@@ -359,6 +387,37 @@ def _build_macro_context(question: str, market: str, today: str) -> str | None:
         except Exception as e:
             logger.debug("Non-critical enrichment failed: %s", e)
             return None
+
+
+def _build_market_snapshot(market: str) -> str | None:
+    """Build portfolio-specific market snapshot string."""
+    from nq_api.data_builder import fetch_real_macro, fetch_real_macro_in
+    parts = []
+    try:
+        if market == "IN":
+            m_in = fetch_real_macro_in()
+            m_us = fetch_real_macro()
+            parts = [
+                f"NIFTY 50: {m_in.sensex_close:,.0f} [VERIFIED]",
+                f"USD/INR: {m_in.inr_usd:.2f} [VERIFIED]",
+                f"India VIX: {m_in.india_vix:.1f} [VERIFIED]",
+                f"RBI Repo: {m_in.rbi_repo_rate:.2f}% [VERIFIED]",
+                f"US VIX: {m_us.vix:.1f} [VERIFIED]",
+                f"US 10Y Yield: {m_us.yield_10y:.2f}% [VERIFIED]",
+            ]
+        else:
+            m = fetch_real_macro()
+            parts = [
+                f"VIX: {m.vix:.1f} [VERIFIED]",
+                f"US 10Y Yield: {m.yield_10y:.2f}% [VERIFIED]",
+                f"HY Spread: {m.hy_spread_oas:.0f}bps [VERIFIED]",
+                f"Fed Funds: {m.fed_funds_rate:.2f}% [VERIFIED]",
+                f"ISM PMI: {m.ism_pmi:.1f} [VERIFIED]",
+                f"CPI YoY: {m.cpi_yoy:.1f}% [VERIFIED]",
+            ]
+    except Exception:
+        return None
+    return "Market Snapshot (use these exact values, mark [VERIFIED]):\n" + "\n".join(f"- {p}" for p in parts) if parts else None
 
 
 def _fetch_relevant_news(question: str, ticker: str | None, n: int = 8) -> list[str]:
@@ -2181,6 +2240,16 @@ async def run_nl_query_v2_stream(
                         messages.append({"role": m.role, "content": content})
                 messages.append({"role": "user", "content": result_holder["user_msg"]})
 
+                # Portfolio intent detection and prompt injection
+                portfolio_intent = _is_portfolio_intent(req.question)
+                system_prompt = _SYSTEM_STRUCTURED
+                if portfolio_intent:
+                    system_prompt = _SYSTEM_STRUCTURED + "\n\n" + _PORTFOLIO_OUTPUT_RULES
+                    snap = _build_market_snapshot(req.market or "US")
+                    if snap:
+                        result_holder["user_msg"] = result_holder["user_msg"] + "\n\n" + snap
+                        messages[-1]["content"] = result_holder["user_msg"]
+
                 # Force tool_use: model MUST call `respond_with_neuralquant_forecast`
                 # with arguments matching the schema. No more markdown leakage.
                 # 90s timeout prevents indefinite hangs on complex queries
@@ -2190,7 +2259,7 @@ async def run_nl_query_v2_stream(
                             client.messages.create,
                             model=query_model,
                             max_tokens=8000,
-                            system=_SYSTEM_STRUCTURED,
+                            system=system_prompt,
                             tools=[_STRUCTURED_TOOL],
                             tool_choice={"type": "tool", "name": _STRUCTURED_TOOL["name"]},
                             messages=messages,
@@ -2225,6 +2294,26 @@ async def run_nl_query_v2_stream(
                         # Validate LLM metrics against injected [VERIFIED] data
                         verified = _extract_verified_values(result_holder.get("platform_ctx"))
                         result_holder["result"] = _validate_response_metrics(result_holder["result"], verified)
+                        # Portfolio validation post-processing
+                        if parsed.get("is_portfolio_response"):
+                            # Ensure SEBI disclaimer present
+                            if not parsed.get("sebi_disclaimer") or "SEBI" not in parsed.get("sebi_disclaimer", "").upper():
+                                parsed["sebi_disclaimer"] = (
+                                    "This is AI-generated investment research, not SEBI-registered investment advice. "
+                                    "Please consult a certified financial advisor before investing."
+                                )
+                            # Allocation sum check
+                            alloc = parsed.get("allocation_breakdown") or []
+                            if alloc:
+                                total = sum(float(a.get("percentage", 0)) for a in alloc)
+                                if abs(total - 100.0) > 1.0:
+                                    parsed.setdefault("data_quality_flags", [])
+                                    parsed["data_quality_flags"].append(f"Allocation sums to {total:.1f}% (expected 100%)")
+                            # Scenario count check
+                            scenarios = parsed.get("scenario_analysis") or []
+                            if len(scenarios) < 3:
+                                parsed.setdefault("data_quality_flags", [])
+                                parsed["data_quality_flags"].append("Scenario analysis incomplete")
                         # Attach stock summary from enrichment data
                         result_holder["result"].stock_summary = _build_stock_summary(
                             stream_ticker, req.market or "US",
