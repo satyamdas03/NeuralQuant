@@ -52,9 +52,11 @@ export default function AIResponseCard({
 
   if (parsed) {
     if (parsed.profiler_needed) {
+      const guest = typeof window !== "undefined" ? localStorage.getItem("nq_profile") : null;
+      const savedAmount = guest ? JSON.parse(guest).investable_amount : undefined;
       return (
         <ProfilerCard
-          defaultAmount={undefined}
+          defaultAmount={savedAmount}
           onSubmit={onProfilerSubmit || (() => {})}
         />
       );

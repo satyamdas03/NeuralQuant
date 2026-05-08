@@ -74,7 +74,7 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
     fetchProfile();
   }, []);
 
-  const ask = async (question: string) => {
+  const ask = async (question: string, overrideProfile?: UserProfile) => {
     const q = question.trim();
     if (!q || loading) return;
     setLastUserQuestion(q);
@@ -102,8 +102,9 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
     const timeout = setTimeout(() => controller.abort(), 300_000);
 
     try {
+      const profileToUse = overrideProfile || savedProfile || undefined;
       const res = await api.runQueryStream(
-        { question: q, ticker: defaultTicker, history, profile: savedProfile || undefined },
+        { question: q, ticker: defaultTicker, history, profile: profileToUse },
         controller.signal,
         (phase, label) => {
           // Append new phase to the message's phase history; mark previous
@@ -173,7 +174,7 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
 
     // Re-send last question with profile
     if (lastUserQuestion) {
-      ask(lastUserQuestion);
+      ask(lastUserQuestion, profile);
     }
   };
 
