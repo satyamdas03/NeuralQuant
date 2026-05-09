@@ -405,11 +405,17 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
             sc = _read_score_cache(t_up, market)
             if sc:
                 merged = _merge_meta(merged, sc)
-        # If still missing critical fields, try yfinance to fill them
-        if _has_null_fields(merged):
-            yf_result = await asyncio.to_thread(_fetch_stock_meta, t_up, market)
-            if isinstance(yf_result, dict):
-                merged = _merge_meta(merged, yf_result)
+        # Always try yfinance for partial FMP — it may have fresh P/E, price, etc.
+        # that Supabase cache doesn't (stale values). _merge_meta only fills nulls,
+        # so yfinance won't overwrite FMP values (FMP is authoritative for name/beta/sector).
+        yf_result = await asyncio.to_thread(_fetch_stock_meta, t_up, market)
+        if isinstance(yf_result, dict):
+            merged = _merge_meta(merged, yf_result)
+            # For P/E and current_price, prefer yfinance fresh data over stale cache
+            if yf_result.get("pe_ttm") and merged.get("pe_ttm") != yf_result["pe_ttm"]:
+                merged["pe_ttm"] = yf_result["pe_ttm"]
+            if yf_result.get("current_price") and merged.get("current_price") != yf_result["current_price"]:
+                merged["current_price"] = yf_result["current_price"]
         _META_CACHE[cache_key] = (merged, time.monotonic())
         _persist_meta(t_up, market, merged)
         return merged
