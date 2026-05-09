@@ -910,13 +910,25 @@ def _validate_and_fill_portfolio_prices(
         if not ticker:
             continue
 
-        # Fetch live price
+        # Fetch live price — try yfinance first, then FMP
         sym = ticker + ".NS" if market == "IN" and "." not in ticker else ticker
+        live_price = None
         info = _fetch_yf_info_cached(sym)
-        if not info.get("_cached_ok"):
-            continue
+        if info.get("_cached_ok"):
+            live_price = info.get("currentPrice") or info.get("regularMarketPrice")
 
-        live_price = info.get("currentPrice") or info.get("regularMarketPrice")
+        # FMP fallback for price (more reliable on cloud)
+        if not live_price or live_price <= 0:
+            try:
+                from nq_data.fmp import get_fmp_client
+                fmp = get_fmp_client()
+                if fmp._enabled:
+                    quote = fmp.get_quote(_yf_symbol(ticker, market))
+                    if quote and quote.get("price"):
+                        live_price = float(quote["price"])
+            except Exception:
+                pass
+
         if not live_price or live_price <= 0:
             continue
 

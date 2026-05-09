@@ -170,6 +170,25 @@ def _overlay_fmp_info(info: dict, ticker: str) -> None:
             if ratios.get("current_ratio") is not None and "currentRatio" not in info:
                 info["currentRatio"] = ratios["current_ratio"]
 
+        # Calculate P/E from FMP quote price + income statement EPS
+        # FMP /stable/ doesn't include P/E directly, so we compute it.
+        # This is more reliable than yfinance P/E which often hallucinates.
+        fmp_price = None
+        if profile and profile.get("price"):
+            fmp_price = float(profile["price"])
+        quote = fmp.get_quote(ticker)
+        if quote and quote.get("price"):
+            fmp_price = float(quote["price"])
+        if fmp_price and fmp_price > 0:
+            income = fmp.get_income_statement(ticker)
+            if income and income.get("eps"):
+                try:
+                    pe_calculated = round(fmp_price / float(income["eps"]), 1)
+                    if 0.5 < pe_calculated < 5000:  # sanity bounds
+                        info["trailingPE"] = pe_calculated
+                except (TypeError, ValueError, ZeroDivisionError):
+                    pass
+
     except Exception as exc:
         log.debug("FMP overlay failed for %s: %s", ticker, exc)
 

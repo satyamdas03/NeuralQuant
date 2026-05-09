@@ -735,6 +735,21 @@ def _fetch_stock_meta_fmp(ticker: str, market: str) -> dict | Exception:
             if r_pb is not None:
                 pb_ratio = r_pb
 
+        # Calculate P/E from FMP price + income statement EPS
+        # FMP /stable/ doesn't include P/E directly — compute it for reliability
+        fmp_price = current_price
+        if not fmp_price and profile and profile.get("price"):
+            fmp_price = float(profile["price"])
+        if fmp_price and float(fmp_price) > 0:
+            income = fmp.get_income_statement(sym)
+            if income and income.get("eps"):
+                try:
+                    pe_calc = round(float(fmp_price) / float(income["eps"]), 1)
+                    if 0.5 < pe_calc < 5000:  # sanity bounds
+                        pe_ttm = pe_calc
+                except (TypeError, ValueError, ZeroDivisionError):
+                    pass
+
         # Normalize numeric fields
         if pe_ttm is not None:
             try:
