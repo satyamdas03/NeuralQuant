@@ -405,6 +405,11 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
             sc = _read_score_cache(t_up, market)
             if sc:
                 merged = _merge_meta(merged, sc)
+        # If still missing critical fields, try yfinance to fill them
+        if _has_null_fields(merged):
+            yf_result = await asyncio.to_thread(_fetch_stock_meta, t_up, market)
+            if isinstance(yf_result, dict):
+                merged = _merge_meta(merged, yf_result)
         _META_CACHE[cache_key] = (merged, time.monotonic())
         _persist_meta(t_up, market, merged)
         return merged
