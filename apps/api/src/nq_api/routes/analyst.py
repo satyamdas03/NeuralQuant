@@ -413,6 +413,43 @@ def _fetch_finnhub_data(ticker: str, market: str) -> dict:
     else:
         log.warning("Enrichment returned empty for %s (%s)", yf_ticker, ticker)
 
+    # FMP enrichment: financial scores, analyst grades, price target
+    try:
+        from nq_data.fmp import get_fmp_client
+        fmp = get_fmp_client()
+        if fmp._enabled:
+            # Financial scores (Altman Z, Piotroski)
+            scores = fmp.get_financial_scores(ticker)
+            if scores:
+                if scores.get("altman_z_score") is not None:
+                    result["altman_z_score"] = round(float(scores["altman_z_score"]), 2)
+                if scores.get("piotroski_score") is not None:
+                    result["piotroski_score"] = int(scores["piotroski_score"])
+
+            # Analyst grades consensus
+            grades = fmp.get_analyst_grades(ticker)
+            if grades:
+                if grades.get("consensus"):
+                    result["analyst_consensus"] = grades["consensus"]
+                total = (grades.get("strong_buy") or 0) + (grades.get("buy") or 0) + \
+                        (grades.get("hold") or 0) + (grades.get("sell") or 0) + (grades.get("strong_sell") or 0)
+                if total > 0:
+                    result["analyst_buy_pct"] = round(
+                        ((grades.get("strong_buy") or 0) + (grades.get("buy") or 0)) / total * 100, 1
+                    )
+
+            # Price target consensus
+            target = fmp.get_price_target(ticker)
+            if target:
+                if target.get("target_avg") is not None:
+                    result["analyst_target_avg"] = round(float(target["target_avg"]), 2)
+                if target.get("target_high") is not None:
+                    result["analyst_target_high"] = round(float(target["target_high"]), 2)
+                if target.get("target_low") is not None:
+                    result["analyst_target_low"] = round(float(target["target_low"]), 2)
+    except Exception as exc:
+        log.debug("FMP enrichment failed for %s: %s", ticker, exc)
+
     return result
 
 

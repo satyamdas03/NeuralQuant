@@ -35,7 +35,7 @@ class DataBroker:
         "yfinance":      SourceConfig("yfinance",      120),
         "twelve_data":   SourceConfig("twelve_data",    8),   # 800 credits/day ≈ 8/min
         "fred":          SourceConfig("fred",           120),
-        "fmp":           SourceConfig("fmp",            5),    # 250/day ≈ conservative
+        "fmp":           SourceConfig("fmp",            300),  # Premium: 750/min
         "edgar":         SourceConfig("edgar",          10),   # 10 req/sec limit
         "finra":         SourceConfig("finra",          10),
         "nse":           SourceConfig("nse",            20),   # Be gentle with NSE

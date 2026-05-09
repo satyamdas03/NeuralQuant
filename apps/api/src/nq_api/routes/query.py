@@ -1122,7 +1122,24 @@ def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, plat
         except Exception:
             pass
 
-    # Fallback: extract price from platform_ctx if _fetch_one failed
+    # FMP supplement: DCF valuation, analyst target, insider trading
+    if effective_ticker:
+        try:
+            from nq_data.fmp import get_fmp_client
+            fmp = get_fmp_client()
+            if fmp._enabled:
+                # DCF valuation
+                if not target:
+                    fmp_target = fmp.get_price_target(effective_ticker)
+                    if fmp_target and fmp_target.get("target_avg") is not None:
+                        target = round(float(fmp_target["target_avg"]), 2)
+                # Analyst consensus
+                if not rec:
+                    fmp_grades = fmp.get_analyst_grades(effective_ticker)
+                    if fmp_grades and fmp_grades.get("consensus"):
+                        rec = fmp_grades["consensus"].lower()
+        except Exception:
+            pass
     if price is None and platform_ctx and effective_ticker:
         import re as _re
         cur_pat = r"Rs\." if is_india else r"\$"

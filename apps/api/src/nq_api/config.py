@@ -39,6 +39,12 @@ ALPACA_LIVE_URL = os.environ.get(
     "ALPACA_LIVE_URL", "https://api.alpaca.markets"
 )
 
+# ── FMP (Financial Modeling Prep) ────────────────────────────────────────────
+FMP_API_KEY = os.environ.get("FMP_API_KEY", "")
+FMP_BASE_URL = os.environ.get(
+    "FMP_BASE_URL", "https://financialmodelingprep.com/stable"
+)
+
 # ── Frontend base URL (for email links) ──────────────────────────────────────
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://neuralquant.co")
 

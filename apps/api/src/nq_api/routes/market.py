@@ -1,4 +1,4 @@
-"""GET /market — live market data via yfinance with caching and retry."""
+"""GET /market — live market data via FMP (primary) with yfinance fallback."""
 import asyncio
 import time
 import logging
@@ -146,18 +146,56 @@ def _market_overview_sync(market: str = "US"):
     idx_map = _INDICES_IN if market == "IN" else _INDICES
     fut_map = _FUTURES_IN if market == "IN" else _FUTURES
 
-    # Batch download all indices + futures at once
-    all_syms = list(idx_map.keys()) + list(fut_map.keys())
-    batch_data = _batch_pct_change(all_syms)
-
+    # Try FMP first for batch quotes
+    fmp_ok = False
     indices = []
-    for sym, name in idx_map.items():
-        d = batch_data.get(sym) or _pct_change_from_info(sym) or {"price": 0.0, "change_pct": 0.0, "change_abs": 0.0}
-        indices.append({"symbol": sym, "name": name, **d})
     futures = []
-    for sym, name in fut_map.items():
-        d = batch_data.get(sym) or _pct_change_from_info(sym) or {"price": 0.0, "change_pct": 0.0, "change_abs": 0.0}
-        futures.append({"symbol": sym, "name": name, **d})
+    try:
+        from nq_data.fmp import get_fmp_client
+        fmp = get_fmp_client()
+        if fmp._enabled:
+            all_syms = list(idx_map.keys()) + list(fut_map.keys())
+            batch = fmp.get_batch_quotes(all_syms)
+            if batch and len(batch) > 0:
+                for sym, name in idx_map.items():
+                    q = batch.get(sym)
+                    if q and q.get("price") is not None:
+                        indices.append({
+                            "symbol": sym, "name": name,
+                            "price": round(float(q["price"]), 2),
+                            "change_pct": round(float(q.get("change_pct") or 0), 2),
+                            "change_abs": round(float(q.get("change") or 0), 2),
+                        })
+                    else:
+                        d = _pct_change_from_info(sym) or {"price": 0.0, "change_pct": 0.0, "change_abs": 0.0}
+                        indices.append({"symbol": sym, "name": name, **d})
+                for sym, name in fut_map.items():
+                    q = batch.get(sym)
+                    if q and q.get("price") is not None:
+                        futures.append({
+                            "symbol": sym, "name": name,
+                            "price": round(float(q["price"]), 2),
+                            "change_pct": round(float(q.get("change_pct") or 0), 2),
+                            "change_abs": round(float(q.get("change") or 0), 2),
+                        })
+                    else:
+                        d = _pct_change_from_info(sym) or {"price": 0.0, "change_pct": 0.0, "change_abs": 0.0}
+                        futures.append({"symbol": sym, "name": name, **d})
+                fmp_ok = True
+    except Exception as exc:
+        logger.debug("FMP market overview failed: %s — falling back to yfinance", exc)
+
+    if not fmp_ok:
+        # Fallback: yfinance batch download
+        all_syms = list(idx_map.keys()) + list(fut_map.keys())
+        batch_data = _batch_pct_change(all_syms)
+        for sym, name in idx_map.items():
+            d = batch_data.get(sym) or _pct_change_from_info(sym) or {"price": 0.0, "change_pct": 0.0, "change_abs": 0.0}
+            indices.append({"symbol": sym, "name": name, **d})
+        for sym, name in fut_map.items():
+            d = batch_data.get(sym) or _pct_change_from_info(sym) or {"price": 0.0, "change_pct": 0.0, "change_abs": 0.0}
+            futures.append({"symbol": sym, "name": name, **d})
+
     return {"indices": indices, "futures": futures}
 
 
@@ -210,15 +248,48 @@ async def market_sectors():
 
 def _market_sectors_sync():
     global _sector_cache, _sector_ts
-    # Use batch download for all sectors at once (fast, works on Render)
-    syms = list(_SECTORS.keys())
-    batch_data = _batch_pct_change(syms)
-
+    # Try FMP sector-performance-snapshot first
+    fmp_ok = False
     sectors = []
-    for sym, name in _SECTORS.items():
-        d = batch_data.get(sym) or _pct_change_from_info(sym)
-        change_pct = d["change_pct"] if d else 0.0
-        sectors.append({"symbol": sym, "name": name, "change_pct": change_pct})
+    try:
+        from nq_data.fmp import get_fmp_client
+        fmp = get_fmp_client()
+        if fmp._enabled:
+            from datetime import date as _date, timedelta as _td
+            # Try today first, then yesterday (market data may not be ready)
+            for d in [_date.today(), _date.today() - _td(days=1)]:
+                fmp_sectors = fmp.get_sector_performance(d.isoformat())
+                if fmp_sectors and len(fmp_sectors) > 0:
+                    # Map FMP sector names to our ETF symbols
+                    name_to_sym = {v: k for k, v in _SECTORS.items()}
+                    for s in fmp_sectors:
+                        name = s.get("sector", "")
+                        chg = s.get("change_pct")
+                        # FMP returns averageChange as decimal percentage (e.g. -0.1129 = -0.11%)
+                        if chg is None and s.get("averageChange") is not None:
+                            chg = round(float(s["averageChange"]), 2)
+                        sym = name_to_sym.get(name, "")
+                        if sym:
+                            sectors.append({"symbol": sym, "name": name, "change_pct": chg or 0.0})
+                    # Fill any missing sectors with yfinance fallback
+                    found_syms = {s["symbol"] for s in sectors}
+                    for sym, name in _SECTORS.items():
+                        if sym not in found_syms:
+                            d = _pct_change_from_info(sym)
+                            sectors.append({"symbol": sym, "name": name, "change_pct": d["change_pct"] if d else 0.0})
+                    fmp_ok = True
+                    break
+    except Exception as exc:
+        logger.debug("FMP sector performance failed: %s — falling back to yfinance", exc)
+
+    if not fmp_ok:
+        # Fallback: yfinance batch download
+        syms = list(_SECTORS.keys())
+        batch_data = _batch_pct_change(syms)
+        for sym, name in _SECTORS.items():
+            d = batch_data.get(sym) or _pct_change_from_info(sym)
+            change_pct = d["change_pct"] if d else 0.0
+            sectors.append({"symbol": sym, "name": name, "change_pct": change_pct})
 
     result = {"sectors": sectors}
     _sector_cache = result
@@ -250,6 +321,37 @@ async def _refresh_movers():
 
 def _market_movers_sync():
     global _movers_cache, _movers_ts
+    # Try FMP market movers first
+    fmp_ok = False
+    try:
+        from nq_data.fmp import get_fmp_client
+        fmp = get_fmp_client()
+        if fmp._enabled:
+            gainers = fmp.get_market_movers("gainers") or []
+            losers = fmp.get_market_movers("losers") or []
+            actives = fmp.get_market_movers("active") or []
+            if gainers or losers or actives:
+                def _to_mover(m):
+                    return {
+                        "ticker": m.get("ticker", ""),
+                        "name": m.get("name", ""),
+                        "price": m.get("price"),
+                        "change_pct": m.get("change_pct"),
+                        "change_abs": m.get("change"),
+                        "volume": m.get("volume"),
+                    }
+                result = {
+                    "gainers": [_to_mover(m) for m in gainers[:5]],
+                    "losers": [_to_mover(m) for m in losers[:5]],
+                    "active": [_to_mover(m) for m in actives[:5]],
+                }
+                _movers_cache = result
+                _movers_ts = time.time()
+                return result
+    except Exception as exc:
+        logger.debug("FMP market movers failed: %s — falling back to yfinance", exc)
+
+    # Fallback: yfinance batch download
     try:
         raw = yf.download(
             _MOVERS_UNIVERSE, period="2d", progress=False,

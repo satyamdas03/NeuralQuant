@@ -105,7 +105,75 @@ def _fetch_yf_info_cached(sym: str) -> dict:
     with _lock:
         _yf_info_cache[cache_key] = info
         _yf_info_ts[cache_key] = now
+
+    # Overlay FMP data on top of yfinance info for more reliable fundamentals
+    _overlay_fmp_info(info, cache_key)
+
     return info
+
+
+def _overlay_fmp_info(info: dict, ticker: str) -> None:
+    """Overlay FMP profile + key_metrics + ratios onto yfinance .info dict in-place.
+    FMP values are more reliable for beta, P/B, market_cap, sector, etc.
+    Only overwrites yfinance values when FMP has data and yfinance doesn't.
+    """
+    try:
+        from nq_data.fmp import get_fmp_client
+        fmp = get_fmp_client()
+        if not fmp._enabled:
+            return
+
+        profile = fmp.get_profile(ticker)
+        if profile:
+            # Name and sector are more reliable from FMP
+            if profile.get("name") and not info.get("longName"):
+                info["longName"] = profile["name"]
+            if profile.get("sector") and not info.get("sector"):
+                info["sector"] = profile["sector"]
+            if profile.get("industry") and not info.get("industry"):
+                info["industry"] = profile["industry"]
+            if profile.get("market_cap") and not info.get("marketCap"):
+                info["marketCap"] = profile["market_cap"]
+            # Beta from profile (more reliable than yfinance)
+            if profile.get("beta") is not None:
+                info["beta"] = profile["beta"]
+
+        metrics = fmp.get_key_metrics(ticker)
+        if metrics:
+            # Key metrics override — these are the fields yfinance hallucinates
+            if metrics.get("pe_ratio") is not None:
+                info["trailingPE"] = metrics["pe_ratio"]
+            if metrics.get("pb_ratio") is not None:
+                info["priceToBook"] = metrics["pb_ratio"]
+            if metrics.get("beta") is not None and "beta" not in info:
+                info["beta"] = metrics["beta"]
+            if metrics.get("dividend_yield") is not None:
+                info["dividendYield"] = metrics["dividend_yield"]
+            if metrics.get("gross_profit_margin") is not None:
+                info["grossMargins"] = metrics["gross_profit_margin"]
+            if metrics.get("revenue_growth") is not None:
+                info["revenueGrowth"] = metrics["revenue_growth"]
+            if metrics.get("debt_to_equity") is not None:
+                info["debtToEquity"] = metrics["debt_to_equity"]
+            if metrics.get("current_ratio") is not None:
+                info["currentRatio"] = metrics["current_ratio"]
+            if metrics.get("roe") is not None:
+                info["returnOnEquity"] = metrics["roe"]
+
+        # Ratios endpoint provides P/B (more reliable than key_metrics)
+        ratios = fmp.get_ratios(ticker)
+        if ratios:
+            if ratios.get("price_to_book") is not None:
+                info["priceToBook"] = ratios["price_to_book"]
+            if ratios.get("gross_profit_margin") is not None and "grossMargins" not in info:
+                info["grossMargins"] = ratios["gross_profit_margin"]
+            if ratios.get("current_ratio") is not None and "currentRatio" not in info:
+                info["currentRatio"] = ratios["current_ratio"]
+
+    except Exception as exc:
+        log.debug("FMP overlay failed for %s: %s", ticker, exc)
+
+
 _macro_in_cache: "_LiveMacroIN | None" = None
 _macro_in_ts: float = 0.0
 
@@ -308,6 +376,24 @@ def fetch_real_macro() -> _LiveMacro:
                     m.yield_spread_2y10y = (t10 - t3m) / 100
             except Exception:
                 pass
+
+    # FMP treasury rates as supplement when FRED/yfinance missing
+    if m.yield_10y is None or m.fed_funds_rate is None:
+        try:
+            from nq_data.fmp import get_fmp_client
+            fmp = get_fmp_client()
+            if fmp._enabled:
+                rates = fmp.get_treasury_rates()
+                if rates:
+                    if m.yield_10y is None and rates.get("10y") is not None:
+                        m.yield_10y = float(rates["10y"])
+                    if m.yield_2y is None and rates.get("2y") is not None:
+                        m.yield_2y = float(rates["2y"])
+                    if m.yield_spread_2y10y is None and rates.get("2y") and rates.get("10y"):
+                        m.yield_spread_2y10y = (float(rates["10y"]) - float(rates["2y"])) / 100
+                    log.info("FMP treasury rates supplement: 10y=%.2f 2y=%.2f", m.yield_10y, m.yield_2y)
+        except Exception as exc:
+            log.debug("FMP treasury rates failed: %s", exc)
 
     with _lock:
         _macro_cache = m

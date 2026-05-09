@@ -33,6 +33,8 @@ services:
         sync: false
       - key: FINNHUB_API_KEY
         sync: false
+      - key: FMP_API_KEY
+        sync: false
       - key: PAYPAL_CLIENT_ID
         sync: false
       - key: PAYPAL_CLIENT_SECRET

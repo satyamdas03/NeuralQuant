@@ -392,7 +392,24 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
         except Exception:
             log.warning("meta Supabase cache parse failed for %s", t_up)
 
-    # Primary: yfinance
+    # Primary: FMP (Financial Modeling Prep) — reliable, no Yahoo 401
+    fmp_meta = await asyncio.to_thread(_fetch_stock_meta_fmp, t_up, market)
+    if isinstance(fmp_meta, dict) and not _has_null_fields(fmp_meta):
+        _META_CACHE[cache_key] = (fmp_meta, time.monotonic())
+        _persist_meta(t_up, market, fmp_meta)
+        return fmp_meta
+    if isinstance(fmp_meta, dict):
+        # FMP partial — merge with Supabase/score_cache to fill gaps
+        merged = _merge_meta(fmp_meta, supa_row) if supa_row else fmp_meta
+        if _has_null_fields(merged):
+            sc = _read_score_cache(t_up, market)
+            if sc:
+                merged = _merge_meta(merged, sc)
+        _META_CACHE[cache_key] = (merged, time.monotonic())
+        _persist_meta(t_up, market, merged)
+        return merged
+
+    # Secondary: yfinance
     result = await asyncio.to_thread(_fetch_stock_meta, t_up, market)
     if isinstance(result, dict):
         # Merge with Supabase cache or score_cache to fill any nulls
@@ -648,6 +665,112 @@ def _fetch_stock_meta_yahoo_direct(ticker: str, market: str) -> dict | Exception
         "dividend_yield":          div_pct,
         "current_price":           cur_price,
     }
+
+
+def _fetch_stock_meta_fmp(ticker: str, market: str) -> dict | Exception:
+    """FMP-first stock meta: profile + quote + key_metrics + ratios.
+    Returns dict on success, Exception on failure."""
+    try:
+        from nq_data.fmp import get_fmp_client
+        fmp = get_fmp_client()
+        if not fmp._enabled:
+            return Exception("FMP disabled (no API key)")
+
+        profile = fmp.get_profile(ticker)
+        quote = fmp.get_quote(ticker)
+        metrics = fmp.get_key_metrics(ticker)
+        ratios = fmp.get_ratios(ticker)
+
+        if not profile and not quote:
+            return Exception(f"FMP returned no data for {ticker}")
+
+        # Build meta dict from FMP sources
+        mc = None
+        pe_ttm = None
+        pb_ratio = None
+        beta_v = None
+        div_pct = None
+        current_price = None
+        hi52 = None
+        lo52 = None
+        name = ticker
+        sector = None
+        industry = None
+
+        if quote:
+            current_price = quote.get("price")
+            mc = quote.get("market_cap")
+            hi52 = quote.get("year_high")
+            lo52 = quote.get("year_low")
+
+        if profile:
+            name = profile.get("name") or name
+            sector = profile.get("sector")
+            industry = profile.get("industry")
+            if not mc:
+                mc = profile.get("market_cap")
+            # Beta is available in profile response
+            if profile.get("beta") is not None:
+                beta_v = profile.get("beta")
+
+        if metrics:
+            m_pb = metrics.get("pb_ratio")
+            if m_pb is not None:
+                pb_ratio = m_pb
+            m_beta = metrics.get("beta")
+            if m_beta is not None and beta_v is None:
+                beta_v = m_beta
+            m_div = metrics.get("dividend_yield")
+            if m_div is not None:
+                try:
+                    v = float(m_div)
+                    div_pct = round(v * 100, 2) if v < 1 else round(v, 2)
+                except (TypeError, ValueError):
+                    pass
+
+        # Ratios endpoint provides P/B (more reliable than key_metrics)
+        if ratios:
+            r_pb = ratios.get("price_to_book")
+            if r_pb is not None:
+                pb_ratio = r_pb
+
+        # Normalize numeric fields
+        if pe_ttm is not None:
+            try:
+                pe_ttm = round(float(pe_ttm), 1)
+            except (TypeError, ValueError):
+                pe_ttm = None
+        if pb_ratio is not None:
+            try:
+                pb_ratio = round(float(pb_ratio), 2)
+            except (TypeError, ValueError):
+                pb_ratio = None
+        if beta_v is not None:
+            try:
+                beta_v = round(float(beta_v), 2)
+            except (TypeError, ValueError):
+                beta_v = None
+
+        return {
+            "ticker": ticker,
+            "name": name,
+            "market_cap": mc,
+            "market_cap_fmt": _fmt_mcap(float(mc), market) if mc else None,
+            "pe_ttm": pe_ttm,
+            "pb_ratio": pb_ratio,
+            "beta": beta_v,
+            "week_52_high": hi52,
+            "week_52_low": lo52,
+            "earnings_date": None,  # FMP doesn't provide in profile/quote
+            "analyst_target": None,
+            "analyst_recommendation": None,
+            "sector": sector,
+            "industry": industry,
+            "dividend_yield": div_pct,
+            "current_price": current_price,
+        }
+    except Exception as exc:
+        return exc
 
 
 def _fetch_stock_meta(ticker: str, market: str) -> dict | Exception:
