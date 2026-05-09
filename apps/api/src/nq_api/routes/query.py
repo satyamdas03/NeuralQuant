@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 import logging
 
-from nq_api.schemas import QueryRequest, QueryResponse, StructuredQueryResponse, ReasoningBlock, MetricItem, ScenarioItem, ComparisonItem, StockSummary, UserProfile
+from nq_api.schemas import QueryRequest, QueryResponse, StructuredQueryResponse, ReasoningBlock, MetricItem, ScenarioItem, ComparisonItem, StockSummary, UserProfile, ClarificationQuestion
 
 log = logging.getLogger(__name__)
 from nq_api.auth.rate_limit import enforce_tier_quota
@@ -95,6 +95,120 @@ def _is_portfolio_intent(question: str) -> bool:
     return any(kw in q for kw in _PORTFOLIO_KEYWORDS)
 
 
+_CLARIFICATION_STOCK_KEYWORDS = [
+    "should i buy", "should i sell", "should i hold",
+    "is it a good time", "is it worth", "should i invest in",
+    "what about", "what do you think about",
+    "best stocks", "recommend", "suggest", "which stock",
+    "top picks", "good stocks", "hot stocks",
+]
+
+_CLARIFICATION_SKIP_PATTERNS = [
+    # Factual queries — answer directly
+    "what is", "what's", "what was", "how much", "how many",
+    "p/e", "pe ratio", "price of", "price for", "current price",
+    "market cap", "earnings", "revenue", "dividend",
+    "compare", "versus", " vs ",
+    "how is", "how does", "how has",
+    "explain", "define", "meaning of",
+    "show me", "tell me about",
+]
+
+
+def _needs_clarification(
+    question: str, detected_tickers: list[str], route: str, profile: UserProfile | None,
+) -> bool:
+    """Decide if the question needs clarification before answering.
+
+    Returns True for ambiguous/vague questions that would benefit from context.
+    Returns False for factual/direct questions with clear tickers.
+    Portfolio intent WITHOUT profile is handled by existing ProfilerCard, so skip here.
+    """
+    q = question.lower().strip()
+
+    # Portfolio intent without profile → handled by ProfilerCard, not ClarificationCard
+    if _is_portfolio_intent(question) and not profile:
+        return False
+    # Portfolio intent WITH profile → proceed directly, no clarification needed
+    if _is_portfolio_intent(question) and profile:
+        return False
+
+    # Skip factual/direct questions with clear tickers
+    if detected_tickers and any(p in q for p in _CLARIFICATION_SKIP_PATTERNS):
+        return False
+    # Direct factual queries even without tickers
+    if any(p in q for p in _CLARIFICATION_SKIP_PATTERNS):
+        return False
+
+    # Ambiguous/vague questions that need context
+    if any(kw in q for kw in _CLARIFICATION_STOCK_KEYWORDS):
+        return True
+
+    # Very short or vague questions without tickers
+    if len(q) < 20 and not detected_tickers:
+        return True
+
+    return False
+
+
+def _generate_clarification_questions(
+    question: str, detected_tickers: list[str], market: str, route: str,
+) -> list:
+    """Generate 2-3 clarification questions based on the query type."""
+    q = question.lower()
+    questions = []
+
+    # Stock-specific questions
+    if detected_tickers:
+        if any(kw in q for kw in ["should i buy", "is it worth", "should i invest"]):
+            questions.append(ClarificationQuestion(
+                question=f"What's your time horizon for {detected_tickers[0]}?",
+                options=["Short-term (< 3 months)", "Medium-term (3–12 months)", "Long-term (1+ years)"],
+                question_type="time_horizon",
+            ))
+        if any(kw in q for kw in ["should i sell", "should i hold"]):
+            questions.append(ClarificationQuestion(
+                question=f"What's your basis (avg buy price) for {detected_tickers[0]}?",
+                options=["Above current price", "Near current price", "Below current price", "Not sure"],
+                question_type="context",
+            ))
+        questions.append(ClarificationQuestion(
+            question="What's your risk tolerance?",
+            options=["Conservative — protect capital", "Balanced — growth & stability", "Aggressive — maximize returns"],
+            question_type="risk_tolerance",
+        ))
+
+    # General recommendation questions
+    elif any(kw in q for kw in ["best stocks", "recommend", "suggest", "top picks", "which stock"]):
+        questions.append(ClarificationQuestion(
+            question="Which sector are you most interested in?",
+            options=["Technology", "Healthcare", "Financial Services", "Energy", "No preference"],
+            question_type="sector_preference",
+        ))
+        questions.append(ClarificationQuestion(
+            question="What's your investment goal?",
+            options=["Wealth building", "Retirement", "Passive income", "Tax saving"],
+            question_type="investment_goal",
+        ))
+
+    # Catch-all for vague questions
+    if len(questions) < 2:
+        if not any(q2.question_type == "risk_tolerance" for q2 in questions):
+            questions.append(ClarificationQuestion(
+                question="What's your risk tolerance?",
+                options=["Conservative — protect capital", "Balanced — growth & stability", "Aggressive — maximize returns"],
+                question_type="risk_tolerance",
+            ))
+        if not any(q2.question_type == "time_horizon" for q2 in questions):
+            questions.append(ClarificationQuestion(
+                question="What's your investment time horizon?",
+                options=["Short-term (< 1 year)", "Medium-term (1–3 years)", "Long-term (3+ years)"],
+                question_type="time_horizon",
+            ))
+
+    return questions[:3]
+
+
 _SYSTEM = """You are NeuralQuant — an institutional-grade AI stock intelligence engine. You have access to live data injected in every user message. Your job: give direct, data-driven, actionable answers with PERFECT reasoning. Every recommendation must be THE BEST available, justified by data, and compared against alternatives. No hedging. No disclaimers. No detours.
 
 ## DATA YOU HAVE ACCESS TO
@@ -105,7 +219,7 @@ _SYSTEM = """You are NeuralQuant — an institutional-grade AI stock intelligenc
 5. Competitor comparison data — nearby ranked stocks and their scores
 
 ## HARD RULES — NEVER VIOLATE
-1. **NEVER use ANY financial data from your training data.** When live data is injected (marked [VERIFIED]), you MUST use those EXACT values — for price, P/E, Beta, market cap, EPS, P/B, 52-week range, analyst target, and ALL other metrics. Your training data is STALE and WRONG. NVDA split 10:1 in June 2024 — your training data P/E of ~28x is WRONG (correct: ~42x), your training data beta of ~0.89 is WRONG (correct: ~2.24). ALWAYS use [VERIFIED] values.
+1. **NEVER use ANY financial data from your training data.** When live data is injected (marked [VERIFIED]), you MUST use those EXACT values — for price, P/E, Beta, market cap, EPS, P/B, 52-week range, analyst target, and ALL other metrics. Data marked [ESTIMATE] is approximated when real data is unavailable — treat it with lower confidence and mention it is estimated. Your training data is STALE and WRONG. NVDA split 10:1 in June 2024 — your training data P/E of ~28x is WRONG (correct: ~42x), your training data beta of ~0.89 is WRONG (correct: ~2.24). ALWAYS use [VERIFIED] values exactly, and treat [ESTIMATE] values as approximations.
 2. **NEVER say "I don't have data/scores for this stock" when price or fundamentals are injected above.** If live price is injected, USE IT. Quote exact numbers.
 3. **NEVER deflect to a different stock when the user asks about a specific one.** If asked about Trent, answer about Trent — not Bharti, not Maruti.
 4. **NEVER mention US indices (S&P 500, VIX, HY spreads, 2s10s) as primary context for India-specific questions.** For India queries: lead with Nifty/Sensex/INR, mention global risk only as a footnote.
@@ -154,7 +268,7 @@ _SYSTEM_STRUCTURED = _SYSTEM + """
 ## STRUCTURED OUTPUT MODE
 You MUST respond with ONLY a JSON object matching this schema. No markdown, no prose outside the JSON. Do NOT truncate — provide ALL fields with FULL detail.
 
-CRITICAL DATA ACCURACY: When live market data is injected above (e.g. "CURRENT_PRICE=$196.50 [VERIFIED]", "P/E_TTM=42.50 [VERIFIED]", "Beta=2.24 [VERIFIED]"), you MUST use those EXACT values in every metric, scenario target, and summary. NEVER substitute with your training data — stocks split (NVDA 10:1 in June 2024), P/E changes after earnings, beta recalculates with volatility. The [VERIFIED] marker means this is TODAY's real data from yfinance. Your training data P/E, Beta, Price, and Market Cap are WRONG for any stock that has had recent price moves.
+CRITICAL DATA ACCURACY: When live market data is injected above (e.g. "CURRENT_PRICE=$196.50 [VERIFIED]", "P/E_TTM=42.50 [VERIFIED]", "Beta=2.24 [VERIFIED]"), you MUST use those EXACT values in every metric, scenario target, and summary. Data marked [ESTIMATE] is approximated when real data is unavailable — use it but qualify it as estimated. NEVER substitute with your training data — stocks split (NVDA 10:1 in June 2024), P/E changes after earnings, beta recalculates with volatility. The [VERIFIED] marker means this is TODAY's real data from yfinance. Your training data P/E, Beta, Price, and Market Cap are WRONG for any stock that has had recent price moves.
 
 Required fields:
 {
@@ -597,15 +711,18 @@ _VALIDATION_RULES = [
     (["P/E", "PE", "PRICE-EARNINGS"], "P/E_TTM", 0.15),
     (["BETA"], "BETA", 0.20),
     (["PRICE", "CURRENT_PRICE"], "CURRENT_PRICE", 0.05),
+    (["EPS"], "EPS", 0.15),
+    (["P/B", "PRICE-BOOK", "PRICE TO BOOK"], "P/B", 0.20),
+    (["MARKET CAP", "MCAP", "MKT CAP"], "MCAP", 0.20),
 ]
 
 
 def _extract_verified_values(platform_ctx: str | None) -> dict[str, float]:
-    """Extract [VERIFIED] values from platform context for post-hoc validation."""
+    """Extract [VERIFIED] and [ESTIMATE] values from platform context for post-hoc validation."""
     if not platform_ctx:
         return {}
     verified = {}
-    for m in _val_re.finditer(r'(\w[\w/]*)=([\$₹]?[\d,]+\.?\d*)\s*\[VERIFIED\]', platform_ctx):
+    for m in _val_re.finditer(r'(\w[\w/]*)=([\$₹]?[\d,]+\.?\d*)\s*\[(?:VERIFIED|ESTIMATE)\]', platform_ctx):
         key = m.group(1).upper().replace("/", "_")
         val_str = m.group(2).replace(",", "").replace("$", "").replace("₹", "")
         try:
@@ -771,6 +888,112 @@ def _validate_portfolio_stocks(portfolio_stocks: list[dict], market: str, summar
                     corrections.append(f"{ticker} summary P/E: {claimed:.1f}x → {real_pe:.1f}x")
 
     return portfolio_stocks, summary, corrections
+
+
+def _validate_and_fill_portfolio_prices(
+    portfolio_stocks: list[dict], market: str
+) -> tuple[list[dict], list[str]]:
+    """Validate and fill entry_price, target_price, stop_loss for portfolio stocks.
+    Replaces 'Live N/A' placeholders with real yfinance prices and computes
+    target/stop_loss deterministically from the live entry price.
+
+    Returns (corrected_stocks, fill_notes).
+    """
+    if not portfolio_stocks:
+        return portfolio_stocks, []
+
+    fill_notes = []
+    cur = "₹" if market == "IN" else "$"
+
+    for stock in portfolio_stocks:
+        ticker = stock.get("ticker", "")
+        if not ticker:
+            continue
+
+        # Fetch live price
+        sym = ticker + ".NS" if market == "IN" and "." not in ticker else ticker
+        info = _fetch_yf_info_cached(sym)
+        if not info.get("_cached_ok"):
+            continue
+
+        live_price = info.get("currentPrice") or info.get("regularMarketPrice")
+        if not live_price or live_price <= 0:
+            continue
+
+        entry_str = stock.get("entry_price", "")
+        needs_fill = (
+            not entry_str
+            or "N/A" in entry_str
+            or "Live N/A" in entry_str
+            or "enter at market" in entry_str.lower()
+        )
+
+        # Check if existing entry price is stale (>5% off live)
+        entry_off = 0.0
+        if not needs_fill and entry_str:
+            # Extract numeric value from entry_price string like "$287.50" or "₹2,950"
+            nums = re.findall(r'[\d,]+\.?\d*', entry_str)
+            if nums:
+                try:
+                    entry_num = float(nums[0].replace(",", ""))
+                    if entry_num > 0:
+                        entry_off = abs(live_price - entry_num) / entry_num
+                        if entry_off > 0.05:
+                            needs_fill = True
+                except ValueError:
+                    pass
+
+        if needs_fill:
+            # Compute entry range: live price ±2%
+            entry_low = live_price * 0.98
+            entry_high = live_price * 1.02
+            if market == "IN":
+                stock["entry_price"] = f"₹{live_price:,.0f} (₹{entry_low:,.0f}–₹{entry_high:,.0f})"
+            else:
+                stock["entry_price"] = f"${live_price:,.2f} (${entry_low:,.2f}–${entry_high:,.2f})"
+            fill_notes.append(f"{ticker} entry: live price ${live_price:,.2f}")
+
+        # Fill target_price if missing or looks like placeholder
+        target_str = stock.get("target_price", "")
+        if not target_str or "N/A" in target_str:
+            # Default target: +15% from live price (common for medium-term)
+            target_price = live_price * 1.15
+            if market == "IN":
+                stock["target_price"] = f"₹{target_price:,.0f} (+15%)"
+            else:
+                stock["target_price"] = f"${target_price:,.2f} (+15%)"
+
+        # Fill stop_loss if missing
+        stop_str = stock.get("stop_loss", "")
+        if not stop_str or "N/A" in stop_str:
+            stop_price = live_price * 0.90
+            if market == "IN":
+                stock["stop_loss"] = f"₹{stop_price:,.0f} (-10%)"
+            else:
+                stock["stop_loss"] = f"${stop_price:,.2f} (-10%)"
+
+        # Recompute risk_reward if missing or looks placeholder-ish
+        rr_str = stock.get("risk_reward", "")
+        if not rr_str or "N/A" in rr_str:
+            # Compute from actual entry/target/stop values
+            try:
+                nums_entry = re.findall(r'[\d,]+\.?\d*', stock.get("entry_price", ""))
+                nums_target = re.findall(r'[\d,]+\.?\d*', stock.get("target_price", ""))
+                nums_stop = re.findall(r'[\d,]+\.?\d*', stock.get("stop_loss", ""))
+                if nums_entry and nums_target and nums_stop:
+                    e = float(nums_entry[0].replace(",", ""))
+                    t = float(nums_target[0].replace(",", ""))
+                    s = float(nums_stop[0].replace(",", ""))
+                    if e > 0 and s > 0:
+                        reward = abs(t - e)
+                        risk = abs(e - s)
+                        if risk > 0:
+                            rr = reward / risk
+                            stock["risk_reward"] = f"1:{rr:.1f}"
+            except (ValueError, ZeroDivisionError):
+                pass
+
+    return portfolio_stocks, fill_notes
 
 
 def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, platform_ctx: str | None) -> StockSummary | None:
@@ -1187,7 +1410,7 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                     value = row.get("value_percentile")
                     # Fetch live price for top stocks only (first 5)
                     if i < 5:
-                        fund = _fetch_one(t, target_market)
+                        fund = _fetch_one(t, target_market, fast_pe=False)
                         price = fund.get("current_price")
                         chg = fund.get("change_pct", 0)
                         cur = "Rs." if target_market == "IN" else "$"
@@ -1195,7 +1418,7 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                     else:
                         price_str = "N/A (cached)"
                     details = []
-                    if pe: details.append(f"P/E={pe:.1f} [VERIFIED]")
+                    if pe: details.append(f"P/E={pe:.1f}")
                     if gpm: details.append(f"GPM={gpm:.0%}")
                     if momentum: details.append(f"Momentum={momentum:.0%}")
                     if quality: details.append(f"Quality={quality:.0%}")
@@ -1210,7 +1433,7 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                 top_tickers = UNIVERSE_BY_MARKET.get(target_market, UNIVERSE_BY_MARKET["US"])[:5]
                 lines = [f"NeuralQuant {target_market} — Quick scan (live prices):"]
                 for t in top_tickers:
-                    fund = _fetch_one(t, target_market)
+                    fund = _fetch_one(t, target_market, fast_pe=False)
                     if fund.get("_is_real"):
                         price = fund.get("current_price")
                         chg = fund.get("change_pct", 0)
@@ -1234,7 +1457,7 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                 cached_all = score_cache.read_top(target_market, 50, max_age_seconds=999999999)
             cache_map = {r.get("ticker"): r for r in cached_all} if cached_all else {}
             for t in in_universe_tickers[:5]:
-                fund = _fetch_one(t, target_market)
+                fund = _fetch_one(t, target_market, fast_pe=False)
                 cached_row = cache_map.get(t, {})
                 sc = int(cached_row.get("composite_score", 0.5) * 10) if cached_row else "N/A"
                 price = fund.get("current_price")
@@ -1250,31 +1473,38 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                 eps = fund.get("eps_ttm")
                 cur = "Rs." if target_market == "IN" else "$"
                 # Build a very explicit data block the LLM cannot ignore
+                # Use [ESTIMATE] for synthetic data, [VERIFIED] for real data
+                synthetic_fields = fund.get("_is_synthetic", set())
+                is_real = fund.get("_is_real", False)
+                def _marker(field_name: str) -> str:
+                    """Return [VERIFIED] for real data, [ESTIMATE] for synthetic defaults."""
+                    return "[ESTIMATE]" if field_name in synthetic_fields else "[VERIFIED]"
                 detail_parts = [f"ForeCast={sc}/10"]
-                if price: detail_parts.append(f"CURRENT_PRICE={cur}{price:,.2f} [VERIFIED]")
+                if price: detail_parts.append(f"CURRENT_PRICE={cur}{price:,.2f} {_marker('current_price')}")
                 if chg: detail_parts.append(f"CHANGE={chg:+.1f}%")
-                if pe: detail_parts.append(f"P/E_TTM={pe:.1f} [VERIFIED]")
-                if eps: detail_parts.append(f"EPS={eps:.2f} [VERIFIED]")
-                if pb: detail_parts.append(f"P/B={pb:.2f} [VERIFIED]")
-                if beta_val: detail_parts.append(f"Beta={beta_val:.2f} [VERIFIED]")
+                if pe: detail_parts.append(f"P/E_TTM={pe:.1f} {_marker('pe_ttm')}")
+                if eps: detail_parts.append(f"EPS={eps:.2f} {_marker('eps_ttm')}")
+                if pb: detail_parts.append(f"P/B={pb:.2f} {_marker('pb_ratio')}")
+                if beta_val: detail_parts.append(f"Beta={beta_val:.2f} {_marker('beta')}")
                 if mcap:
+                    mcap_marker = _marker('market_cap')
                     if cur == "Rs.":
-                        if mcap >= 1e13: detail_parts.append(f"Mcap=₹{mcap/1e13:.1f}L Cr [VERIFIED]")
-                        elif mcap >= 1e11: detail_parts.append(f"Mcap=₹{mcap/1e11:.1f}K Cr [VERIFIED]")
-                        else: detail_parts.append(f"Mcap=₹{mcap/1e7:.0f} Cr [VERIFIED]")
+                        if mcap >= 1e13: detail_parts.append(f"Mcap=₹{mcap/1e13:.1f}L Cr {mcap_marker}")
+                        elif mcap >= 1e11: detail_parts.append(f"Mcap=₹{mcap/1e11:.1f}K Cr {mcap_marker}")
+                        else: detail_parts.append(f"Mcap=₹{mcap/1e7:.0f} Cr {mcap_marker}")
                     else:
-                        if mcap >= 1e12: detail_parts.append(f"Mcap=${mcap/1e12:.1f}T [VERIFIED]")
-                        elif mcap >= 1e9: detail_parts.append(f"Mcap=${mcap/1e9:.1f}B [VERIFIED]")
-                        else: detail_parts.append(f"Mcap=${mcap/1e6:.0f}M [VERIFIED]")
-                if w52l and w52h: detail_parts.append(f"52wk={cur}{w52l:,.0f}-{cur}{w52h:,.0f} [VERIFIED]")
-                if target: detail_parts.append(f"AnalystTarget={cur}{target:,.0f}({rec}) [VERIFIED]")
+                        if mcap >= 1e12: detail_parts.append(f"Mcap=${mcap/1e12:.1f}T {mcap_marker}")
+                        elif mcap >= 1e9: detail_parts.append(f"Mcap=${mcap/1e9:.1f}B {mcap_marker}")
+                        else: detail_parts.append(f"Mcap=${mcap/1e6:.0f}M {mcap_marker}")
+                if w52l and w52h: detail_parts.append(f"52wk={cur}{w52l:,.0f}-{cur}{w52h:,.0f} {_marker('week52')}")
+                if target: detail_parts.append(f"AnalystTarget={cur}{target:,.0f}({rec}) {_marker('analyst_target')}")
                 momentum = cached_row.get("momentum_percentile")
                 quality = cached_row.get("quality_percentile")
                 if momentum: detail_parts.append(f"Momentum={momentum:.0%}")
                 if quality: detail_parts.append(f"Quality={quality:.0%}")
                 lines.append(f"  {t}: {' | '.join(detail_parts)}")
             lines.append("")
-            lines.append("⚠ MANDATORY: ALL values marked [VERIFIED] are REAL live data from yfinance for TODAY. P/E, Beta, Price, Market Cap — these change after earnings, splits, and volatility shifts. Your training data is WRONG for these values. ALWAYS quote the EXACT [VERIFIED] values shown above. Using different P/E or Beta values is a critical error.")
+            lines.append("⚠ MANDATORY: ALL values marked [VERIFIED] are REAL live data from yfinance for TODAY. Values marked [ESTIMATE] are approximations when real data is unavailable — treat them with lower confidence. P/E, Beta, Price, Market Cap change after earnings, splits, and volatility shifts. Your training data is WRONG for these values. ALWAYS quote the EXACT [VERIFIED] values shown above. Using different P/E or Beta values is a critical error.")
             parts.append("\n".join(lines))
 
         # Inject competitor comparison for specific stocks
@@ -2024,6 +2254,47 @@ async def run_nl_query_v2(
                 messages.append({"role": m.role, "content": content})
         messages.append({"role": "user", "content": user_msg})
 
+        # ── Clarification check (ask follow-up before answering) ──────────
+        detected_tickers_v2 = []
+        if not req.ticker:
+            try:
+                detected_tickers_v2, _ = _detect_tickers_in_question(req.question, req.market or "US")
+            except Exception:
+                pass
+        else:
+            detected_tickers_v2 = [req.ticker]
+
+        if req.clarification_answers:
+            # Inject user's clarification answers into the prompt
+            answers_text = "\n".join(f"• {a}" for a in req.clarification_answers)
+            user_msg += f"\n\n[USER CONTEXT] User clarified their needs:\n{answers_text}"
+            messages[-1] = {"role": "user", "content": user_msg}
+
+        clarification = _needs_clarification(req.question, detected_tickers_v2, route, req.profile)
+        if clarification and not req.clarification_answers:
+            return StructuredQueryResponse(
+                verdict="HOLD",
+                confidence=0,
+                timeframe="N/A",
+                summary="I'd like to understand your needs better before answering.",
+                reasoning=ReasoningBlock(
+                    why_this="N/A", why_not_alt="N/A", edge_summary="N/A",
+                    second_best="N/A", confidence_gap="N/A",
+                ),
+                clarification_needed=True,
+                clarification_questions=_generate_clarification_questions(
+                    req.question, detected_tickers_v2, req.market or "US", route,
+                ),
+                clarification_context="Answer these questions so I can give you a personalized response.",
+                route="REACT",
+                data_sources=["NeuralQuant Clarification"],
+                follow_up_questions=[],
+                metrics=[],
+                scenarios=[],
+                allocations=[],
+                comparisons=[],
+            )
+
         # Portfolio intent detection and prompt injection
         portfolio_intent = _is_portfolio_intent(req.question)
 
@@ -2147,6 +2418,13 @@ async def run_nl_query_v2(
                             parsed["summary"] = corrected_summary
                         if pf_corrections and parsed.get("summary"):
                             parsed["summary"] += f" [Data verified: {'; '.join(pf_corrections)}]"
+                        # Fill live prices for entry/target/stop_loss
+                        filled_stocks, fill_notes = await asyncio.to_thread(
+                            _validate_and_fill_portfolio_prices, parsed["portfolio_stocks"], req.market or "US"
+                        )
+                        parsed["portfolio_stocks"] = filled_stocks
+                        if fill_notes and parsed.get("summary"):
+                            parsed["summary"] += f" [Live prices verified: {'; '.join(fill_notes)}]"
                 result = StructuredQueryResponse(**parsed)
                 # Validate LLM metrics against injected [VERIFIED] data
                 verified = _extract_verified_values(platform_ctx)
@@ -2625,6 +2903,47 @@ async def run_nl_query_v2_stream(
                         messages.append({"role": m.role, "content": content})
                 messages.append({"role": "user", "content": result_holder["user_msg"]})
 
+                # ── Clarification check (ask follow-up before answering) ──────────
+                detected_tickers_stream = []
+                if not req.ticker:
+                    try:
+                        detected_tickers_stream, _ = _detect_tickers_in_question(req.question, req.market or "US")
+                    except Exception:
+                        pass
+                else:
+                    detected_tickers_stream = [req.ticker]
+
+                if req.clarification_answers:
+                    answers_text = "\n".join(f"• {a}" for a in req.clarification_answers)
+                    result_holder["user_msg"] += f"\n\n[USER CONTEXT] User clarified their needs:\n{answers_text}"
+                    messages[-1] = {"role": "user", "content": result_holder["user_msg"]}
+
+                clarification = _needs_clarification(req.question, detected_tickers_stream, route, req.profile)
+                if clarification and not req.clarification_answers:
+                    result_holder["result"] = StructuredQueryResponse(
+                        verdict="HOLD",
+                        confidence=0,
+                        timeframe="N/A",
+                        summary="I'd like to understand your needs better before answering.",
+                        reasoning=ReasoningBlock(
+                            why_this="N/A", why_not_alt="N/A", edge_summary="N/A",
+                            second_best="N/A", confidence_gap="N/A",
+                        ),
+                        clarification_needed=True,
+                        clarification_questions=_generate_clarification_questions(
+                            req.question, detected_tickers_stream, req.market or "US", route,
+                        ),
+                        clarification_context="Answer these questions so I can give you a personalized response.",
+                        route="REACT",
+                        data_sources=["NeuralQuant Clarification"],
+                        follow_up_questions=[],
+                        metrics=[],
+                        scenarios=[],
+                        allocations=[],
+                        comparisons=[],
+                    )
+                    return
+
                 # Portfolio intent detection and prompt injection
                 portfolio_intent = _is_portfolio_intent(req.question)
 
@@ -2781,6 +3100,13 @@ async def run_nl_query_v2_stream(
                                     parsed["summary"] = corrected_summary
                                 if pf_corrections and parsed.get("summary"):
                                     parsed["summary"] += f" [Data verified: {'; '.join(pf_corrections)}]"
+                                # Fill live prices for entry/target/stop_loss
+                                filled_stocks, fill_notes = await asyncio.to_thread(
+                                    _validate_and_fill_portfolio_prices, parsed["portfolio_stocks"], req.market or "US"
+                                )
+                                parsed["portfolio_stocks"] = filled_stocks
+                                if fill_notes and parsed.get("summary"):
+                                    parsed["summary"] += f" [Live prices verified: {'; '.join(fill_notes)}]"
                         result_holder["result"] = StructuredQueryResponse(**parsed)
                         # Validate LLM metrics against injected [VERIFIED] data
                         verified = _extract_verified_values(result_holder.get("platform_ctx"))

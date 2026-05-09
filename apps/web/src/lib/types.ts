@@ -91,6 +91,7 @@ export interface QueryRequest {
   market?: Market;
   history?: ConversationMessage[];
   profile?: UserProfile;
+  clarification_answers?: string[];
 }
 
 export interface QueryResponse {
@@ -247,6 +248,21 @@ export interface BacktestResponse {
   equity_curve: BacktestPoint[];
 }
 
+export interface ScoreBreakdownItem {
+  score: number;
+  count: number;
+  hit_rate: number;
+  avg_return_pct: number;
+}
+
+export interface TopStockItem {
+  ticker: string;
+  name?: string;
+  score_1_10: number;
+  composite_score: number;
+  return_3m_pct?: number | null;
+}
+
 export interface AccuracyResponse {
   hit_rate_at_7plus: number;
   hit_rate_at_5plus: number;
@@ -265,6 +281,8 @@ export interface AccuracyResponse {
   comparison: string;
   note: string;
   is_fallback?: boolean;
+  score_breakdown?: ScoreBreakdownItem[];
+  top_stocks_snapshot?: TopStockItem[];
 }
 
 export type AlertType = "score_change" | "regime_change" | "threshold";
@@ -416,5 +434,14 @@ export interface StructuredQueryResponse {
   sebi_disclaimer?: string;
   is_portfolio_response?: boolean;
   profiler_needed?: boolean;
+  clarification_needed?: boolean;
+  clarification_questions?: ClarificationQuestion[];
+  clarification_context?: string;
+}
+
+export interface ClarificationQuestion {
+  question: string;
+  options: string[];
+  question_type: string;
 }
 

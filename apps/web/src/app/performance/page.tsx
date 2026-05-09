@@ -126,6 +126,108 @@ export default function PerformancePage() {
             <p className="text-xs text-on-surface-variant leading-relaxed">{data.methodology}</p>
             <p className="mt-2 text-xs text-on-surface-variant">{data.comparison}</p>
           </GhostBorderCard>
+
+          {/* Score Breakdown */}
+          {data.score_breakdown && data.score_breakdown.length > 0 && (
+            <GlassPanel>
+              <h2 className="font-headline text-sm font-semibold text-on-surface uppercase tracking-wide mb-4">
+                Score-Level Accuracy
+              </h2>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-outline/20">
+                      <th className="text-left py-2 px-3 text-[10px] uppercase tracking-wider text-on-surface-variant">Score</th>
+                      <th className="text-right py-2 px-3 text-[10px] uppercase tracking-wider text-on-surface-variant">Count</th>
+                      <th className="text-right py-2 px-3 text-[10px] uppercase tracking-wider text-on-surface-variant">Hit Rate</th>
+                      <th className="text-right py-2 px-3 text-[10px] uppercase tracking-wider text-on-surface-variant">Avg Return</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.score_breakdown.map((row) => (
+                      <tr key={row.score} className="border-b border-outline/10">
+                        <td className="py-2 px-3 font-medium text-on-surface">
+                          <span className={`inline-block w-6 h-6 rounded text-center text-xs leading-6 font-bold ${
+                            row.score >= 7 ? "bg-tertiary/20 text-tertiary" :
+                            row.score >= 5 ? "bg-primary/20 text-primary" :
+                            "bg-error/20 text-error"
+                          }`}>{row.score}</span>
+                        </td>
+                        <td className="py-2 px-3 text-right text-on-surface-variant tabular-nums">{row.count}</td>
+                        <td className="py-2 px-3 text-right tabular-nums">
+                          <div className="flex items-center justify-end gap-2">
+                            <div className="w-16 h-2 rounded-full bg-outline/10 overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-tertiary"
+                                style={{ width: `${Math.min(row.hit_rate, 100)}%` }}
+                              />
+                            </div>
+                            <span className={row.hit_rate >= 60 ? "text-tertiary" : row.hit_rate >= 50 ? "text-primary" : "text-error"}>
+                              {row.hit_rate}%
+                            </span>
+                          </div>
+                        </td>
+                        <td className={`py-2 px-3 text-right tabular-nums ${row.avg_return_pct > 0 ? "text-tertiary" : "text-error"}`}>
+                          {row.avg_return_pct > 0 ? "+" : ""}{row.avg_return_pct}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </GlassPanel>
+          )}
+
+          {/* Top ForeCast Stocks */}
+          {data.top_stocks_snapshot && data.top_stocks_snapshot.length > 0 && (
+            <GlassPanel>
+              <h2 className="font-headline text-sm font-semibold text-on-surface uppercase tracking-wide mb-4">
+                Top ForeCast Stocks
+              </h2>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-outline/20">
+                      <th className="text-left py-2 px-3 text-[10px] uppercase tracking-wider text-on-surface-variant">Ticker</th>
+                      <th className="text-center py-2 px-3 text-[10px] uppercase tracking-wider text-on-surface-variant">Score</th>
+                      <th className="text-right py-2 px-3 text-[10px] uppercase tracking-wider text-on-surface-variant">Confidence</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.top_stocks_snapshot.map((stock) => (
+                      <tr key={stock.ticker} className="border-b border-outline/10">
+                        <td className="py-2 px-3 font-medium text-on-surface">{stock.ticker}</td>
+                        <td className="py-2 px-3 text-center">
+                          <span className={`inline-block w-6 h-6 rounded text-center text-xs leading-6 font-bold ${
+                            stock.score_1_10 >= 7 ? "bg-tertiary/20 text-tertiary" :
+                            stock.score_1_10 >= 5 ? "bg-primary/20 text-primary" :
+                            "bg-error/20 text-error"
+                          }`}>{stock.score_1_10}</span>
+                        </td>
+                        <td className="py-2 px-3 text-right text-on-surface-variant tabular-nums">
+                          {(stock.composite_score * 100).toFixed(1)}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="mt-2 text-[10px] text-on-surface-variant">
+                Current top-scored US stocks from NeuralQuant ForeCast engine.
+              </p>
+            </GlassPanel>
+          )}
+
+          {/* Why NeuralQuant */}
+          <GhostBorderCard className="p-4">
+            <h2 className="font-headline text-sm font-semibold text-on-surface mb-3">Why NeuralQuant?</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <WhyCard icon="📊" title="Walk-Forward Validation" desc="Scores are backtested against real forward 3-month returns, not in-sample fits." />
+              <WhyCard icon="🎯" title="Multi-Factor Scoring" desc="50+ signals across quality, momentum, value, volatility, and insider activity." />
+              <WhyCard icon="🔄" title="Nightly Recomputation" desc="Scores refresh every night with the latest market data and fundamentals." />
+              <WhyCard icon="🌍" title="US + India Coverage" desc="ForeCast scores for 100 stocks across US and Indian markets." />
+            </div>
+          </GhostBorderCard>
         </>
       ) : (
         <GhostBorderCard className="p-6 text-center">
@@ -155,6 +257,18 @@ function Detail({ label, value }: { label: string; value: string }) {
     <div>
       <p className="text-[10px] text-on-surface-variant uppercase tracking-wider">{label}</p>
       <p className="text-sm font-medium text-on-surface tabular-nums">{value}</p>
+    </div>
+  );
+}
+
+function WhyCard({ icon, title, desc }: { icon: string; title: string; desc: string }) {
+  return (
+    <div className="flex gap-2">
+      <span className="text-lg">{icon}</span>
+      <div>
+        <p className="text-xs font-medium text-on-surface">{title}</p>
+        <p className="text-[10px] text-on-surface-variant">{desc}</p>
+      </div>
     </div>
   );
 }

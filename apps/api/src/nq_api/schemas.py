@@ -96,6 +96,7 @@ class QueryRequest(BaseModel):
     history: list[ConversationMessage] = []  # previous turns for multi-turn chat
     session_key: Optional[str] = None  # persistent conversation key (client-generated UUID)
     profile: UserProfile | None = None
+    clarification_answers: list[str] | None = None  # answers from ClarificationCard
 
 
 class QueryResponse(BaseModel):
@@ -201,6 +202,12 @@ class ActionPrompt(BaseModel):
     icon: Optional[str] = None
 
 
+class ClarificationQuestion(BaseModel):
+    question: str
+    options: list[str] = []
+    question_type: str  # risk_tolerance | time_horizon | sector_preference | capital | investment_goal | context
+
+
 class StructuredQueryResponse(BaseModel):
     verdict: str                              # STRONG BUY | BUY | HOLD | SELL | STRONG SELL
     confidence: float                         # 0-100
@@ -225,3 +232,8 @@ class StructuredQueryResponse(BaseModel):
     sebi_disclaimer: Optional[str] = None
     is_portfolio_response: Optional[bool] = None
     profiler_needed: bool | None = None
+
+    # --- Clarification fields ---
+    clarification_needed: bool | None = None
+    clarification_questions: list[ClarificationQuestion] | None = None
+    clarification_context: str | None = None

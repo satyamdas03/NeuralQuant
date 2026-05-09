@@ -14,6 +14,7 @@ import ActionPromptButtons from "./ActionPromptButtons";
 import SEBIDisclaimer from "./SEBIDisclaimer";
 import type { RegimeLabel, StructuredQueryResponse } from "@/lib/types";
 import ProfilerCard from "./ProfilerCard";
+import ClarificationCard from "./ClarificationCard";
 import type { UserProfile } from "@/lib/types";
 
 type Props = {
@@ -25,6 +26,7 @@ type Props = {
   hideVerdict?: boolean;
   onFollowUp?: (text: string) => void;
   onProfilerSubmit?: (profile: UserProfile) => void;
+  onClarificationSubmit?: (answers: string[]) => void;
 };
 
 function tryParseStructured(answer: string): StructuredQueryResponse | null {
@@ -47,10 +49,20 @@ export default function AIResponseCard({
   hideVerdict = false,
   onFollowUp,
   onProfilerSubmit,
+  onClarificationSubmit,
 }: Props) {
   const parsed = structured ?? tryParseStructured(answer);
 
   if (parsed) {
+    if (parsed.clarification_needed && parsed.clarification_questions?.length) {
+      return (
+        <ClarificationCard
+          questions={parsed.clarification_questions}
+          context={parsed.clarification_context}
+          onSubmit={onClarificationSubmit || (() => {})}
+        />
+      );
+    }
     if (parsed.profiler_needed) {
       let savedAmount: string | undefined;
       try {

@@ -38,6 +38,7 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
   const slowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [savedProfile, setSavedProfile] = useState<UserProfile | null>(null);
   const [lastUserQuestion, setLastUserQuestion] = useState<string>("");
+  const [clarificationAnswers, setClarificationAnswers] = useState<string[] | undefined>(undefined);
 
   // Force re-render every 500ms while a request is in flight so the timeline's
   // elapsed-time counters update visually. Without this, "0.0s" stays frozen
@@ -78,6 +79,7 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
     const q = question.trim();
     if (!q || loading) return;
     setLastUserQuestion(q);
+    setClarificationAnswers(undefined);
     setSlowLoad(false);
 
     const phId = (Date.now() + 1).toString();
@@ -109,7 +111,7 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
     try {
       const profileToUse = overrideProfile || savedProfile || undefined;
       const res = await api.runQueryStream(
-        { question: q, ticker: defaultTicker, history, profile: profileToUse },
+        { question: q, ticker: defaultTicker, history, profile: profileToUse, clarification_answers: clarificationAnswers },
         controller.signal,
         (phase, label) => {
           // Append new phase to the message's phase history; mark previous
@@ -183,6 +185,13 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
     }
   };
 
+  const handleClarificationSubmit = (answers: string[]) => {
+    setClarificationAnswers(answers);
+    if (lastUserQuestion) {
+      ask(lastUserQuestion);
+    }
+  };
+
   const clear = () => setMessages([]);
 
   return (
@@ -222,6 +231,7 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
                 hideVerdict
                 onFollowUp={ask}
                 onProfilerSubmit={handleProfilerSubmit}
+                onClarificationSubmit={handleClarificationSubmit}
               />
             )
           )}

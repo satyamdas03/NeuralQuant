@@ -7,6 +7,31 @@ import { trackEvent } from "@/lib/analytics";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://neuralquant.onrender.com";
 
+const FEATURE_ROWS = [
+  { feature: "AI Stock Queries", free: "5/day", investor: "100/day", pro: "Unlimited", api: "Unlimited" },
+  { feature: "ForeCast Score", free: "Top 10", investor: "All 100", pro: "All 100", api: "All 100" },
+  { feature: "Ask AI Analysis", free: "5/day", investor: "100/day", pro: "Unlimited", api: "Unlimited" },
+  { feature: "Screener Access", free: "Basic", investor: "Full", pro: "Full", api: "Full" },
+  { feature: "Watchlists", free: "1", investor: "10", pro: "50", api: "50" },
+  { feature: "Alerts", free: "—", investor: "5", pro: "25", api: "25" },
+  { feature: "Backtests/Day", free: "1", investor: "10", pro: "50", api: "50" },
+  { feature: "Portfolio Builder", free: "—", investor: "Full", pro: "Full", api: "Full" },
+  { feature: "PARA-DEbate Engine", free: "—", investor: "Full", pro: "Full", api: "Full" },
+  { feature: "Market Coverage", free: "US only", investor: "US + India", pro: "US + India", api: "US + India" },
+  { feature: "Priority Access", free: "—", investor: "—", pro: "Yes", api: "Yes" },
+  { feature: "API Access", free: "—", investor: "—", pro: "—", api: "Full REST API" },
+];
+
+function WhyCard({ icon, title, desc }: { icon: string; title: string; desc: string }) {
+  return (
+    <div className="rounded-xl bg-surface-container ghost-border p-4">
+      <div className="text-2xl mb-2">{icon}</div>
+      <h3 className="font-headline text-sm font-semibold text-on-surface">{title}</h3>
+      <p className="mt-1 text-xs text-on-surface-variant leading-relaxed">{desc}</p>
+    </div>
+  );
+}
+
 export default function PricingPage() {
   const [currency, setCurrency] = useState<Currency>("USD");
   const [loading, setLoading] = useState<string | null>(null);
@@ -139,6 +164,75 @@ export default function PricingPage() {
         <p className="mt-8 text-center text-xs text-on-surface-variant">
           Secure payment via PayPal. All charges in USD. Cancel anytime. No lock-in.
         </p>
+
+        {/* Why Upgrade */}
+        <div className="mt-16">
+          <h2 className="font-headline text-2xl font-bold text-center">Why upgrade?</h2>
+          <p className="mt-2 text-on-surface-variant text-center max-w-lg mx-auto text-sm">
+            NeuralQuant uses institutional-grade AI scoring on 100+ stocks. Free gives you a taste; Investor unlocks the full engine.
+          </p>
+          <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <WhyCard
+              icon="📊"
+              title="Walk-Forward Validated"
+              desc="Every score is backtested against real 3-month forward returns. Not curve-fitted — genuinely predictive."
+            />
+            <WhyCard
+              icon="🎯"
+              title="50+ Signals Per Stock"
+              desc="Quality, momentum, value, volatility, insider activity — all combined into a single 1-10 score you can act on."
+            />
+            <WhyCard
+              icon="⚡"
+              title="Unlimited AI Analysis"
+              desc="Ask any question about any stock. Get data-driven answers with live market data, not generic advice."
+            />
+            <WhyCard
+              icon="🌍"
+              title="US + India Markets"
+              desc="ForeCast scores for 100 stocks across both markets. Dual-currency portfolio builder included."
+            />
+            <WhyCard
+              icon="🔒"
+              title="Priority Data Access"
+              desc="Investor tier gets faster data refresh, watchlists, alerts, and priority during high-traffic periods."
+            />
+            <WhyCard
+              icon="📈"
+              title="Proven Edge"
+              desc="Top-decile stocks outperform the market by measurable margins. See our /performance page for details."
+            />
+          </div>
+        </div>
+
+        {/* Feature Comparison */}
+        <div className="mt-16">
+          <h2 className="font-headline text-2xl font-bold text-center">Feature comparison</h2>
+          <div className="mt-8 overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="border-b border-outline/20">
+                  <th className="text-left py-3 px-4 text-on-surface-variant font-medium">Feature</th>
+                  <th className="text-center py-3 px-4 text-on-surface-variant font-medium">Free</th>
+                  <th className="text-center py-3 px-4 font-medium text-primary bg-primary/5 rounded-t-lg">Investor</th>
+                  <th className="text-center py-3 px-4 text-on-surface-variant font-medium">Pro</th>
+                  <th className="text-center py-3 px-4 text-on-surface-variant font-medium">API</th>
+                </tr>
+              </thead>
+              <tbody>
+                {FEATURE_ROWS.map((row) => (
+                  <tr key={row.feature} className="border-b border-outline/10">
+                    <td className="py-2.5 px-4 text-on-surface">{row.feature}</td>
+                    <td className="py-2.5 px-4 text-center text-on-surface-variant">{row.free}</td>
+                    <td className="py-2.5 px-4 text-center font-medium text-on-surface bg-primary/5">{row.investor}</td>
+                    <td className="py-2.5 px-4 text-center text-on-surface-variant">{row.pro}</td>
+                    <td className="py-2.5 px-4 text-center text-on-surface-variant">{row.api}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -141,6 +141,19 @@ def _run_backtest_sync(req: BacktestRequest) -> BacktestResponse | HTTPException
 # ═══════════════════════════════════════════════════════════════════
 
 
+class ScoreBreakdownItem(BaseModel):
+    score: int                # 1-10
+    count: int               # number of observations at this score
+    hit_rate: float          # % with positive forward return
+    avg_return_pct: float    # average forward 3M return %
+
+class TopStockItem(BaseModel):
+    ticker: str
+    name: str | None = None
+    score_1_10: int
+    composite_score: float
+    return_3m_pct: float | None = None  # forward 3M return (None if not yet measurable)
+
 class AccuracyResponse(BaseModel):
     hit_rate_at_7plus: float
     hit_rate_at_5plus: float
@@ -159,6 +172,8 @@ class AccuracyResponse(BaseModel):
     comparison: str
     note: str
     is_fallback: bool = False
+    score_breakdown: list[ScoreBreakdownItem] = []
+    top_stocks_snapshot: list[TopStockItem] = []
 
 
 @router.get("/accuracy", response_model=AccuracyResponse)
@@ -298,6 +313,63 @@ def _get_accuracy_sync() -> AccuracyResponse:
 
         result = run_walk_forward(score_history, prices, forward_months=3)
 
+        # ── Compute score_breakdown from walk-forward data ──
+        score_breakdown = []
+        if "score_1_10" in score_history.columns:
+            for score_level in range(1, 11):
+                mask = score_history["score_1_10"] == score_level
+                subset = score_history[mask]
+                if len(subset) == 0:
+                    continue
+                # Merge with price data to compute returns
+                hit_count = 0
+                total_return_pct = []
+                for _, row in subset.iterrows():
+                    tkr = row["ticker"]
+                    score_date = row["date"]
+                    tkr_prices = prices[prices["ticker"] == tkr].sort_values("date")
+                    start_prices = tkr_prices[tkr_prices["date"] >= score_date]
+                    if len(start_prices) < 2:
+                        continue
+                    start_price = float(start_prices.iloc[0]["close"])
+                    # 3-month forward return
+                    end_idx = min(63, len(start_prices) - 1)  # ~63 trading days = 3 months
+                    end_price = float(start_prices.iloc[end_idx]["close"])
+                    if start_price > 0:
+                        ret = (end_price - start_price) / start_price
+                        total_return_pct.append(ret * 100)
+                        if ret > 0:
+                            hit_count += 1
+                n = len(total_return_pct)
+                if n > 0:
+                    score_breakdown.append(ScoreBreakdownItem(
+                        score=score_level,
+                        count=n,
+                        hit_rate=round(hit_count / n * 100, 1),
+                        avg_return_pct=round(sum(total_return_pct) / n, 1),
+                    ))
+
+        # ── Compute top_stocks_snapshot from current score_cache ──
+        top_stocks_snapshot = []
+        try:
+            from nq_api.cache.score_cache import _supabase_rest
+            current_scores = _supabase_rest(
+                "score_cache", "GET",
+                {"select": "ticker,market,composite_score,score_1_10,current_price", "order": "composite_score.desc", "limit": "10", "market": "eq.US"},
+            )
+            if isinstance(current_scores, list):
+                for s in current_scores[:10]:
+                    tkr = s.get("ticker", "")
+                    top_stocks_snapshot.append(TopStockItem(
+                        ticker=tkr,
+                        name=None,
+                        score_1_10=s.get("score_1_10", 0),
+                        composite_score=round(s.get("composite_score", 0), 4),
+                        return_3m_pct=None,  # Would need forward-looking data
+                    ))
+        except Exception:
+            pass  # Non-critical, skip
+
         return AccuracyResponse(
             hit_rate_at_7plus=round(result.hit_rate_at_7plus * 100, 1),
             hit_rate_at_5plus=round(result.hit_rate_at_5plus * 100, 1),
@@ -315,6 +387,8 @@ def _get_accuracy_sync() -> AccuracyResponse:
             methodology="Walk-forward: each month-end, composite scores predict forward 3-month returns. Hit rate = % of stocks with positive return at given score threshold.",
             comparison="Danelfin: 70% at AI Score >=7 | Trade Ideas: 65% claimed | Prospero: ~54-60%",
             note="Scores use free-tier data (15-min delayed). Publish date: " + pd.Timestamp.now().strftime("%Y-%m-%d"),
+            score_breakdown=score_breakdown,
+            top_stocks_snapshot=top_stocks_snapshot,
         )
     except Exception as e:
         import traceback
@@ -357,4 +431,6 @@ def _accuracy_default(reason: str) -> AccuracyResponse:
         comparison="Competitor benchmark",
         note=f"Unavailable: {reason}",
         is_fallback=True,
+        score_breakdown=[],
+        top_stocks_snapshot=[],
     )
