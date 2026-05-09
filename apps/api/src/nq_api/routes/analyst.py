@@ -418,8 +418,9 @@ def _fetch_finnhub_data(ticker: str, market: str) -> dict:
         from nq_data.fmp import get_fmp_client
         fmp = get_fmp_client()
         if fmp._enabled:
+            fmp_sym = _yf_symbol(ticker, market)
             # Financial scores (Altman Z, Piotroski)
-            scores = fmp.get_financial_scores(ticker)
+            scores = fmp.get_financial_scores(fmp_sym)
             if scores:
                 if scores.get("altman_z_score") is not None:
                     result["altman_z_score"] = round(float(scores["altman_z_score"]), 2)
@@ -427,7 +428,7 @@ def _fetch_finnhub_data(ticker: str, market: str) -> dict:
                     result["piotroski_score"] = int(scores["piotroski_score"])
 
             # Analyst grades consensus
-            grades = fmp.get_analyst_grades(ticker)
+            grades = fmp.get_analyst_grades(fmp_sym)
             if grades:
                 if grades.get("consensus"):
                     result["analyst_consensus"] = grades["consensus"]
@@ -439,7 +440,7 @@ def _fetch_finnhub_data(ticker: str, market: str) -> dict:
                     )
 
             # Price target consensus
-            target = fmp.get_price_target(ticker)
+            target = fmp.get_price_target(fmp_sym)
             if target:
                 if target.get("target_avg") is not None:
                     result["analyst_target_avg"] = round(float(target["target_avg"]), 2)

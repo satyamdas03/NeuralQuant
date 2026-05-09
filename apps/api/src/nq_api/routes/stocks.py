@@ -676,10 +676,11 @@ def _fetch_stock_meta_fmp(ticker: str, market: str) -> dict | Exception:
         if not fmp._enabled:
             return Exception("FMP disabled (no API key)")
 
-        profile = fmp.get_profile(ticker)
-        quote = fmp.get_quote(ticker)
-        metrics = fmp.get_key_metrics(ticker)
-        ratios = fmp.get_ratios(ticker)
+        sym = _yf_sym(ticker, market)
+        profile = fmp.get_profile(sym)
+        quote = fmp.get_quote(sym)
+        metrics = fmp.get_key_metrics(sym)
+        ratios = fmp.get_ratios(sym)
 
         if not profile and not quote:
             return Exception(f"FMP returned no data for {ticker}")

@@ -1128,14 +1128,15 @@ def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, plat
             from nq_data.fmp import get_fmp_client
             fmp = get_fmp_client()
             if fmp._enabled:
+                fmp_sym = _yf_symbol(effective_ticker, detected_market)
                 # DCF valuation
                 if not target:
-                    fmp_target = fmp.get_price_target(effective_ticker)
+                    fmp_target = fmp.get_price_target(fmp_sym)
                     if fmp_target and fmp_target.get("target_avg") is not None:
                         target = round(float(fmp_target["target_avg"]), 2)
                 # Analyst consensus
                 if not rec:
-                    fmp_grades = fmp.get_analyst_grades(effective_ticker)
+                    fmp_grades = fmp.get_analyst_grades(fmp_sym)
                     if fmp_grades and fmp_grades.get("consensus"):
                         rec = fmp_grades["consensus"].lower()
         except Exception:
