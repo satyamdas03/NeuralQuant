@@ -242,6 +242,45 @@ class OpenBBClient:
             return data[0] if isinstance(data[0], dict) else None
         return data if isinstance(data, dict) else None
 
+    # ── Generic proxy (for Terminal View) ─────────────────────────────────────────
+
+    def proxy(self, path: str, params: dict | None = None) -> dict | list | None:
+        """Generic proxy: call any OpenBB endpoint by path.
+        Path should be like '/equity/price/quote' (without /api/v1 prefix).
+        Returns raw response data or None on error.
+        """
+        full_path = f"/api/v1{path}"
+        # Infer cache category from first path segment
+        segments = path.strip("/").split("/")
+        category = segments[0] if segments else "profile"
+        return self._get(full_path, params, category=category)
+
+    def refresh_url(self) -> None:
+        """Re-read OPENBB_API_URL from env (for tunnel URL changes without restart)."""
+        new_url = os.getenv("OPENBB_API_URL", "http://127.0.0.1:6900").rstrip("/")
+        if new_url != self._base_url:
+            log.info("OpenBB URL updated: %s → %s", self._base_url, new_url)
+            self._base_url = new_url
+            # Clear cache since URL changed
+            with self._cache_lock:
+                self._cache.clear()
+
+    def health_check(self) -> dict:
+        """Check if OpenBB is reachable. Returns {online, url}."""
+        if not self._enabled:
+            return {"online": False, "url": self._base_url, "enabled": False}
+        try:
+            r = self._get_client().get(
+                f"{self._base_url}/api/v1/equity/profile",
+                params={"symbol": "AAPL", "provider": "yfinance"},
+                timeout=5.0,
+            )
+            online = r.status_code == 200
+            return {"online": online, "url": self._base_url, "enabled": True}
+        except Exception as exc:
+            log.debug("OpenBB health check failed: %s", exc)
+            return {"online": False, "url": self._base_url, "enabled": True}
+
 
 # ── Singleton accessor ─────────────────────────────────────────────────────────
 

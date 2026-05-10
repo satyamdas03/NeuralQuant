@@ -14,6 +14,7 @@ import {
   GitCompareArrows,
   BarChart3,
   LogIn,
+  Terminal,
 } from "lucide-react";
 import GradientButton from "@/components/ui/GradientButton";
 
@@ -25,6 +26,7 @@ const NAV = [
   { href: "/backtest", label: "Backtest", icon: FlaskConical },
   { href: "/performance", label: "Performance", icon: BarChart3 },
   { href: "/sources", label: "Data Sources", icon: Database },
+  { href: "/terminal", label: "Terminal", icon: Terminal },
   { href: "/compare", label: "Compare", icon: GitCompareArrows },
   { href: "/watchlist", label: "Watchlist", icon: Star },
   { href: "/alerts", label: "Alerts", icon: Bell },

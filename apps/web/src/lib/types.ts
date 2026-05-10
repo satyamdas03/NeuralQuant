@@ -518,3 +518,44 @@ export interface ClarificationQuestion {
   question_type: string;
 }
 
+// ── Terminal View ────────────────────────────────────────────────────────────
+export interface TerminalParam {
+  name: string;
+  type: "string" | "number" | "date" | "enum";
+  required: boolean;
+  default?: string;
+  description: string;
+  options?: string[];
+}
+
+export interface TerminalEndpoint {
+  id: string;
+  path: string;
+  label: string;
+  description: string;
+  category: string;
+  params: TerminalParam[];
+}
+
+export interface TerminalCategory {
+  id: string;
+  label: string;
+  icon: string;
+  color: string;
+}
+
+export interface TerminalQueryResult {
+  data: unknown;
+  meta: {
+    path: string;
+    params: Record<string, string>;
+    timestamp: string;
+  };
+}
+
+export interface TerminalHealth {
+  online: boolean;
+  url: string;
+  enabled: boolean;
+}
+

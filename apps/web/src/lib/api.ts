@@ -7,6 +7,7 @@ import type {
   SentimentResponse, BacktestRequest, BacktestResponse, AccuracyResponse,
   AlertSubscription, AlertDelivery, NewsDeskResponse,
   UserProfile,
+  TerminalEndpoint, TerminalCategory, TerminalQueryResult, TerminalHealth,
 } from "./types";
 
 // Route all requests through Next.js /api/ rewrite proxy to avoid CORS issues.
@@ -314,4 +315,19 @@ export const brokerApi = {
 
   getPositions: () =>
     authedFetch<Record<string, string>[]>("/broker/positions"),
+};
+
+// ── Terminal API ────────────────────────────────────────────────────────────
+export const terminalApi = {
+  health: () =>
+    apiFetch<TerminalHealth>("/terminal/health"),
+
+  getEndpoints: () =>
+    apiFetch<{ categories: TerminalCategory[]; endpoints: TerminalEndpoint[] }>("/terminal/endpoints"),
+
+  query: (path: string, params: Record<string, string> = {}) =>
+    apiFetch<TerminalQueryResult>("/terminal/query", {
+      method: "POST",
+      body: JSON.stringify({ path, params }),
+    }),
 };
