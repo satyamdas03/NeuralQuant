@@ -559,27 +559,33 @@ def _fetch_finnhub_data(ticker: str, market: str) -> dict:
                 result["put_call_ratio"] = opt_snap.get("put_call_ratio")
                 result["implied_volatility"] = opt_snap.get("implied_volatility")
 
-            # Dividend history (richer than FMP for many international tickers)
+            # Dividend history — calculate trailing yield from recent dividends
             if not result.get("dividend_yield_pct"):
-                trail = obb.get_trailing_dividend_yield(obb_sym)
-                if trail and trail.get("yield_pct"):
-                    result["dividend_yield_pct"] = round(float(trail["yield_pct"]), 2)
+                divs = obb.get_dividends(obb_sym)
+                if divs and isinstance(divs, list) and len(divs) > 0:
+                    recent = sorted(divs, key=lambda d: d.get("ex_dividend_date", ""), reverse=True)[:4]
+                    annual_div = sum(float(d.get("amount", 0)) for d in recent)
+                    price = result.get("current_price") or result.get("previous_close")
+                    if annual_div > 0 and price and price > 0:
+                        result["dividend_yield_pct"] = round((annual_div / price) * 100, 2)
 
             # Yield curve for macro context
             yc = obb.get_yield_curve()
-            if yc and isinstance(yc, dict):
-                result["yield_curve_2y"] = yc.get("2_year")
-                result["yield_curve_10y"] = yc.get("10_year")
-                result["yield_curve_spread"] = yc.get("spread")
+            if yc and isinstance(yc, list):
+                yc_map = {p.get("maturity"): p.get("rate") for p in yc if isinstance(p, dict)}
+                if yc_map.get("year_2"):
+                    result["yield_curve_2y"] = round(float(yc_map["year_2"]) * 100, 2)
+                if yc_map.get("year_10"):
+                    result["yield_curve_10y"] = round(float(yc_map["year_10"]) * 100, 2)
+                if yc_map.get("year_2") and yc_map.get("year_10"):
+                    result["yield_curve_spread"] = round((float(yc_map["year_10"]) - float(yc_map["year_2"])) * 100, 2)
 
-            # Institutional ownership
+            # Share statistics (institutional ownership)
             ownership = obb.get_ownership(obb_sym)
-            if ownership and isinstance(ownership, list):
-                top_holders = ownership[:5]
-                result["top_institutional_holders"] = [
-                    {"name": h.get("name", ""), "pct": h.get("pct_held", 0)}
-                    for h in top_holders if isinstance(h, dict)
-                ]
+            if ownership and isinstance(ownership, dict):
+                result["shares_outstanding"] = ownership.get("outstanding_shares")
+                result["float_shares"] = ownership.get("float_shares")
+                result["short_pct_float"] = ownership.get("short_percent_of_float")
     except Exception as exc:
         log.debug("OpenBB enrichment failed for %s: %s", ticker, exc)
 

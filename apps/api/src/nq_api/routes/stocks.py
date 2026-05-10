@@ -877,14 +877,16 @@ def _fetch_stock_meta_fmp(ticker: str, market: str) -> dict | Exception:
             if obb.enabled:
                 obb_sym = _yf_symbol(ticker, market) if market == "IN" else ticker
 
-                # Dividend history + trailing yield (OpenBB has richer dividend data than FMP)
+                # Dividend history — calculate trailing yield from recent dividends
                 divs = obb.get_dividends(obb_sym)
                 if divs and isinstance(divs, list) and len(divs) > 0:
-                    # Only fill if FMP didn't provide dividend data
                     if not meta.get("dividend_yield_pct"):
-                        trail = obb.get_trailing_dividend_yield(obb_sym)
-                        if trail and trail.get("yield_pct"):
-                            meta["dividend_yield_pct"] = round(float(trail["yield_pct"]), 2)
+                        # Sum last 4 quarterly dividends for trailing annual yield
+                        recent = sorted(divs, key=lambda d: d.get("ex_dividend_date", ""), reverse=True)[:4]
+                        annual_div = sum(float(d.get("amount", 0)) for d in recent)
+                        price = meta.get("current_price") or meta.get("previous_close")
+                        if annual_div > 0 and price and price > 0:
+                            meta["dividend_yield_pct"] = round((annual_div / price) * 100, 2)
 
                 # Options snapshot — IV percentile, put/call ratio (NeuralQuant has ZERO options data)
                 opt_snap = obb.get_options_snapshots(obb_sym)
@@ -895,10 +897,14 @@ def _fetch_stock_meta_fmp(ticker: str, market: str) -> dict | Exception:
 
                 # Yield curve for macro context
                 yc = obb.get_yield_curve()
-                if yc and isinstance(yc, dict):
-                    meta["yield_curve_2y"] = yc.get("2_year")
-                    meta["yield_curve_10y"] = yc.get("10_year")
-                    meta["yield_curve_spread"] = yc.get("spread")
+                if yc and isinstance(yc, list):
+                    yc_map = {p.get("maturity"): p.get("rate") for p in yc if isinstance(p, dict)}
+                    if yc_map.get("year_2"):
+                        meta["yield_curve_2y"] = round(float(yc_map["year_2"]) * 100, 2)
+                    if yc_map.get("year_10"):
+                        meta["yield_curve_10y"] = round(float(yc_map["year_10"]) * 100, 2)
+                    if yc_map.get("year_2") and yc_map.get("year_10"):
+                        meta["yield_curve_spread"] = round((float(yc_map["year_10"]) - float(yc_map["year_2"])) * 100, 2)
         except Exception as exc:
             log.debug("OpenBB enrichment failed for %s: %s", ticker, exc)
 
@@ -1043,11 +1049,6 @@ async def get_options_snapshot(ticker: str, market: str = Query("US")):
             result["data"]["top_calls"] = calls
             result["data"]["top_puts"] = puts
 
-        # Unusual options activity
-        unusual = await asyncio.to_thread(obb.get_options_unusual, obb_sym)
-        if unusual and isinstance(unusual, list):
-            result["data"]["unusual_activity"] = unusual[:10]
-
         return result
     except Exception as exc:
         log.warning("Options snapshot failed for %s: %s", ticker, exc)
@@ -1064,8 +1065,10 @@ async def get_yield_curve():
             return {"enabled": False, "data": {}}
 
         yc = await asyncio.to_thread(obb.get_yield_curve)
-        if yc:
-            return {"enabled": True, "data": yc}
+        if yc and isinstance(yc, list):
+            # Convert list of {maturity, rate} to keyed dict for easier consumption
+            yc_map = {p["maturity"]: round(float(p["rate"]) * 100, 2) for p in yc if isinstance(p, dict) and "maturity" in p and "rate" in p}
+            return {"enabled": True, "data": yc_map}
         return {"enabled": True, "data": {}}
     except Exception as exc:
         log.warning("Yield curve fetch failed: %s", exc)

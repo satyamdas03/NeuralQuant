@@ -216,16 +216,16 @@ class OpenBBClient:
         """US Treasury rates across maturities."""
         return self._get("/api/v1/fixedincome/government/treasury_rates", {"provider": provider}, category="treasury_rates")
 
-    def get_cpi(self, provider: str = "federal_reserve") -> dict | None:
+    def get_cpi(self, provider: str = "fred") -> dict | None:
         """Consumer Price Index (via FRED series CPIAUCSL)."""
-        data = self._get("/api/v1/economy/fred_series", {"series_id": "CPIAUCSL", "provider": provider}, category="cpi")
+        data = self._get("/api/v1/economy/fred_series", {"symbol": "CPIAUCSL", "provider": provider}, category="cpi")
         if isinstance(data, list) and data:
             return data[0] if isinstance(data[0], dict) else None
         return data if isinstance(data, dict) else None
 
-    def get_gdp(self, provider: str = "federal_reserve") -> dict | None:
+    def get_gdp(self, provider: str = "fred") -> dict | None:
         """GDP data (via FRED series GDPC1)."""
-        data = self._get("/api/v1/economy/fred_series", {"series_id": "GDPC1", "provider": provider}, category="gdp")
+        data = self._get("/api/v1/economy/fred_series", {"symbol": "GDPC1", "provider": provider}, category="gdp")
         if isinstance(data, list) and data:
             return data[0] if isinstance(data[0], dict) else None
         return data if isinstance(data, dict) else None
@@ -234,16 +234,16 @@ class OpenBBClient:
         """Effective Federal Funds Rate (via FRED series FEDFUNDS)."""
         return self._get("/api/v1/fixedincome/rate/effr", {"provider": provider}, category="interest_rates")
 
-    def get_unemployment(self, provider: str = "federal_reserve") -> dict | None:
+    def get_unemployment(self, provider: str = "fred") -> dict | None:
         """Unemployment rate (via FRED series UNRATE)."""
-        data = self._get("/api/v1/economy/fred_series", {"series_id": "UNRATE", "provider": provider}, category="unemployment")
+        data = self._get("/api/v1/economy/fred_series", {"symbol": "UNRATE", "provider": provider}, category="unemployment")
         if isinstance(data, list) and data:
             return data[0] if isinstance(data[0], dict) else None
         return data if isinstance(data, dict) else None
 
-    def get_fred_series(self, series_id: str, provider: str = "federal_reserve") -> dict | None:
+    def get_fred_series(self, series_id: str, provider: str = "fred") -> dict | None:
         """FRED series data (any series ID)."""
-        data = self._get("/api/v1/economy/fred_series", {"series_id": series_id, "provider": provider}, category="fred_series")
+        data = self._get("/api/v1/economy/fred_series", {"symbol": series_id, "provider": provider}, category="fred_series")
         if isinstance(data, list) and data:
             return data[0] if isinstance(data[0], dict) else None
         return data if isinstance(data, dict) else None

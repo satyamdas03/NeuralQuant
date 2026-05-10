@@ -64,5 +64,7 @@ services:
         value: "0.0.0.0"
       - key: OPENBB_API_PORT
         value: "6900"
+      - key: FRED_API_KEY
+        sync: false
     plan: standard
     healthCheckPath: /docs
