@@ -185,32 +185,26 @@ class OpenBBClient:
             return data[0] if isinstance(data[0], dict) else None
         return data if isinstance(data, dict) else None
 
-    # ── Options / Derivatives ──────────────────────────────────────────────────
+    # ── Estimates / Consensus ─────────────────────────────────────────────────
 
-    def get_options_chains(self, symbol: str, provider: str = "tradier") -> list | None:
-        """Full options chain (calls + puts with strike, IV, OI, bid/ask).
-        Requires tradier provider (free API key from tradier.com)."""
-        return self._get("/api/v1/derivatives/options/chains", {"symbol": symbol, "provider": provider}, category="options_chains")
-
-    def get_options_snapshots(self, symbol: str, provider: str = "tradier") -> dict | None:
-        """Options market snapshot (IV percentile, put/call ratio).
-        Requires tradier provider (free API key from tradier.com)."""
-        data = self._get("/api/v1/derivatives/options/snapshots", {"symbol": symbol, "provider": provider}, category="options_snapshots")
+    def get_consensus(self, symbol: str, provider: str = "yfinance") -> dict | None:
+        """Analyst consensus (target prices, recommendations, number of analysts)."""
+        data = self._get("/api/v1/equity/estimates/consensus", {"symbol": symbol, "provider": provider}, category="profile")
         if isinstance(data, list) and data:
             return data[0] if isinstance(data[0], dict) else None
         return data if isinstance(data, dict) else None
 
     # ── Macro / Economy ────────────────────────────────────────────────────────
 
-    def get_yield_curve(self, date: str | None = None, provider: str = "federal_reserve") -> dict | None:
-        """Yield curve data (treasury rates across maturities)."""
+    def get_yield_curve(self, date: str | None = None, provider: str = "federal_reserve") -> list | None:
+        """Yield curve data (treasury rates across maturities).
+        Returns full list of {maturity, rate} dicts for curve mapping."""
         params: dict = {"provider": provider}
         if date:
             params["date"] = date
         data = self._get("/api/v1/fixedincome/government/yield_curve", params, category="yield_curve")
-        if isinstance(data, list) and data:
-            return data[0] if isinstance(data[0], dict) else None
-        return data if isinstance(data, dict) else None
+        # Return full list — callers map maturity→rate across all maturities
+        return data if isinstance(data, list) else None
 
     def get_treasury_rates(self, provider: str = "federal_reserve") -> list | None:
         """US Treasury rates across maturities."""

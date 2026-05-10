@@ -889,12 +889,22 @@ def _fetch_stock_meta_fmp(ticker: str, market: str) -> dict | Exception:
                         if annual_div > 0 and price and price > 0:
                             meta["dividend_yield_pct"] = round((annual_div / price) * 100, 2)
 
-                # Options snapshot — IV percentile, put/call ratio (NeuralQuant has ZERO options data)
-                opt_snap = obb.get_options_snapshots(obb_sym)
-                if opt_snap and isinstance(opt_snap, dict):
-                    meta["iv_percentile"] = opt_snap.get("iv_percentile")
-                    meta["put_call_ratio"] = opt_snap.get("put_call_ratio")
-                    meta["implied_volatility"] = opt_snap.get("implied_volatility")
+                # Analyst consensus — target prices, recommendation, number of analysts
+                consensus = obb.get_consensus(obb_sym)
+                if consensus and isinstance(consensus, dict):
+                    if not meta.get("analyst_consensus") and consensus.get("recommendation"):
+                        meta["analyst_consensus"] = consensus["recommendation"]
+                    if not meta.get("analyst_target") and consensus.get("target_consensus"):
+                        meta["analyst_target"] = round(float(consensus["target_consensus"]), 2)
+                    meta["analyst_count"] = consensus.get("number_of_analysts")
+
+                # Share statistics — institutional ownership, short interest
+                ownership = obb.get_ownership(obb_sym)
+                if ownership and isinstance(ownership, dict):
+                    meta["shares_outstanding"] = ownership.get("outstanding_shares")
+                    meta["float_shares"] = ownership.get("float_shares")
+                    if ownership.get("short_percent_of_float"):
+                        meta["short_pct_float"] = round(float(ownership["short_percent_of_float"]) * 100, 2)
 
                 # Yield curve for macro context
                 yc = obb.get_yield_curve()
@@ -1017,8 +1027,9 @@ async def stream_stock_score(
 
 @router.get("/{ticker}/options")
 async def get_options_snapshot(ticker: str, market: str = Query("US")):
-    """Options snapshot — IV percentile, put/call ratio, unusual activity.
-    Data from OpenBB Platform (self-hosted). Returns empty dict if OpenBB disabled.
+    """Analyst consensus + share statistics from OpenBB.
+    Returns consensus recommendation, target prices, and ownership data.
+    Returns empty dict if OpenBB disabled.
     """
     try:
         from nq_data.openbb import get_openbb_client, _obb_symbol
@@ -1030,29 +1041,19 @@ async def get_options_snapshot(ticker: str, market: str = Query("US")):
 
         result = {"enabled": True, "ticker": ticker, "data": {}}
 
-        # Options snapshot (IV percentile, put/call ratio)
-        snap = await asyncio.to_thread(obb.get_options_snapshots, obb_sym)
-        if snap and isinstance(snap, dict):
-            result["data"]["snapshot"] = snap
+        # Analyst consensus (recommendation, target prices, analyst count)
+        consensus = await asyncio.to_thread(obb.get_consensus, obb_sym)
+        if consensus and isinstance(consensus, dict):
+            result["data"]["consensus"] = consensus
 
-        # Options chain (subset — top 5 by volume each side)
-        chain = await asyncio.to_thread(obb.get_options_chains, obb_sym)
-        if chain and isinstance(chain, list):
-            # Filter to nearest expiry, top 5 calls + puts by volume
-            calls = sorted(
-                [c for c in chain if isinstance(c, dict) and c.get("option_type", "").lower() == "call"],
-                key=lambda x: float(x.get("volume", 0) or 0), reverse=True,
-            )[:5]
-            puts = sorted(
-                [p for p in chain if isinstance(p, dict) and p.get("option_type", "").lower() == "put"],
-                key=lambda x: float(x.get("volume", 0) or 0), reverse=True,
-            )[:5]
-            result["data"]["top_calls"] = calls
-            result["data"]["top_puts"] = puts
+        # Share statistics (ownership, short interest)
+        ownership = await asyncio.to_thread(obb.get_ownership, obb_sym)
+        if ownership and isinstance(ownership, dict):
+            result["data"]["ownership"] = ownership
 
         return result
     except Exception as exc:
-        log.warning("Options snapshot failed for %s: %s", ticker, exc)
+        log.warning("Options/consensus snapshot failed for %s: %s", ticker, exc)
         return {"enabled": True, "ticker": ticker, "data": {}, "error": str(exc)}
 
 

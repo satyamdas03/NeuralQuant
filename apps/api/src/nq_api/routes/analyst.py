@@ -545,19 +545,21 @@ def _fetch_finnhub_data(ticker: str, market: str) -> dict:
     except Exception as exc:
         log.debug("FMP earnings calendar failed for %s: %s", ticker, exc)
 
-    # ── OpenBB enrichment (supplementary — options, dividends, yield curve) ──
+    # ── OpenBB enrichment (supplementary — consensus, dividends, yield curve) ──
     try:
         from nq_data.openbb import get_openbb_client
         obb = get_openbb_client()
         if obb.enabled:
             obb_sym = _yf_symbol(ticker, market) if market == "IN" else ticker
 
-            # Options snapshot — IV percentile, put/call ratio, implied volatility
-            opt_snap = obb.get_options_snapshots(obb_sym)
-            if opt_snap and isinstance(opt_snap, dict):
-                result["iv_percentile"] = opt_snap.get("iv_percentile")
-                result["put_call_ratio"] = opt_snap.get("put_call_ratio")
-                result["implied_volatility"] = opt_snap.get("implied_volatility")
+            # Analyst consensus — target prices, recommendation, analyst count
+            consensus = obb.get_consensus(obb_sym)
+            if consensus and isinstance(consensus, dict):
+                if not result.get("analyst_consensus") and consensus.get("recommendation"):
+                    result["analyst_consensus"] = consensus["recommendation"]
+                if not result.get("analyst_target") and consensus.get("target_consensus"):
+                    result["analyst_target"] = round(float(consensus["target_consensus"]), 2)
+                result["analyst_count"] = consensus.get("number_of_analysts")
 
             # Dividend history — calculate trailing yield from recent dividends
             if not result.get("dividend_yield_pct"):
