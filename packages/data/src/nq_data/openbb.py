@@ -30,7 +30,6 @@ _TTLS: dict[str, int] = {
     "income_statement": 86400,
     "cash_flow": 86400,
     "dividends": 86400,
-    "trailing_dividend_yield": 86400,
     "options_chains": 300,     # 5 min (options data changes fast)
     "options_snapshots": 300,
     "yield_curve": 86400,
@@ -42,8 +41,6 @@ _TTLS: dict[str, int] = {
     "fred_series": 86400,
     "screener": 3600,
     "ownership": 86400,
-    "filings": 3600,
-    "calendar_dividend": 86400,
     "performance": 300,
 }
 
@@ -154,43 +151,32 @@ class OpenBBClient:
 
     def get_balance_sheet(self, symbol: str, provider: str = "yfinance") -> dict | None:
         """Balance sheet data."""
-        data = self._get("/api/v1/equity/fundamental/balance_sheet", {"symbol": symbol, "provider": provider}, category="balance_sheet")
+        data = self._get("/api/v1/equity/fundamental/balance", {"symbol": symbol, "provider": provider}, category="balance_sheet")
         if isinstance(data, list) and data:
             return data[0] if isinstance(data[0], dict) else None
         return data if isinstance(data, dict) else None
 
     def get_income_statement(self, symbol: str, provider: str = "yfinance") -> dict | None:
         """Income statement data."""
-        data = self._get("/api/v1/equity/fundamental/income_statement", {"symbol": symbol, "provider": provider}, category="income_statement")
+        data = self._get("/api/v1/equity/fundamental/income", {"symbol": symbol, "provider": provider}, category="income_statement")
         if isinstance(data, list) and data:
             return data[0] if isinstance(data[0], dict) else None
         return data if isinstance(data, dict) else None
 
     def get_cash_flow(self, symbol: str, provider: str = "yfinance") -> dict | None:
         """Cash flow statement data."""
-        data = self._get("/api/v1/equity/fundamental/cash_flow_statement", {"symbol": symbol, "provider": provider}, category="cash_flow")
+        data = self._get("/api/v1/equity/fundamental/cash", {"symbol": symbol, "provider": provider}, category="cash_flow")
         if isinstance(data, list) and data:
             return data[0] if isinstance(data[0], dict) else None
         return data if isinstance(data, dict) else None
 
     def get_dividends(self, symbol: str, provider: str = "yfinance") -> list | None:
         """Historical dividend data."""
-        return self._get("/api/v1/equity/fundamental/historical_dividends", {"symbol": symbol, "provider": provider}, category="dividends")
-
-    def get_trailing_dividend_yield(self, symbol: str, provider: str = "yfinance") -> dict | None:
-        """1-year trailing dividend yield."""
-        data = self._get("/api/v1/equity/fundamental/trailing_dividend_yield", {"symbol": symbol, "provider": provider}, category="trailing_dividend_yield")
-        if isinstance(data, list) and data:
-            return data[0] if isinstance(data[0], dict) else None
-        return data if isinstance(data, dict) else None
+        return self._get("/api/v1/equity/fundamental/dividends", {"symbol": symbol, "provider": provider}, category="dividends")
 
     def get_ownership(self, symbol: str, provider: str = "yfinance") -> list | None:
-        """Major holders / institutional ownership."""
-        return self._get("/api/v1/equity/ownership", {"symbol": symbol, "provider": provider}, category="ownership")
-
-    def get_filings(self, symbol: str, provider: str = "yfinance") -> list | None:
-        """SEC filings."""
-        return self._get("/api/v1/equity/discovery/filings", {"symbol": symbol, "provider": provider}, category="filings")
+        """Share statistics (institutional ownership %, float, shares outstanding)."""
+        return self._get("/api/v1/equity/ownership/share_statistics", {"symbol": symbol, "provider": provider}, category="ownership")
 
     def get_performance(self, symbol: str, provider: str = "yfinance") -> dict | None:
         """Price performance metrics (1d, 5d, 1m, 3m, YTD, 1y, etc.)."""
@@ -201,23 +187,18 @@ class OpenBBClient:
 
     # ── Options / Derivatives ──────────────────────────────────────────────────
 
-    def get_options_chains(self, symbol: str, provider: str = "yfinance") -> list | None:
-        """Full options chain (calls + puts with strike, IV, OI, bid/ask)."""
+    def get_options_chains(self, symbol: str, provider: str = "tradier") -> list | None:
+        """Full options chain (calls + puts with strike, IV, OI, bid/ask).
+        Requires tradier provider (free API key from tradier.com)."""
         return self._get("/api/v1/derivatives/options/chains", {"symbol": symbol, "provider": provider}, category="options_chains")
 
-    def get_options_snapshots(self, symbol: str, provider: str = "yfinance") -> dict | None:
-        """Options market snapshot (IV percentile, put/call ratio)."""
+    def get_options_snapshots(self, symbol: str, provider: str = "tradier") -> dict | None:
+        """Options market snapshot (IV percentile, put/call ratio).
+        Requires tradier provider (free API key from tradier.com)."""
         data = self._get("/api/v1/derivatives/options/snapshots", {"symbol": symbol, "provider": provider}, category="options_snapshots")
         if isinstance(data, list) and data:
             return data[0] if isinstance(data[0], dict) else None
         return data if isinstance(data, dict) else None
-
-    def get_options_unusual(self, symbol: str | None = None, provider: str = "yfinance") -> list | None:
-        """Unusual options activity."""
-        params = {"provider": provider}
-        if symbol:
-            params["symbol"] = symbol
-        return self._get("/api/v1/derivatives/options/unusual", params, category="options_chains")
 
     # ── Macro / Economy ────────────────────────────────────────────────────────
 
@@ -235,34 +216,34 @@ class OpenBBClient:
         """US Treasury rates across maturities."""
         return self._get("/api/v1/fixedincome/government/treasury_rates", {"provider": provider}, category="treasury_rates")
 
-    def get_cpi(self, provider: str = "oecd") -> dict | None:
-        """Consumer Price Index."""
-        data = self._get("/api/v1/economy/cpi", {"provider": provider}, category="cpi")
+    def get_cpi(self, provider: str = "federal_reserve") -> dict | None:
+        """Consumer Price Index (via FRED series CPIAUCSL)."""
+        data = self._get("/api/v1/economy/fred_series", {"series_id": "CPIAUCSL", "provider": provider}, category="cpi")
         if isinstance(data, list) and data:
             return data[0] if isinstance(data[0], dict) else None
         return data if isinstance(data, dict) else None
 
-    def get_gdp(self, provider: str = "oecd") -> dict | None:
-        """GDP data."""
-        data = self._get("/api/v1/economy/gdp/real", {"provider": provider}, category="gdp")
+    def get_gdp(self, provider: str = "federal_reserve") -> dict | None:
+        """GDP data (via FRED series GDPC1)."""
+        data = self._get("/api/v1/economy/fred_series", {"series_id": "GDPC1", "provider": provider}, category="gdp")
         if isinstance(data, list) and data:
             return data[0] if isinstance(data[0], dict) else None
         return data if isinstance(data, dict) else None
 
     def get_interest_rates(self, provider: str = "federal_reserve") -> list | None:
-        """Interest rate data."""
-        return self._get("/api/v1/economy/interest_rates", {"provider": provider}, category="interest_rates")
+        """Effective Federal Funds Rate (via FRED series FEDFUNDS)."""
+        return self._get("/api/v1/fixedincome/rate/effr", {"provider": provider}, category="interest_rates")
 
-    def get_unemployment(self, provider: str = "oecd") -> dict | None:
-        """Unemployment data."""
-        data = self._get("/api/v1/economy/unemployment", {"provider": provider}, category="unemployment")
+    def get_unemployment(self, provider: str = "federal_reserve") -> dict | None:
+        """Unemployment rate (via FRED series UNRATE)."""
+        data = self._get("/api/v1/economy/fred_series", {"series_id": "UNRATE", "provider": provider}, category="unemployment")
         if isinstance(data, list) and data:
             return data[0] if isinstance(data[0], dict) else None
         return data if isinstance(data, dict) else None
 
-    def get_fred_series(self, series_id: str) -> dict | None:
+    def get_fred_series(self, series_id: str, provider: str = "federal_reserve") -> dict | None:
         """FRED series data (any series ID)."""
-        data = self._get("/api/v1/economy/fred_series", {"series_id": series_id, "provider": "fred"}, category="fred_series")
+        data = self._get("/api/v1/economy/fred_series", {"series_id": series_id, "provider": provider}, category="fred_series")
         if isinstance(data, list) and data:
             return data[0] if isinstance(data[0], dict) else None
         return data if isinstance(data, dict) else None
