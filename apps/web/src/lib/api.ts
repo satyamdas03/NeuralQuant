@@ -3,7 +3,7 @@ import type {
   AnalystRequest, AnalystResponse,
   QueryRequest, StructuredQueryResponse,
   MarketOverview, MarketNews, MarketSectors,
-  MarketMovers, StockChart, StockMeta,
+  MarketMovers, StockChart, StockMeta, OptionsSnapshot,
   SentimentResponse, BacktestRequest, BacktestResponse, AccuracyResponse,
   AlertSubscription, AlertDelivery, NewsDeskResponse,
   UserProfile,
@@ -254,6 +254,8 @@ export const api = {
     apiFetch<StockChart>(`/stocks/${ticker}/chart?period=${period}&market=${market}`),
   getStockMeta: (ticker: string, market: Market = "US") =>
     apiFetch<StockMeta>(`/stocks/${ticker}/meta?market=${market}`),
+  getOptionsSnapshot: (ticker: string, market: Market = "US") =>
+    apiFetch<OptionsSnapshot>(`/stocks/${ticker}/options?market=${market}`),
 
   // Pillar C: sentiment (public, free, cached at edge by client)
   getSentiment: (ticker: string, market: Market = "US", limit = 15) =>

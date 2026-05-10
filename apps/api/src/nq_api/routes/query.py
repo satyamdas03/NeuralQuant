@@ -103,6 +103,13 @@ _CLARIFICATION_STOCK_KEYWORDS = [
     "top picks", "good stocks", "hot stocks",
 ]
 
+_SECTOR_KEYWORDS = [
+    "IT", "tech", "technology", "pharma", "healthcare", "banking", "finance",
+    "energy", "oil", "gas", "real estate", "infrastructure", "auto", "FMCG",
+    "consumer", "telecom", "defence", "defense", "manufacturing", "fintech",
+    "ESG", "green", "renewable", "semiconductor", "AI", "cloud",
+]
+
 _CLARIFICATION_SKIP_PATTERNS = [
     # Factual queries — answer directly
     "what is", "what's", "what was", "how much", "how many",
@@ -122,16 +129,27 @@ def _needs_clarification(
 
     Returns True for ambiguous/vague questions that would benefit from context.
     Returns False for factual/direct questions with clear tickers.
-    Portfolio intent WITHOUT profile is handled by existing ProfilerCard, so skip here.
+    Portfolio intent WITHOUT profile → ProfilerCard first, then may still clarify.
     """
     q = question.lower().strip()
 
     # Portfolio intent without profile → handled by ProfilerCard, not ClarificationCard
     if _is_portfolio_intent(question) and not profile:
         return False
-    # Portfolio intent WITH profile → proceed directly, no clarification needed
+    # Portfolio intent WITH profile → ask clarification if question is vague
+    # (e.g. "invest 10 lakhs" without specifying sectors, risk level, etc.)
     if _is_portfolio_intent(question) and profile:
-        return False
+        # Still clarify vague portfolio queries even with profile
+        _PORTFOLIO_CLARIFY_PATTERNS = [
+            "sector", "risk", "time horizon", "timeframe", "goal",
+            "aggressive", "conservative", "balanced", "growth", "income",
+            "short term", "long term", "mid term", "dividend",
+        ]
+        # If question mentions specific preferences, skip clarification
+        if any(p in q for p in _PORTFOLIO_CLARIFY_PATTERNS):
+            return False
+        # Vague portfolio query without specifics → clarify
+        return True
 
     # Skip factual/direct questions with clear tickers
     if detected_tickers and any(p in q for p in _CLARIFICATION_SKIP_PATTERNS):
@@ -279,6 +297,25 @@ def _generate_clarification_questions(
             question_type="risk_tolerance",
         ))
 
+    # Portfolio-specific clarification questions
+    elif _is_portfolio_intent(question):
+        cur = "₹" if market == "IN" else "$"
+        questions.append(ClarificationQuestion(
+            question=f"What's your target return range for this portfolio?",
+            options=["5–8% (conservative)", "8–12% (balanced)", "12–18% (aggressive)", "18%+ (high risk)"],
+            question_type="investment_goal",
+        ))
+        questions.append(ClarificationQuestion(
+            question="Which sectors do you want exposure to?",
+            options=["Diversified across all sectors", "Financials & NBFCs", "Technology & IT", "Energy & Infrastructure", "Defence & Manufacturing"],
+            question_type="sector_preference",
+        ))
+        questions.append(ClarificationQuestion(
+            question="What's your risk tolerance?",
+            options=["Conservative — protect capital, minimal drawdown", "Balanced — moderate risk for moderate returns", "Aggressive — willing to accept -15% drawdown for higher upside"],
+            question_type="risk_tolerance",
+        ))
+
     # General recommendation questions
     elif any(kw in q for kw in ["best stocks", "recommend", "suggest", "top picks", "which stock"]):
         questions.append(ClarificationQuestion(
@@ -346,7 +383,7 @@ _SYSTEM = """You are NeuralQuant — an institutional-grade AI stock intelligenc
 - **For portfolio allocation questions (e.g. "invest ₹10L in Indian stocks for 15-20% in 12 months"):**
   - Name 4-6 specific stocks. Allocations MUST sum exactly to the user's total capital (verify arithmetic before answering).
   - **Currency rule:** Allocation amounts use the user's stated capital currency (e.g. ₹10L → every allocation in ₹). Entry/target/stop prices use each stock's NATIVE trading currency ($ for US listings, ₹ for NSE/BSE). Do NOT convert prices.
-  - Give entry price range (use the LIVE price injected above as midpoint; range = ±2%). Do NOT invent prices — if a stock's live price is not injected, exclude it.
+  - Give entry price range (use the LIVE price injected above as midpoint; range = ±2%). Do NOT invent prices — if a stock's live price is not injected or is marked "Price unavailable", set entry_price to "Price unavailable" and DO NOT generate a fabricated placeholder like "₹(cached — enter near current market price)" or similar. Exclude that stock from numeric price-based calculations.
   - **CRITICAL — Target price rule:** If user specified a return target R% (e.g. "15-20%"), then EVERY stock's target price MUST equal entry_mid × (1 + r/100) where r ∈ [R_low, R_high]. Do NOT copy the analyst consensus target verbatim. Do NOT include a stock whose realistic 12-month upside falls outside the user's range — pick a different stock. Show the per-stock % next to the target and confirm it lands inside the user's band.
   - Stop-loss: entry_mid × 0.90 (10% below entry) for every stock — consistent across the portfolio.
   - **For EACH allocation, explain WHY this stock and WHY NOT the next-best alternative.** This is mandatory.
@@ -1031,6 +1068,23 @@ def _validate_and_fill_portfolio_prices(
                 pass
 
         if not live_price or live_price <= 0:
+            # Tier 3 fallback: check score_cache for a stale price (up to 24h old)
+            try:
+                from nq_api.cache.score_cache import read_one as _sc_read_one
+                sc = _sc_read_one(ticker.upper(), market, max_age_seconds=86400)
+                if sc and sc.get("current_price"):
+                    live_price = float(sc["current_price"])
+                    fill_notes.append(f"{ticker} price: stale cache ({live_price:.2f})")
+            except Exception:
+                pass
+
+        if not live_price or live_price <= 0:
+            # All sources failed: mark stock as price-unavailable
+            stock["price_unavailable"] = True
+            stock["entry_price"] = "Price unavailable"
+            stock["target_price"] = "N/A"
+            stock["stop_loss"] = "N/A"
+            fill_notes.append(f"{ticker}: price unavailable from all sources")
             continue
 
         entry_str = stock.get("entry_price", "")
@@ -1105,6 +1159,16 @@ def _validate_and_fill_portfolio_prices(
                             stock["risk_reward"] = f"1:{rr:.1f}"
             except (ValueError, ZeroDivisionError):
                 pass
+
+    # Strip LLM-fabricated placeholder text from entry_price fields
+    _CACHED_PATTERN = re.compile(
+        r"(?:cached|enter near|enter at|market price|current price)", re.IGNORECASE
+    )
+    for stock in portfolio_stocks:
+        ep = stock.get("entry_price", "")
+        if ep and _CACHED_PATTERN.search(ep):
+            stock["entry_price"] = "Price unavailable"
+            stock["price_unavailable"] = True
 
     return portfolio_stocks, fill_notes
 

@@ -213,6 +213,7 @@ class PortfolioStockCard(BaseModel):
     rationale: Optional[str] = None
     confidence: Optional[int] = None
     sector: Optional[str] = None
+    price_unavailable: Optional[bool] = None
 
 
 class ScenarioCard(BaseModel):

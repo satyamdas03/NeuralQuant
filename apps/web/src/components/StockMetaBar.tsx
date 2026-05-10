@@ -44,10 +44,36 @@ export function StockMetaBar({ meta, market = "US" }: { meta: StockMeta; market?
     { label: "Dividend",     value: meta.dividend_yield ? `${meta.dividend_yield}%` : "—" },
   ];
 
+  // Extra OpenBB-enriched fields (shown if available)
+  const extraItems: { label: string; value: string; color?: string }[] = [];
+  if ((meta as any).analyst_consensus) {
+    const ac = (meta as any).analyst_consensus as string;
+    const acColor = REC_COLORS[ac.toLowerCase()] ?? "text-on-surface";
+    extraItems.push({ label: "Analyst Consensus", value: ac.replace(/_/g, " ").toUpperCase(), color: acColor });
+  }
+  if ((meta as any).analyst_count) {
+    extraItems.push({ label: "Analysts", value: `${(meta as any).analyst_count}` });
+  }
+  if ((meta as any).altman_z_score) {
+    extraItems.push({ label: "Altman Z", value: `${(meta as any).altman_z_score}` });
+  }
+  if ((meta as any).piotroski_score) {
+    extraItems.push({ label: "Piotroski", value: `${(meta as any).piotroski_score}/9` });
+  }
+  if ((meta as any).yield_curve_spread != null) {
+    extraItems.push({ label: "2y/10y Spread", value: `${(meta as any).yield_curve_spread}bps` });
+  }
+  if ((meta as any).yield_curve_10y != null) {
+    extraItems.push({ label: "US 10Y", value: `${(meta as any).yield_curve_10y}%` });
+  }
+
   return (
     <GhostBorderCard>
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-x-6 gap-y-3">
         {items.map(({ label, value, color }) => (
+          <MetaItem key={label} label={label} value={value} color={color} />
+        ))}
+        {extraItems.map(({ label, value, color }) => (
           <MetaItem key={label} label={label} value={value} color={color} />
         ))}
       </div>

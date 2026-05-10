@@ -13,6 +13,7 @@ import { StockMetaBar } from "@/components/StockMetaBar";
 import { RegimeContextPanel } from "@/components/RegimeContextPanel";
 import { TransparencyPanel } from "@/components/TransparencyPanel";
 import GhostBorderCard from "@/components/ui/GhostBorderCard";
+import ConsensusPanel from "@/components/ConsensusPanel";
 import GradientButton from "@/components/ui/GradientButton";
 import { Star, ArrowRight, Loader2 } from "lucide-react";
 
@@ -137,6 +138,9 @@ export default function StockPage() {
 
       {/* Meta bar */}
       {meta && <StockMetaBar meta={meta} market={market} />}
+
+      {/* Analyst Consensus & Ownership */}
+      <ConsensusPanel ticker={ticker} market={market} />
 
       {/* Price Chart */}
       <PriceChart ticker={ticker.toUpperCase()} market={market} />

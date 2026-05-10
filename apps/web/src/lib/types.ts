@@ -198,6 +198,50 @@ export interface StockMeta {
   industry: string | null;
   dividend_yield: number | null;
   current_price: number | null;
+  analyst_consensus: string | null;
+  analyst_count: number | null;
+  dividend_history: Array<{ date: string; dividend: number; yield_pct: number }> | null;
+  altman_z_score: number | null;
+  piotroski_score: number | null;
+  insider_buys: number | null;
+  insider_sells: number | null;
+  dcf_value: number | null;
+  dividend_yield_pct: number | null;
+  yield_curve_2y: number | null;
+  yield_curve_10y: number | null;
+  yield_curve_spread: number | null;
+}
+
+export interface AnalystConsensus {
+  consensus: string | null;
+  consensus_rating: number | null;
+  target_consensus: number | null;
+  target_median: number | null;
+  target_high: number | null;
+  target_low: number | null;
+  analyst_count: number | null;
+  buy_count: number | null;
+  hold_count: number | null;
+  sell_count: number | null;
+}
+
+export interface ShareOwnership {
+  float_shares: number | null;
+  outstanding_shares: number | null;
+  short_interest: number | null;
+  short_ratio: number | null;
+  institutional_ownership_pct: number | null;
+  insider_ownership_pct: number | null;
+}
+
+export interface OptionsSnapshot {
+  enabled: boolean;
+  ticker: string;
+  data: {
+    consensus: AnalystConsensus | null;
+    ownership: ShareOwnership | null;
+  };
+  error?: string;
 }
 
 export interface ConversationMessage {
@@ -422,6 +466,7 @@ export interface PortfolioStockCard {
   rationale?: string;
   confidence?: number;
   sector?: string;
+  price_unavailable?: boolean;
 }
 
 export interface ScenarioCard {
