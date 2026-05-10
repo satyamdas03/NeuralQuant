@@ -788,14 +788,111 @@ def _fetch_stock_meta_fmp(ticker: str, market: str) -> dict | Exception:
             "beta": beta_v,
             "week_52_high": hi52,
             "week_52_low": lo52,
-            "earnings_date": None,  # FMP doesn't provide in profile/quote
-            "analyst_target": None,
-            "analyst_recommendation": None,
+            "earnings_date": None,  # filled below from FMP calendar
+            "analyst_target": None,  # filled below from FMP price target
+            "analyst_recommendation": None,  # filled below from FMP grades
             "sector": sector,
             "industry": industry,
             "dividend_yield": div_pct,
             "current_price": current_price,
         }
+
+        # Post-build FMP enrichment: analyst target, grades, earnings, dividends, insider
+        try:
+            # Analyst price target
+            tgt = fmp.get_price_target(sym)
+            if tgt and tgt.get("target_avg") is not None:
+                meta["analyst_target"] = round(float(tgt["target_avg"]), 2)
+
+            # Analyst consensus grade
+            grades = fmp.get_analyst_grades(sym)
+            if grades and grades.get("consensus"):
+                meta["analyst_recommendation"] = grades["consensus"]
+
+            # Upcoming earnings date
+            from datetime import date as _date, timedelta as _td
+            today = _date.today()
+            earnings = fmp.get_earnings_calendar(today.isoformat(), (today + _td(days=30)).isoformat())
+            if earnings and isinstance(earnings, list):
+                ticker_earnings = [
+                    e for e in earnings
+                    if e.get("ticker", "").upper() == ticker.upper()
+                    or e.get("ticker", "").upper() == sym.upper()
+                ]
+                if ticker_earnings and ticker_earnings[0].get("date"):
+                    meta["earnings_date"] = ticker_earnings[0]["date"]
+
+            # Dividend history (latest 4)
+            divs = fmp.get_dividends(sym)
+            if divs and isinstance(divs, list) and divs:
+                meta["dividend_history"] = divs[:4]
+
+            # Analyst estimates (revenue + EPS consensus)
+            estimates = fmp.get_analyst_estimates(sym)
+            if estimates:
+                if estimates.get("revenue_estimate") is not None:
+                    meta["analyst_revenue_est"] = float(estimates["revenue_estimate"])
+                if estimates.get("eps_estimate") is not None:
+                    meta["analyst_eps_est"] = float(estimates["eps_estimate"])
+
+            # Financial scores (Altman Z, Piotroski)
+            scores = fmp.get_financial_scores(sym)
+            if scores:
+                if scores.get("altman_z_score") is not None:
+                    meta["altman_z_score"] = round(float(scores["altman_z_score"]), 2)
+                if scores.get("piotroski_score") is not None:
+                    meta["piotroski_score"] = int(scores["piotroski_score"])
+
+            # Insider trading summary
+            insider = fmp.get_insider_trading(sym)
+            if insider and isinstance(insider, list):
+                buys = sum(1 for t in insider if "Buy" in str(t.get("transaction_type", "")))
+                sells = sum(1 for t in insider if "Sell" in str(t.get("transaction_type", "")))
+                meta["insider_buys"] = buys
+                meta["insider_sells"] = sells
+
+            # DCF valuation
+            dcf = fmp.get_dcf(sym)
+            if dcf and dcf.get("dcf_value") is not None:
+                meta["dcf_value"] = round(float(dcf["dcf_value"]), 2)
+                if dcf.get("stock_price") is not None:
+                    meta["dcf_stock_price"] = round(float(dcf["stock_price"]), 2)
+        except Exception as exc:
+            log.debug("FMP post-build enrichment failed for %s: %s", ticker, exc)
+
+        # ── OpenBB enrichment (supplementary data) ──────────────────────────
+        try:
+            from nq_data.openbb import get_openbb_client
+            obb = get_openbb_client()
+            if obb.enabled:
+                obb_sym = _yf_symbol(ticker, market) if market == "IN" else ticker
+
+                # Dividend history + trailing yield (OpenBB has richer dividend data than FMP)
+                divs = obb.get_dividends(obb_sym)
+                if divs and isinstance(divs, list) and len(divs) > 0:
+                    # Only fill if FMP didn't provide dividend data
+                    if not meta.get("dividend_yield_pct"):
+                        trail = obb.get_trailing_dividend_yield(obb_sym)
+                        if trail and trail.get("yield_pct"):
+                            meta["dividend_yield_pct"] = round(float(trail["yield_pct"]), 2)
+
+                # Options snapshot — IV percentile, put/call ratio (NeuralQuant has ZERO options data)
+                opt_snap = obb.get_options_snapshots(obb_sym)
+                if opt_snap and isinstance(opt_snap, dict):
+                    meta["iv_percentile"] = opt_snap.get("iv_percentile")
+                    meta["put_call_ratio"] = opt_snap.get("put_call_ratio")
+                    meta["implied_volatility"] = opt_snap.get("implied_volatility")
+
+                # Yield curve for macro context
+                yc = obb.get_yield_curve()
+                if yc and isinstance(yc, dict):
+                    meta["yield_curve_2y"] = yc.get("2_year")
+                    meta["yield_curve_10y"] = yc.get("10_year")
+                    meta["yield_curve_spread"] = yc.get("spread")
+        except Exception as exc:
+            log.debug("OpenBB enrichment failed for %s: %s", ticker, exc)
+
+        return meta
     except Exception as exc:
         return exc
 
@@ -899,3 +996,67 @@ async def stream_stock_score(
             "X-Accel-Buffering": "no",
         },
     )
+
+
+@router.get("/{ticker}/options")
+async def get_options_snapshot(ticker: str, market: str = Query("US")):
+    """Options snapshot — IV percentile, put/call ratio, unusual activity.
+    Data from OpenBB Platform (self-hosted). Returns empty dict if OpenBB disabled.
+    """
+    try:
+        from nq_data.openbb import get_openbb_client, _obb_symbol
+        obb = get_openbb_client()
+        if not obb.enabled:
+            return {"enabled": False, "ticker": ticker, "data": {}}
+
+        obb_sym = _obb_symbol(ticker, market)
+
+        result = {"enabled": True, "ticker": ticker, "data": {}}
+
+        # Options snapshot (IV percentile, put/call ratio)
+        snap = await asyncio.to_thread(obb.get_options_snapshots, obb_sym)
+        if snap and isinstance(snap, dict):
+            result["data"]["snapshot"] = snap
+
+        # Options chain (subset — top 5 by volume each side)
+        chain = await asyncio.to_thread(obb.get_options_chains, obb_sym)
+        if chain and isinstance(chain, list):
+            # Filter to nearest expiry, top 5 calls + puts by volume
+            calls = sorted(
+                [c for c in chain if isinstance(c, dict) and c.get("option_type", "").lower() == "call"],
+                key=lambda x: float(x.get("volume", 0) or 0), reverse=True,
+            )[:5]
+            puts = sorted(
+                [p for p in chain if isinstance(p, dict) and p.get("option_type", "").lower() == "put"],
+                key=lambda x: float(x.get("volume", 0) or 0), reverse=True,
+            )[:5]
+            result["data"]["top_calls"] = calls
+            result["data"]["top_puts"] = puts
+
+        # Unusual options activity
+        unusual = await asyncio.to_thread(obb.get_options_unusual, obb_sym)
+        if unusual and isinstance(unusual, list):
+            result["data"]["unusual_activity"] = unusual[:10]
+
+        return result
+    except Exception as exc:
+        log.warning("Options snapshot failed for %s: %s", ticker, exc)
+        return {"enabled": True, "ticker": ticker, "data": {}, "error": str(exc)}
+
+
+@router.get("/macro/yield-curve")
+async def get_yield_curve():
+    """US Treasury yield curve data from OpenBB. Returns empty dict if OpenBB disabled."""
+    try:
+        from nq_data.openbb import get_openbb_client
+        obb = get_openbb_client()
+        if not obb.enabled:
+            return {"enabled": False, "data": {}}
+
+        yc = await asyncio.to_thread(obb.get_yield_curve)
+        if yc:
+            return {"enabled": True, "data": yc}
+        return {"enabled": True, "data": {}}
+    except Exception as exc:
+        log.warning("Yield curve fetch failed: %s", exc)
+        return {"enabled": True, "data": {}, "error": str(exc)}

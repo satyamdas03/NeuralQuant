@@ -451,6 +451,138 @@ def _fetch_finnhub_data(ticker: str, market: str) -> dict:
     except Exception as exc:
         log.debug("FMP enrichment failed for %s: %s", ticker, exc)
 
+    # FMP Phase 3: technical indicators (fallback when Finnhub rate-limited)
+    try:
+        # Only fetch FMP technicals if Finnhub didn't provide RSI
+        if result.get("rsi_14") is None:
+            tech = fmp.get_technical_indicator(fmp_sym, "rsi", 14)
+            if tech and isinstance(tech, dict):
+                rsi_val = tech.get("rsi_14") or tech.get("RSI")
+                if rsi_val is not None:
+                    result["rsi_14"] = round(float(rsi_val), 1)
+        if result.get("macd_line") is None:
+            macd = fmp.get_technical_indicator(fmp_sym, "macd", 14)
+            if macd and isinstance(macd, dict):
+                macd_line = macd.get("macd_line") or macd.get("MACD")
+                macd_signal = macd.get("macd_signal") or macd.get("MACD_Signal")
+                macd_hist = macd.get("macd_hist") or macd.get("MACD_Hist")
+                if macd_line is not None:
+                    result["macd_line"] = round(float(macd_line), 2)
+                if macd_signal is not None:
+                    result["macd_signal"] = round(float(macd_signal), 2)
+                if macd_hist is not None:
+                    result["macd_hist"] = round(float(macd_hist), 2)
+    except Exception as exc:
+        log.debug("FMP technical indicator fallback failed for %s: %s", ticker, exc)
+
+    # FMP: analyst estimates (revenue + EPS consensus)
+    try:
+        estimates = fmp.get_analyst_estimates(fmp_sym)
+        if estimates:
+            if estimates.get("revenue_estimate") is not None:
+                result["analyst_revenue_est"] = float(estimates["revenue_estimate"])
+            if estimates.get("eps_estimate") is not None:
+                result["analyst_eps_est"] = float(estimates["eps_estimate"])
+            if estimates.get("number_of_analysts") is not None:
+                result["analyst_count"] = int(estimates["number_of_analysts"])
+    except Exception as exc:
+        log.debug("FMP analyst estimates failed for %s: %s", ticker, exc)
+
+    # FMP: insider trading (detailed transactions, better than Finnhub cluster score)
+    try:
+        insider_trades = fmp.get_insider_trading(fmp_sym)
+        if insider_trades and isinstance(insider_trades, list):
+            # Summarize insider transactions
+            buys = sum(1 for t in insider_trades if "Buy" in str(t.get("transaction_type", "")))
+            sells = sum(1 for t in insider_trades if "Sell" in str(t.get("transaction_type", "")))
+            total_shares_bought = sum(
+                int(t.get("shares", 0) or 0) for t in insider_trades
+                if "Buy" in str(t.get("transaction_type", ""))
+            )
+            total_shares_sold = sum(
+                int(t.get("shares", 0) or 0) for t in insider_trades
+                if "Sell" in str(t.get("transaction_type", ""))
+            )
+            result["insider_buys"] = buys
+            result["insider_sells"] = sells
+            result["insider_shares_bought"] = total_shares_bought
+            result["insider_shares_sold"] = total_shares_sold
+            result["insider_details"] = insider_trades[:5]  # Top 5 for agent context
+    except Exception as exc:
+        log.debug("FMP insider trading failed for %s: %s", ticker, exc)
+
+    # FMP: dividends
+    try:
+        divs = fmp.get_dividends(fmp_sym)
+        if divs and isinstance(divs, list):
+            latest = divs[0] if divs else None
+            if latest:
+                result["dividend_latest"] = latest.get("dividend")
+                result["dividend_yield_pct"] = latest.get("yield_pct")
+                result["dividend_date"] = latest.get("date")
+            result["dividend_history"] = divs[:4]  # Last 4 dividends
+    except Exception as exc:
+        log.debug("FMP dividends failed for %s: %s", ticker, exc)
+
+    # FMP: upcoming earnings (for Ask AI context about near-term catalysts)
+    try:
+        from datetime import date as _date, timedelta as _td
+        today = _date.today()
+        earnings = fmp.get_earnings_calendar(
+            today.isoformat(), (today + _td(days=30)).isoformat()
+        )
+        if earnings and isinstance(earnings, list):
+            # Filter to the requested ticker
+            ticker_earnings = [
+                e for e in earnings
+                if e.get("ticker", "").upper() == ticker.upper()
+                or e.get("ticker", "").upper() == fmp_sym.upper()
+            ]
+            if ticker_earnings:
+                result["next_earnings_date"] = ticker_earnings[0].get("date")
+                result["next_earnings_eps_est"] = ticker_earnings[0].get("eps_estimate")
+                result["next_earnings_eps_actual"] = ticker_earnings[0].get("eps_actual")
+    except Exception as exc:
+        log.debug("FMP earnings calendar failed for %s: %s", ticker, exc)
+
+    # ── OpenBB enrichment (supplementary — options, dividends, yield curve) ──
+    try:
+        from nq_data.openbb import get_openbb_client
+        obb = get_openbb_client()
+        if obb.enabled:
+            obb_sym = _yf_symbol(ticker, market) if market == "IN" else ticker
+
+            # Options snapshot — IV percentile, put/call ratio, implied volatility
+            opt_snap = obb.get_options_snapshots(obb_sym)
+            if opt_snap and isinstance(opt_snap, dict):
+                result["iv_percentile"] = opt_snap.get("iv_percentile")
+                result["put_call_ratio"] = opt_snap.get("put_call_ratio")
+                result["implied_volatility"] = opt_snap.get("implied_volatility")
+
+            # Dividend history (richer than FMP for many international tickers)
+            if not result.get("dividend_yield_pct"):
+                trail = obb.get_trailing_dividend_yield(obb_sym)
+                if trail and trail.get("yield_pct"):
+                    result["dividend_yield_pct"] = round(float(trail["yield_pct"]), 2)
+
+            # Yield curve for macro context
+            yc = obb.get_yield_curve()
+            if yc and isinstance(yc, dict):
+                result["yield_curve_2y"] = yc.get("2_year")
+                result["yield_curve_10y"] = yc.get("10_year")
+                result["yield_curve_spread"] = yc.get("spread")
+
+            # Institutional ownership
+            ownership = obb.get_ownership(obb_sym)
+            if ownership and isinstance(ownership, list):
+                top_holders = ownership[:5]
+                result["top_institutional_holders"] = [
+                    {"name": h.get("name", ""), "pct": h.get("pct_held", 0)}
+                    for h in top_holders if isinstance(h, dict)
+                ]
+    except Exception as exc:
+        log.debug("OpenBB enrichment failed for %s: %s", ticker, exc)
+
     return result
 
 

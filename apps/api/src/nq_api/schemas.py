@@ -157,6 +157,33 @@ class StockSummary(BaseModel):
     sector: str | None = None
     forecast_score: float | None = None  # 1-10
     currency: str = "$"
+    # FMP Premium enrichment fields
+    analyst_consensus: str | None = None
+    analyst_buy_pct: float | None = None
+    analyst_target_avg: float | None = None
+    analyst_target_high: float | None = None
+    analyst_target_low: float | None = None
+    analyst_revenue_est: float | None = None
+    analyst_eps_est: float | None = None
+    analyst_count: int | None = None
+    altman_z_score: float | None = None
+    piotroski_score: int | None = None
+    insider_buys: int | None = None
+    insider_sells: int | None = None
+    insider_shares_bought: int | None = None
+    insider_shares_sold: int | None = None
+    dividend_latest: float | None = None
+    dividend_yield_pct: float | None = None
+    next_earnings_date: str | None = None
+    next_earnings_eps_est: float | None = None
+    dcf_value: float | None = None
+    # OpenBB enrichment fields
+    iv_percentile: float | None = None
+    put_call_ratio: float | None = None
+    implied_volatility: float | None = None
+    yield_curve_2y: float | None = None
+    yield_curve_10y: float | None = None
+    yield_curve_spread: float | None = None
 
 
 # ── Portfolio Output Models (Phase 1) ────────────────────────────────────────

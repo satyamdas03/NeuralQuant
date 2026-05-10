@@ -46,6 +46,7 @@ class DataBroker:
         "world_bank":    SourceConfig("world_bank",     30),
         "screener_in":   SourceConfig("screener_in",    6),    # Scraper — be very gentle
         "finnhub":       SourceConfig("finnhub",        60),   # Free tier: 60 calls/min
+        "openbb":        SourceConfig("openbb",         120),  # Self-hosted: generous rate
     }
 
     def __init__(self, extra_configs: list[SourceConfig] | None = None):

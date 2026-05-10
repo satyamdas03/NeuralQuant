@@ -27,7 +27,9 @@ export default function ClarificationCard({ questions, context, onSubmit }: Prop
       className="rounded-xl bg-surface-container ghost-border p-4 space-y-4"
     >
       {context && (
-        <p className="text-sm text-on-surface font-medium">{context}</p>
+        <div className="rounded-lg bg-primary/10 border border-primary/20 px-3 py-2">
+          <p className="text-sm text-on-surface font-medium">{context}</p>
+        </div>
       )}
       <p className="text-xs text-on-surface-variant">
         Help me personalize your answer:

@@ -39,6 +39,7 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
   const [savedProfile, setSavedProfile] = useState<UserProfile | null>(null);
   const [lastUserQuestion, setLastUserQuestion] = useState<string>("");
   const [clarificationAnswers, setClarificationAnswers] = useState<string[] | undefined>(undefined);
+  const [sessionId] = useState(() => crypto.randomUUID());
 
   // Force re-render every 500ms while a request is in flight so the timeline's
   // elapsed-time counters update visually. Without this, "0.0s" stays frozen
@@ -111,7 +112,7 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
     try {
       const profileToUse = overrideProfile || savedProfile || undefined;
       const res = await api.runQueryStream(
-        { question: q, ticker: defaultTicker, history, profile: profileToUse, clarification_answers: clarificationAnswers },
+        { question: q, ticker: defaultTicker, history, profile: profileToUse, clarification_answers: clarificationAnswers, session_key: sessionId },
         controller.signal,
         (phase, label) => {
           // Append new phase to the message's phase history; mark previous

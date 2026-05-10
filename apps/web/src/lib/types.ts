@@ -92,6 +92,7 @@ export interface QueryRequest {
   history?: ConversationMessage[];
   profile?: UserProfile;
   clarification_answers?: string[];
+  session_key?: string;
 }
 
 export interface QueryResponse {
@@ -365,6 +366,33 @@ export interface StockSummary {
   sector: string | null;
   forecast_score: number | null;
   currency: string;
+  // FMP Premium enrichment fields
+  analyst_consensus: string | null;
+  analyst_buy_pct: number | null;
+  analyst_target_avg: number | null;
+  analyst_target_high: number | null;
+  analyst_target_low: number | null;
+  analyst_revenue_est: number | null;
+  analyst_eps_est: number | null;
+  analyst_count: number | null;
+  altman_z_score: number | null;
+  piotroski_score: number | null;
+  insider_buys: number | null;
+  insider_sells: number | null;
+  insider_shares_bought: number | null;
+  insider_shares_sold: number | null;
+  dividend_latest: number | null;
+  dividend_yield_pct: number | null;
+  next_earnings_date: string | null;
+  next_earnings_eps_est: number | null;
+  dcf_value: number | null;
+  // OpenBB enrichment fields
+  iv_percentile: number | null;
+  put_call_ratio: number | null;
+  implied_volatility: number | null;
+  yield_curve_2y: number | null;
+  yield_curve_10y: number | null;
+  yield_curve_spread: number | null;
 }
 
 // ── Portfolio Output Types (Phase 1) ──────────────────────────────────────────

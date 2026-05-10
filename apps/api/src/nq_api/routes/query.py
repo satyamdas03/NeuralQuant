@@ -151,26 +151,127 @@ def _needs_clarification(
     return False
 
 
+def _fetch_fmp_context_for_clarification(ticker: str, market: str) -> dict | None:
+    """Fetch real-time FMP data to enrich clarification questions with live market context.
+    Returns a dict with price, earnings date, analyst consensus, dividend yield, etc.
+    """
+    try:
+        from nq_data.fmp import get_fmp_client
+        fmp = get_fmp_client()
+        if not fmp._enabled:
+            return None
+        fmp_sym = _yf_symbol(ticker, market)
+        ctx = {}
+
+        # Price and basic metrics
+        quote = fmp.get_quote(fmp_sym)
+        if quote and quote.get("price"):
+            ctx["price"] = quote["price"]
+            ctx["change_pct"] = quote.get("change_pct")
+            ctx["pe"] = quote.get("pe")
+            ctx["market_cap"] = quote.get("market_cap")
+
+        # Analyst consensus
+        grades = fmp.get_analyst_grades(fmp_sym)
+        if grades:
+            ctx["analyst_consensus"] = grades.get("consensus")
+            total = (grades.get("strong_buy") or 0) + (grades.get("buy") or 0) + \
+                    (grades.get("hold") or 0) + (grades.get("sell") or 0) + (grades.get("strong_sell") or 0)
+            if total > 0:
+                ctx["analyst_buy_pct"] = round(
+                    ((grades.get("strong_buy") or 0) + (grades.get("buy") or 0)) / total * 100, 1
+                )
+
+        # Analyst price target
+        target = fmp.get_price_target(fmp_sym)
+        if target and target.get("target_avg"):
+            ctx["analyst_target"] = target["target_avg"]
+            if target.get("target_high"):
+                ctx["analyst_target_high"] = target["target_high"]
+            if target.get("target_low"):
+                ctx["analyst_target_low"] = target["target_low"]
+
+        # Dividend yield
+        divs = fmp.get_dividends(fmp_sym)
+        if divs and isinstance(divs, list) and divs:
+            ctx["dividend_yield"] = divs[0].get("yield_pct")
+            ctx["last_dividend"] = divs[0].get("dividend")
+
+        # Upcoming earnings
+        from datetime import date as _date, timedelta as _td
+        today = _date.today()
+        earnings = fmp.get_earnings_calendar(today.isoformat(), (today + _td(days=30)).isoformat())
+        if earnings and isinstance(earnings, list):
+            ticker_earnings = [
+                e for e in earnings
+                if e.get("ticker", "").upper() == ticker.upper()
+                or e.get("ticker", "").upper() == fmp_sym.upper()
+            ]
+            if ticker_earnings:
+                ctx["next_earnings_date"] = ticker_earnings[0].get("date")
+                ctx["next_earnings_eps_est"] = ticker_earnings[0].get("eps_estimate")
+
+        return ctx if ctx else None
+    except Exception as exc:
+        logger.debug("FMP context for clarification failed for %s: %s", ticker, exc)
+        return None
+
+
 def _generate_clarification_questions(
     question: str, detected_tickers: list[str], market: str, route: str,
+    fmp_context: dict | None = None,
 ) -> list:
-    """Generate 2-3 clarification questions based on the query type."""
+    """Generate 2-3 clarification questions based on the query type.
+    fmp_context provides real-time market data for dynamic question generation."""
     q = question.lower()
     questions = []
+    ctx = fmp_context or {}
+    price = ctx.get("price")
+    consensus = ctx.get("analyst_consensus", "").lower() if ctx.get("analyst_consensus") else None
+    buy_pct = ctx.get("analyst_buy_pct")
+    target = ctx.get("analyst_target")
+    div_yield = ctx.get("dividend_yield")
+    earnings_date = ctx.get("next_earnings_date")
+    pe = ctx.get("pe")
 
-    # Stock-specific questions
+    # Stock-specific questions with live data context
     if detected_tickers:
+        ticker_label = detected_tickers[0]
+        # Build context-aware prefix
+        context_parts = []
+        if price:
+            cur = "₹" if market == "IN" else "$"
+            context_parts.append(f"currently at {cur}{price:,.2f}")
+        if pe:
+            context_parts.append(f"P/E {pe:.1f}x")
+        if consensus:
+            context_parts.append(f"analysts say {consensus}")
+        if buy_pct and buy_pct > 60:
+            context_parts.append(f"{buy_pct:.0f}% buy rating")
+        if div_yield and div_yield > 0:
+            context_parts.append(f"{div_yield:.1f}% dividend yield")
+        if earnings_date:
+            context_parts.append(f"earnings on {earnings_date}")
+
+        ctx_str = f" ({'; '.join(context_parts)})" if context_parts else ""
+
         if any(kw in q for kw in ["should i buy", "is it worth", "should i invest"]):
             questions.append(ClarificationQuestion(
-                question=f"What's your time horizon for {detected_tickers[0]}?",
+                question=f"What's your time horizon for {ticker_label}{ctx_str}?",
                 options=["Short-term (< 3 months)", "Medium-term (3–12 months)", "Long-term (1+ years)"],
                 question_type="time_horizon",
             ))
         if any(kw in q for kw in ["should i sell", "should i hold"]):
             questions.append(ClarificationQuestion(
-                question=f"What's your basis (avg buy price) for {detected_tickers[0]}?",
+                question=f"What's your basis (avg buy price) for {ticker_label}{ctx_str}?",
                 options=["Above current price", "Near current price", "Below current price", "Not sure"],
                 question_type="context",
+            ))
+        if any(kw in q for kw in ["dividend", "income", "yield"]):
+            questions.append(ClarificationQuestion(
+                question=f"Are you prioritizing dividend income or capital growth for {ticker_label}?",
+                options=["Steady dividend income", "Balanced (dividends + growth)", "Pure capital growth"],
+                question_type="investment_goal",
             ))
         questions.append(ClarificationQuestion(
             question="What's your risk tolerance?",
@@ -341,7 +442,7 @@ OLD fields to IGNORE for portfolio layout:
 
 
 _PROFILE_PROMPT_TEMPLATE = """
-USER PROFILE (use this to personalize the portfolio):
+USER PROFILE (personalize your analysis for this investor):
 - Risk Profile: {risk_profile}
 - Time Horizon: {time_horizon}
 - Investment Goal: {goal}
@@ -1134,7 +1235,7 @@ def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, plat
         except Exception:
             pass
 
-    # FMP supplement: DCF valuation, analyst target, insider trading
+    # FMP supplement: DCF valuation, analyst target, insider trading, estimates, earnings
     if effective_ticker:
         try:
             from nq_data.fmp import get_fmp_client
@@ -1748,6 +1849,38 @@ async def run_nl_query(
             v = enrichment.get(k)
             if v is not None:
                 tech_lines.append(f"  {label}: {v}")
+        # Analyst & earnings data from FMP (enriched in analyst.py)
+        fmp_labels = {
+            "analyst_consensus": "Analyst Consensus",
+            "analyst_buy_pct": "Analyst Buy %",
+            "analyst_target_avg": "Analyst Target Avg",
+            "analyst_target_high": "Analyst Target High",
+            "analyst_target_low": "Analyst Target Low",
+            "analyst_revenue_est": "Revenue Estimate",
+            "analyst_eps_est": "EPS Estimate",
+            "analyst_count": "Analyst Count",
+            "altman_z_score": "Altman Z-Score",
+            "piotroski_score": "Piotroski Score",
+            "insider_buys": "Insider Buys",
+            "insider_sells": "Insider Sells",
+            "insider_shares_bought": "Insider Shares Bought",
+            "insider_shares_sold": "Insider Shares Sold",
+            "dividend_latest": "Latest Dividend",
+            "dividend_yield_pct": "Dividend Yield %",
+            "next_earnings_date": "Next Earnings Date",
+            "next_earnings_eps_est": "Earnings EPS Estimate",
+            # OpenBB enrichment
+            "iv_percentile": "IV Percentile",
+            "put_call_ratio": "Put/Call Ratio",
+            "implied_volatility": "Implied Volatility",
+            "yield_curve_2y": "2Y Treasury Yield",
+            "yield_curve_10y": "10Y Treasury Yield",
+            "yield_curve_spread": "Yield Curve Spread",
+        }
+        for k, label in fmp_labels.items():
+            v = enrichment.get(k)
+            if v is not None:
+                tech_lines.append(f"  {label}: {v}")
         if len(tech_lines) > 1:
             context_parts.append("\n".join(tech_lines))
 
@@ -2250,6 +2383,38 @@ async def run_nl_query_v2(
             v = enrichment.get(k)
             if v is not None:
                 tech_lines.append(f"  {label}: {v}")
+        # Analyst & earnings data from FMP (enriched in analyst.py)
+        fmp_labels = {
+            "analyst_consensus": "Analyst Consensus",
+            "analyst_buy_pct": "Analyst Buy %",
+            "analyst_target_avg": "Analyst Target Avg",
+            "analyst_target_high": "Analyst Target High",
+            "analyst_target_low": "Analyst Target Low",
+            "analyst_revenue_est": "Revenue Estimate",
+            "analyst_eps_est": "EPS Estimate",
+            "analyst_count": "Analyst Count",
+            "altman_z_score": "Altman Z-Score",
+            "piotroski_score": "Piotroski Score",
+            "insider_buys": "Insider Buys",
+            "insider_sells": "Insider Sells",
+            "insider_shares_bought": "Insider Shares Bought",
+            "insider_shares_sold": "Insider Shares Sold",
+            "dividend_latest": "Latest Dividend",
+            "dividend_yield_pct": "Dividend Yield %",
+            "next_earnings_date": "Next Earnings Date",
+            "next_earnings_eps_est": "Earnings EPS Estimate",
+            # OpenBB enrichment
+            "iv_percentile": "IV Percentile",
+            "put_call_ratio": "Put/Call Ratio",
+            "implied_volatility": "Implied Volatility",
+            "yield_curve_2y": "2Y Treasury Yield",
+            "yield_curve_10y": "10Y Treasury Yield",
+            "yield_curve_spread": "Yield Curve Spread",
+        }
+        for k, label in fmp_labels.items():
+            v = enrichment.get(k)
+            if v is not None:
+                tech_lines.append(f"  {label}: {v}")
         if len(tech_lines) > 1:
             context_parts.append("\n".join(tech_lines))
 
@@ -2301,6 +2466,32 @@ async def run_nl_query_v2(
             messages[-1] = {"role": "user", "content": user_msg}
 
         clarification = _needs_clarification(req.question, detected_tickers_v2, route, req.profile)
+        # Build dynamic clarification context with live market data
+        _fmp_ctx = _fetch_fmp_context_for_clarification(
+            detected_tickers_v2[0] if detected_tickers_v2 else "",
+            req.market or "US",
+        ) if detected_tickers_v2 else None
+        _clarification_qs = _generate_clarification_questions(
+            req.question, detected_tickers_v2, req.market or "US", route,
+            fmp_context=_fmp_ctx,
+        )
+        _ctx_str = "Answer these questions so I can give you a personalized response."
+        if _fmp_ctx and detected_tickers_v2:
+            _ctx_parts = []
+            cur = "₹" if (req.market or "US") == "IN" else "$"
+            if _fmp_ctx.get("price"):
+                _ctx_parts.append(f"Price: {cur}{_fmp_ctx['price']:,.2f}")
+            if _fmp_ctx.get("pe"):
+                _ctx_parts.append(f"P/E: {_fmp_ctx['pe']:.1f}x")
+            if _fmp_ctx.get("analyst_consensus"):
+                _ctx_parts.append(f"Analysts: {_fmp_ctx['analyst_consensus'].title()}")
+            if _fmp_ctx.get("dividend_yield"):
+                _ctx_parts.append(f"Yield: {_fmp_ctx['dividend_yield']:.1f}%")
+            if _fmp_ctx.get("next_earnings_date"):
+                _ctx_parts.append(f"Earnings: {_fmp_ctx['next_earnings_date']}")
+            if _ctx_parts:
+                _ctx_str = f"Live data for {detected_tickers_v2[0]}: {' | '.join(_ctx_parts)}"
+
         if clarification and not req.clarification_answers:
             return StructuredQueryResponse(
                 verdict="HOLD",
@@ -2312,10 +2503,8 @@ async def run_nl_query_v2(
                     second_best="N/A", confidence_gap="N/A",
                 ),
                 clarification_needed=True,
-                clarification_questions=_generate_clarification_questions(
-                    req.question, detected_tickers_v2, req.market or "US", route,
-                ),
-                clarification_context="Answer these questions so I can give you a personalized response.",
+                clarification_questions=_clarification_qs,
+                clarification_context=_ctx_str,
                 route="REACT",
                 data_sources=["NeuralQuant Clarification"],
                 follow_up_questions=[],
@@ -2358,6 +2547,11 @@ async def run_nl_query_v2(
             # Inject profile if present
             if req.profile:
                 user_msg = user_msg + "\n\n" + _build_profile_prompt(req.profile)
+            messages[-1]["content"] = user_msg
+
+        # Inject profile context for all queries (not just portfolio)
+        if req.profile and not portfolio_intent:
+            user_msg = user_msg + "\n\n[INVESTOR PROFILE CONTEXT] " + _build_profile_prompt(req.profile)
             messages[-1]["content"] = user_msg
 
         # Force tool_use for guaranteed structured output (no markdown leakage).
@@ -2948,6 +3142,32 @@ async def run_nl_query_v2_stream(
                     result_holder["user_msg"] += f"\n\n[USER CONTEXT] User clarified their needs:\n{answers_text}"
                     messages[-1] = {"role": "user", "content": result_holder["user_msg"]}
 
+                # Build dynamic clarification context with live market data (streaming)
+                _fmp_ctx_s = _fetch_fmp_context_for_clarification(
+                    detected_tickers_stream[0] if detected_tickers_stream else "",
+                    req.market or "US",
+                ) if detected_tickers_stream else None
+                _clarification_qs_s = _generate_clarification_questions(
+                    req.question, detected_tickers_stream, req.market or "US", route,
+                    fmp_context=_fmp_ctx_s,
+                )
+                _ctx_str_s = "Answer these questions so I can give you a personalized response."
+                if _fmp_ctx_s and detected_tickers_stream:
+                    _ctx_parts_s = []
+                    cur_s = "₹" if (req.market or "US") == "IN" else "$"
+                    if _fmp_ctx_s.get("price"):
+                        _ctx_parts_s.append(f"Price: {cur_s}{_fmp_ctx_s['price']:,.2f}")
+                    if _fmp_ctx_s.get("pe"):
+                        _ctx_parts_s.append(f"P/E: {_fmp_ctx_s['pe']:.1f}x")
+                    if _fmp_ctx_s.get("analyst_consensus"):
+                        _ctx_parts_s.append(f"Analysts: {_fmp_ctx_s['analyst_consensus'].title()}")
+                    if _fmp_ctx_s.get("dividend_yield"):
+                        _ctx_parts_s.append(f"Yield: {_fmp_ctx_s['dividend_yield']:.1f}%")
+                    if _fmp_ctx_s.get("next_earnings_date"):
+                        _ctx_parts_s.append(f"Earnings: {_fmp_ctx_s['next_earnings_date']}")
+                    if _ctx_parts_s:
+                        _ctx_str_s = f"Live data for {detected_tickers_stream[0]}: {' | '.join(_ctx_parts_s)}"
+
                 clarification = _needs_clarification(req.question, detected_tickers_stream, route, req.profile)
                 if clarification and not req.clarification_answers:
                     result_holder["result"] = StructuredQueryResponse(
@@ -2960,10 +3180,8 @@ async def run_nl_query_v2_stream(
                             second_best="N/A", confidence_gap="N/A",
                         ),
                         clarification_needed=True,
-                        clarification_questions=_generate_clarification_questions(
-                            req.question, detected_tickers_stream, req.market or "US", route,
-                        ),
-                        clarification_context="Answer these questions so I can give you a personalized response.",
+                        clarification_questions=_clarification_qs_s,
+                        clarification_context=_ctx_str_s,
                         route="REACT",
                         data_sources=["NeuralQuant Clarification"],
                         follow_up_questions=[],
@@ -3008,6 +3226,11 @@ async def run_nl_query_v2_stream(
                     # Inject profile if present
                     if req.profile:
                         result_holder["user_msg"] = result_holder["user_msg"] + "\n\n" + _build_profile_prompt(req.profile)
+                    messages[-1]["content"] = result_holder["user_msg"]
+
+                # Inject profile context for all non-portfolio streaming queries
+                if req.profile and not portfolio_intent:
+                    result_holder["user_msg"] = result_holder["user_msg"] + "\n\n[INVESTOR PROFILE CONTEXT] " + _build_profile_prompt(req.profile)
                     messages[-1]["content"] = result_holder["user_msg"]
 
                 # Force tool_use: model MUST call `respond_with_neuralquant_forecast`
