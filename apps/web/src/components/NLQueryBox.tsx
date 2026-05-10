@@ -76,7 +76,7 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
     fetchProfile();
   }, []);
 
-  const ask = async (question: string, overrideProfile?: UserProfile) => {
+  const ask = async (question: string, overrideProfile?: UserProfile, overrideClarification?: string[]) => {
     const q = question.trim();
     if (!q || loading) return;
     setLastUserQuestion(q);
@@ -111,8 +111,9 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
 
     try {
       const profileToUse = overrideProfile || savedProfile || undefined;
+      const clarAnswers = overrideClarification ?? clarificationAnswers;
       const res = await api.runQueryStream(
-        { question: q, ticker: defaultTicker, history, profile: profileToUse, clarification_answers: clarificationAnswers, session_key: sessionId },
+        { question: q, ticker: defaultTicker, history, profile: profileToUse, clarification_answers: clarAnswers, session_key: sessionId },
         controller.signal,
         (phase, label) => {
           // Append new phase to the message's phase history; mark previous
@@ -189,7 +190,7 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
   const handleClarificationSubmit = (answers: string[]) => {
     setClarificationAnswers(answers);
     if (lastUserQuestion) {
-      ask(lastUserQuestion);
+      ask(lastUserQuestion, undefined, answers);
     }
   };
 

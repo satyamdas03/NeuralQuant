@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import type { OptionsSnapshot, AnalystConsensus, ShareOwnership } from "@/lib/types";
+import { useState } from "react";
+import type { OptionsSnapshot, StockMeta, Market } from "@/lib/types";
 import { api } from "@/lib/api";
-import type { Market } from "@/lib/types";
 import GhostBorderCard from "@/components/ui/GhostBorderCard";
-import { TrendingUp, Users, BarChart3, ChevronDown, ChevronUp } from "lucide-react";
+import { BarChart3, ChevronDown, ChevronUp } from "lucide-react";
 
 function fmtNum(v: number | null, decimals = 2): string {
   if (v === null || v === undefined) return "—";
@@ -65,37 +64,32 @@ function RatingBar({ buy, hold, sell }: { buy: number | null; hold: number | nul
   );
 }
 
-export default function ConsensusPanel({ ticker, market = "US" }: { ticker: string; market?: Market }) {
-  const [data, setData] = useState<OptionsSnapshot | null>(null);
-  const [loading, setLoading] = useState(true);
+export default function ConsensusPanel({ ticker, market = "US", meta }: { ticker: string; market?: Market; meta?: StockMeta | null }) {
+  const [optionsData, setOptionsData] = useState<OptionsSnapshot | null>(null);
   const [expanded, setExpanded] = useState(false);
 
-  useEffect(() => {
-    setLoading(true);
+  // Try fetching richer options/ownership data (may fail if OpenBB disabled)
+  useState(() => {
     api.getOptionsSnapshot(ticker, market)
-      .then(setData)
-      .catch(() => setData(null))
-      .finally(() => setLoading(false));
-  }, [ticker, market]);
+      .then(setOptionsData)
+      .catch(() => setOptionsData(null));
+  });
 
-  if (loading) {
-    return (
-      <GhostBorderCard>
-        <div className="flex items-center justify-center py-4">
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          <span className="ml-2 text-xs text-on-surface-variant">Loading analyst data…</span>
-        </div>
-      </GhostBorderCard>
-    );
-  }
+  // Determine consensus from meta (always available) or options (richer)
+  const metaConsensus = meta?.analyst_consensus;
+  const metaAnalystCount = meta?.analyst_count;
+  const metaAnalystTarget = meta?.analyst_target;
 
-  if (!data || !data.enabled) return null;
+  const optConsensus = optionsData?.data?.consensus;
+  const optOwnership = optionsData?.data?.ownership;
 
-  const consensus = data.data?.consensus;
-  const ownership = data.data?.ownership;
+  // Nothing to show at all?
+  const hasMetaConsensus = !!metaConsensus;
+  const hasOptData = !!(optConsensus || optOwnership);
+  if (!hasMetaConsensus && !hasOptData) return null;
 
-  if (!consensus && !ownership) return null;
-
+  // Merge: prefer options data for detailed fields, fall back to meta
+  const consensus = optConsensus ?? null;
   const cur = market === "IN" ? "₹" : "$";
 
   return (
@@ -115,7 +109,27 @@ export default function ConsensusPanel({ ticker, market = "US" }: { ticker: stri
 
       {expanded && (
         <div className="mt-3 space-y-4">
-          {/* Consensus Section */}
+          {/* Consensus from meta (always shown if available) */}
+          {hasMetaConsensus && (
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <ConsensusBadge consensus={metaConsensus} />
+                {metaAnalystCount && (
+                  <span className="text-xs text-on-surface-variant">{metaAnalystCount} analysts</span>
+                )}
+              </div>
+              {metaAnalystTarget !== null && metaAnalystTarget !== undefined && (
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                  <div>
+                    <span className="text-[10px] text-on-surface-variant uppercase">Analyst Target</span>
+                    <div className="text-sm font-medium text-on-surface">{cur}{fmtNum(metaAnalystTarget, 0)}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Richer data from /options endpoint (if available) */}
           {consensus && (
             <div>
               <div className="flex items-center gap-3 mb-2">
@@ -161,50 +175,49 @@ export default function ConsensusPanel({ ticker, market = "US" }: { ticker: stri
           )}
 
           {/* Ownership Section */}
-          {ownership && (
+          {optOwnership && (
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <Users size={14} className="text-secondary" />
                 <span className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">
                   Share Statistics
                 </span>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
-                {ownership.outstanding_shares !== null && (
+                {optOwnership.outstanding_shares !== null && (
                   <div>
                     <span className="text-[10px] text-on-surface-variant uppercase">Shares Outstanding</span>
-                    <div className="text-sm font-medium text-on-surface">{fmtBigNum(ownership.outstanding_shares)}</div>
+                    <div className="text-sm font-medium text-on-surface">{fmtBigNum(optOwnership.outstanding_shares)}</div>
                   </div>
                 )}
-                {ownership.float_shares !== null && (
+                {optOwnership.float_shares !== null && (
                   <div>
                     <span className="text-[10px] text-on-surface-variant uppercase">Float</span>
-                    <div className="text-sm font-medium text-on-surface">{fmtBigNum(ownership.float_shares)}</div>
+                    <div className="text-sm font-medium text-on-surface">{fmtBigNum(optOwnership.float_shares)}</div>
                   </div>
                 )}
-                {ownership.short_interest !== null && (
+                {optOwnership.short_interest !== null && (
                   <div>
                     <span className="text-[10px] text-on-surface-variant uppercase">Short Interest</span>
-                    <div className="text-sm font-medium text-on-surface">{fmtBigNum(ownership.short_interest)}</div>
+                    <div className="text-sm font-medium text-on-surface">{fmtBigNum(optOwnership.short_interest)}</div>
                   </div>
                 )}
-                {ownership.short_ratio !== null && (
+                {optOwnership.short_ratio !== null && (
                   <div>
                     <span className="text-[10px] text-on-surface-variant uppercase">Short Ratio</span>
-                    <div className="text-sm font-medium text-on-surface">{fmtNum(ownership.short_ratio)}</div>
+                    <div className="text-sm font-medium text-on-surface">{fmtNum(optOwnership.short_ratio)}</div>
                   </div>
                 )}
-                {ownership.institutional_ownership_pct !== null && (
+                {optOwnership.institutional_ownership_pct !== null && (
                   <div>
                     <span className="text-[10px] text-on-surface-variant uppercase">Institutional</span>
-                    <div className="text-sm font-medium text-on-surface">{ownership.institutional_ownership_pct.toFixed(1)}%</div>
+                    <div className="text-sm font-medium text-on-surface">{optOwnership.institutional_ownership_pct.toFixed(1)}%</div>
                   </div>
                 )}
-                {ownership.insider_ownership_pct !== null && (
+                {optOwnership.insider_ownership_pct !== null && (
                   <div>
                     <span className="text-[10px] text-on-surface-variant uppercase">Insider</span>
-                    <div className="text-sm font-medium text-on-surface">{ownership.insider_ownership_pct.toFixed(1)}%</div>
+                    <div className="text-sm font-medium text-on-surface">{optOwnership.insider_ownership_pct.toFixed(1)}%</div>
                   </div>
                 )}
               </div>

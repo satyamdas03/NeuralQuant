@@ -332,6 +332,10 @@ def _market_movers_sync():
             actives = fmp.get_market_movers("active") or []
             if gainers or losers or actives:
                 def _to_mover(m):
+                    price = m.get("price")
+                    # Filter penny stocks (<$5) — they 404/503 on stock detail pages
+                    if price is not None and float(price) < 5:
+                        return None
                     return {
                         "ticker": m.get("ticker", ""),
                         "name": m.get("name", ""),
@@ -341,9 +345,9 @@ def _market_movers_sync():
                         "volume": m.get("volume"),
                     }
                 result = {
-                    "gainers": [_to_mover(m) for m in gainers[:5]],
-                    "losers": [_to_mover(m) for m in losers[:5]],
-                    "active": [_to_mover(m) for m in actives[:5]],
+                    "gainers": [x for x in (_to_mover(m) for m in gainers[:10]) if x][:5],
+                    "losers": [x for x in (_to_mover(m) for m in losers[:10]) if x][:5],
+                    "active": [x for x in (_to_mover(m) for m in actives[:10]) if x][:5],
                 }
                 _movers_cache = result
                 _movers_ts = time.time()
@@ -374,6 +378,9 @@ def _market_movers_sync():
                 vol = int(volume[sym].iloc[-1])
                 rows.append({"ticker": sym, "price": round(price, 2),
                               "change_pct": chg_pct, "change_abs": chg_abs, "volume": vol})
+
+        # Filter out penny stocks (<$5) — they 404/503 on detail pages
+        rows = [r for r in rows if r["price"] >= 5]
             except Exception:
                 pass
 

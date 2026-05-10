@@ -140,7 +140,7 @@ export default function StockPage() {
       {meta && <StockMetaBar meta={meta} market={market} />}
 
       {/* Analyst Consensus & Ownership */}
-      <ConsensusPanel ticker={ticker} market={market} />
+      <ConsensusPanel ticker={ticker} market={market} meta={meta} />
 
       {/* Price Chart */}
       <PriceChart ticker={ticker.toUpperCase()} market={market} />
