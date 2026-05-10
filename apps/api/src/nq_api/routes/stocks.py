@@ -334,11 +334,12 @@ def _is_nullish(meta: dict, key: str) -> bool:
 
 def _has_null_fields(meta: dict) -> bool:
     """Check if critical fields are null (or 0-sentinel) in a meta dict.
-    Also treats pre-enrichment cached data (missing new fields) as incomplete."""
+    Also treats pre-enrichment cached data (missing or None enrichment fields) as incomplete."""
     if any(_is_nullish(meta, k) for k in _NULL_FIELDS):
         return True
-    # If enrichment fields are entirely absent, this is stale cache — treat as incomplete
-    if not any(k in meta for k in _ENRICHMENT_FIELDS):
+    # Enrichment fields must be present AND have at least one non-None value
+    enrichment_values = [meta.get(k) for k in _ENRICHMENT_FIELDS if k in meta]
+    if not enrichment_values or all(v is None for v in enrichment_values):
         return True
     return False
 
@@ -788,7 +789,7 @@ def _fetch_stock_meta_fmp(ticker: str, market: str) -> dict | Exception:
             except (TypeError, ValueError):
                 beta_v = None
 
-        return {
+        meta = {
             "ticker": ticker,
             "name": name,
             "market_cap": mc,
