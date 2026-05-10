@@ -133,13 +133,9 @@ def _needs_clarification(
     """
     q = question.lower().strip()
 
-    # Portfolio intent without profile → handled by ProfilerCard, not ClarificationCard
-    if _is_portfolio_intent(question) and not profile:
-        return False
-    # Portfolio intent WITH profile → ask clarification if question is vague
-    # (e.g. "invest 10 lakhs" without specifying sectors, risk level, etc.)
-    if _is_portfolio_intent(question) and profile:
-        # Still clarify vague portfolio queries even with profile
+    # Portfolio intent — always clarify vague portfolio queries
+    # (e.g. "invest 10 lakhs" without specifying sectors/risk/return)
+    if _is_portfolio_intent(question):
         _PORTFOLIO_CLARIFY_PATTERNS = [
             "sector", "risk", "time horizon", "timeframe", "goal",
             "aggressive", "conservative", "balanced", "growth", "income",
@@ -2581,8 +2577,12 @@ async def run_nl_query_v2(
         # Portfolio intent detection and prompt injection
         portfolio_intent = _is_portfolio_intent(req.question)
 
+        # If clarification needed, show it before profiler
+        # (clarification already returned above if True and no clarification_answers)
+
         # Check if profile needed for portfolio questions
-        if portfolio_intent and not req.profile:
+        # Only show profiler if clarification was NOT needed (or was already answered)
+        if portfolio_intent and not req.profile and not clarification:
             return StructuredQueryResponse(
                 verdict="HOLD",
                 confidence=0,
@@ -3260,7 +3260,8 @@ async def run_nl_query_v2_stream(
                 portfolio_intent = _is_portfolio_intent(req.question)
 
                 # Check if profile needed for portfolio questions
-                if portfolio_intent and not req.profile:
+                # Only show profiler if clarification was NOT needed (or was already answered)
+                if portfolio_intent and not req.profile and not clarification:
                     result_holder["result"] = StructuredQueryResponse(
                         verdict="HOLD",
                         confidence=0,
