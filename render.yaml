@@ -47,5 +47,22 @@ services:
         sync: false
       - key: PAYPAL_PLAN_API_USD
         sync: false
+      - key: OPENBB_ENABLED
+        value: "false"
+      - key: OPENBB_API_URL
+        value: "https://nq-openbb.onrender.com"
     plan: pro
     healthCheckPath: /health
+
+  - type: web
+    name: nq-openbb
+    runtime: docker
+    rootDir: .
+    dockerfilePath: openbb-service/Dockerfile
+    envVars:
+      - key: OPENBB_API_HOST
+        value: "0.0.0.0"
+      - key: OPENBB_API_PORT
+        value: "6900"
+    plan: starter
+    healthCheckPath: /docs
