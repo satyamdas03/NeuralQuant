@@ -1,26 +1,16 @@
 FROM python:3.11-slim
 
+# Install OpenBB Platform API (includes core + FastAPI server)
+# Individual extension packages are auto-discovered at runtime
 RUN pip install --no-cache-dir openbb-platform-api
 
-# Core equity providers (yfinance is free, no API key)
-RUN pip install --no-cache-dir \
-    openbb-equity-price-historical \
-    openbb-equity-fundamental \
-    openbb-equity-profile \
-    openbb-equity-ownership \
-    openbb-equity-discovery \
-    openbb-equity-price-quote \
-    openbb-equity-price-performance
-
-# Derivatives (options chains, IV)
-RUN pip install --no-cache-dir \
-    openbb-derivatives-options
-
-# Macro / Fixed Income (yield curve, treasury rates)
-RUN pip install --no-cache-dir \
-    openbb-economy-fred \
-    openbb-fixedincome-federal-reserve
+# yfinance provider is bundled with openbb-core
+# No need for separate extension packages - they auto-register
 
 EXPOSE 6900
+
+# Health check: OpenBB serves /docs (Swagger UI)
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:6900/docs')" || exit 1
 
 CMD ["openbb-api", "--host", "0.0.0.0", "--port", "6900"]

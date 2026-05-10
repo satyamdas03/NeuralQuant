@@ -64,5 +64,5 @@ services:
         value: "0.0.0.0"
       - key: OPENBB_API_PORT
         value: "6900"
-    plan: starter
+    plan: standard
     healthCheckPath: /docs
