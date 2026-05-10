@@ -379,10 +379,11 @@ def _market_movers_sync():
                 rows.append({"ticker": sym, "price": round(price, 2),
                               "change_pct": chg_pct, "change_abs": chg_abs, "volume": vol})
 
-        # Filter out penny stocks (<$5) — they 404/503 on detail pages
-        rows = [r for r in rows if r["price"] >= 5]
             except Exception:
                 pass
+
+        # Filter out penny stocks (<$5) — they 404/503 on detail pages
+        rows = [r for r in rows if r["price"] >= 5]
 
         rows_sorted = sorted(rows, key=lambda x: x["change_pct"], reverse=True)
         result = {
