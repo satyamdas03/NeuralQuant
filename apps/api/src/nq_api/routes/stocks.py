@@ -310,6 +310,10 @@ _NULL_FIELDS = ("market_cap", "pe_ttm", "pb_ratio", "beta", "week_52_high", "wee
                  "earnings_date", "analyst_target", "analyst_recommendation",
                  "dividend_yield", "industry", "sector", "current_price")
 
+# Enrichment fields that MUST be present for cached data to be considered complete.
+# If any of these are missing, the cache is from a pre-enrichment version and must be refreshed.
+_ENRICHMENT_FIELDS = ("altman_z_score", "insider_buys", "dividend_yield_pct", "dcf_value")
+
 # Numeric fields where 0 / 0.0 is a sentinel for "missing" — never a real value for a listed stock
 _NUMERIC_NULL_SENTINELS = {
     "market_cap", "pe_ttm", "pb_ratio", "beta",
@@ -329,8 +333,14 @@ def _is_nullish(meta: dict, key: str) -> bool:
 
 
 def _has_null_fields(meta: dict) -> bool:
-    """Check if critical fields are null (or 0-sentinel) in a meta dict."""
-    return any(_is_nullish(meta, k) for k in _NULL_FIELDS)
+    """Check if critical fields are null (or 0-sentinel) in a meta dict.
+    Also treats pre-enrichment cached data (missing new fields) as incomplete."""
+    if any(_is_nullish(meta, k) for k in _NULL_FIELDS):
+        return True
+    # If enrichment fields are entirely absent, this is stale cache — treat as incomplete
+    if not any(k in meta for k in _ENRICHMENT_FIELDS):
+        return True
+    return False
 
 
 def _merge_meta(base: dict, overlay: dict) -> dict:
