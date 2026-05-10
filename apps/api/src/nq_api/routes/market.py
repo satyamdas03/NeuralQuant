@@ -7,6 +7,7 @@ import yfinance as yf
 import pandas as pd
 
 from nq_api.data_builder import _get_yf_session, _fetch_yf_info_cached, _IS_RENDER
+from nq_api.universe import UNIVERSE_BY_MARKET
 
 logger = logging.getLogger(__name__)
 
@@ -331,10 +332,14 @@ def _market_movers_sync():
             losers = fmp.get_market_movers("losers") or []
             actives = fmp.get_market_movers("active") or []
             if gainers or losers or actives:
+                _us_tickers = set(UNIVERSE_BY_MARKET.get("US", []))
                 def _to_mover(m):
                     price = m.get("price")
-                    # Filter penny stocks (<$5) — they 404/503 on stock detail pages
+                    # Filter penny stocks (<$5) and stocks outside our curated universe
                     if price is not None and float(price) < 5:
+                        return None
+                    ticker = m.get("ticker", "")
+                    if ticker and ticker not in _us_tickers:
                         return None
                     return {
                         "ticker": m.get("ticker", ""),
@@ -345,9 +350,9 @@ def _market_movers_sync():
                         "volume": m.get("volume"),
                     }
                 result = {
-                    "gainers": [x for x in (_to_mover(m) for m in gainers[:10]) if x][:5],
-                    "losers": [x for x in (_to_mover(m) for m in losers[:10]) if x][:5],
-                    "active": [x for x in (_to_mover(m) for m in actives[:10]) if x][:5],
+                    "gainers": [x for x in (_to_mover(m) for m in gainers[:30]) if x][:5],
+                    "losers": [x for x in (_to_mover(m) for m in losers[:30]) if x][:5],
+                    "active": [x for x in (_to_mover(m) for m in actives[:30]) if x][:5],
                 }
                 _movers_cache = result
                 _movers_ts = time.time()

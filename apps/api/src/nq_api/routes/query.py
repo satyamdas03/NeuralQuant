@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 import logging
 
-from nq_api.schemas import QueryRequest, QueryResponse, StructuredQueryResponse, ReasoningBlock, MetricItem, ScenarioItem, ComparisonItem, StockSummary, UserProfile, ClarificationQuestion
+from nq_api.schemas import QueryRequest, QueryResponse, StructuredQueryResponse, ReasoningBlock, MetricItem, ScenarioItem, ComparisonItem, StockSummary, UserProfile, ClarificationQuestion, ConversationMessage
 
 log = logging.getLogger(__name__)
 from nq_api.auth.rate_limit import enforce_tier_quota
@@ -1057,11 +1057,17 @@ def _validate_and_fill_portfolio_prices(
                 from nq_data.fmp import get_fmp_client
                 fmp = get_fmp_client()
                 if fmp._enabled:
-                    quote = fmp.get_quote(_yf_symbol(ticker, market))
+                    sym = _yf_symbol(ticker, market)
+                    quote = fmp.get_quote(sym)
                     if quote and quote.get("price"):
                         live_price = float(quote["price"])
-            except Exception:
-                pass
+                    # If quote fails, try profile (often has price)
+                    if not live_price or live_price <= 0:
+                        profile = fmp.get_profile(sym)
+                        if profile and profile.get("price"):
+                            live_price = float(profile["price"])
+            except Exception as exc:
+                log.debug("FMP price fallback failed for %s/%s: %s", ticker, market, exc)
 
         if not live_price or live_price <= 0:
             # Tier 3 fallback: check score_cache for a stale price (up to 24h old)

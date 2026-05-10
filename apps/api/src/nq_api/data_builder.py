@@ -137,6 +137,10 @@ def _overlay_fmp_info(info: dict, ticker: str) -> None:
             # Beta from profile (more reliable than yfinance)
             if profile.get("beta") is not None:
                 info["beta"] = profile["beta"]
+            # Price from profile — critical for portfolio price fallback
+            if profile.get("price") is not None:
+                info["currentPrice"] = profile["price"]
+                info["regularMarketPrice"] = profile["price"]
 
         metrics = fmp.get_key_metrics(ticker)
         if metrics:
@@ -179,6 +183,10 @@ def _overlay_fmp_info(info: dict, ticker: str) -> None:
         quote = fmp.get_quote(ticker)
         if quote and quote.get("price"):
             fmp_price = float(quote["price"])
+            # Overlay quote price — most reliable live price source
+            info["currentPrice"] = fmp_price
+            info["regularMarketPrice"] = fmp_price
+            info["_cached_ok"] = True
         if fmp_price and fmp_price > 0:
             income = fmp.get_income_statement(ticker)
             if income and income.get("eps"):
