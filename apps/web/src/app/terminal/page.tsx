@@ -201,6 +201,16 @@ export default function TerminalPage() {
         <p className="mt-1 text-sm text-on-surface-variant">
           Explore financial data across equity, fixed income, and macro categories
         </p>
+        <div className="mt-3 rounded-lg border border-ghost-border bg-surface-container/50 px-4 py-3 text-xs text-on-surface-variant leading-relaxed">
+          <p className="font-medium text-on-surface mb-1">How to use the Data Terminal</p>
+          <ol className="list-decimal list-inside space-y-1">
+            <li>Pick a <strong>category</strong> from the left panel, or use the search bar to find a command.</li>
+            <li>Click a command to view its description and required parameters.</li>
+            <li>Fill in the required fields (marked with <strong>*</strong>) and any optional parameters you want.</li>
+            <li>Hit <strong>Run Command</strong> — results appear on the right as a table or cards.</li>
+          </ol>
+          <p className="mt-2 text-on-surface-variant/70">Tip: The terminal requires a live data connection. If you see the offline banner above, the data source is not connected.</p>
+        </div>
       </div>
 
       {/* Offline banner */}

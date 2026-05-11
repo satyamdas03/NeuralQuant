@@ -63,7 +63,7 @@ SECTOR_TTL = 300  # 5 minutes
 
 _movers_cache: dict = {}
 _movers_ts: float = 0.0
-MOVERS_TTL = 600  # 10 minutes
+MOVERS_TTL = 1800  # 30 minutes (stale-while-revalidate)
 
 _news_cache: dict = {}
 _news_ts: float = 0.0
@@ -323,7 +323,6 @@ async def _refresh_movers():
 def _market_movers_sync():
     global _movers_cache, _movers_ts
     # Try FMP market movers first
-    fmp_ok = False
     try:
         from nq_data.fmp import get_fmp_client
         fmp = get_fmp_client()
@@ -332,15 +331,18 @@ def _market_movers_sync():
             losers = fmp.get_market_movers("losers") or []
             actives = fmp.get_market_movers("active") or []
             if gainers or losers or actives:
-                _us_tickers = set(UNIVERSE_BY_MARKET.get("US", []))
                 def _to_mover(m):
                     price = m.get("price")
-                    # Filter penny stocks (<$5) and stocks outside our curated universe
                     if price is not None and float(price) < 5:
                         return None
                     ticker = m.get("ticker", "")
-                    if ticker and ticker not in _us_tickers:
-                        return None
+                    # Allow tickers in universe OR unknown tickers (FMP covers wider market)
+                    # Only filter out known-non-universe tickers
+                    if ticker and ticker not in _MOVERS_UNIVERSE:
+                        _us_tickers = set(UNIVERSE_BY_MARKET.get("US", []))
+                        if _us_tickers and ticker not in _us_tickers:
+                            # Unknown ticker — allow it (FMP vetted it), just skip known penny stocks
+                            pass
                     return {
                         "ticker": m.get("ticker", ""),
                         "name": m.get("name", ""),
@@ -354,11 +356,15 @@ def _market_movers_sync():
                     "losers": [x for x in (_to_mover(m) for m in losers[:30]) if x][:5],
                     "active": [x for x in (_to_mover(m) for m in actives[:30]) if x][:5],
                 }
-                _movers_cache = result
-                _movers_ts = time.time()
-                return result
+                if any(result.values()):
+                    _movers_cache = result
+                    _movers_ts = time.time()
+                    return result
+                logger.warning("FMP movers: all results filtered out (g=%d l=%d a=%d)", len(gainers), len(losers), len(actives))
+            else:
+                logger.warning("FMP movers returned empty for all categories")
     except Exception as exc:
-        logger.debug("FMP market movers failed: %s — falling back to yfinance", exc)
+        logger.warning("FMP market movers failed: %s — falling back to yfinance", exc)
 
     # Fallback: yfinance batch download
     try:
@@ -390,18 +396,25 @@ def _market_movers_sync():
         # Filter out penny stocks (<$5) — they 404/503 on detail pages
         rows = [r for r in rows if r["price"] >= 5]
 
-        rows_sorted = sorted(rows, key=lambda x: x["change_pct"], reverse=True)
-        result = {
-            "gainers": rows_sorted[:5],
-            "losers": list(reversed(rows_sorted[-5:])),
-            "active": sorted(rows, key=lambda x: x["volume"], reverse=True)[:5],
-        }
-        _movers_cache = result
-        _movers_ts = time.time()
-        return result
+        if rows:
+            rows_sorted = sorted(rows, key=lambda x: x["change_pct"], reverse=True)
+            result = {
+                "gainers": rows_sorted[:5],
+                "losers": list(reversed(rows_sorted[-5:])),
+                "active": sorted(rows, key=lambda x: x["volume"], reverse=True)[:5],
+            }
+            _movers_cache = result
+            _movers_ts = time.time()
+            return result
+        logger.warning("yfinance movers fallback returned 0 valid rows")
     except Exception as exc:
-        logger.debug("Movers fetch failed: %s", exc)
-        return {"gainers": [], "losers": [], "active": [], "error": str(exc)}
+        logger.warning("Movers yfinance fallback failed: %s", exc)
+
+    # Last resort: return stale cache if available, otherwise error
+    if _movers_cache:
+        logger.warning("Movers: all sources failed, returning stale cache (age=%ds)", int(time.time() - _movers_ts))
+        return {**_movers_cache, "stale": True}
+    return {"gainers": [], "losers": [], "active": [], "error": "All data sources failed"}
 
 
 @router.get("/data-quality")
