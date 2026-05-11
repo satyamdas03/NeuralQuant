@@ -102,7 +102,7 @@ export default function TerminalPage() {
   })).filter((g) => g.endpoints.length > 0);
 
   // Run command — with auto-retry for cold starts
-  const runQuery = async (retries = 1) => {
+  const runQuery = async (retries = 2) => {
     if (!selected) return;
     setLoading(true);
     setError(null);
@@ -114,12 +114,12 @@ export default function TerminalPage() {
       setMeta(res.meta);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Query failed";
-      // Auto-retry on 504 (cold start) up to 1 time
-      if (retries > 0 && (msg.includes("504") || msg.includes("waking up") || msg.includes("timed out"))) {
-        setError("Data source is waking up, retrying in 30 seconds...");
+      // Auto-retry on 504 (cold start) up to 2 times with 10s delay
+      if (retries > 0 && (msg.includes("504") || msg.includes("waking") || msg.includes("timed out"))) {
+        setError(`Data source is warming up, retrying... (${3 - retries}/2)`);
         setLoading(true);
-        await new Promise((r) => setTimeout(r, 30000));
-        return runQuery(0);
+        await new Promise((r) => setTimeout(r, 10000));
+        return runQuery(retries - 1);
       }
       setError(msg);
     } finally {
