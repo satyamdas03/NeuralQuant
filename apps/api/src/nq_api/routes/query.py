@@ -8,6 +8,7 @@ from datetime import date
 
 import anthropic
 import yfinance as yf
+import pandas as pd
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 import logging
@@ -1100,12 +1101,30 @@ def _validate_and_fill_portfolio_prices(
                     log.debug("FMP profile price failed for %s: %s", sym, exc)
 
             # IN: also try bare ticker on yfinance (some tickers work without .NS)
-            if not live_price or live_price <= 0 and "." not in ticker:
-                info_bare = _fetch_yf_info_cached(ticker)
-                if info_bare.get("_cached_ok"):
-                    live_price = info_bare.get("currentPrice") or info_bare.get("regularMarketPrice")
-                    if live_price and live_price > 0:
-                        price_source = "yfinance_bare"
+            if not live_price or live_price <= 0:
+                if "." not in ticker:
+                    info_bare = _fetch_yf_info_cached(ticker)
+                    if info_bare.get("_cached_ok"):
+                        live_price = info_bare.get("currentPrice") or info_bare.get("regularMarketPrice")
+                        if live_price and live_price > 0:
+                            price_source = "yfinance_bare"
+
+            # IN: final fallback — yf.download for last close price (most reliable on cloud)
+            if not live_price or live_price <= 0:
+                try:
+                    import yfinance as yf
+                    hist = yf.download(sym, period="5d", progress=False, auto_adjust=True,
+                                       threads=False, session=_get_yf_session())
+                    if hist is not None and not hist.empty and "Close" in hist.columns:
+                        close = hist["Close"]
+                        if isinstance(close, pd.DataFrame):
+                            close = close[sym] if sym in close.columns else close.iloc[:, 0]
+                        close = close.dropna()
+                        if len(close) > 0:
+                            live_price = float(close.iloc[-1])
+                            price_source = "yf_download_5d"
+                except Exception as exc:
+                    log.debug("yf.download fallback failed for %s: %s", sym, exc)
 
         # ── Price Tier 2: score_cache (up to 7 days stale) ──
         if not live_price or live_price <= 0:

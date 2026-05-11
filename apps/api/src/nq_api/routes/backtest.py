@@ -231,10 +231,9 @@ def _get_accuracy_sync() -> AccuracyResponse:
             score_history["date_only"] = score_history["date"].dt.normalize()
             n_dates = score_history["date_only"].nunique()
             if n_dates < 2:
-                return _accuracy_default(
-                    f"Walk-forward validation requires 2+ distinct score dates (found {n_dates}). "
-                    "Historical score snapshots are being accumulated — check back soon."
-                )
+                # Single-date fallback: show top stocks snapshot from current data
+                # instead of returning "unavailable"
+                return _single_date_snapshot(score_history, n_dates)
         else:
             score_history["date"] = pd.Timestamp.now()
             score_history["date_only"] = score_history["date"].dt.normalize()
@@ -410,6 +409,68 @@ def _score_cache_rows() -> list[dict]:
     # Fallback to current score_cache
     data = _supabase_rest("score_cache", "GET", {"select": "*", "limit": "500"})
     return data if isinstance(data, list) else []
+
+
+def _single_date_snapshot(score_history: pd.DataFrame, n_dates: int) -> AccuracyResponse:
+    """Return a snapshot-only accuracy response when walk-forward validation isn't possible yet.
+
+    Shows current top stocks and score distribution without requiring 2+ historical dates.
+    """
+    us_rows = score_history[score_history.get("market", "US") == "US"] if "market" in score_history.columns else score_history
+    if len(us_rows) < 5:
+        us_rows = score_history
+
+    # Compute score distribution from current snapshot
+    score_col = "score_1_10" if "score_1_10" in score_history.columns else None
+    comp_col = "composite_score" if "composite_score" in score_history.columns else None
+
+    score_breakdown = []
+    if score_col and score_col in us_rows.columns:
+        for level in range(1, 11):
+            count = int((us_rows[score_col] == level).sum())
+            if count > 0:
+                avg_comp = float(us_rows.loc[us_rows[score_col] == level, comp_col].mean()) if comp_col and comp_col in us_rows.columns else level / 10
+                score_breakdown.append(ScoreBreakdownItem(
+                    score=level, count=count,
+                    hit_rate=round(avg_comp * 100, 1),
+                    avg_return_pct=0.0,
+                ))
+
+    # Top stocks from current snapshot
+    top_stocks = []
+    if comp_col and comp_col in us_rows.columns:
+        top_rows = us_rows.nlargest(10, comp_col)
+        for _, row in top_rows.iterrows():
+            top_stocks.append(TopStockItem(
+                ticker=str(row.get("ticker", "")),
+                name=str(row.get("long_name", "")) if row.get("long_name") else None,
+                score_1_10=int(row.get("score_1_10", 0)) if score_col else 0,
+                composite_score=round(float(row.get("composite_score", 0)), 4),
+                return_3m_pct=None,
+            ))
+
+    return AccuracyResponse(
+        hit_rate_at_7plus=0.0,
+        hit_rate_at_5plus=0.0,
+        baseline_hit_rate=0.0,
+        mean_return_top_decile=0.0,
+        mean_return_bottom_decile=0.0,
+        top_minus_bottom_spread=0.0,
+        sharpe_top_quartile=0.0,
+        max_drawdown_top_quartile=0.0,
+        win_rate_top_quartile=0.0,
+        observation_count=len(us_rows),
+        period_start=str(us_rows["date_only"].min()) if "date_only" in us_rows.columns else "",
+        period_end=str(us_rows["date_only"].max()) if "date_only" in us_rows.columns else "",
+        avg_stocks_per_period=float(len(us_rows)),
+        methodology="Current snapshot (walk-forward pending)",
+        comparison="Snapshot view",
+        note=f"Walk-forward validation requires 2+ distinct score dates (found {n_dates}). "
+             "Showing current score distribution. Accuracy metrics will appear once historical snapshots accumulate.",
+        is_fallback=True,
+        score_breakdown=score_breakdown,
+        top_stocks_snapshot=top_stocks,
+    )
 
 
 def _accuracy_default(reason: str) -> AccuracyResponse:

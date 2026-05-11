@@ -336,15 +336,12 @@ def _market_movers_sync():
                     if price is not None and float(price) < 5:
                         return None
                     ticker = m.get("ticker", "")
-                    # Allow tickers in universe OR unknown tickers (FMP covers wider market)
-                    # Only filter out known-non-universe tickers
-                    if ticker and ticker not in _MOVERS_UNIVERSE:
-                        _us_tickers = set(UNIVERSE_BY_MARKET.get("US", []))
-                        if _us_tickers and ticker not in _us_tickers:
-                            # Unknown ticker — allow it (FMP vetted it), just skip known penny stocks
-                            pass
+                    # ONLY allow tickers in our universe — others will 404 on detail pages
+                    all_us = set(UNIVERSE_BY_MARKET.get("US", []))
+                    if ticker not in _MOVERS_UNIVERSE and ticker not in all_us:
+                        return None
                     return {
-                        "ticker": m.get("ticker", ""),
+                        "ticker": ticker,
                         "name": m.get("name", ""),
                         "price": m.get("price"),
                         "change_pct": m.get("change_pct"),
@@ -352,9 +349,9 @@ def _market_movers_sync():
                         "volume": m.get("volume"),
                     }
                 result = {
-                    "gainers": [x for x in (_to_mover(m) for m in gainers[:30]) if x][:5],
-                    "losers": [x for x in (_to_mover(m) for m in losers[:30]) if x][:5],
-                    "active": [x for x in (_to_mover(m) for m in actives[:30]) if x][:5],
+                    "gainers": [x for x in (_to_mover(m) for m in gainers[:50]) if x][:5],
+                    "losers": [x for x in (_to_mover(m) for m in losers[:50]) if x][:5],
+                    "active": [x for x in (_to_mover(m) for m in actives[:50]) if x][:5],
                 }
                 if any(result.values()):
                     _movers_cache = result

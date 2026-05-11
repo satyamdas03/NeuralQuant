@@ -244,10 +244,20 @@ async def terminal_query(body: TerminalQuery):
     if not obb.enabled:
         raise HTTPException(status_code=503, detail="Data Terminal is offline. Connect the data source to enable this feature.")
 
+    # Quick health check — if last health check shows offline, fail fast
+    now = time.time()
+    if _health_cache.get("ts", 0) > 0 and not _health_cache.get("online", False):
+        cache_age = now - _health_cache.get("ts", 0)
+        if cache_age < _HEALTH_TTL:
+            raise HTTPException(status_code=503, detail="Data Terminal is currently offline. Please try again later or check back when the data source is connected.")
+
+    # Refresh URL in case tunnel changed
+    obb.refresh_url()
+
     result = await asyncio.to_thread(obb.proxy, path, params)
 
     if result is None:
-        raise HTTPException(status_code=504, detail="Data Terminal request timed out or returned no data.")
+        raise HTTPException(status_code=504, detail="Data Terminal request timed out or returned no data. The data source may be temporarily unavailable.")
 
     return {
         "data": result,

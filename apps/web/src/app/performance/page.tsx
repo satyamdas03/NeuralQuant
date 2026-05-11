@@ -51,7 +51,8 @@ export default function PerformancePage() {
     );
   }
 
-  const hasData = data && data.observation_count > 0 && !data.is_fallback;
+  const hasData = data && data.observation_count > 0;
+  const hasFullValidation = hasData && !data.is_fallback;
 
   return (
     <div className="space-y-6 p-4 lg:p-6 max-w-5xl mx-auto">
@@ -67,45 +68,54 @@ export default function PerformancePage() {
 
       {hasData ? (
         <>
-          {/* Key metrics row */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <MetricCard
-              label="Hit Rate (7+)"
-              value={`${data.hit_rate_at_7plus}%`}
-              accent="tertiary"
-            />
-            <MetricCard
-              label="Hit Rate (5+)"
-              value={`${data.hit_rate_at_5plus}%`}
-              accent="tertiary"
-            />
-            <MetricCard
-              label="Baseline"
-              value={`${data.baseline_hit_rate}%`}
-              accent="secondary"
-            />
-            <MetricCard
-              label="Top-Bottom Spread"
-              value={`${data.top_minus_bottom_spread > 0 ? "+" : ""}${data.top_minus_bottom_spread}%`}
-              accent={data.top_minus_bottom_spread > 0 ? "tertiary" : "error"}
-            />
-          </div>
+          {/* Snapshot notice for single-date data */}
+          {data.is_fallback && data.note && (
+            <GlassPanel className="p-3">
+              <p className="text-xs text-on-surface-variant">{data.note}</p>
+            </GlassPanel>
+          )}
 
-          {/* Detailed stats */}
-          <GlassPanel>
-            <h2 className="font-headline text-sm font-semibold text-on-surface uppercase tracking-wide mb-4">
-              Detailed Metrics
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <StatRow icon={<TrendingUp size={16} />} label="Mean Return — Top Decile" value={`${data.mean_return_top_decile > 0 ? "+" : ""}${data.mean_return_top_decile}%`} positive={data.mean_return_top_decile > 0} />
-              <StatRow icon={<TrendingUp size={16} />} label="Mean Return — Bottom Decile" value={`${data.mean_return_bottom_decile > 0 ? "+" : ""}${data.mean_return_bottom_decile}%`} positive={data.mean_return_bottom_decile > 0} />
-              <StatRow icon={<Shield size={16} />} label="Sharpe — Top Quartile" value={data.sharpe_top_quartile.toFixed(2)} positive={data.sharpe_top_quartile > 0} />
-              <StatRow icon={<Target size={16} />} label="Win Rate — Top Quartile" value={`${data.win_rate_top_quartile}%`} positive={data.win_rate_top_quartile > 50} />
-              <StatRow icon={<Shield size={16} />} label="Max Drawdown — Top Quartile" value={`${data.max_drawdown_top_quartile}%`} positive={false} />
-            </div>
-          </GlassPanel>
+          {hasFullValidation && (
+            <>
+              {/* Key metrics row */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <MetricCard
+                  label="Hit Rate (7+)"
+                  value={`${data.hit_rate_at_7plus}%`}
+                  accent="tertiary"
+                />
+                <MetricCard
+                  label="Hit Rate (5+)"
+                  value={`${data.hit_rate_at_5plus}%`}
+                  accent="tertiary"
+                />
+                <MetricCard
+                  label="Baseline"
+                  value={`${data.baseline_hit_rate}%`}
+                  accent="secondary"
+                />
+                <MetricCard
+                  label="Top-Bottom Spread"
+                  value={`${data.top_minus_bottom_spread > 0 ? "+" : ""}${data.top_minus_bottom_spread}%`}
+                  accent={data.top_minus_bottom_spread > 0 ? "tertiary" : "error"}
+                />
+              </div>
 
-          {/* Validation details */}
+              {/* Detailed stats */}
+              <GlassPanel>
+                <h2 className="font-headline text-sm font-semibold text-on-surface uppercase tracking-wide mb-4">
+                  Detailed Metrics
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <StatRow icon={<TrendingUp size={16} />} label="Mean Return — Top Decile" value={`${data.mean_return_top_decile > 0 ? "+" : ""}${data.mean_return_top_decile}%`} positive={data.mean_return_top_decile > 0} />
+                  <StatRow icon={<TrendingUp size={16} />} label="Mean Return — Bottom Decile" value={`${data.mean_return_bottom_decile > 0 ? "+" : ""}${data.mean_return_bottom_decile}%`} positive={data.mean_return_bottom_decile > 0} />
+                  <StatRow icon={<Shield size={16} />} label="Sharpe — Top Quartile" value={data.sharpe_top_quartile.toFixed(2)} positive={data.sharpe_top_quartile > 0} />
+                  <StatRow icon={<Target size={16} />} label="Win Rate — Top Quartile" value={`${data.win_rate_top_quartile}%`} positive={data.win_rate_top_quartile > 50} />
+                  <StatRow icon={<Shield size={16} />} label="Max Drawdown — Top Quartile" value={`${data.max_drawdown_top_quartile}%`} positive={false} />
+                </div>
+              </GlassPanel>
+            </>
+          )}
           <GlassPanel>
             <h2 className="font-headline text-sm font-semibold text-on-surface uppercase tracking-wide mb-3">
               Validation Details
