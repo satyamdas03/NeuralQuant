@@ -253,8 +253,14 @@ async def terminal_query(body: TerminalQuery):
 
     # Refresh URL in case tunnel changed
     obb.refresh_url()
+    log.info("Terminal query: %s %s → %s", path, params, obb._base_url)
 
-    result = await asyncio.to_thread(obb.proxy, path, params)
+    try:
+        result = await asyncio.wait_for(asyncio.to_thread(obb.proxy, path, params), timeout=30.0)
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=504, detail="Data Terminal request timed out (30s). The data source may be slow to respond.")
+
+    if result is None:
 
     if result is None:
         raise HTTPException(status_code=504, detail="Data Terminal request timed out or returned no data. The data source may be temporarily unavailable.")
