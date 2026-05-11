@@ -513,7 +513,7 @@ def _single_date_snapshot(score_history: pd.DataFrame, n_dates: int, date_range_
         comparison="Snapshot view",
         note=f"Walk-forward validation needs 90+ days of history (have {n_dates} dates spanning {date_range_days}d). "
              "Showing current score distribution. Accuracy metrics will appear once 3+ months of snapshots accumulate. "
-             f"[debug: total={len(score_history)} us_filtered={len(us_rows)} scores={len(score_breakdown)}]",
+             f"({n_dates} dates, {len(us_rows)} observations)",
         is_fallback=True,
         score_breakdown=score_breakdown,
         top_stocks_snapshot=top_stocks,
