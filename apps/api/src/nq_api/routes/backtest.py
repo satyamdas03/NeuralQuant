@@ -397,12 +397,19 @@ def _get_accuracy_sync() -> AccuracyResponse:
 
 def _score_cache_rows() -> list[dict]:
     """Fetch score cache rows from Supabase. Prefers score_cache_history (all snapshots)
-    over score_cache (latest only) for walk-forward validation depth."""
+    over score_cache (latest only) for walk-forward validation depth.
+
+    Fetches the most recent rows per date group so walk-forward gets distinct dates,
+    rather than just the earliest 2000 rows which may all share one date.
+    """
     from nq_api.cache.score_cache import _supabase_rest
     # Try history table first (has multiple dates for walk-forward)
     try:
-        data = _supabase_rest("score_cache_history", "GET", {"select": "*", "limit": "2000", "order": "computed_at.asc"})
+        # Fetch recent rows (desc order) to ensure we span multiple dates
+        data = _supabase_rest("score_cache_history", "GET", {"select": "*", "limit": "2000", "order": "computed_at.desc"})
         if isinstance(data, list) and len(data) >= 50:
+            # Reverse to chronological order for walk-forward
+            data.reverse()
             return data
     except Exception:
         pass  # Table may not exist yet
