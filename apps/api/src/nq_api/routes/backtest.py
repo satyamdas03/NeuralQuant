@@ -239,6 +239,10 @@ def _get_accuracy_sync() -> AccuracyResponse:
             score_history["date_only"] = score_history["date"].dt.normalize()
         score_history["ticker"] = score_history["ticker"].str.upper()
 
+        # Drop rows with null score_1_10 (IN stocks in history table may have nulls)
+        if "score_1_10" in score_history.columns:
+            score_history = score_history[score_history["score_1_10"].notna()].copy()
+
         # Use US tickers only — yfinance can't download Indian tickers without .NS suffix
         us_rows = score_history[score_history.get("market", "US") == "US"]
         if len(us_rows) < 20:
@@ -362,8 +366,8 @@ def _get_accuracy_sync() -> AccuracyResponse:
                     top_stocks_snapshot.append(TopStockItem(
                         ticker=tkr,
                         name=None,
-                        score_1_10=s.get("score_1_10", 0),
-                        composite_score=round(s.get("composite_score", 0), 4),
+                        score_1_10=s.get("score_1_10") or 0,
+                        composite_score=round(s.get("composite_score") or 0, 4),
                         return_3m_pct=None,  # Would need forward-looking data
                     ))
         except Exception:
@@ -428,15 +432,19 @@ def _single_date_snapshot(score_history: pd.DataFrame, n_dates: int) -> Accuracy
         us_rows = score_history
 
     # Compute score distribution from current snapshot
-    score_col = "score_1_10" if "score_1_10" in score_history.columns else None
-    comp_col = "composite_score" if "composite_score" in score_history.columns else None
+    score_col = "score_1_10" if "score_1_10" in us_rows.columns else None
+    comp_col = "composite_score" if "composite_score" in us_rows.columns else None
+
+    # Drop rows where score_1_10 is null (history table has nulls for IN stocks)
+    if score_col and score_col in us_rows.columns:
+        us_rows = us_rows[us_rows[score_col].notna()].copy()
 
     score_breakdown = []
     if score_col and score_col in us_rows.columns:
         for level in range(1, 11):
             count = int((us_rows[score_col] == level).sum())
             if count > 0:
-                avg_comp = float(us_rows.loc[us_rows[score_col] == level, comp_col].mean()) if comp_col and comp_col in us_rows.columns else level / 10
+                avg_comp = float(us_rows.loc[us_rows[score_col] == level, comp_col].dropna().mean()) if comp_col and comp_col in us_rows.columns else level / 10
                 score_breakdown.append(ScoreBreakdownItem(
                     score=level, count=count,
                     hit_rate=round(avg_comp * 100, 1),
@@ -448,11 +456,12 @@ def _single_date_snapshot(score_history: pd.DataFrame, n_dates: int) -> Accuracy
     if comp_col and comp_col in us_rows.columns:
         top_rows = us_rows.nlargest(10, comp_col)
         for _, row in top_rows.iterrows():
+            raw_score = row.get("score_1_10")
             top_stocks.append(TopStockItem(
                 ticker=str(row.get("ticker", "")),
                 name=str(row.get("long_name", "")) if row.get("long_name") else None,
-                score_1_10=int(row.get("score_1_10", 0)) if score_col else 0,
-                composite_score=round(float(row.get("composite_score", 0)), 4),
+                score_1_10=int(raw_score) if raw_score is not None else 0,
+                composite_score=round(float(row.get("composite_score") or 0), 4),
                 return_3m_pct=None,
             ))
 
