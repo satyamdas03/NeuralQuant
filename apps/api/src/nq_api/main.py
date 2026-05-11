@@ -1,4 +1,5 @@
 # apps/api/src/nq_api/main.py
+import asyncio
 from pathlib import Path
 from dotenv import load_dotenv
 # Load .env from apps/api/ regardless of CWD
