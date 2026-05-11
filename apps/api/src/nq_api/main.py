@@ -346,6 +346,10 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         log.warning("Slack agent system startup failed (non-fatal): %s", exc)
 
+    # Start OpenBB keep-warm background task (prevents Render cold starts)
+    from nq_api.routes.terminal import _keep_warm
+    asyncio.create_task(_keep_warm(), name="openbb_keep_warm")
+
     yield
 
     # Shutdown Slack handler and scheduler

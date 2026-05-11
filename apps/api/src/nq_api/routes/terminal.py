@@ -18,6 +18,22 @@ from nq_data.openbb import get_openbb_client
 log = logging.getLogger(__name__)
 router = APIRouter()
 
+# ── Keep-warm background task ──────────────────────────────────────────────────
+# Pings OpenBB every 5 minutes to prevent Render cold starts.
+_WARM_INTERVAL = 300  # seconds
+
+
+async def _keep_warm():
+    """Background task: periodically ping OpenBB to keep it warm on Render."""
+    while True:
+        await asyncio.sleep(_WARM_INTERVAL)
+        try:
+            obb = get_openbb_client()
+            if obb.enabled:
+                await asyncio.to_thread(obb.health_check)
+        except Exception:
+            pass
+
 # ── Endpoint catalog ──────────────────────────────────────────────────────────
 # 67 verified OpenBB endpoints organized by category.
 # Each endpoint has: id, path, label, description, category, subcategory, params.
