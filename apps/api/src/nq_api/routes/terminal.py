@@ -268,8 +268,6 @@ async def terminal_query(body: TerminalQuery):
         raise HTTPException(status_code=504, detail="Data Terminal request timed out (30s). The data source may be slow to respond.")
 
     if result is None:
-
-    if result is None:
         raise HTTPException(status_code=504, detail="Data Terminal request timed out or returned no data. The data source may be temporarily unavailable.")
 
     return {
