@@ -245,9 +245,20 @@ def _get_accuracy_sync() -> AccuracyResponse:
             score_history["date_only"] = score_history["date"].dt.normalize()
         score_history["ticker"] = score_history["ticker"].str.upper()
 
-        # Drop rows with null score_1_10 (IN stocks in history table may have nulls)
-        if "score_1_10" in score_history.columns:
-            score_history = score_history[score_history["score_1_10"].notna()].copy()
+        # Derive score_1_10 from composite_score if null (history table doesn't store it)
+        if "score_1_10" not in score_history.columns or score_history["score_1_10"].isna().all():
+            from nq_api.score_builder import _score_to_1_10
+            score_history["score_1_10"] = score_history["composite_score"].apply(
+                lambda s: _score_to_1_10(s) if pd.notna(s) else None
+            )
+        else:
+            # Fill null score_1_10 from composite_score
+            from nq_api.score_builder import _score_to_1_10
+            mask = score_history["score_1_10"].isna() & score_history["composite_score"].notna()
+            score_history.loc[mask, "score_1_10"] = score_history.loc[mask, "composite_score"].apply(_score_to_1_10)
+
+        # Drop rows where score_1_10 is still null (no composite_score either)
+        score_history = score_history[score_history["score_1_10"].notna()].copy()
 
         # Use US tickers only — yfinance can't download Indian tickers without .NS suffix
         us_rows = score_history[score_history.get("market", "US") == "US"]
@@ -437,11 +448,21 @@ def _single_date_snapshot(score_history: pd.DataFrame, n_dates: int) -> Accuracy
     if len(us_rows) < 5:
         us_rows = score_history
 
+    # Derive score_1_10 from composite_score if null
+    from nq_api.score_builder import _score_to_1_10
+    if "score_1_10" not in us_rows.columns or us_rows["score_1_10"].isna().all():
+        us_rows["score_1_10"] = us_rows["composite_score"].apply(
+            lambda s: _score_to_1_10(s) if pd.notna(s) else None
+        )
+    else:
+        mask = us_rows["score_1_10"].isna() & us_rows["composite_score"].notna()
+        us_rows.loc[mask, "score_1_10"] = us_rows.loc[mask, "composite_score"].apply(_score_to_1_10)
+
     # Compute score distribution from current snapshot
     score_col = "score_1_10" if "score_1_10" in us_rows.columns else None
     comp_col = "composite_score" if "composite_score" in us_rows.columns else None
 
-    # Drop rows where score_1_10 is null (history table has nulls for IN stocks)
+    # Drop rows where score_1_10 is still null
     if score_col and score_col in us_rows.columns:
         us_rows = us_rows[us_rows[score_col].notna()].copy()
 
