@@ -239,7 +239,7 @@ def _get_accuracy_sync() -> AccuracyResponse:
             # Show snapshot view until we have enough history.
             date_range_days = (score_history["date_only"].max() - score_history["date_only"].min()).days
             if date_range_days < 90:
-                return _single_date_snapshot(score_history, n_dates)
+                return _single_date_snapshot(score_history, n_dates, date_range_days)
         else:
             score_history["date"] = pd.Timestamp.now()
             score_history["date_only"] = score_history["date"].dt.normalize()
@@ -439,7 +439,7 @@ def _score_cache_rows() -> list[dict]:
     return data if isinstance(data, list) else []
 
 
-def _single_date_snapshot(score_history: pd.DataFrame, n_dates: int) -> AccuracyResponse:
+def _single_date_snapshot(score_history: pd.DataFrame, n_dates: int, date_range_days: int = 0) -> AccuracyResponse:
     """Return a snapshot-only accuracy response when walk-forward validation isn't possible yet.
 
     Shows current top stocks and score distribution without requiring 2+ historical dates.
@@ -511,8 +511,9 @@ def _single_date_snapshot(score_history: pd.DataFrame, n_dates: int) -> Accuracy
         avg_stocks_per_period=float(len(us_rows)),
         methodology="Current snapshot (walk-forward pending)",
         comparison="Snapshot view",
-        note=f"Walk-forward validation needs 90+ days of history (have {n_dates} dates). "
-             "Showing current score distribution. Accuracy metrics will appear once 3+ months of snapshots accumulate.",
+        note=f"Walk-forward validation needs 90+ days of history (have {n_dates} dates spanning {date_range_days}d). "
+             "Showing current score distribution. Accuracy metrics will appear once 3+ months of snapshots accumulate. "
+             f"[debug: total={len(score_history)} us_filtered={len(us_rows)} scores={len(score_breakdown)}]",
         is_fallback=True,
         score_breakdown=score_breakdown,
         top_stocks_snapshot=top_stocks,
