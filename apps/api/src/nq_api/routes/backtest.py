@@ -234,6 +234,12 @@ def _get_accuracy_sync() -> AccuracyResponse:
                 # Single-date fallback: show top stocks snapshot from current data
                 # instead of returning "unavailable"
                 return _single_date_snapshot(score_history, n_dates)
+            # If date range spans < 90 days, walk-forward metrics will be unreliable
+            # (3-month forward returns need 3+ months of price data after scoring).
+            # Show snapshot view until we have enough history.
+            date_range_days = (score_history["date_only"].max() - score_history["date_only"].min()).days
+            if date_range_days < 90:
+                return _single_date_snapshot(score_history, n_dates)
         else:
             score_history["date"] = pd.Timestamp.now()
             score_history["date_only"] = score_history["date"].dt.normalize()
@@ -481,8 +487,8 @@ def _single_date_snapshot(score_history: pd.DataFrame, n_dates: int) -> Accuracy
         avg_stocks_per_period=float(len(us_rows)),
         methodology="Current snapshot (walk-forward pending)",
         comparison="Snapshot view",
-        note=f"Walk-forward validation requires 2+ distinct score dates (found {n_dates}). "
-             "Showing current score distribution. Accuracy metrics will appear once historical snapshots accumulate.",
+        note=f"Walk-forward validation needs 90+ days of history (have {n_dates} dates). "
+             "Showing current score distribution. Accuracy metrics will appear once 3+ months of snapshots accumulate.",
         is_fallback=True,
         score_breakdown=score_breakdown,
         top_stocks_snapshot=top_stocks,
