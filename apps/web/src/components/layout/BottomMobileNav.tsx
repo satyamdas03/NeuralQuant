@@ -8,7 +8,6 @@ import {
   MessageSquareText,
   Newspaper,
   Database,
-  GitCompareArrows,
   BarChart3,
 } from "lucide-react";
 

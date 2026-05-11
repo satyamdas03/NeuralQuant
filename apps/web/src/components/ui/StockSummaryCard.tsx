@@ -60,25 +60,25 @@ export default function StockSummaryCard({ summary }: Props) {
     rows.push({ label: "Sector", value: summary.sector });
   }
   // OpenBB-enriched fields (shown if available)
-  if ((summary as any).analyst_consensus) {
-    const ac = (summary as any).analyst_consensus as string;
+  if (summary.analyst_consensus) {
+    const ac = summary.analyst_consensus;
     const acColor = ac.includes("buy") || ac.includes("outperform") ? "text-tertiary" : ac.includes("sell") || ac.includes("underperform") ? "text-error" : "text-secondary";
     rows.push({ label: "Consensus", value: ac.replace(/_/g, " ").toUpperCase(), accent: acColor });
   }
-  if ((summary as any).analyst_buy_pct != null) {
-    rows.push({ label: "Buy Rating", value: `${(summary as any).analyst_buy_pct}%`, accent: (summary as any).analyst_buy_pct >= 70 ? "text-tertiary" : undefined });
+  if (summary.analyst_buy_pct != null) {
+    rows.push({ label: "Buy Rating", value: `${summary.analyst_buy_pct}%`, accent: summary.analyst_buy_pct >= 70 ? "text-tertiary" : undefined });
   }
-  if ((summary as any).altman_z_score != null) {
-    rows.push({ label: "Altman Z", value: `${(summary as any).altman_z_score}` });
+  if (summary.altman_z_score != null) {
+    rows.push({ label: "Altman Z", value: `${summary.altman_z_score}` });
   }
-  if ((summary as any).piotroski_score != null) {
-    rows.push({ label: "Piotroski", value: `${(summary as any).piotroski_score}/9` });
+  if (summary.piotroski_score != null) {
+    rows.push({ label: "Piotroski", value: `${summary.piotroski_score}/9` });
   }
-  if ((summary as any).iv_percentile != null) {
-    rows.push({ label: "IV %ile", value: `${(summary as any).iv_percentile.toFixed(0)}%` });
+  if (summary.iv_percentile != null) {
+    rows.push({ label: "IV %ile", value: `${summary.iv_percentile.toFixed(0)}%` });
   }
-  if ((summary as any).put_call_ratio != null) {
-    rows.push({ label: "Put/Call", value: `${(summary as any).put_call_ratio.toFixed(2)}` });
+  if (summary.put_call_ratio != null) {
+    rows.push({ label: "Put/Call", value: `${summary.put_call_ratio.toFixed(2)}` });
   }
 
   return (

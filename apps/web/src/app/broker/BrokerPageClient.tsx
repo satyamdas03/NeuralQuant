@@ -2,11 +2,6 @@
 
 import { useState } from "react";
 
-interface BrokerPageClientProps {
-  email: string;
-  tier: string;
-}
-
 interface AccountInfo {
   id?: string;
   status?: string;
@@ -32,7 +27,7 @@ interface Position {
   side: string;
 }
 
-export default function BrokerPageClient({ email: _email, tier: _tier }: BrokerPageClientProps) {
+export default function BrokerPageClient() {
   const [symbol, setSymbol] = useState("");
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [broker, setBroker] = useState<"alpaca" | "zerodha">("alpaca");

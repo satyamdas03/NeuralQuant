@@ -147,7 +147,7 @@ export default function StockPage() {
 
       {/* Sentiment + Backtest row */}
       <div className="grid md:grid-cols-2 gap-5">
-        <SentimentCard s={sentiment} ticker={ticker.toUpperCase()} market={market} />
+        <SentimentCard s={sentiment} ticker={ticker.toUpperCase()} />
         <BacktestCTA ticker={ticker.toUpperCase()} market={market} />
       </div>
 
@@ -206,7 +206,7 @@ function StockPageSkeleton({ ticker }: { ticker: string }) {
   );
 }
 
-function SentimentCard({ s, ticker, market: _market }: { s: SentimentResponse | null; ticker: string; market: Market }) {
+function SentimentCard({ s, ticker }: { s: SentimentResponse | null; ticker: string }) {
   const color =
     !s ? "text-on-surface-variant"
     : s.label === "Bullish" ? "text-tertiary"

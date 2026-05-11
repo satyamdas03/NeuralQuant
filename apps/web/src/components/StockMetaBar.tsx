@@ -46,25 +46,25 @@ export function StockMetaBar({ meta, market = "US" }: { meta: StockMeta; market?
 
   // Extra OpenBB-enriched fields (shown if available)
   const extraItems: { label: string; value: string; color?: string }[] = [];
-  if ((meta as any).analyst_consensus) {
-    const ac = (meta as any).analyst_consensus as string;
+  if (meta.analyst_consensus) {
+    const ac = meta.analyst_consensus;
     const acColor = REC_COLORS[ac.toLowerCase()] ?? "text-on-surface";
     extraItems.push({ label: "Analyst Consensus", value: ac.replace(/_/g, " ").toUpperCase(), color: acColor });
   }
-  if ((meta as any).analyst_count) {
-    extraItems.push({ label: "Analysts", value: `${(meta as any).analyst_count}` });
+  if (meta.analyst_count) {
+    extraItems.push({ label: "Analysts", value: `${meta.analyst_count}` });
   }
-  if ((meta as any).altman_z_score) {
-    extraItems.push({ label: "Altman Z", value: `${(meta as any).altman_z_score}` });
+  if (meta.altman_z_score) {
+    extraItems.push({ label: "Altman Z", value: `${meta.altman_z_score}` });
   }
-  if ((meta as any).piotroski_score) {
-    extraItems.push({ label: "Piotroski", value: `${(meta as any).piotroski_score}/9` });
+  if (meta.piotroski_score) {
+    extraItems.push({ label: "Piotroski", value: `${meta.piotroski_score}/9` });
   }
-  if ((meta as any).yield_curve_spread != null) {
-    extraItems.push({ label: "2y/10y Spread", value: `${(meta as any).yield_curve_spread}bps` });
+  if (meta.yield_curve_spread != null) {
+    extraItems.push({ label: "2y/10y Spread", value: `${meta.yield_curve_spread}bps` });
   }
-  if ((meta as any).yield_curve_10y != null) {
-    extraItems.push({ label: "US 10Y", value: `${(meta as any).yield_curve_10y}%` });
+  if (meta.yield_curve_10y != null) {
+    extraItems.push({ label: "US 10Y", value: `${meta.yield_curve_10y}%` });
   }
 
   return (
