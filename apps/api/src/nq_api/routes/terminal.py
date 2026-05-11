@@ -240,6 +240,13 @@ async def terminal_query(body: TerminalQuery):
     # Filter out None/empty values
     params = {k: v for k, v in params.items() if v}
 
+    # Fill in default param values from endpoint catalog (OpenBB requires provider)
+    ep_def = next((ep for ep in ENDPOINTS if ep["path"] == path), None)
+    if ep_def:
+        for p in ep_def.get("params", []):
+            if p["name"] not in params and p.get("default"):
+                params[p["name"]] = p["default"]
+
     obb = get_openbb_client()
     if not obb.enabled:
         raise HTTPException(status_code=503, detail="Data Terminal is offline. Connect the data source to enable this feature.")
