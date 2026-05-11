@@ -48,7 +48,7 @@ services:
       - key: PAYPAL_PLAN_API_USD
         sync: false
       - key: OPENBB_ENABLED
-        value: "false"
+        value: "true"
       - key: OPENBB_API_URL
         value: "https://nq-openbb.onrender.com"
     plan: pro
