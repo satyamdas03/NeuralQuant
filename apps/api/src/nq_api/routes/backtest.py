@@ -444,7 +444,9 @@ def _single_date_snapshot(score_history: pd.DataFrame, n_dates: int) -> Accuracy
 
     Shows current top stocks and score distribution without requiring 2+ historical dates.
     """
+    logger.info("_single_date_snapshot: %d rows, columns=%s", len(score_history), list(score_history.columns))
     us_rows = score_history[score_history.get("market", "US") == "US"] if "market" in score_history.columns else score_history
+    logger.info("_single_date_snapshot: US rows after filter=%d", len(us_rows))
     if len(us_rows) < 5:
         us_rows = score_history
 
@@ -465,6 +467,7 @@ def _single_date_snapshot(score_history: pd.DataFrame, n_dates: int) -> Accuracy
     # Drop rows where score_1_10 is still null
     if score_col and score_col in us_rows.columns:
         us_rows = us_rows[us_rows[score_col].notna()].copy()
+    logger.info("_single_date_snapshot: after score_1_10 derivation, rows=%d, sample=%s", len(us_rows), us_rows[["ticker","score_1_10","composite_score"]].head(3).to_dict() if len(us_rows) > 0 else "empty")
 
     score_breakdown = []
     if score_col and score_col in us_rows.columns:
