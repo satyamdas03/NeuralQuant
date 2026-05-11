@@ -84,7 +84,7 @@ class OpenBBClient:
 
     def _get_client(self) -> httpx.Client:
         if self._client is None or self._client.is_closed:
-            self._client = httpx.Client(timeout=15.0)
+            self._client = httpx.Client(timeout=60.0)
         return self._client
 
     def _cached(self, key: str, category: str) -> Any | None:
@@ -100,7 +100,8 @@ class OpenBBClient:
         with self._cache_lock:
             self._cache[key] = (time.time(), value)
 
-    def _get(self, path: str, params: dict | None = None, category: str = "profile") -> dict | list | None:
+    def _get(self, path: str, params: dict | None = None, category: str = "profile",
+             _retry_cold: bool = True) -> dict | list | None:
         if not self._enabled:
             return None
         cache_key = f"{path}:{sorted(params.items()) if params else ''}"
@@ -119,6 +120,13 @@ class OpenBBClient:
             result = data.get("results", data) if isinstance(data, dict) else data
             self._set_cached(cache_key, result)
             return result
+        except (httpx.TimeoutException, httpx.ConnectError) as exc:
+            if _retry_cold:
+                log.info("OpenBB cold start detected (%s), warming up and retrying", path)
+                self.warmup()
+                return self._get(path, params, category=category, _retry_cold=False)
+            log.debug("OpenBB %s failed after warmup: %s", path, exc)
+            return None
         except Exception as exc:
             log.debug("OpenBB %s failed: %s", path, exc)
             return None
@@ -242,6 +250,26 @@ class OpenBBClient:
             return data[0] if isinstance(data[0], dict) else None
         return data if isinstance(data, dict) else None
 
+    # ── Warmup (for Render cold starts) ─────────────────────────────────────────────
+
+    def warmup(self) -> bool:
+        """Ping OpenBB to wake it from Render cold start. Returns True if now reachable."""
+        if not self._enabled:
+            return False
+        try:
+            r = httpx.Client(timeout=90.0).get(
+                f"{self._base_url}/api/v1/equity/profile",
+                params={"symbol": "AAPL", "provider": "yfinance"},
+            )
+            if r.status_code == 200:
+                log.info("OpenBB warmup succeeded")
+                return True
+            log.debug("OpenBB warmup returned %d", r.status_code)
+            return False
+        except Exception as exc:
+            log.debug("OpenBB warmup failed: %s", exc)
+            return False
+
     # ── Generic proxy (for Terminal View) ─────────────────────────────────────────
 
     def proxy(self, path: str, params: dict | None = None) -> dict | list | None:
@@ -266,14 +294,13 @@ class OpenBBClient:
                 self._cache.clear()
 
     def health_check(self) -> dict:
-        """Check if OpenBB is reachable. Returns {online, url}."""
+        """Check if OpenBB is reachable. Returns {online, url, enabled}."""
         if not self._enabled:
             return {"online": False, "url": self._base_url, "enabled": False}
         try:
-            r = self._get_client().get(
+            r = self._get_client(timeout=30.0).get(
                 f"{self._base_url}/api/v1/equity/profile",
                 params={"symbol": "AAPL", "provider": "yfinance"},
-                timeout=5.0,
             )
             online = r.status_code == 200
             return {"online": online, "url": self._base_url, "enabled": True}

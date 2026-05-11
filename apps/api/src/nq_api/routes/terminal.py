@@ -213,6 +213,15 @@ async def terminal_health():
     # Refresh URL in case tunnel changed
     obb.refresh_url()
     result = await asyncio.to_thread(obb.health_check)
+    # If offline, attempt warmup (handles Render cold start)
+    if not result.get("online") and obb.enabled:
+        log.info("OpenBB offline, attempting warmup...")
+        warmup_ok = await asyncio.wait_for(asyncio.to_thread(obb.warmup), timeout=90.0)
+        if warmup_ok:
+            result = {"online": True, "url": obb._base_url, "enabled": True}
+            log.info("OpenBB warmup succeeded")
+        else:
+            result = {"online": False, "url": obb._base_url, "enabled": True}
     _health_cache = {**result, "ts": now}
     return {k: v for k, v in _health_cache.items() if k != "ts"}
 
@@ -251,24 +260,17 @@ async def terminal_query(body: TerminalQuery):
     if not obb.enabled:
         raise HTTPException(status_code=503, detail="Data Terminal is offline. Connect the data source to enable this feature.")
 
-    # Quick health check — if last health check shows offline, fail fast
-    now = time.time()
-    if _health_cache.get("ts", 0) > 0 and not _health_cache.get("online", False):
-        cache_age = now - _health_cache.get("ts", 0)
-        if cache_age < _HEALTH_TTL:
-            raise HTTPException(status_code=503, detail="Data Terminal is currently offline. Please try again later or check back when the data source is connected.")
-
     # Refresh URL in case tunnel changed
     obb.refresh_url()
     log.info("Terminal query: %s %s → %s", path, params, obb._base_url)
 
     try:
-        result = await asyncio.wait_for(asyncio.to_thread(obb.proxy, path, params), timeout=30.0)
+        result = await asyncio.wait_for(asyncio.to_thread(obb.proxy, path, params), timeout=120.0)
     except asyncio.TimeoutError:
-        raise HTTPException(status_code=504, detail="Data Terminal request timed out (30s). The data source may be slow to respond.")
+        raise HTTPException(status_code=504, detail="Data Terminal request timed out (120s). The data source may be waking up — please try again in 30 seconds.")
 
     if result is None:
-        raise HTTPException(status_code=504, detail="Data Terminal request timed out or returned no data. The data source may be temporarily unavailable.")
+        raise HTTPException(status_code=504, detail="Data Terminal returned no data. The data source may be waking up from sleep — please try again in 30 seconds.")
 
     return {
         "data": result,

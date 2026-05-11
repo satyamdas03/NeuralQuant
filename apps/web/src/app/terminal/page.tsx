@@ -67,9 +67,11 @@ export default function TerminalPage() {
 
   useEffect(() => {
     checkHealth();
-    const interval = setInterval(checkHealth, 30000);
+    // Poll every 30s normally, every 10s when warming up (offline but enabled)
+    const getInterval = () => (!health?.online && health?.enabled) ? 10000 : 30000;
+    let interval = setInterval(checkHealth, getInterval());
     return () => clearInterval(interval);
-  }, [checkHealth]);
+  }, [checkHealth, health?.online, health?.enabled]);
 
   // Load endpoints
   useEffect(() => {
@@ -99,8 +101,8 @@ export default function TerminalPage() {
     endpoints: filteredEndpoints.filter((e) => e.category === cat.id),
   })).filter((g) => g.endpoints.length > 0);
 
-  // Run command
-  const runQuery = async () => {
+  // Run command — with auto-retry for cold starts
+  const runQuery = async (retries = 1) => {
     if (!selected) return;
     setLoading(true);
     setError(null);
@@ -111,7 +113,15 @@ export default function TerminalPage() {
       setResult(res.data);
       setMeta(res.meta);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Query failed");
+      const msg = err instanceof Error ? err.message : "Query failed";
+      // Auto-retry on 504 (cold start) up to 1 time
+      if (retries > 0 && (msg.includes("504") || msg.includes("waking up") || msg.includes("timed out"))) {
+        setError("Data source is waking up, retrying in 30 seconds...");
+        setLoading(true);
+        await new Promise((r) => setTimeout(r, 30000));
+        return runQuery(0);
+      }
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -213,11 +223,15 @@ export default function TerminalPage() {
         </div>
       </div>
 
-      {/* Offline banner */}
+      {/* Offline / warming banner */}
       {!healthLoading && health && !health.online && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-400">
-          <AlertTriangle size={18} />
-          <span>Data Terminal is currently offline. Connect the data source to enable this feature.</span>
+          {health.enabled ? <Loader2 size={18} className="animate-spin" /> : <AlertTriangle size={18} />}
+          <span>
+            {health.enabled
+              ? "Data source is warming up from sleep. Queries will auto-retry — please wait ~30 seconds."
+              : "Data Terminal is offline. Connect the data source to enable this feature."}
+          </span>
         </div>
       )}
 
