@@ -84,7 +84,9 @@ class OpenBBClient:
 
     def _get_client(self) -> httpx.Client:
         if self._client is None or self._client.is_closed:
-            self._client = httpx.Client(timeout=60.0)
+            # Short connect timeout (10s) detects cold starts fast.
+            # Long read timeout (60s) handles slow responses.
+            self._client = httpx.Client(timeout=httpx.Timeout(connect=10.0, read=60.0, write=10.0, pool=10.0))
         return self._client
 
     def _cached(self, key: str, category: str) -> Any | None:
@@ -101,7 +103,7 @@ class OpenBBClient:
             self._cache[key] = (time.time(), value)
 
     def _get(self, path: str, params: dict | None = None, category: str = "profile",
-             _retry_cold: bool = True) -> dict | list | None:
+             _attempt: int = 1) -> dict | list | None:
         if not self._enabled:
             return None
         cache_key = f"{path}:{sorted(params.items()) if params else ''}"
@@ -120,12 +122,20 @@ class OpenBBClient:
             result = data.get("results", data) if isinstance(data, dict) else data
             self._set_cached(cache_key, result)
             return result
-        except (httpx.TimeoutException, httpx.ConnectError) as exc:
-            if _retry_cold:
-                log.info("OpenBB cold start detected (%s), warming up and retrying", path)
+        except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
+            # Connection failed quickly — OpenBB likely cold. Warmup and retry.
+            if _attempt <= 2:
+                log.info("OpenBB connection failed (%s), warming up (attempt %d)", path, _attempt)
                 self.warmup()
-                return self._get(path, params, category=category, _retry_cold=False)
+                return self._get(path, params, category=category, _attempt=_attempt + 1)
             log.debug("OpenBB %s failed after warmup: %s", path, exc)
+            return None
+        except httpx.ReadTimeout as exc:
+            # Connected but response was slow. Retry once (OpenBB might be warming).
+            if _attempt <= 1:
+                log.info("OpenBB read timeout (%s), retrying", path)
+                return self._get(path, params, category=category, _attempt=_attempt + 1)
+            log.debug("OpenBB %s read timeout after retry: %s", path, exc)
             return None
         except Exception as exc:
             log.debug("OpenBB %s failed: %s", path, exc)
@@ -257,7 +267,8 @@ class OpenBBClient:
         if not self._enabled:
             return False
         try:
-            r = httpx.Client(timeout=90.0).get(
+            # Use a dedicated client with long timeout for cold starts
+            r = httpx.Client(timeout=httpx.Timeout(connect=15.0, read=90.0, write=10.0, pool=10.0)).get(
                 f"{self._base_url}/api/v1/equity/profile",
                 params={"symbol": "AAPL", "provider": "yfinance"},
             )
@@ -298,7 +309,7 @@ class OpenBBClient:
         if not self._enabled:
             return {"online": False, "url": self._base_url, "enabled": False}
         try:
-            r = self._get_client(timeout=30.0).get(
+            r = self._get_client().get(
                 f"{self._base_url}/api/v1/equity/profile",
                 params={"symbol": "AAPL", "provider": "yfinance"},
             )
