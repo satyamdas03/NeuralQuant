@@ -336,10 +336,6 @@ def _market_movers_sync():
                     if price is not None and float(price) < 5:
                         return None
                     ticker = m.get("ticker", "")
-                    # ONLY allow tickers in our universe — others will 404 on detail pages
-                    all_us = set(UNIVERSE_BY_MARKET.get("US", []))
-                    if ticker not in _MOVERS_UNIVERSE and ticker not in all_us:
-                        return None
                     return {
                         "ticker": ticker,
                         "name": m.get("name", ""),
@@ -363,49 +359,49 @@ def _market_movers_sync():
     except Exception as exc:
         logger.warning("FMP market movers failed: %s — falling back to yfinance", exc)
 
-    # Fallback: yfinance batch download
-    try:
-        raw = yf.download(
-            _MOVERS_UNIVERSE, period="2d", progress=False,
-            auto_adjust=True, threads=False,
-            session=_get_yf_session(),
-        )
-        close = raw["Close"] if isinstance(raw.columns, pd.MultiIndex) else raw[["Close"]]
-        volume = raw["Volume"] if isinstance(raw.columns, pd.MultiIndex) else raw[["Volume"]]
-
-        rows = []
-        for sym in _MOVERS_UNIVERSE:
-            try:
-                closes = close[sym].dropna()
-                if len(closes) < 2:
+    # Fallback: individual yfinance .info calls (more reliable than batch yf.download on Render)
+    rows = []
+    for sym in _MOVERS_UNIVERSE:
+        try:
+            info = _fetch_yf_info_cached(sym)
+            if not info.get("_cached_ok"):
+                # Bypass failure cache with a direct fetch
+                try:
+                    t = yf.Ticker(sym, session=_get_yf_session())
+                    info = t.info or {}
+                except Exception:
                     continue
-                price = float(closes.iloc[-1])
-                prev = float(closes.iloc[-2])
+            price = info.get("currentPrice") or info.get("regularMarketPrice")
+            prev = info.get("previousClose") or info.get("regularMarketPreviousClose")
+            vol = info.get("volume") or info.get("regularMarketVolume")
+            if price and prev and prev > 0:
                 chg_abs = round(price - prev, 2)
-                chg_pct = round((chg_abs / prev * 100) if prev else 0.0, 2)
-                vol = int(volume[sym].iloc[-1])
-                rows.append({"ticker": sym, "price": round(price, 2),
-                              "change_pct": chg_pct, "change_abs": chg_abs, "volume": vol})
+                chg_pct = round((chg_abs / prev * 100), 2)
+                rows.append({
+                    "ticker": sym,
+                    "name": info.get("longName") or info.get("shortName") or sym,
+                    "price": round(price, 2),
+                    "change_pct": chg_pct,
+                    "change_abs": chg_abs,
+                    "volume": vol,
+                })
+        except Exception:
+            pass
 
-            except Exception:
-                pass
+    # Filter out penny stocks (<$5) and stocks without names
+    rows = [r for r in rows if r["price"] >= 5 and r.get("name")]
 
-        # Filter out penny stocks (<$5) — they 404/503 on detail pages
-        rows = [r for r in rows if r["price"] >= 5]
-
-        if rows:
-            rows_sorted = sorted(rows, key=lambda x: x["change_pct"], reverse=True)
-            result = {
-                "gainers": rows_sorted[:5],
-                "losers": list(reversed(rows_sorted[-5:])),
-                "active": sorted(rows, key=lambda x: x["volume"], reverse=True)[:5],
-            }
-            _movers_cache = result
-            _movers_ts = time.time()
-            return result
-        logger.warning("yfinance movers fallback returned 0 valid rows")
-    except Exception as exc:
-        logger.warning("Movers yfinance fallback failed: %s", exc)
+    if rows:
+        rows_sorted = sorted(rows, key=lambda x: x["change_pct"], reverse=True)
+        result = {
+            "gainers": rows_sorted[:5],
+            "losers": list(reversed(rows_sorted[-5:])),
+            "active": sorted(rows, key=lambda x: x["volume"] or 0, reverse=True)[:5],
+        }
+        _movers_cache = result
+        _movers_ts = time.time()
+        return result
+    logger.warning("yfinance movers fallback returned 0 valid rows")
 
     # Last resort: return stale cache if available, otherwise error
     if _movers_cache:

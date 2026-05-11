@@ -1069,15 +1069,25 @@ def _validate_and_fill_portfolio_prices(
                             live_price = float(profile["price"])
                             price_source = "fmp_profile"
             except Exception as exc:
-                log.debug("FMP price fetch failed for %s: %s", ticker, exc)
+                log.warning("FMP price fetch failed for %s: %s", ticker, exc)
 
-            # US yfinance fallback
+            # US yfinance fallback (cached + direct)
             if not live_price or live_price <= 0:
                 info = _fetch_yf_info_cached(ticker)
                 if info.get("_cached_ok"):
                     live_price = info.get("currentPrice") or info.get("regularMarketPrice")
                     if live_price and live_price > 0:
                         price_source = "yfinance"
+                else:
+                    # Bypass failure cache with direct fetch
+                    try:
+                        t = yf.Ticker(ticker, session=_get_yf_session())
+                        info = t.info or {}
+                        live_price = info.get("currentPrice") or info.get("regularMarketPrice")
+                        if live_price and live_price > 0:
+                            price_source = "yfinance_direct"
+                    except Exception as exc:
+                        log.debug("Direct yfinance fallback failed for %s: %s", ticker, exc)
 
         else:
             # IN: try yfinance .NS first (better coverage than FMP for Indian stocks)
@@ -1086,6 +1096,15 @@ def _validate_and_fill_portfolio_prices(
                 live_price = info.get("currentPrice") or info.get("regularMarketPrice")
                 if live_price and live_price > 0:
                     price_source = "yfinance_ns"
+            else:
+                try:
+                    t = yf.Ticker(sym, session=_get_yf_session())
+                    info = t.info or {}
+                    live_price = info.get("currentPrice") or info.get("regularMarketPrice")
+                    if live_price and live_price > 0:
+                        price_source = "yfinance_ns_direct"
+                except Exception as exc:
+                    log.debug("Direct yfinance NS fallback failed for %s: %s", sym, exc)
 
             # IN FMP profile fallback (quote endpoint returns Premium error for .NS)
             if not live_price or live_price <= 0:
@@ -1108,6 +1127,15 @@ def _validate_and_fill_portfolio_prices(
                         live_price = info_bare.get("currentPrice") or info_bare.get("regularMarketPrice")
                         if live_price and live_price > 0:
                             price_source = "yfinance_bare"
+                    else:
+                        try:
+                            t = yf.Ticker(ticker, session=_get_yf_session())
+                            info_bare = t.info or {}
+                            live_price = info_bare.get("currentPrice") or info_bare.get("regularMarketPrice")
+                            if live_price and live_price > 0:
+                                price_source = "yfinance_bare_direct"
+                        except Exception as exc:
+                            log.debug("Direct yfinance bare fallback failed for %s: %s", ticker, exc)
 
             # IN: final fallback — yf.download for last close price (most reliable on cloud)
             if not live_price or live_price <= 0:
@@ -1156,6 +1184,7 @@ def _validate_and_fill_portfolio_prices(
             not entry_str
             or "N/A" in entry_str
             or "Live N/A" in entry_str
+            or "unavailable" in entry_str.lower()
             or "enter at market" in entry_str.lower()
         )
 
@@ -1185,7 +1214,7 @@ def _validate_and_fill_portfolio_prices(
 
         # Fill target_price if missing or looks like placeholder
         target_str = stock.get("target_price", "")
-        if not target_str or "N/A" in target_str:
+        if not target_str or "N/A" in target_str or "unavailable" in target_str.lower():
             target_price = live_price * 1.15
             if market == "IN":
                 stock["target_price"] = f"₹{target_price:,.0f} (+15%)"
@@ -1194,7 +1223,7 @@ def _validate_and_fill_portfolio_prices(
 
         # Fill stop_loss if missing
         stop_str = stock.get("stop_loss", "")
-        if not stop_str or "N/A" in stop_str:
+        if not stop_str or "N/A" in stop_str or "unavailable" in stop_str.lower():
             stop_price = live_price * 0.90
             if market == "IN":
                 stock["stop_loss"] = f"₹{stop_price:,.0f} (-10%)"
