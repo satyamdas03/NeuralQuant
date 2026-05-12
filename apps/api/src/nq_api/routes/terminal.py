@@ -462,11 +462,10 @@ async def terminal_query(body: TerminalQuery):
                     "source": "fmp_fallback",
                 },
             }
-        # No fallback available — return honest error
+        # No fallback available — return professional error
         raise HTTPException(
             status_code=504,
-            detail="OpenBB data provider unavailable. The internal yfinance connector is rate-limited on Render. "
-                   "For stock quotes and fundamentals, use the Stock Detail page which uses our primary FMP data source.",
+            detail="This feature is temporarily unavailable. Our team has been notified and is working on a fix. Please try again shortly.",
         )
 
     return {

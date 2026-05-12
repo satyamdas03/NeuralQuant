@@ -338,6 +338,8 @@ def _market_movers_sync():
                     if price is not None and float(price) < 5:
                         return None
                     ticker = m.get("ticker", "")
+                    if ticker and ticker.upper() not in _US_UNIVERSE_SET:
+                        return None
                     return {
                         "ticker": ticker,
                         "name": m.get("name", ""),

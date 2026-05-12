@@ -1090,14 +1090,32 @@ def _validate_and_fill_portfolio_prices(
                         log.debug("Direct yfinance fallback failed for %s: %s", ticker, exc)
 
         else:
-            # IN: try multiple yfinance approaches (cloud IPs get rate-limited differently)
-            # Tier 1: yfinance .NS with curl_cffi session (best impersonation)
-            info = _fetch_yf_info_cached(sym)
-            if info.get("_cached_ok"):
-                live_price = info.get("currentPrice") or info.get("regularMarketPrice")
-                if live_price and live_price > 0:
-                    price_source = "yfinance_ns"
-            else:
+            # IN: FMP first (not rate-limited on cloud), then yfinance fallback
+            # Tier 1: FMP quote + profile (works for some IN stocks, no rate limits)
+            try:
+                from nq_data.fmp import get_fmp_client
+                fmp = get_fmp_client()
+                if fmp._enabled:
+                    quote = fmp.get_quote(sym)
+                    if quote and quote.get("price"):
+                        live_price = float(quote["price"])
+                        price_source = "fmp_quote_in"
+                    if not live_price or live_price <= 0:
+                        profile = fmp.get_profile(sym)
+                        if profile and profile.get("price"):
+                            live_price = float(profile["price"])
+                            price_source = "fmp_profile_in"
+                    # Also try bare ticker on FMP
+                    if (not live_price or live_price <= 0) and "." not in ticker:
+                        quote_bare = fmp.get_quote(ticker)
+                        if quote_bare and quote_bare.get("price"):
+                            live_price = float(quote_bare["price"])
+                            price_source = "fmp_quote_in_bare"
+            except Exception as exc:
+                log.debug("FMP IN price fallback failed for %s: %s", sym, exc)
+
+            # Tier 2: yfinance .NS direct (bypass failure cache for IN stocks)
+            if not live_price or live_price <= 0:
                 try:
                     t = yf.Ticker(sym, session=_get_yf_session())
                     info = t.info or {}
@@ -1105,9 +1123,9 @@ def _validate_and_fill_portfolio_prices(
                     if live_price and live_price > 0:
                         price_source = "yfinance_ns_direct"
                 except Exception as exc:
-                    log.debug("Direct yfinance NS fallback failed for %s: %s", sym, exc)
+                    log.debug("Direct yfinance NS failed for %s: %s", sym, exc)
 
-            # Tier 2: yf.download (often more reliable on cloud than Ticker.info)
+            # Tier 3: yf.download (often more reliable on cloud than Ticker.info)
             if not live_price or live_price <= 0:
                 try:
                     import yfinance as yf
@@ -1122,54 +1140,30 @@ def _validate_and_fill_portfolio_prices(
                             live_price = float(close.iloc[-1])
                             price_source = "yf_download_ns"
                 except Exception as exc:
-                    log.debug("yf.download NS fallback failed for %s: %s", sym, exc)
+                    log.debug("yf.download NS failed for %s: %s", sym, exc)
 
-            # Tier 3: yfinance .NS with plain requests session (no impersonation)
+            # Tier 4: yfinance .NS with plain requests session (no impersonation)
             if not live_price or live_price <= 0:
                 try:
-                    t_plain = yf.Ticker(sym)  # no custom session — uses default requests
+                    t_plain = yf.Ticker(sym)
                     info_plain = t_plain.info or {}
                     live_price = info_plain.get("currentPrice") or info_plain.get("regularMarketPrice")
                     if live_price and live_price > 0:
                         price_source = "yfinance_ns_plain"
                 except Exception as exc:
-                    log.debug("Plain yfinance NS fallback failed for %s: %s", sym, exc)
-
-            # Tier 4: FMP profile + quote (may work for some IN stocks)
-            if not live_price or live_price <= 0:
-                try:
-                    from nq_data.fmp import get_fmp_client
-                    fmp = get_fmp_client()
-                    if fmp._enabled:
-                        quote = fmp.get_quote(sym)
-                        if quote and quote.get("price"):
-                            live_price = float(quote["price"])
-                            price_source = "fmp_quote_in"
-                        if not live_price or live_price <= 0:
-                            profile = fmp.get_profile(sym)
-                            if profile and profile.get("price"):
-                                live_price = float(profile["price"])
-                                price_source = "fmp_profile_in"
-                except Exception as exc:
-                    log.debug("FMP IN price fallback failed for %s: %s", sym, exc)
+                    log.debug("Plain yfinance NS failed for %s: %s", sym, exc)
 
             # Tier 5: bare ticker on yfinance (some tickers work without .NS)
             if not live_price or live_price <= 0:
                 if "." not in ticker:
-                    info_bare = _fetch_yf_info_cached(ticker)
-                    if info_bare.get("_cached_ok"):
+                    try:
+                        t = yf.Ticker(ticker, session=_get_yf_session())
+                        info_bare = t.info or {}
                         live_price = info_bare.get("currentPrice") or info_bare.get("regularMarketPrice")
                         if live_price and live_price > 0:
-                            price_source = "yfinance_bare"
-                    else:
-                        try:
-                            t = yf.Ticker(ticker, session=_get_yf_session())
-                            info_bare = t.info or {}
-                            live_price = info_bare.get("currentPrice") or info_bare.get("regularMarketPrice")
-                            if live_price and live_price > 0:
-                                price_source = "yfinance_bare_direct"
-                        except Exception as exc:
-                            log.debug("Direct yfinance bare fallback failed for %s: %s", ticker, exc)
+                            price_source = "yfinance_bare_direct"
+                    except Exception as exc:
+                        log.debug("Direct yfinance bare failed for %s: %s", ticker, exc)
 
         # ── Price Tier 2: score_cache (up to 7 days stale) ──
         if not live_price or live_price <= 0:
