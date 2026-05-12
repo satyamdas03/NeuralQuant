@@ -370,41 +370,31 @@ def _market_movers_sync():
     except Exception as exc:
         logger.warning("FMP market movers failed: %s — falling back to yfinance", exc)
 
-    # Fallback: FMP quotes for _MOVERS_UNIVERSE (reliable, no rate limits on Render)
+    # Fallback: FMP batch quotes for _MOVERS_UNIVERSE (single API call, no rate limits)
     rows = []
     try:
         from nq_data.fmp import get_fmp_client
         fmp = get_fmp_client()
         if fmp._enabled:
-            for sym in _MOVERS_UNIVERSE:
-                try:
-                    quote = fmp.get_quote(sym)
-                    if not quote or not quote.get("price"):
+            batch = fmp.get_batch_quotes(list(_MOVERS_UNIVERSE))
+            if batch:
+                for sym, quote in batch.items():
+                    price = quote.get("price")
+                    if not price or float(price) < 5:
                         continue
-                    price = float(quote["price"])
-                    prev = quote.get("previousClose") or quote.get("changesPercentage")
-                    if prev:
-                        prev = float(prev)
-                    chg_pct = float(quote.get("changesPercentage") or 0)
+                    chg_pct = float(quote.get("change_pct") or 0)
                     chg_abs = float(quote.get("change") or 0)
                     vol = quote.get("volume")
-                    name = quote.get("name", "")
-                    if not name:
-                        profile = fmp.get_profile(sym)
-                        name = (profile or {}).get("companyName", sym) if profile else sym
-                    if price and price >= 5:
-                        rows.append({
-                            "ticker": sym,
-                            "name": name or sym,
-                            "price": round(price, 2),
-                            "change_pct": chg_pct,
-                            "change_abs": chg_abs,
-                            "volume": vol,
-                        })
-                except Exception:
-                    pass
+                    rows.append({
+                        "ticker": sym,
+                        "name": sym,
+                        "price": round(float(price), 2),
+                        "change_pct": chg_pct,
+                        "change_abs": chg_abs,
+                        "volume": vol,
+                    })
     except Exception as exc:
-        logger.warning("FMP movers universe fallback failed: %s", exc)
+        logger.warning("FMP batch quotes movers fallback failed: %s", exc)
 
     if rows:
         rows_sorted = sorted(rows, key=lambda x: x["change_pct"], reverse=True)
