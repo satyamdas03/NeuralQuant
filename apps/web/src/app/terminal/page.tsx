@@ -72,7 +72,7 @@ export default function TerminalPage() {
     checkHealth();
     // Poll every 30s normally, every 10s when warming up (offline but enabled)
     const getInterval = () => (!health?.online && health?.enabled) ? 10000 : 30000;
-    let interval = setInterval(checkHealth, getInterval());
+    const interval = setInterval(checkHealth, getInterval());
     return () => clearInterval(interval);
   }, [checkHealth, health?.online, health?.enabled]);
 
