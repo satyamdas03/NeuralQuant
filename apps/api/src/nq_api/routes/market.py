@@ -324,6 +324,7 @@ async def _refresh_movers():
 
 def _market_movers_sync():
     global _movers_cache, _movers_ts
+    _fmp_partial = None  # saved when FMP returns partial results
     # Try FMP market movers first
     try:
         from nq_data.fmp import get_fmp_client
@@ -353,11 +354,17 @@ def _market_movers_sync():
                     "losers": [x for x in (_to_mover(m) for m in losers[:50]) if x][:5],
                     "active": [x for x in (_to_mover(m) for m in actives[:50]) if x][:5],
                 }
-                if any(result.values()):
+                if result["gainers"] and result["losers"]:
                     _movers_cache = result
                     _movers_ts = time.time()
                     return result
-                logger.warning("FMP movers: all results filtered out (g=%d l=%d a=%d)", len(gainers), len(losers), len(actives))
+                # If gainers or losers empty (e.g. universe filter removed all), fall through to yfinance
+                if not result["gainers"]:
+                    logger.warning("FMP gainers: all filtered out (%d raw)", len(gainers))
+                if not result["losers"]:
+                    logger.warning("FMP losers: all filtered out (%d raw)", len(losers))
+                # Save partial FMP result for merge after yfinance fallback
+                _fmp_partial = result
             else:
                 logger.warning("FMP movers returned empty for all categories")
     except Exception as exc:
@@ -402,6 +409,14 @@ def _market_movers_sync():
             "losers": list(reversed(rows_sorted[-5:])),
             "active": sorted(rows, key=lambda x: x["volume"] or 0, reverse=True)[:5],
         }
+        # Merge FMP partial results (keep FMP active if we had it)
+        if _fmp_partial:
+            if _fmp_partial.get("active"):
+                result["active"] = _fmp_partial["active"]
+            if _fmp_partial.get("gainers"):
+                result["gainers"] = _fmp_partial["gainers"]
+            if _fmp_partial.get("losers"):
+                result["losers"] = _fmp_partial["losers"]
         _movers_cache = result
         _movers_ts = time.time()
         return result
