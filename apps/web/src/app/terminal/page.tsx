@@ -23,6 +23,7 @@ import {
   Loader2,
   ArrowLeft,
   Terminal as TerminalIcon,
+  Download,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -52,6 +53,8 @@ export default function TerminalPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 50;
 
   // Health check
   const checkHealth = useCallback(async () => {
@@ -109,9 +112,10 @@ export default function TerminalPage() {
     setResult(null);
     setMeta(null);
     try {
-      const res = await terminalApi.query(selected.path, params);
+      const res = await terminalApi.query(selected.path, params, selected.id);
       setResult(res.data);
       setMeta(res.meta);
+      setPage(1);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Query failed";
       // Auto-retry on 504 (cold start) up to 2 times with 10s delay
@@ -125,6 +129,38 @@ export default function TerminalPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // CSV export utility
+  const exportToCSV = (data: unknown, filename: string) => {
+    let rows: Record<string, unknown>[] = [];
+    if (Array.isArray(data) && data.length > 0 && typeof data[0] === "object") {
+      rows = data as Record<string, unknown>[];
+    } else if (typeof data === "object" && data !== null) {
+      rows = [data as Record<string, unknown>];
+    }
+    if (!rows.length) return;
+    const keys = Object.keys(rows[0]);
+    const csv = [
+      keys.join(","),
+      ...rows.map((row) =>
+        keys.map((k) => {
+          const v = row[k];
+          if (v === null || v === undefined) return "";
+          const s = String(v);
+          return s.includes(",") || s.includes('"') || s.includes("\n")
+            ? `"${s.replace(/"/g, '""')}"`
+            : s;
+        }).join(",")
+      ),
+    ].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${filename}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   // Render result based on type
@@ -148,22 +184,28 @@ export default function TerminalPage() {
           </div>
         );
       }
-      // Array of objects — render as table
+      // Array of objects — render as table with pagination
       const keys = Object.keys(data[0] as Record<string, unknown>);
+      const totalPages = Math.ceil(data.length / PAGE_SIZE);
+      const safePage = Math.min(page, totalPages);
+      const startIdx = (safePage - 1) * PAGE_SIZE;
+      const pageData = (data as Record<string, unknown>[]).slice(startIdx, startIdx + PAGE_SIZE);
+      const displayKeys = keys.slice(0, 8);
+
       return (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-ghost-border">
-                {keys.slice(0, 8).map((k) => (
+                {displayKeys.map((k) => (
                   <th key={k} className="px-3 py-2 text-left text-on-surface-variant font-mono text-xs">{k}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {(data as Record<string, unknown>[]).slice(0, 50).map((row, i) => (
+              {pageData.map((row, i) => (
                 <tr key={i} className="border-b border-ghost-border/50 hover:bg-surface-container">
-                  {keys.slice(0, 8).map((k) => (
+                  {displayKeys.map((k) => (
                     <td key={k} className="px-3 py-2 font-mono text-xs text-on-surface">
                       {row[k] !== null && row[k] !== undefined ? String(row[k]).slice(0, 60) : "—"}
                     </td>
@@ -172,9 +214,44 @@ export default function TerminalPage() {
               ))}
             </tbody>
           </table>
-          {data.length > 50 && (
-            <p className="mt-2 text-xs text-on-surface-variant">Showing 50 of {data.length} rows</p>
-          )}
+          {/* Pagination controls */}
+          <div className="mt-3 flex items-center justify-between text-xs text-on-surface-variant">
+            <span>Showing {startIdx + 1}–{Math.min(startIdx + PAGE_SIZE, data.length)} of {data.length} rows</span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={safePage <= 1}
+                className="rounded px-2 py-1 border border-ghost-border hover:bg-surface-container disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                Prev
+              </button>
+              {Array.from({ length: Math.min(totalPages, 10) }, (_, i) => {
+                const start = totalPages <= 10 ? 1 : Math.max(1, safePage - 4);
+                const pg = start + i;
+                if (pg > totalPages) return null;
+                return (
+                  <button
+                    key={pg}
+                    onClick={() => setPage(pg)}
+                    className={`rounded px-2 py-1 border ${
+                      pg === safePage
+                        ? "bg-primary/20 border-primary/50 text-primary"
+                        : "border-ghost-border hover:bg-surface-container"
+                    }`}
+                  >
+                    {pg}
+                  </button>
+                );
+              })}
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safePage >= totalPages}
+                className="rounded px-2 py-1 border border-ghost-border hover:bg-surface-container disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          </div>
         </div>
       );
     }
@@ -286,7 +363,11 @@ export default function TerminalPage() {
                             key={ep.id}
                             onClick={() => {
                               setSelectedId(ep.id);
-                              setParams({});
+                              const defaults: Record<string, string> = {};
+                              ep.params.forEach((p) => {
+                                if (p.default !== undefined && p.default !== null) defaults[p.name] = String(p.default);
+                              });
+                              setParams(defaults);
                               setResult(null);
                               setMeta(null);
                               setError(null);
@@ -329,13 +410,25 @@ export default function TerminalPage() {
                       {p.required && <span className="text-error ml-0.5">*</span>}
                       {!p.required && <span className="text-on-surface-variant ml-1 text-xs">(optional)</span>}
                     </label>
-                    <input
-                      type={p.type === "date" ? "date" : "text"}
-                      value={params[p.name] ?? p.default ?? ""}
-                      onChange={(e) => setParams((prev) => ({ ...prev, [p.name]: e.target.value }))}
-                      placeholder={p.description}
-                      className="w-full rounded-lg bg-surface-container border border-ghost-border px-3 py-2 text-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:border-primary/50 font-mono"
-                    />
+                    {p.type === "select" && p.options ? (
+                      <select
+                        value={params[p.name] ?? p.default ?? ""}
+                        onChange={(e) => setParams((prev) => ({ ...prev, [p.name]: e.target.value }))}
+                        className="w-full rounded-lg bg-surface-container border border-ghost-border px-3 py-2 text-sm text-on-surface focus:outline-none focus:border-primary/50 font-mono"
+                      >
+                        {p.options.map((opt: string) => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type={p.type === "date" ? "date" : "text"}
+                        value={params[p.name] ?? p.default ?? ""}
+                        onChange={(e) => setParams((prev) => ({ ...prev, [p.name]: e.target.value }))}
+                        placeholder={p.description}
+                        className="w-full rounded-lg bg-surface-container border border-ghost-border px-3 py-2 text-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:border-primary/50 font-mono"
+                      />
+                    )}
                   </div>
                 ))}
               </div>
@@ -366,6 +459,15 @@ export default function TerminalPage() {
                       <span className="font-mono">{meta.path}</span>
                       <span>·</span>
                       <span>{new Date(meta.timestamp).toLocaleTimeString()}</span>
+                      {result !== null && (
+                        <button
+                          onClick={() => exportToCSV(result, `${selected.path.replace(/\//g, "_")}_${Date.now()}`)}
+                          className="ml-auto flex items-center gap-1 rounded px-2 py-1 border border-ghost-border hover:bg-surface-container transition-colors"
+                          title="Download CSV"
+                        >
+                          <Download size={12} /> Export CSV
+                        </button>
+                      )}
                     </div>
                   )}
                   {result !== null && (

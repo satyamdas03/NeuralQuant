@@ -325,9 +325,9 @@ export const terminalApi = {
   getEndpoints: () =>
     apiFetch<{ categories: TerminalCategory[]; endpoints: TerminalEndpoint[] }>("/terminal/endpoints"),
 
-  query: (path: string, params: Record<string, string> = {}) =>
+  query: (path: string, params: Record<string, string> = {}, endpointId?: string) =>
     apiFetch<TerminalQueryResult>("/terminal/query", {
       method: "POST",
-      body: JSON.stringify({ path, params }),
+      body: JSON.stringify({ path, params, endpoint_id: endpointId || undefined }),
     }),
 };

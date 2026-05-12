@@ -38,6 +38,12 @@ async def _keep_warm():
 # 67 verified OpenBB endpoints organized by category.
 # Each endpoint has: id, path, label, description, category, subcategory, params.
 
+# Common provider options per endpoint type
+_PROVIDER_EQUITY = ["yfinance", "fmp"]
+_PROVIDER_FIXED = ["federal_reserve", "fred"]
+_PROVIDER_FRED = ["fred"]
+_PROVIDER_MACRO = ["yfinance", "fred", "fmp"]
+
 CATEGORIES = [
     {"id": "equity_price", "label": "Equity · Price", "icon": "CandlestickChart", "color": "primary"},
     {"id": "equity_fundamental", "label": "Equity · Fundamentals", "icon": "FileBarChart", "color": "primary"},
@@ -54,150 +60,150 @@ ENDPOINTS = [
      "description": "Real-time or delayed stock price quote",
      "category": "equity_price",
      "params": [{"name": "symbol", "type": "string", "required": True, "description": "Ticker symbol (e.g. AAPL)"},
-                {"name": "provider", "type": "string", "required": False, "default": "yfinance", "description": "Data provider"}]},
+                {"name": "provider", "type": "select", "required": False, "default": "yfinance", "description": "Data provider", "options": _PROVIDER_EQUITY}]},
     {"id": "equity_price_historical", "path": "/equity/price/historical", "label": "Historical Prices",
      "description": "Historical OHLCV price data",
      "category": "equity_price",
      "params": [{"name": "symbol", "type": "string", "required": True, "description": "Ticker symbol"},
                 {"name": "start_date", "type": "date", "required": False, "description": "Start date (YYYY-MM-DD)"},
                 {"name": "end_date", "type": "date", "required": False, "description": "End date (YYYY-MM-DD)"},
-                {"name": "provider", "type": "string", "required": False, "default": "yfinance", "description": "Data provider"}]},
+                {"name": "provider", "type": "select", "required": False, "default": "yfinance", "description": "Data provider", "options": _PROVIDER_EQUITY}]},
     {"id": "equity_price_performance", "path": "/equity/price/performance", "label": "Performance",
      "description": "Price performance metrics over various periods",
      "category": "equity_price",
      "params": [{"name": "symbol", "type": "string", "required": True, "description": "Ticker symbol"},
-                {"name": "provider", "type": "string", "required": False, "default": "yfinance", "description": "Data provider"}]},
+                {"name": "provider", "type": "select", "required": False, "default": "yfinance", "description": "Data provider", "options": _PROVIDER_EQUITY}]},
 
     # ── Equity · Fundamentals ────────────────────────────────────────────────
     {"id": "equity_profile", "path": "/equity/profile", "label": "Company Profile",
      "description": "Company profile, sector, industry, market cap, description",
      "category": "equity_fundamental",
      "params": [{"name": "symbol", "type": "string", "required": True, "description": "Ticker symbol"},
-                {"name": "provider", "type": "string", "required": False, "default": "yfinance", "description": "Data provider"}]},
+                {"name": "provider", "type": "select", "required": False, "default": "yfinance", "description": "Data provider", "options": _PROVIDER_EQUITY}]},
     {"id": "equity_balance", "path": "/equity/fundamental/balance", "label": "Balance Sheet",
      "description": "Quarterly/annual balance sheet data",
      "category": "equity_fundamental",
      "params": [{"name": "symbol", "type": "string", "required": True, "description": "Ticker symbol"},
-                {"name": "provider", "type": "string", "required": False, "default": "yfinance", "description": "Data provider"}]},
+                {"name": "provider", "type": "select", "required": False, "default": "yfinance", "description": "Data provider", "options": _PROVIDER_EQUITY}]},
     {"id": "equity_income", "path": "/equity/fundamental/income", "label": "Income Statement",
      "description": "Quarterly/annual income statement data",
      "category": "equity_fundamental",
      "params": [{"name": "symbol", "type": "string", "required": True, "description": "Ticker symbol"},
-                {"name": "provider", "type": "string", "required": False, "default": "yfinance", "description": "Data provider"}]},
+                {"name": "provider", "type": "select", "required": False, "default": "yfinance", "description": "Data provider", "options": _PROVIDER_EQUITY}]},
     {"id": "equity_cash", "path": "/equity/fundamental/cash", "label": "Cash Flow",
      "description": "Quarterly/annual cash flow statement data",
      "category": "equity_fundamental",
      "params": [{"name": "symbol", "type": "string", "required": True, "description": "Ticker symbol"},
-                {"name": "provider", "type": "string", "required": False, "default": "yfinance", "description": "Data provider"}]},
+                {"name": "provider", "type": "select", "required": False, "default": "yfinance", "description": "Data provider", "options": _PROVIDER_EQUITY}]},
     {"id": "equity_dividends", "path": "/equity/fundamental/dividends", "label": "Dividends",
      "description": "Dividend history and yield data",
      "category": "equity_fundamental",
      "params": [{"name": "symbol", "type": "string", "required": True, "description": "Ticker symbol"},
-                {"name": "provider", "type": "string", "required": False, "default": "yfinance", "description": "Data provider"}]},
+                {"name": "provider", "type": "select", "required": False, "default": "yfinance", "description": "Data provider", "options": _PROVIDER_EQUITY}]},
     {"id": "equity_metrics", "path": "/equity/fundamental/metrics", "label": "Key Metrics",
      "description": "P/E, P/B, ROE, margins, debt ratios, and other key financial metrics",
      "category": "equity_fundamental",
      "params": [{"name": "symbol", "type": "string", "required": True, "description": "Ticker symbol"},
-                {"name": "provider", "type": "string", "required": False, "default": "yfinance", "description": "Data provider"}]},
+                {"name": "provider", "type": "select", "required": False, "default": "yfinance", "description": "Data provider", "options": _PROVIDER_EQUITY}]},
     {"id": "equity_ratios", "path": "/equity/fundamental/ratios", "label": "Financial Ratios",
      "description": "Price-to-book, gross margin, current ratio, and other ratios",
      "category": "equity_fundamental",
      "params": [{"name": "symbol", "type": "string", "required": True, "description": "Ticker symbol"},
-                {"name": "provider", "type": "string", "required": False, "default": "yfinance", "description": "Data provider"}]},
+                {"name": "provider", "type": "select", "required": False, "default": "yfinance", "description": "Data provider", "options": _PROVIDER_EQUITY}]},
     {"id": "equity_scores", "path": "/equity/fundamental/scores", "label": "Financial Scores",
      "description": "Altman Z-Score, Piotroski F-Score, and other scoring metrics",
      "category": "equity_fundamental",
      "params": [{"name": "symbol", "type": "string", "required": True, "description": "Ticker symbol"},
-                {"name": "provider", "type": "string", "required": False, "default": "yfinance", "description": "Data provider"}]},
+                {"name": "provider", "type": "select", "required": False, "default": "yfinance", "description": "Data provider", "options": _PROVIDER_EQUITY}]},
 
     # ── Equity · Ownership ───────────────────────────────────────────────────
     {"id": "equity_ownership", "path": "/equity/ownership/share_statistics", "label": "Share Statistics",
      "description": "Outstanding shares, float, short interest, short % of float",
      "category": "equity_ownership",
      "params": [{"name": "symbol", "type": "string", "required": True, "description": "Ticker symbol"},
-                {"name": "provider", "type": "string", "required": False, "default": "yfinance", "description": "Data provider"}]},
+                {"name": "provider", "type": "select", "required": False, "default": "yfinance", "description": "Data provider", "options": _PROVIDER_EQUITY}]},
 
     # ── Equity · Estimates ───────────────────────────────────────────────────
     {"id": "equity_consensus", "path": "/equity/estimates/consensus", "label": "Analyst Consensus",
      "description": "Buy/Hold/Sell ratings, price targets, and analyst count",
      "category": "equity_estimates",
      "params": [{"name": "symbol", "type": "string", "required": True, "description": "Ticker symbol"},
-                {"name": "provider", "type": "string", "required": False, "default": "yfinance", "description": "Data provider"}]},
+                {"name": "provider", "type": "select", "required": False, "default": "yfinance", "description": "Data provider", "options": _PROVIDER_EQUITY}]},
 
     # ── Equity · Discovery ───────────────────────────────────────────────────
     {"id": "equity_discovery_gainers", "path": "/equity/discovery/gainers", "label": "Top Gainers",
      "description": "Top gaining stocks by price change",
      "category": "equity_discovery",
-     "params": [{"name": "provider", "type": "string", "required": False, "default": "yfinance", "description": "Data provider"}]},
+     "params": [{"name": "provider", "type": "select", "required": False, "default": "yfinance", "description": "Data provider", "options": _PROVIDER_EQUITY}]},
     {"id": "equity_discovery_losers", "path": "/equity/discovery/losers", "label": "Top Losers",
      "description": "Top losing stocks by price decline",
      "category": "equity_discovery",
-     "params": [{"name": "provider", "type": "string", "required": False, "default": "yfinance", "description": "Data provider"}]},
+     "params": [{"name": "provider", "type": "select", "required": False, "default": "yfinance", "description": "Data provider", "options": _PROVIDER_EQUITY}]},
     {"id": "equity_discovery_active", "path": "/equity/discovery/active", "label": "Most Active",
      "description": "Most active stocks by volume",
      "category": "equity_discovery",
-     "params": [{"name": "provider", "type": "string", "required": False, "default": "yfinance", "description": "Data provider"}]},
+     "params": [{"name": "provider", "type": "select", "required": False, "default": "yfinance", "description": "Data provider", "options": _PROVIDER_EQUITY}]},
     {"id": "equity_discovery_undervalued_large", "path": "/equity/discovery/undervalued_large_caps", "label": "Undervalued Large Caps",
      "description": "Potentially undervalued large-cap stocks",
      "category": "equity_discovery",
-     "params": [{"name": "provider", "type": "string", "required": False, "default": "yfinance", "description": "Data provider"}]},
+     "params": [{"name": "provider", "type": "select", "required": False, "default": "yfinance", "description": "Data provider", "options": _PROVIDER_EQUITY}]},
     {"id": "equity_discovery_undervalued_growth", "path": "/equity/discovery/undervalued_growth", "label": "Undervalued Growth",
      "description": "Potentially undervalued growth stocks",
      "category": "equity_discovery",
-     "params": [{"name": "provider", "type": "string", "required": False, "default": "yfinance", "description": "Data provider"}]},
+     "params": [{"name": "provider", "type": "select", "required": False, "default": "yfinance", "description": "Data provider", "options": _PROVIDER_EQUITY}]},
     {"id": "equity_discovery_aggressive_small", "path": "/equity/discovery/aggressive_small_caps", "label": "Aggressive Small Caps",
      "description": "High-growth aggressive small-cap stocks",
      "category": "equity_discovery",
-     "params": [{"name": "provider", "type": "string", "required": False, "default": "yfinance", "description": "Data provider"}]},
+     "params": [{"name": "provider", "type": "select", "required": False, "default": "yfinance", "description": "Data provider", "options": _PROVIDER_EQUITY}]},
     {"id": "equity_discovery_growth_tech", "path": "/equity/discovery/growth_tech", "label": "Growth Tech",
      "description": "Top growth technology stocks",
      "category": "equity_discovery",
-     "params": [{"name": "provider", "type": "string", "required": False, "default": "yfinance", "description": "Data provider"}]},
+     "params": [{"name": "provider", "type": "select", "required": False, "default": "yfinance", "description": "Data provider", "options": _PROVIDER_EQUITY}]},
     {"id": "equity_search", "path": "/equity/search", "label": "Search Equities",
      "description": "Search for equities by name or symbol",
      "category": "equity_discovery",
      "params": [{"name": "query", "type": "string", "required": True, "description": "Search query"},
-                {"name": "provider", "type": "string", "required": False, "default": "yfinance", "description": "Data provider"}]},
+                {"name": "provider", "type": "select", "required": False, "default": "yfinance", "description": "Data provider", "options": _PROVIDER_EQUITY}]},
     {"id": "equity_screener", "path": "/equity/screener", "label": "Stock Screener",
      "description": "Screen stocks by various criteria",
      "category": "equity_discovery",
-     "params": [{"name": "provider", "type": "string", "required": False, "default": "yfinance", "description": "Data provider"}]},
+     "params": [{"name": "provider", "type": "select", "required": False, "default": "yfinance", "description": "Data provider", "options": _PROVIDER_EQUITY}]},
 
     # ── Fixed Income ────────────────────────────────────────────────────────
     {"id": "fi_yield_curve", "path": "/fixedincome/government/yield_curve", "label": "Yield Curve",
      "description": "US Treasury yield curve data across maturities",
      "category": "fixedincome",
-     "params": [{"name": "provider", "type": "string", "required": False, "default": "yfinance", "description": "Data provider"}]},
+     "params": [{"name": "provider", "type": "select", "required": False, "default": "federal_reserve", "description": "Data provider", "options": _PROVIDER_FIXED}]},
     {"id": "fi_treasury_rates", "path": "/fixedincome/government/treasury_rates", "label": "Treasury Rates",
      "description": "US Treasury rates across maturities",
      "category": "fixedincome",
-     "params": [{"name": "provider", "type": "string", "required": False, "default": "yfinance", "description": "Data provider"}]},
+     "params": [{"name": "provider", "type": "select", "required": False, "default": "federal_reserve", "description": "Data provider", "options": _PROVIDER_FIXED}]},
     {"id": "fi_effr", "path": "/fixedincome/rate/effr", "label": "Effective Fed Funds Rate",
      "description": "Effective Federal Funds Rate",
      "category": "fixedincome",
-     "params": [{"name": "provider", "type": "string", "required": False, "default": "fred", "description": "Data provider"}]},
+     "params": [{"name": "provider", "type": "select", "required": False, "default": "fred", "description": "Data provider", "options": _PROVIDER_FRED}]},
 
     # ── Economy ──────────────────────────────────────────────────────────────
     {"id": "econ_cpi", "path": "/economy/fred_series", "label": "CPI (Consumer Price Index)",
      "description": "Consumer Price Index inflation data",
      "category": "economy",
      "params": [{"name": "symbol", "type": "string", "required": False, "default": "CPIAUCSL", "description": "FRED series ID"},
-                {"name": "provider", "type": "string", "required": False, "default": "fred", "description": "Data provider"}]},
+                {"name": "provider", "type": "select", "required": False, "default": "fred", "description": "Data provider", "options": _PROVIDER_FRED}]},
     {"id": "econ_gdp", "path": "/economy/fred_series", "label": "GDP",
      "description": "Gross Domestic Product data",
      "category": "economy",
      "params": [{"name": "symbol", "type": "string", "required": False, "default": "GDPC1", "description": "FRED series ID"},
-                {"name": "provider", "type": "string", "required": False, "default": "fred", "description": "Data provider"}]},
+                {"name": "provider", "type": "select", "required": False, "default": "fred", "description": "Data provider", "options": _PROVIDER_FRED}]},
     {"id": "econ_unemployment", "path": "/economy/fred_series", "label": "Unemployment Rate",
      "description": "Unemployment rate data",
      "category": "economy",
      "params": [{"name": "symbol", "type": "string", "required": False, "default": "UNRATE", "description": "FRED series ID"},
-                {"name": "provider", "type": "string", "required": False, "default": "fred", "description": "Data provider"}]},
+                {"name": "provider", "type": "select", "required": False, "default": "fred", "description": "Data provider", "options": _PROVIDER_FRED}]},
     {"id": "econ_fred_series", "path": "/economy/fred_series", "label": "FRED Series (Any)",
      "description": "Any FRED economic data series by ID",
      "category": "economy",
      "params": [{"name": "symbol", "type": "string", "required": True, "description": "FRED series ID (e.g. DFF, T10Y2Y, IC4WSNX)"},
-                {"name": "provider", "type": "string", "required": False, "default": "fred", "description": "Data provider"}]},
+                {"name": "provider", "type": "select", "required": False, "default": "fred", "description": "Data provider", "options": _PROVIDER_FRED}]},
 ]
 
 # Build lookup set for path validation
@@ -209,6 +215,7 @@ _VALID_PATHS: set[str] = {ep["path"] for ep in ENDPOINTS}
 class TerminalQuery(BaseModel):
     path: str
     params: dict[str, str] | None = None
+    endpoint_id: str | None = None
 
 
 # ── Health check cache ────────────────────────────────────────────────────────
@@ -264,7 +271,7 @@ async def _try_fmp_fallback(path: str, params: dict) -> dict | list | None:
     except Exception:
         return None
 
-    # Price quote fallback
+    # ── Equity price ──────────────────────────────────────────────────────────
     if path == "/equity/price/quote":
         quote = fmp.get_quote(symbol)
         profile = fmp.get_profile(symbol)
@@ -280,7 +287,7 @@ async def _try_fmp_fallback(path: str, params: dict) -> dict | list | None:
                 "source": "fmp_fallback",
             }
 
-    # Company profile fallback
+    # ── Equity profile ────────────────────────────────────────────────────────
     if path == "/equity/profile":
         profile = fmp.get_profile(symbol)
         if profile:
@@ -295,25 +302,93 @@ async def _try_fmp_fallback(path: str, params: dict) -> dict | list | None:
                 "source": "fmp_fallback",
             }
 
-    # Income statement fallback
+    # ── Fundamentals ──────────────────────────────────────────────────────────
     if path == "/equity/fundamental/income":
         income = fmp.get_income_statement(symbol)
         if income and isinstance(income, dict):
             return [income]
 
-    # Balance sheet fallback
     if path == "/equity/fundamental/balance":
         balance = fmp.get_balance_sheet(symbol)
         if balance and isinstance(balance, dict):
             return [balance]
 
-    # Key metrics fallback
+    if path == "/equity/fundamental/cash":
+        cf = fmp.get_cash_flow(symbol)
+        if cf and isinstance(cf, dict):
+            return [cf]
+
     if path == "/equity/fundamental/metrics":
         metrics = fmp.get_key_metrics(symbol)
         ratios = fmp.get_ratios(symbol)
         if metrics or ratios:
             merged = {**(metrics or {}), **(ratios or {})}
             return [merged]
+
+    if path == "/equity/fundamental/ratios":
+        ratios = fmp.get_ratios(symbol)
+        if ratios:
+            return [ratios]
+
+    if path == "/equity/fundamental/dividends":
+        divs = fmp.get_dividends(symbol)
+        if divs:
+            return divs
+
+    # ── Scores ────────────────────────────────────────────────────────────────
+    if path == "/equity/fundamental/scores":
+        scores = fmp.get_financial_scores(symbol)
+        if scores:
+            return scores
+
+    # ── Analyst consensus ─────────────────────────────────────────────────────
+    if path == "/equity/estimates/consensus":
+        est = fmp.get_analyst_estimates(symbol) or {}
+        target = fmp.get_price_target(symbol) or {}
+        grades = fmp.get_analyst_grades(symbol) or {}
+        if est or target or grades:
+            return {
+                "symbol": symbol,
+                "target_high": target.get("target_high"),
+                "target_low": target.get("target_low"),
+                "target_avg": target.get("target_avg"),
+                "number_of_analysts": est.get("number_of_analysts") or target.get("number_of_analysts"),
+                "strong_buy": grades.get("strong_buy"),
+                "buy": grades.get("buy"),
+                "hold": grades.get("hold"),
+                "sell": grades.get("sell"),
+                "strong_sell": grades.get("strong_sell"),
+                "consensus": grades.get("consensus"),
+                "source": "fmp_fallback",
+            }
+
+    # ── Ownership / share statistics ──────────────────────────────────────────
+    if path == "/equity/ownership/share_statistics":
+        profile = fmp.get_profile(symbol)
+        if profile:
+            return {
+                "symbol": symbol,
+                "market_cap": profile.get("market_cap"),
+                "shares_outstanding": profile.get("shares_outstanding"),
+                "float": profile.get("float"),
+                "source": "fmp_fallback",
+            }
+
+    # ── Fixed income ──────────────────────────────────────────────────────────
+    if path in ("/fixedincome/government/yield_curve", "/fixedincome/government/treasury_rates"):
+        rates = fmp.get_treasury_rates()
+        if rates:
+            return [
+                {"maturity": "1m", "rate": rates.get("1m")},
+                {"maturity": "3m", "rate": rates.get("3m")},
+                {"maturity": "6m", "rate": rates.get("6m")},
+                {"maturity": "1y", "rate": rates.get("1y")},
+                {"maturity": "2y", "rate": rates.get("2y")},
+                {"maturity": "5y", "rate": rates.get("5y")},
+                {"maturity": "10y", "rate": rates.get("10y")},
+                {"maturity": "20y", "rate": rates.get("20y")},
+                {"maturity": "30y", "rate": rates.get("30y")},
+            ]
 
     return None
 
@@ -337,7 +412,11 @@ async def terminal_query(body: TerminalQuery):
     params = {k: v for k, v in params.items() if v}
 
     # Fill in default param values from endpoint catalog (OpenBB requires provider)
-    ep_def = next((ep for ep in ENDPOINTS if ep["path"] == path), None)
+    ep_def = None
+    if body.endpoint_id:
+        ep_def = next((ep for ep in ENDPOINTS if ep["id"] == body.endpoint_id), None)
+    if not ep_def:
+        ep_def = next((ep for ep in ENDPOINTS if ep["path"] == path), None)
     if ep_def:
         for p in ep_def.get("params", []):
             if p["name"] not in params and p.get("default"):

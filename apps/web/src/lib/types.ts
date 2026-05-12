@@ -521,7 +521,7 @@ export interface ClarificationQuestion {
 // ── Terminal View ────────────────────────────────────────────────────────────
 export interface TerminalParam {
   name: string;
-  type: "string" | "number" | "date" | "enum";
+  type: "string" | "number" | "date" | "enum" | "select";
   required: boolean;
   default?: string;
   description: string;
