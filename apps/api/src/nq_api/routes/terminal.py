@@ -248,11 +248,82 @@ async def terminal_endpoints():
     return {"categories": CATEGORIES, "endpoints": ENDPOINTS}
 
 
+# ── Fallback to NeuralQuant's own data stack when OpenBB fails ──────────────────
+
+async def _try_fmp_fallback(path: str, params: dict) -> dict | list | None:
+    """When OpenBB's internal yfinance fails on Render, serve from our own FMP stack."""
+    symbol = params.get("symbol", "")
+    if not symbol:
+        return None
+
+    try:
+        from nq_data.fmp import get_fmp_client
+        fmp = get_fmp_client()
+        if not fmp._enabled:
+            return None
+    except Exception:
+        return None
+
+    # Price quote fallback
+    if path == "/equity/price/quote":
+        quote = fmp.get_quote(symbol)
+        profile = fmp.get_profile(symbol)
+        if quote or profile:
+            return {
+                "symbol": symbol,
+                "name": profile.get("name") if profile else symbol,
+                "price": quote.get("price") if quote else (profile.get("price") if profile else None),
+                "change": quote.get("change") if quote else 0,
+                "change_percent": quote.get("changes_percentage") if quote else 0,
+                "volume": quote.get("volume") if quote else 0,
+                "market_cap": quote.get("market_cap") if quote else (profile.get("market_cap") if profile else None),
+                "source": "fmp_fallback",
+            }
+
+    # Company profile fallback
+    if path == "/equity/profile":
+        profile = fmp.get_profile(symbol)
+        if profile:
+            return {
+                "symbol": symbol,
+                "name": profile.get("name"),
+                "sector": profile.get("sector"),
+                "industry": profile.get("industry"),
+                "market_cap": profile.get("market_cap"),
+                "beta": profile.get("beta"),
+                "description": profile.get("description"),
+                "source": "fmp_fallback",
+            }
+
+    # Income statement fallback
+    if path == "/equity/fundamental/income":
+        income = fmp.get_income_statement(symbol)
+        if income and isinstance(income, dict):
+            return [income]
+
+    # Balance sheet fallback
+    if path == "/equity/fundamental/balance":
+        balance = fmp.get_balance_sheet(symbol)
+        if balance and isinstance(balance, dict):
+            return [balance]
+
+    # Key metrics fallback
+    if path == "/equity/fundamental/metrics":
+        metrics = fmp.get_key_metrics(symbol)
+        ratios = fmp.get_ratios(symbol)
+        if metrics or ratios:
+            merged = {**(metrics or {}), **(ratios or {})}
+            return [merged]
+
+    return None
+
+
 @router.post("/query")
 async def terminal_query(body: TerminalQuery):
     """Proxy a query to the data terminal backend.
 
     Validates the path against the catalog to prevent arbitrary URL access.
+    Falls back to NeuralQuant's own FMP data stack when OpenBB fails.
     """
     # Validate path
     path = body.path
@@ -283,10 +354,41 @@ async def terminal_query(body: TerminalQuery):
     try:
         result = await asyncio.wait_for(asyncio.to_thread(obb.proxy, path, params), timeout=120.0)
     except asyncio.TimeoutError:
-        raise HTTPException(status_code=504, detail="Data Terminal request timed out (120s). The data source may be waking up — please try again in 30 seconds.")
+        # Try fallback even on timeout
+        fallback = await _try_fmp_fallback(path, params)
+        if fallback is not None:
+            log.info("Terminal fallback served after timeout: %s", path)
+            return {
+                "data": fallback,
+                "meta": {
+                    "path": path,
+                    "params": params,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "source": "fmp_fallback",
+                },
+            }
+        raise HTTPException(status_code=504, detail="Data Terminal timed out (120s). The backend may be restarting — please retry.")
 
     if result is None:
-        raise HTTPException(status_code=504, detail="Data Terminal returned no data. The data source may be waking up from sleep — please try again in 30 seconds.")
+        # OpenBB returned non-200 or connection failed — try our own FMP stack
+        fallback = await _try_fmp_fallback(path, params)
+        if fallback is not None:
+            log.info("Terminal fallback served: %s", path)
+            return {
+                "data": fallback,
+                "meta": {
+                    "path": path,
+                    "params": params,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "source": "fmp_fallback",
+                },
+            }
+        # No fallback available — return honest error
+        raise HTTPException(
+            status_code=504,
+            detail="OpenBB data provider unavailable. The internal yfinance connector is rate-limited on Render. "
+                   "For stock quotes and fundamentals, use the Stock Detail page which uses our primary FMP data source.",
+        )
 
     return {
         "data": result,

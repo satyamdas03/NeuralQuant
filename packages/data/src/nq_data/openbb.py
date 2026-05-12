@@ -115,7 +115,8 @@ class OpenBBClient:
             url = f"{self._base_url}{path}"
             r = self._get_client().get(url, params=params or {})
             if r.status_code != 200:
-                log.debug("OpenBB %s → %d", path, r.status_code)
+                body_preview = r.text[:200] if r.text else ""
+                log.warning("OpenBB %s → %d: %s", path, r.status_code, body_preview)
                 return None
             data = r.json()
             # OpenBB returns {"results": ...} or list

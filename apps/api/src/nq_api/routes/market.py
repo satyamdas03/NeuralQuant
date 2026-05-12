@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# Fast lookup set for universe membership check in movers
+_US_UNIVERSE_SET: set[str] = set(UNIVERSE_BY_MARKET.get("US", []))
 _INDICES = {
     "^GSPC": "S&P 500",
     "^IXIC": "NASDAQ",
@@ -336,6 +338,9 @@ def _market_movers_sync():
                     if price is not None and float(price) < 5:
                         return None
                     ticker = m.get("ticker", "")
+                    # Only show tickers we have score data for (S&P 500 + curated list)
+                    if ticker not in _US_UNIVERSE_SET:
+                        return None
                     return {
                         "ticker": ticker,
                         "name": m.get("name", ""),

@@ -28,4 +28,7 @@ NEURALQUANTRESEARCHFORTHENEXTPHASE.txt
 *.duckdb.wal
 market_expert_insight/
 docs/launch-playbook.md
-docs/superpowers/
+# docs/superpowers/  # specs are tracked; only .superpowers/ tooling cache is ignored
+.vercel
+
+.vercel

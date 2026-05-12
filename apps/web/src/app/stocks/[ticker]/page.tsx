@@ -28,11 +28,20 @@ export default function StockPage() {
   const [report, setReport] = useState<AnalystResponse | null>(null);
   const [sentiment, setSentiment] = useState<SentimentResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [scoreStatus, setScoreStatus] = useState<number | null>(null);
   const [analysing, setAnalysing] = useState(false);
   const [watchlisted, setWatchlisted] = useState(false);
 
   useEffect(() => {
-    api.getStock(ticker, market).then(setScore).catch((e) => console.error("getStock failed:", e)).finally(() => setLoading(false));
+    api.getStock(ticker, market)
+      .then(setScore)
+      .catch((e) => {
+        const msg = e instanceof Error ? e.message : String(e);
+        const statusMatch = msg.match(/API error (\d+):/);
+        setScoreStatus(statusMatch ? parseInt(statusMatch[1], 10) : 500);
+        console.error("getStock failed:", e);
+      })
+      .finally(() => setLoading(false));
     api.getStockMeta(ticker, market).then(setMeta).catch(() => {});
     api.getSentiment(ticker, market, 12).then(setSentiment).catch(() => {});
     authedApi.listWatchlist().then(r => {
@@ -82,8 +91,26 @@ export default function StockPage() {
   };
 
   if (loading) return <StockPageSkeleton ticker={ticker.toUpperCase()} />;
-  if (!score)
+  if (!score) {
+    if (scoreStatus === 503) {
+      return (
+        <div className="py-12 text-center space-y-4">
+          <Loader2 size={32} className="animate-spin text-primary mx-auto" />
+          <div className="text-lg font-medium text-on-surface">ForeCast score is computing for {ticker.toUpperCase()}</div>
+          <p className="text-sm text-on-surface-variant max-w-md mx-auto">
+            Score cache miss — first load may take 10-30 seconds on cold start. Refresh to retry.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-primary/80 text-on-surface text-sm font-medium transition-colors"
+          >
+            <ArrowRight size={14} /> Retry
+          </button>
+        </div>
+      );
+    }
     return <div className="text-error py-12 text-center">Stock not found: {ticker}</div>;
+  }
 
   return (
     <div className="space-y-5 p-4 lg:p-6">
