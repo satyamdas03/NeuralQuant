@@ -1,9 +1,11 @@
 services:
   - type: web
     name: nq-api
-    runtime: docker
+    runtime: python
+    pythonVersion: 3.12
     rootDir: .
-    dockerfilePath: apps/api/Dockerfile
+    buildCommand: pip install uv && uv sync --frozen --no-dev
+    startCommand: uv run uvicorn nq_api.main:app --host 0.0.0.0 --port ${PORT:-10000}
     envVars:
       - key: ANTHROPIC_API_KEY
         sync: false
