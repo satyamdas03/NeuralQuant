@@ -370,37 +370,41 @@ def _market_movers_sync():
     except Exception as exc:
         logger.warning("FMP market movers failed: %s — falling back to yfinance", exc)
 
-    # Fallback: individual yfinance .info calls (more reliable than batch yf.download on Render)
+    # Fallback: FMP quotes for _MOVERS_UNIVERSE (reliable, no rate limits on Render)
     rows = []
-    for sym in _MOVERS_UNIVERSE:
-        try:
-            info = _fetch_yf_info_cached(sym)
-            if not info.get("_cached_ok"):
-                # Bypass failure cache with a direct fetch
+    try:
+        from nq_data.fmp import get_fmp_client
+        fmp = get_fmp_client()
+        if fmp._enabled:
+            for sym in _MOVERS_UNIVERSE:
                 try:
-                    t = yf.Ticker(sym, session=_get_yf_session())
-                    info = t.info or {}
+                    quote = fmp.get_quote(sym)
+                    if not quote or not quote.get("price"):
+                        continue
+                    price = float(quote["price"])
+                    prev = quote.get("previousClose") or quote.get("changesPercentage")
+                    if prev:
+                        prev = float(prev)
+                    chg_pct = float(quote.get("changesPercentage") or 0)
+                    chg_abs = float(quote.get("change") or 0)
+                    vol = quote.get("volume")
+                    name = quote.get("name", "")
+                    if not name:
+                        profile = fmp.get_profile(sym)
+                        name = (profile or {}).get("companyName", sym) if profile else sym
+                    if price and price >= 5:
+                        rows.append({
+                            "ticker": sym,
+                            "name": name or sym,
+                            "price": round(price, 2),
+                            "change_pct": chg_pct,
+                            "change_abs": chg_abs,
+                            "volume": vol,
+                        })
                 except Exception:
-                    continue
-            price = info.get("currentPrice") or info.get("regularMarketPrice")
-            prev = info.get("previousClose") or info.get("regularMarketPreviousClose")
-            vol = info.get("volume") or info.get("regularMarketVolume")
-            if price and prev and prev > 0:
-                chg_abs = round(price - prev, 2)
-                chg_pct = round((chg_abs / prev * 100), 2)
-                rows.append({
-                    "ticker": sym,
-                    "name": info.get("longName") or info.get("shortName") or sym,
-                    "price": round(price, 2),
-                    "change_pct": chg_pct,
-                    "change_abs": chg_abs,
-                    "volume": vol,
-                })
-        except Exception:
-            pass
-
-    # Filter out penny stocks (<$5) and stocks without names
-    rows = [r for r in rows if r["price"] >= 5 and r.get("name")]
+                    pass
+    except Exception as exc:
+        logger.warning("FMP movers universe fallback failed: %s", exc)
 
     if rows:
         rows_sorted = sorted(rows, key=lambda x: x["change_pct"], reverse=True)
@@ -420,13 +424,26 @@ def _market_movers_sync():
         _movers_cache = result
         _movers_ts = time.time()
         return result
-    logger.warning("yfinance movers fallback returned 0 valid rows")
+    logger.warning("FMP movers universe fallback returned 0 valid rows")
 
     # Last resort: return stale cache if available, otherwise error
     if _movers_cache:
+        result = {**_movers_cache, "stale": True}
+        if _fmp_partial and _fmp_partial.get("active"):
+            result["active"] = _fmp_partial["active"]
         logger.warning("Movers: all sources failed, returning stale cache (age=%ds)", int(time.time() - _movers_ts))
-        return {**_movers_cache, "stale": True}
-    return {"gainers": [], "losers": [], "active": [], "error": "All data sources failed"}
+        return result
+    result = {"gainers": [], "losers": [], "active": []}
+    if _fmp_partial:
+        if _fmp_partial.get("active"):
+            result["active"] = _fmp_partial["active"]
+        if _fmp_partial.get("gainers"):
+            result["gainers"] = _fmp_partial["gainers"]
+        if _fmp_partial.get("losers"):
+            result["losers"] = _fmp_partial["losers"]
+    if not any(result.values()):
+        result["error"] = "All data sources failed"
+    return result
 
 
 @router.get("/data-quality")
