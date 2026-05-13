@@ -20,7 +20,7 @@ async def run_pending():
         log.warning("SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY not set — skipping migration check")
         return
 
-    required_tables = ["enrichment_cache", "score_cache_history", "signal_log"]
+    required_tables = ["enrichment_cache", "score_cache_history", "signal_log", "news_classifications"]
 
     for table in required_tables:
         resp = httpx.get(
@@ -39,6 +39,7 @@ async def run_pending():
                 "enrichment_cache": "009_enrichment_cache.sql",
                 "score_cache_history": "010_score_cache_history.sql",
                 "signal_log": "013_signal_log.sql",
+                "news_classifications": "014_news_classifications.sql",
             }
             sql_file = migration_map.get(table, "migration")
             log.warning(
