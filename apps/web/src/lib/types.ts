@@ -559,3 +559,69 @@ export interface TerminalHealth {
   enabled: boolean;
 }
 
+// ── Trade Signals ────────────────────────────────────────────────────────────
+
+export interface TradeSignal {
+  ticker: string;
+  market: Market;
+  sector: string;
+  composite_score: number;
+  edge: number;
+  direction: "bullish" | "bearish" | "neutral";
+  bet: number;
+  capped: boolean;
+  current_price: number | null;
+  pe_ttm: number | null;
+  analyst_target: number | null;
+  market_cap: number | null;
+  strategy: string;
+  kelly_fraction: number;
+}
+
+export interface TradeStrategy {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  risk_profile: "conservative" | "balanced" | "aggressive";
+  kelly_fraction: number;
+  min_edge_score: number;
+  max_positions: number;
+  max_bet: number;
+}
+
+export interface TradeSignalsResponse {
+  signals: TradeSignal[];
+  strategy: TradeStrategy;
+  n_signals: number;
+  bankroll: number;
+  fallback?: boolean;
+  error?: string;
+  drawdown: {
+    total_pnl_today: number;
+    limit_breached: boolean;
+    warning_level: string;
+  };
+}
+
+export interface CalibrationReport {
+  hit_rate: number;
+  avg_pnl: number;
+  total_pnl: number;
+  sharpe: number;
+  profit_factor: number;
+  n_trades: number;
+  n_winners: number;
+  n_losers: number;
+  lookback_days: number;
+}
+
+export interface RiskProfileConfig {
+  profile: string;
+  kelly_fraction: number;
+  daily_loss_limit: number;
+  max_bet: number;
+  max_positions: number;
+  description: string;
+}
+

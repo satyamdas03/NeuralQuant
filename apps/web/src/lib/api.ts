@@ -8,6 +8,7 @@ import type {
   AlertSubscription, AlertDelivery, NewsDeskResponse,
   UserProfile,
   TerminalEndpoint, TerminalCategory, TerminalQueryResult, TerminalHealth,
+  TradeSignalsResponse, TradeStrategy, CalibrationReport, RiskProfileConfig,
 } from "./types";
 
 // Route all requests through Next.js /api/ rewrite proxy to avoid CORS issues.
@@ -330,4 +331,21 @@ export const terminalApi = {
       method: "POST",
       body: JSON.stringify({ path, params, endpoint_id: endpointId || undefined }),
     }),
+};
+
+// ── Trade API ────────────────────────────────────────────────────────────────
+export const tradeApi = {
+  getSignals: (market: Market = "US", strategyId = "momentum_breakout", bankroll = 10000) =>
+    apiFetch<TradeSignalsResponse>(
+      `/trade/signals?market=${market}&strategy_id=${strategyId}&bankroll=${bankroll}`
+    ),
+
+  getStrategies: () =>
+    apiFetch<{ strategies: TradeStrategy[] }>("/trade/strategies"),
+
+  getCalibration: (lookbackDays = 90, market: Market = "US") =>
+    apiFetch<CalibrationReport>(`/trade/calibration?lookback_days=${lookbackDays}&market=${market}`),
+
+  getRiskProfile: (profile = "balanced") =>
+    apiFetch<RiskProfileConfig>(`/trade/risk-profile?profile=${profile}`),
 };

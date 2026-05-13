@@ -15,6 +15,7 @@ import {
   BarChart3,
   LogIn,
   Terminal,
+  TrendingUp,
 } from "lucide-react";
 import GradientButton from "@/components/ui/GradientButton";
 
@@ -25,8 +26,9 @@ const NAV = [
   { href: "/query", label: "Ask AI", icon: MessageSquareText },
   { href: "/backtest", label: "Backtest", icon: FlaskConical },
   { href: "/performance", label: "Performance", icon: BarChart3 },
+  { href: "/trade", label: "Trade", icon: TrendingUp, beta: true },
   { href: "/sources", label: "Data Sources", icon: Database },
-  { href: "/terminal", label: "Terminal", icon: Terminal },
+  { href: "/terminal", label: "Terminal", icon: Terminal, beta: true },
   { href: "/compare", label: "Compare", icon: GitCompareArrows },
   { href: "/watchlist", label: "Watchlist", icon: Star },
   { href: "/alerts", label: "Alerts", icon: Bell },
@@ -50,7 +52,7 @@ export default function SideNavBar() {
       </div>
 
       <nav className="flex-1 space-y-1 px-3">
-        {NAV.map(({ href, label, icon: Icon }) => {
+        {NAV.map(({ href, label, icon: Icon, beta }) => {
           const active = pathname.startsWith(href);
           return (
             <Link
@@ -63,7 +65,14 @@ export default function SideNavBar() {
               }`}
             >
               <Icon size={18} />
-              {label}
+              <span className="flex items-center gap-1.5">
+                {label}
+                {beta && (
+                  <span className="text-[9px] font-medium px-1 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/25 leading-none">
+                    BETA
+                  </span>
+                )}
+              </span>
             </Link>
           );
         })}
