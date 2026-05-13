@@ -405,6 +405,7 @@ def get_signals(
         "n_signals": len(signals),
         "bankroll": bankroll,
         "live": live,
+        "deploy_sha": "19cb914",
         "drawdown": {
             "total_pnl_today": drawdown.total_pnl_today,
             "limit_breached": drawdown.limit_breached,
