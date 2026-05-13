@@ -86,3 +86,49 @@ services:
         sync: false
     plan: standard
     healthCheckPath: /docs
+
+  - type: worker
+    name: nq-trader
+    runtime: python
+    pythonVersion: 3.12
+    rootDir: .
+    buildCommand: pip install uv && uv sync --frozen --no-dev
+    startCommand: uv run python trade_daemon.py
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: FMP_API_KEY
+        sync: false
+      - key: FINNHUB_API_KEY
+        sync: false
+      - key: ALPACA_API_KEY
+        sync: false
+      - key: ALPACA_SECRET_KEY
+        sync: false
+      - key: ALPACA_PAPER
+        value: "true"
+      - key: TRADE_ENABLED
+        value: "false"
+      - key: DRY_RUN
+        value: "true"
+      - key: DAILY_LOSS_LIMIT
+        value: "100.0"
+      - key: MAX_BET_DEFAULT
+        value: "5000.0"
+      - key: MAX_POSITIONS_DEFAULT
+        value: "10"
+      - key: TRADE_DAEMON_SCAN_INTERVAL_MINUTES
+        value: "15"
+      - key: TRADE_DAEMON_STRATEGY
+        value: "momentum_breakout"
+      - key: TRADE_DAEMON_BANKROLL
+        value: "10000.0"
+      - key: TRADE_DAEMON_TOP_N
+        value: "5"
+      - key: TRADE_DAEMON_MAX_SIGNALS_PER_DAY
+        value: "20"
+    plan: starter
