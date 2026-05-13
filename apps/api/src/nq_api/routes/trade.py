@@ -298,6 +298,10 @@ def _compute_live_signals(
     # Value: 1 - P/E rank, 1 - P/B rank
     pe_med = df["pe_ttm"].median()
     pb_med = df["pb_ratio"].median()
+    if pd.isna(pe_med):
+        pe_med = 20.0  # market average fallback
+    if pd.isna(pb_med):
+        pb_med = 3.0
     pe_rank = 1.0 - df["pe_ttm"].fillna(pe_med).rank(pct=True)
     pb_rank = 1.0 - df["pb_ratio"].fillna(pb_med).rank(pct=True)
     df["value_percentile"] = pe_rank * 0.5 + pb_rank * 0.5
