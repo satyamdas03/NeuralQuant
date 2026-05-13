@@ -36,7 +36,7 @@ TRADE_STRATEGIES = [
         "icon": "TrendingUp",
         "risk_profile": "aggressive",
         "kelly_fraction": 0.40,
-        "min_edge_score": 0.70,
+        "min_edge_score": 0.62,
         "max_positions": 8,
         "max_bet": 5000.0,
     },

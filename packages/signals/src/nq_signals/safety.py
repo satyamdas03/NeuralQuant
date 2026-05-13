@@ -55,7 +55,7 @@ def check_order(
     4. Max bet
     5. Dry-run (always last — lets other checks fail first)
     """
-    if not gate.trade_enabled:
+    if not gate.trade_enabled and not gate.dry_run:
         return SafetyCheck(False, "Trading disabled. Set TRADE_ENABLED=true in Render env vars.")
 
     if daily_pnl <= -gate.daily_loss_limit:

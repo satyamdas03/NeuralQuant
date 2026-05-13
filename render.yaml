@@ -54,7 +54,7 @@ services:
       - key: OPENBB_API_URL
         value: "https://nq-openbb.onrender.com"
       - key: TRADE_ENABLED
-        value: "false"
+        value: "true"
       - key: DRY_RUN
         value: "true"
       - key: DAILY_LOSS_LIMIT
@@ -112,7 +112,7 @@ services:
       - key: ALPACA_PAPER
         value: "true"
       - key: TRADE_ENABLED
-        value: "false"
+        value: "true"
       - key: DRY_RUN
         value: "true"
       - key: DAILY_LOSS_LIMIT
@@ -124,11 +124,11 @@ services:
       - key: TRADE_DAEMON_SCAN_INTERVAL_MINUTES
         value: "15"
       - key: TRADE_DAEMON_STRATEGY
-        value: "momentum_breakout"
+        value: "value_play"
       - key: TRADE_DAEMON_BANKROLL
         value: "10000.0"
       - key: TRADE_DAEMON_TOP_N
-        value: "5"
+        value: "10"
       - key: TRADE_DAEMON_MAX_SIGNALS_PER_DAY
         value: "20"
     plan: starter

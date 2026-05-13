@@ -67,7 +67,7 @@ class DaemonConfig:
 # ── Strategy presets (mirrors trade.py TRADE_STRATEGIES) ──────────────────────
 
 STRATEGIES = {
-    "momentum_breakout": {"kelly_fraction": 0.40, "min_edge_score": 0.70, "max_positions": 8, "max_bet": 5000.0},
+    "momentum_breakout": {"kelly_fraction": 0.40, "min_edge_score": 0.62, "max_positions": 8, "max_bet": 5000.0},
     "value_play": {"kelly_fraction": 0.25, "min_edge_score": 0.60, "max_positions": 10, "max_bet": 5000.0},
     "dividend_income": {"kelly_fraction": 0.15, "min_edge_score": 0.65, "max_positions": 12, "max_bet": 3000.0},
     "quality_compound": {"kelly_fraction": 0.25, "min_edge_score": 0.65, "max_positions": 10, "max_bet": 5000.0},
