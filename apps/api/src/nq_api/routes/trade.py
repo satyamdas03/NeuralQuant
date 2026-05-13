@@ -18,9 +18,6 @@ from typing import Any
 
 from fastapi import APIRouter
 
-from nq_api.universe import UNIVERSE_BY_MARKET
-from nq_api.data_builder import build_real_snapshot
-from nq_api.deps import get_signal_engine
 from nq_api.cache import score_cache
 
 log = logging.getLogger(__name__)
@@ -168,18 +165,13 @@ def get_signals(
 
     rows = score_cache.read_top(market, n=n, max_age_seconds=86400)
     if not rows:
-        # Fallback: run live screener
-        tickers = UNIVERSE_BY_MARKET.get(market, UNIVERSE_BY_MARKET["US"])
-        try:
-            snapshot = build_real_snapshot(tickers[:50], market)
-            if snapshot and not snapshot.fundamentals.empty:
-                engine = get_signal_engine()
-                result_df = engine.compute(snapshot)
-                if result_df is not None and not result_df.empty:
-                    rows = result_df.head(n).to_dict(orient="records")
-        except Exception as e:
-            log.warning("Live screener fallback failed for trade signals: %s", e)
-            return {"signals": [], "strategy": strat, "fallback": True, "error": str(e)}
+        return {
+            "signals": [],
+            "strategy": strat,
+            "n_signals": 0,
+            "bankroll": bankroll,
+            "message": "Score cache empty — signals appear after nightly score calculation runs."
+        }
 
     signals = _rows_to_signals(rows, bankroll, strat)
 
