@@ -49,10 +49,10 @@ class DaemonConfig:
     def __init__(self, args):
         self.live = args.live
         self.market = os.environ.get("TRADE_DAEMON_MARKET", "US")
-        self.strategy_id = os.environ.get("TRADE_DAEMON_STRATEGY", "momentum_breakout")
+        self.strategy_id = os.environ.get("TRADE_DAEMON_STRATEGY", "value_play")
         self.bankroll = float(os.environ.get("TRADE_DAEMON_BANKROLL", "10000.0"))
         self.scan_interval = int(os.environ.get("TRADE_DAEMON_SCAN_INTERVAL_MINUTES", "15"))
-        self.top_n = int(os.environ.get("TRADE_DAEMON_TOP_N", "5"))
+        self.top_n = int(os.environ.get("TRADE_DAEMON_TOP_N", "10"))
         self.max_signals_per_day = int(os.environ.get("TRADE_DAEMON_MAX_SIGNALS_PER_DAY", "20"))
 
     def __repr__(self):
@@ -69,7 +69,7 @@ class DaemonConfig:
 STRATEGIES = {
     "momentum_breakout": {"kelly_fraction": 0.40, "min_edge_score": 0.70, "max_positions": 8, "max_bet": 5000.0},
     "value_play": {"kelly_fraction": 0.25, "min_edge_score": 0.60, "max_positions": 10, "max_bet": 5000.0},
-    "dividend_income": {"kelly_fraction": 0.15, "min_edge_score": 0.50, "max_positions": 12, "max_bet": 3000.0},
+    "dividend_income": {"kelly_fraction": 0.15, "min_edge_score": 0.65, "max_positions": 12, "max_bet": 3000.0},
     "quality_compound": {"kelly_fraction": 0.25, "min_edge_score": 0.65, "max_positions": 10, "max_bet": 5000.0},
     "contrarian_bet": {"kelly_fraction": 0.40, "min_edge_score": 0.75, "max_positions": 5, "max_bet": 2500.0},
     "macro_tailwind": {"kelly_fraction": 0.25, "min_edge_score": 0.60, "max_positions": 10, "max_bet": 5000.0},
