@@ -14,11 +14,13 @@ All endpoints public (guest access). No auth required.
 from __future__ import annotations
 
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
 from fastapi import APIRouter
 
 from nq_api.cache import score_cache
+from nq_api.universe import UNIVERSE_BY_MARKET
 
 log = logging.getLogger(__name__)
 
@@ -144,6 +146,220 @@ def _rows_to_signals(
     return signals
 
 
+def _compute_live_signals(
+    market: str,
+    tickers: list[str],
+    n: int,
+    strat: dict,
+    bankroll: float,
+) -> list[dict[str, Any]]:
+    """Fast live signal computation using FMP parallel data fetch.
+
+    Fetches batch quotes + per-ticker key metrics, financial scores, profiles
+    concurrently via ThreadPoolExecutor. Computes simplified composite_score
+    cross-sectionally, then applies edge detection + Kelly sizing.
+
+    Returns empty list on data fetch failure (caller falls back to empty response).
+    """
+    import os
+    import httpx
+    from nq_signals.risk import compute_edge, size_position_kelly
+
+    api_key = os.environ.get("FMP_API_KEY", "")
+    base_url = os.environ.get("FMP_BASE_URL", "https://financialmodelingprep.com/stable")
+    if not api_key:
+        return []
+
+    top_tickers = tickers[: min(n, 50)]
+
+    # Step 1: Batch quotes — use shared FMP client (single call, no threading issue)
+    from nq_data.fmp import get_fmp_client
+    fmp_shared = get_fmp_client()
+    batch_quotes = fmp_shared.get_batch_quotes(top_tickers) or {}
+
+    # Step 2: Per-ticker data in parallel — each thread owns its httpx.Client
+    def _fetch_one(ticker: str):
+        """Fetch key_metrics + financial_scores + profile + quote for one ticker.
+        Uses dedicated httpx.Client per thread (thread-safe)."""
+        local_client = httpx.Client(timeout=15.0, follow_redirects=True)
+        sym = ticker  # US tickers match FMP symbols; IN needs .NS (handled separately)
+        try:
+            def _get(endpoint: str, extra_params: dict | None = None):
+                params = {"apikey": api_key}
+                if extra_params:
+                    params.update(extra_params)
+                r = local_client.get(f"{base_url}/{endpoint}/{sym}", params=params)
+                if r.status_code == 200:
+                    data = r.json()
+                    if isinstance(data, list) and data:
+                        return data[0]
+                return None
+
+            metrics = _get("key-metrics", {"period": "annual"})
+            scores = _get("financial-scores")
+            profile_data = _get("profile")
+            quote_data = _get("quote")
+            return ticker, metrics, scores, profile_data, quote_data
+        except Exception:
+            return ticker, None, None, None, None
+        finally:
+            local_client.close()
+
+    ticker_data: dict[str, tuple] = {}
+    # 6 workers keeps FMP calls ~24/sec peak (safe under 750/min Premium limit)
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        futures = {executor.submit(_fetch_one, t): t for t in top_tickers}
+        for future in as_completed(futures, timeout=15):
+            try:
+                ticker, metrics, scores, profile, quote = future.result()
+                ticker_data[ticker] = (metrics, scores, profile, quote)
+            except Exception:
+                pass
+
+    if not ticker_data:
+        return []
+
+    # Step 3: Build rows with essential columns from raw FMP responses
+    rows: list[dict[str, Any]] = []
+    for ticker in top_tickers:
+        metrics, scores, profile, quote = ticker_data.get(ticker, (None, None, None, None))
+        bq = batch_quotes.get(ticker, {})
+
+        # Extract from raw FMP dicts (not normalized FMPClient return)
+        price = bq.get("price") or (profile or {}).get("price")
+        pe = bq.get("pe") or (metrics or {}).get("peRatio")
+        mcap = bq.get("market_cap") or (metrics or {}).get("marketCap") or (profile or {}).get("marketCap")
+
+        gross_margin = (metrics or {}).get("grossProfitMargin")
+        roe_val = (metrics or {}).get("returnOnEquity") or (metrics or {}).get("roe")
+        pb = (metrics or {}).get("pbRatio") or (metrics or {}).get("priceToBookRatio")
+        beta = (metrics or {}).get("beta") or (profile or {}).get("beta")
+        sector = (profile or {}).get("sector", "")
+        name = (profile or {}).get("companyName", ticker)
+
+        piotroski = (scores or {}).get("piotroskiScore")
+
+        # Momentum: approximate from 52w price position in range
+        year_high = (quote or {}).get("yearHigh")
+        year_low = (quote or {}).get("yearLow")
+        momentum_raw = 0.0
+        if price and year_high and year_low and year_high > (year_low or 0):
+            momentum_raw = (price - year_low) / (year_high - year_low) - 0.5
+
+        rows.append({
+            "ticker": ticker,
+            "market": market,
+            "sector": sector or "Unknown",
+            "long_name": name,
+            "current_price": price,
+            "pe_ttm": pe,
+            "pb_ratio": pb,
+            "beta": beta or 1.0,
+            "gross_profit_margin": gross_margin or 0.0,
+            "roe": roe_val or 0.0,
+            "piotroski": piotroski or 5,
+            "momentum_raw": momentum_raw,
+            "accruals_ratio": 0.0,
+            "market_cap": mcap,
+            "short_interest_pct": None,
+            "delivery_pct": None,
+            "dividend_yield": (metrics or {}).get("dividendYield"),
+            "analyst_target": None,
+        })
+
+    if not rows:
+        return []
+
+    # Step 4: Compute percentiles cross-sectionally
+    import pandas as pd
+
+    df = pd.DataFrame(rows)
+
+    # Quality: rank average of gross_margin, piotroski, accruals
+    for col, fill, invert in [
+        ("gross_profit_margin", 0, False),
+        ("piotroski", 5, False),
+        ("accruals_ratio", 0, True),
+    ]:
+        vals = df[col].fillna(fill).rank(pct=True)
+        if invert:
+            vals = 1.0 - vals
+        df[f"{col}_rank"] = vals
+
+    df["quality_percentile"] = (
+        df["gross_profit_margin_rank"] * 0.34
+        + df["piotroski_rank"] * 0.33
+        + df["accruals_ratio_rank"] * 0.33
+    )
+
+    # Momentum
+    df["momentum_percentile"] = df["momentum_raw"].rank(pct=True)
+
+    # Value: 1 - P/E rank, 1 - P/B rank
+    pe_med = df["pe_ttm"].median()
+    pb_med = df["pb_ratio"].median()
+    pe_rank = 1.0 - df["pe_ttm"].fillna(pe_med).rank(pct=True)
+    pb_rank = 1.0 - df["pb_ratio"].fillna(pb_med).rank(pct=True)
+    df["value_percentile"] = pe_rank * 0.5 + pb_rank * 0.5
+
+    # Low vol: approximate realized_vol from beta
+    df["realized_vol_1y"] = df["beta"].fillna(1.0) * 0.20
+    df["low_vol_percentile"] = 1.0 - df["realized_vol_1y"].rank(pct=True)
+
+    # Market-specific factor — neutral default
+    df["short_interest_percentile"] = 0.5
+    df["delivery_percentile"] = 0.5
+    df["insider_percentile"] = 0.5
+
+    # Step 5: Composite score (equal-weighted 5 factors)
+    factor_cols = [
+        "quality_percentile", "momentum_percentile", "value_percentile",
+        "low_vol_percentile", "short_interest_percentile",
+    ]
+    w = 1.0 / len(factor_cols)
+    df["composite_score"] = sum(df[c] * w for c in factor_cols)
+
+    # Step 6: Edge detection + Kelly sizing
+    threshold = strat["min_edge_score"]
+    kelly_frac = strat["kelly_fraction"]
+    max_bet = strat["max_bet"]
+
+    signals: list[dict[str, Any]] = []
+    for _, row in df.sort_values("composite_score", ascending=False).iterrows():
+        score = float(row["composite_score"])
+        edge = compute_edge(score, threshold)
+        if edge <= 0:
+            continue
+
+        sizing = size_position_kelly(
+            edge=edge,
+            bankroll=bankroll,
+            kelly_fraction=kelly_frac,
+            max_bet=max_bet,
+        )
+        if sizing.bet <= 0:
+            continue
+
+        signals.append({
+            "ticker": row["ticker"],
+            "market": market,
+            "sector": row.get("sector", ""),
+            "composite_score": round(score, 4),
+            "edge": round(edge, 4),
+            "direction": "bullish",
+            "bet": sizing.bet,
+            "capped": sizing.capped,
+            "current_price": row.get("current_price"),
+            "pe_ttm": row.get("pe_ttm"),
+            "analyst_target": row.get("analyst_target"),
+            "market_cap": row.get("market_cap"),
+            "strategy": strat["id"],
+            "kelly_fraction": kelly_frac,
+        })
+
+    return signals
+
+
 @router.get("/strategies")
 def get_strategies() -> dict:
     return {"strategies": TRADE_STRATEGIES}
@@ -164,16 +380,16 @@ def get_signals(
     strat = next((s for s in TRADE_STRATEGIES if s["id"] == strategy_id), TRADE_STRATEGIES[0])
 
     rows = score_cache.read_top(market, n=n, max_age_seconds=86400)
-    if not rows:
-        return {
-            "signals": [],
-            "strategy": strat,
-            "n_signals": 0,
-            "bankroll": bankroll,
-            "message": "Score cache empty — signals appear after nightly score calculation runs."
-        }
+    signals: list[dict[str, Any]] = []
+    live = False
 
-    signals = _rows_to_signals(rows, bankroll, strat)
+    if rows:
+        signals = _rows_to_signals(rows, bankroll, strat)
+    else:
+        # Live fallback: compute scores from FMP in real-time
+        tickers = UNIVERSE_BY_MARKET.get(market, UNIVERSE_BY_MARKET["US"])
+        signals = _compute_live_signals(market, tickers, n, strat, bankroll)
+        live = True
 
     # Check daily drawdown
     from nq_signals.risk import compute_daily_drawdown
@@ -184,6 +400,7 @@ def get_signals(
         "strategy": strat,
         "n_signals": len(signals),
         "bankroll": bankroll,
+        "live": live,
         "drawdown": {
             "total_pnl_today": drawdown.total_pnl_today,
             "limit_breached": drawdown.limit_breached,
