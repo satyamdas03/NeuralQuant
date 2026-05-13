@@ -494,10 +494,10 @@ async def executor(execute_queue: asyncio.Queue, config: DaemonConfig):
                 continue
 
             # Log signal record
-            from nq_signals.calibration import CalibrationTracker, SignalRecord
             record = SignalRecord(
                 ticker=ticker,
                 market=config.market,
+                signal_date=datetime.now(timezone.utc).isoformat(),
                 composite_score=signal_data["composite_score"],
                 edge=edge,
                 direction=direction,

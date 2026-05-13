@@ -74,11 +74,11 @@ def _supabase_rest(
 @dataclass
 class SignalRecord:
     ticker: str
-    signal_date: str              # ISO 8601
-    composite_score: float        # 0-1
-    edge: float                   # 0-1
-    direction: str                # "bullish" | "bearish" | "neutral"
-    entry_price: float
+    signal_date: str = ""         # ISO 8601 — auto-filled by log_signal if empty
+    composite_score: float = 0.0  # 0-1
+    edge: float = 0.0             # 0-1
+    direction: str = "bullish"    # "bullish" | "bearish" | "neutral"
+    entry_price: float = 0.0
     exit_price: float | None = None
     pnl: float | None = None
     resolved: bool = False
@@ -110,6 +110,8 @@ class CalibrationTracker:
     def log_signal(self, record: SignalRecord) -> SignalRecord | None:
         """Insert a signal into signal_log. Returns record with signal_id set, or None."""
         now = datetime.now(timezone.utc).isoformat()
+        if not record.signal_date:
+            record.signal_date = now
         body = {
             "ticker": record.ticker.upper(),
             "market": record.market,
