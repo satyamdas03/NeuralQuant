@@ -216,10 +216,10 @@ def _compute_live_signals(
         sym = ticker  # US tickers match FMP symbols; IN needs .NS (handled separately)
         try:
             def _get(endpoint: str, extra_params: dict | None = None):
-                params = {"apikey": api_key}
+                params = {"symbol": sym, "apikey": api_key}
                 if extra_params:
                     params.update(extra_params)
-                r = local_client.get(f"{base_url}/{endpoint}/{sym}", params=params)
+                r = local_client.get(f"{base_url}/{endpoint}", params=params)
                 if r.status_code == 200:
                     data = r.json()
                     if isinstance(data, list) and data:
