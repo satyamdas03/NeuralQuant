@@ -53,6 +53,22 @@ services:
         value: "true"
       - key: OPENBB_API_URL
         value: "https://nq-openbb.onrender.com"
+      - key: TRADE_ENABLED
+        value: "false"
+      - key: DRY_RUN
+        value: "true"
+      - key: DAILY_LOSS_LIMIT
+        value: "100.0"
+      - key: MAX_BET_DEFAULT
+        value: "5000.0"
+      - key: MAX_POSITIONS_DEFAULT
+        value: "10"
+      - key: ALPACA_API_KEY
+        sync: false
+      - key: ALPACA_SECRET_KEY
+        sync: false
+      - key: ALPACA_PAPER
+        value: "true"
     plan: pro
     healthCheckPath: /health
 

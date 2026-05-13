@@ -17,7 +17,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from nq_api.config import CORS_ORIGINS, CORS_ORIGIN_REGEX, FRONTEND_URL
-from nq_api.routes import stocks, screener, analyst, query, market, auth, watchlists, sentiment, backtest, alerts, newsdesk, team, broker, trade
+from nq_api.routes import stocks, screener, analyst, query, market, auth, watchlists, sentiment, backtest, alerts, newsdesk, team, broker, trade, live, live_dashboard
 from nq_api.routes.terminal import router as terminal_router
 from nq_api.routes.auth_webhook import router as auth_webhook_router
 from nq_api.routes.market_wrap import router as market_wrap_router
@@ -351,6 +351,17 @@ async def lifespan(app: FastAPI):
     from nq_api.routes.terminal import _keep_warm
     asyncio.create_task(_keep_warm(), name="openbb_keep_warm")
 
+    # Safety: warn if live trading is enabled
+    if os.environ.get("TRADE_ENABLED", "false").lower() == "true":
+        dry = os.environ.get("DRY_RUN", "true").lower()
+        paper = os.environ.get("ALPACA_PAPER", "true").lower()
+        if dry == "false" and paper == "false":
+            log.warning("LIVE TRADING ENABLED — real-money orders will execute. DRY_RUN=false, ALPACA_PAPER=false")
+        elif dry == "false":
+            log.info("Paper trading enabled (DRY_RUN=false, ALPACA_PAPER=true)")
+        else:
+            log.info("Trade pipeline enabled but DRY_RUN=true — orders simulated")
+
     yield
 
     # Shutdown Slack handler and scheduler
@@ -427,6 +438,8 @@ app.include_router(referral_router)
 app.include_router(slack_router)
 app.include_router(team.router)
 app.include_router(trade.router,   prefix="/trade",    tags=["trade"])
+app.include_router(live.router)
+app.include_router(live_dashboard.router)
 app.include_router(broker.router)
 app.include_router(auth_webhook_router)
 app.include_router(market_wrap_router)

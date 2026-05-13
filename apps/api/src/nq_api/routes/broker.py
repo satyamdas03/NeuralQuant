@@ -27,6 +27,23 @@ class TradeDeepLinkResponse(BaseModel):
     note: str
 
 
+class PlaceOrderRequest(BaseModel):
+    symbol: str
+    qty: float
+    side: Literal["buy", "sell"] = "buy"
+    dry_run: bool = True
+
+
+class PlaceOrderResponse(BaseModel):
+    status: str  # "simulated" | "executed" | "blocked" | "failed"
+    symbol: str
+    qty: float
+    side: str
+    order_id: str | None = None
+    signal_id: str | None = None
+    detail: str = ""
+
+
 @router.post("/deep-link", response_model=TradeDeepLinkResponse)
 def get_trade_deep_link(req: TradeDeepLinkRequest, user: User = Depends(get_current_user)):
     """
@@ -72,3 +89,131 @@ def get_broker_positions(user: User = Depends(get_current_user)):
         raise HTTPException(503, "Alpaca not configured.")
 
     return get_positions(config)
+
+
+@router.post("/order", response_model=PlaceOrderResponse)
+def place_order(req: PlaceOrderRequest, user: User = Depends(get_current_user)):
+    """Place an order via Alpaca. Dry-run by default — pass dry_run=false to execute live.
+
+    Safety gates:
+    - TRADE_ENABLED must be "true" in env for live execution
+    - DRY_RUN must be "false" in env for live execution
+    - Auto-logs to signal_log for calibration tracking
+    """
+    import os
+    from nq_data.broker import get_alpaca_config_from_env, place_market_order, get_positions
+    from nq_signals.safety import load_safety_gate, check_order
+    from nq_signals.calibration import CalibrationTracker, SignalRecord
+
+    gate = load_safety_gate()
+
+    # Count current positions for max_positions check
+    try:
+        config = get_alpaca_config_from_env()
+        if config:
+            positions = get_positions(config)
+            current_positions = len(positions) if positions else 0
+        else:
+            current_positions = 0
+    except Exception:
+        current_positions = 0
+
+    # Get today's PnL for daily loss check
+    from nq_api.cache.score_cache import _supabase_rest
+    from datetime import datetime, timezone
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    pnl_rows = _supabase_rest(
+        "signal_log",
+        method="GET",
+        query={
+            "select": "pnl",
+            "resolved": "eq.true",
+            "resolution_date": f"gte.{today}T00:00:00Z",
+        },
+    )
+    daily_pnl = sum(float(r.get("pnl", 0) or 0) for r in pnl_rows) if isinstance(pnl_rows, list) else 0.0
+
+    # Safety gate check
+    check = check_order(
+        bet=req.qty * 100,  # approximate bet size
+        gate=gate,
+        daily_pnl=daily_pnl,
+        current_positions=current_positions,
+    )
+
+    if not check.passed:
+        return PlaceOrderResponse(
+            status="blocked",
+            symbol=req.symbol.upper(),
+            qty=req.qty,
+            side=req.side,
+            detail=check.reason,
+        )
+
+    # Dry run: simulate only
+    if req.dry_run or gate.dry_run:
+        return PlaceOrderResponse(
+            status="simulated",
+            symbol=req.symbol.upper(),
+            qty=req.qty,
+            side=req.side,
+            detail=f"Dry run: would have {req.side} {req.qty} shares of {req.symbol.upper()}. Set DRY_RUN=false + dry_run=false to execute.",
+        )
+
+    # Live execution
+    config = get_alpaca_config_from_env()
+    if config is None:
+        return PlaceOrderResponse(
+            status="failed",
+            symbol=req.symbol.upper(),
+            qty=req.qty,
+            side=req.side,
+            detail="Alpaca not configured. Set ALPACA_API_KEY and ALPACA_SECRET_KEY.",
+        )
+
+    try:
+        result = place_market_order(
+            config, req.symbol.upper(), int(req.qty), req.side, "market", "day"
+        )
+        order_id = result.get("id", "") if result else ""
+
+        # Auto-log to signal_log for calibration
+        tracker = CalibrationTracker()
+        price_est = 0.0
+        try:
+            fills = result.get("filled_avg_price") if result else None
+            if fills:
+                price_est = float(fills)
+        except Exception:
+            pass
+
+        record = SignalRecord(
+            ticker=req.symbol.upper(),
+            market="US",
+            composite_score=0.0,
+            edge=0.0,
+            direction=req.side,
+            entry_price=price_est,
+            bet=float(req.qty),
+            strategy="manual",
+        )
+        tracker.log_signal(record)
+
+        return PlaceOrderResponse(
+            status="executed",
+            symbol=req.symbol.upper(),
+            qty=req.qty,
+            side=req.side,
+            order_id=order_id,
+            signal_id=record.signal_id,
+            detail=f"Order {order_id} placed: {req.side} {req.qty} {req.symbol.upper()}",
+        )
+    except Exception as exc:
+        logger.exception("Order execution failed")
+        return PlaceOrderResponse(
+            status="failed",
+            symbol=req.symbol.upper(),
+            qty=req.qty,
+            side=req.side,
+            detail=str(exc),
+        )

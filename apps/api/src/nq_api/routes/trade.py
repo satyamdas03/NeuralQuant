@@ -98,6 +98,37 @@ TRADE_STRATEGIES = [
 ]
 
 
+def _get_todays_pnl_from_log(market: str = "US") -> float:
+    """Sum today's resolved PnL from signal_log. Returns negative for losses."""
+    from nq_api.cache.score_cache import _supabase_rest
+    from datetime import datetime, timezone
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    rows = _supabase_rest(
+        "signal_log",
+        method="GET",
+        query={
+            "select": "pnl",
+            "market": f"eq.{market}",
+            "resolved": "eq.true",
+            "resolution_date": f"gte.{today}T00:00:00Z",
+        },
+    )
+    if not rows or not isinstance(rows, list):
+        return 0.0
+    return sum(float(r.get("pnl", 0) or 0) for r in rows)
+
+
+def _daily_loss_limit_for_strategy(strategy_id: str) -> float:
+    """Map strategy to daily loss limit via risk profile."""
+    risk_map = {
+        "conservative": 50.0,
+        "balanced": 100.0,
+        "aggressive": 200.0,
+    }
+    strat = next((s for s in TRADE_STRATEGIES if s["id"] == strategy_id), TRADE_STRATEGIES[0])
+    return risk_map.get(strat.get("risk_profile", "balanced"), 100.0)
+
+
 def _rows_to_signals(
     rows: list[dict[str, Any]],
     bankroll: float,
@@ -395,9 +426,14 @@ def get_signals(
         signals = _compute_live_signals(market, tickers, n, strat, bankroll)
         live = True
 
-    # Check daily drawdown
+    # Check daily drawdown with real PnL from signal_log
     from nq_signals.risk import compute_daily_drawdown
-    drawdown = compute_daily_drawdown([], daily_loss_limit=100.0)
+    todays_pnl = _get_todays_pnl_from_log(market)
+    daily_limit = _daily_loss_limit_for_strategy(strategy_id)
+    drawdown = compute_daily_drawdown(
+        [todays_pnl] if todays_pnl != 0 else [],
+        daily_loss_limit=daily_limit,
+    )
 
     return {
         "signals": signals,
@@ -405,7 +441,6 @@ def get_signals(
         "n_signals": len(signals),
         "bankroll": bankroll,
         "live": live,
-        "deploy_sha": "19cb914",
         "drawdown": {
             "total_pnl_today": drawdown.total_pnl_today,
             "limit_breached": drawdown.limit_breached,
