@@ -4,11 +4,12 @@ import type {
   QueryRequest, StructuredQueryResponse,
   MarketOverview, MarketNews, MarketSectors,
   MarketMovers, StockChart, StockMeta, OptionsSnapshot,
-  SentimentResponse, BacktestRequest, BacktestResponse, AccuracyResponse,
+  SentimentResponse, BacktestRequest, AccuracyResponse,
   AlertSubscription, AlertDelivery, NewsDeskResponse,
   UserProfile,
   TerminalEndpoint, TerminalCategory, TerminalQueryResult, TerminalHealth,
   TradeSignalsResponse, TradeStrategy, CalibrationReport, RiskProfileConfig,
+  BacktestResponse,
 } from "./types";
 
 // Route all requests through Next.js /api/ rewrite proxy to avoid CORS issues.
@@ -348,4 +349,14 @@ export const tradeApi = {
 
   getRiskProfile: (profile = "balanced") =>
     apiFetch<RiskProfileConfig>(`/trade/risk-profile?profile=${profile}`),
+
+  getMarketStatus: () =>
+    apiFetch<{ is_open: boolean; next_open: string | null; next_close: string | null }>("/trade/market-status"),
+
+  runBacktest: (body: { market: Market; years: number; initial_capital: number; strategy_id: string }) =>
+    apiFetch<BacktestResponse>("/trade/backtest", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
 };

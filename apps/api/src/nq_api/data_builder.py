@@ -710,24 +710,30 @@ def _fetch_one(ticker: str, market: str, fast_pe: bool = True) -> dict:
             beta = max(0.01, min(3.0, beta))
 
         # ── Price history: momentum + realized vol ──
-        # Try FMP historical prices first (US only, IN blocked by Premium)
         momentum = None
         realized_vol = None
         hist_close = pd.Series(dtype=float)
+        ohlcv_raw: dict[str, list[float]] = {}
 
-        if market == "US":
-            try:
-                from nq_data.fmp import get_fmp_client
-                fmp_client = get_fmp_client()
-                if fmp_client._enabled:
-                    fmp_hist = fmp_client.get_historical_prices(ticker, days=370)
-                    if fmp_hist and len(fmp_hist) >= 253:
-                        closes = [float(r["close"]) for r in fmp_hist if r.get("close")]
-                        if len(closes) >= 253:
-                            hist_close = pd.Series(closes)
-                            log.debug("Using FMP historical prices for %s: %d bars", ticker, len(closes))
-            except Exception:
-                pass
+        # Try FMP historical prices first (returns empty for IN stocks — Premium-gated)
+        try:
+            from nq_data.fmp import get_fmp_client
+            fmp_client = get_fmp_client()
+            if fmp_client._enabled:
+                fmp_hist = fmp_client.get_historical_prices(ticker, days=370)
+                if fmp_hist and len(fmp_hist) >= 50:
+                    ohlcv_raw = {"open": [], "high": [], "low": [], "close": [], "volume": []}
+                    for r in fmp_hist:
+                        for field in ohlcv_raw:
+                            val = r.get(field)
+                            if val is not None:
+                                ohlcv_raw[field].append(float(val))
+                    closes = ohlcv_raw["close"]
+                    if len(closes) >= 253:
+                        hist_close = pd.Series(closes)
+                        log.debug("Using FMP historical prices for %s: %d bars", ticker, len(closes))
+        except Exception:
+            pass
 
         # Fallback to yfinance price history
         if len(hist_close) < 253:
@@ -738,8 +744,26 @@ def _fetch_one(ticker: str, market: str, fast_pe: bool = True) -> dict:
                 hist_close = cached_prices
             else:
                 try:
-                    hist = t.history(period="14mo", auto_adjust=True)
-                    hist_close = hist["Close"] if not hist.empty else pd.Series(dtype=float)
+                    for yf_retry in range(3):
+                        try:
+                            hist = t.history(period="14mo", auto_adjust=True)
+                            hist_close = hist["Close"] if not hist.empty else pd.Series(dtype=float)
+                            if len(hist_close) >= 50:
+                                # Also extract OHLCV from yfinance for IN stocks
+                                if not ohlcv_raw and not hist.empty:
+                                    for col, key in [("Open","open"),("High","high"),("Low","low"),("Close","close"),("Volume","volume")]:
+                                        if col in hist.columns:
+                                            ohlcv_raw[key] = hist[col].dropna().tolist()
+                                break
+                            if yf_retry < 2:
+                                import time as _ytime
+                                _ytime.sleep(2 ** yf_retry)
+                        except Exception as yf_exc:
+                            if "rate limit" in str(yf_exc).lower() and yf_retry < 2:
+                                import time as _ytime
+                                _ytime.sleep(3 * (2 ** yf_retry))
+                                continue
+                            raise
                     with _lock:
                         _price_cache[cache_key] = hist_close
                         _price_ts[cache_key] = time.time()
@@ -760,6 +784,40 @@ def _fetch_one(ticker: str, market: str, fast_pe: bool = True) -> dict:
             realized_vol = float(log_rets.tail(252).std() * np.sqrt(252))
         else:
             _missing.add("realized_vol_1y")
+
+        # ── Technical indicators (computed locally from OHLCV — no external API) ──
+        _tech_indicators: dict[str, Any] = {}
+        closes = ohlcv_raw.get("close", [])
+        if len(closes) >= 50:
+            from nq_data.finnhub import _compute_rsi, _compute_macd, _compute_atr
+            rsi = _compute_rsi(closes, 14)
+            if rsi is not None:
+                _tech_indicators["rsi_14"] = round(rsi, 2)
+            macd_line, macd_signal, macd_hist = _compute_macd(closes)
+            if macd_line is not None:
+                _tech_indicators["macd_line"] = round(macd_line, 4)
+                _tech_indicators["macd_signal"] = round(macd_signal, 4) if macd_signal else None
+                _tech_indicators["macd_hist"] = round(macd_hist, 4) if macd_hist else None
+            highs = ohlcv_raw.get("high", [])
+            lows = ohlcv_raw.get("low", [])
+            if len(highs) >= 15 and len(lows) >= 15:
+                atr = _compute_atr(highs, lows, closes, 14)
+                if atr is not None:
+                    _tech_indicators["atr_14"] = round(atr, 4)
+            _tech_indicators["sma_50"] = round(sum(closes[-50:]) / 50, 4)
+            if len(closes) >= 200:
+                _tech_indicators["sma_200"] = round(sum(closes[-200:]) / 200, 4)
+            if _tech_indicators.get("sma_50"):
+                _tech_indicators["price_vs_sma50"] = round(closes[-1] / _tech_indicators["sma_50"] - 1, 4)
+            if _tech_indicators.get("sma_200"):
+                _tech_indicators["price_vs_sma200"] = round(closes[-1] / _tech_indicators["sma_200"] - 1, 4)
+            volumes = ohlcv_raw.get("volume", [])
+            if volumes and len(volumes) >= 20:
+                avg20 = sum(volumes[-20:]) / 20
+                _tech_indicators["volume_today"] = volumes[-1]
+                _tech_indicators["volume_20d_avg"] = round(avg20, 2)
+                _tech_indicators["volume_ratio"] = round(volumes[-1] / avg20, 3) if avg20 > 0 else None
+        result["_tech_indicators"] = _tech_indicators
 
         # ── Live price fields (from FMP overlay + yfinance fallback) ──
         current_price   = info.get("currentPrice") or info.get("regularMarketPrice")
@@ -1037,6 +1095,49 @@ def _enrich_with_bhavcopy(fundamentals: pd.DataFrame, tickers: list[str]) -> pd.
     return fundamentals
 
 
+_nse_52w_cache: dict[str, dict] = {}
+_nse_52w_ts: float = 0.0
+NSE_52W_TTL = 3600  # 1 hour
+
+
+def _enrich_in_with_nse_data(fundamentals: pd.DataFrame, tickers: list[str]) -> pd.DataFrame:
+    """Enrich IN fundamentals with 52-week high/low from NSE quote API."""
+    global _nse_52w_cache, _nse_52w_ts
+
+    now = time.time()
+    if not _nse_52w_cache or now - _nse_52w_ts > NSE_52W_TTL:
+        try:
+            from nq_data.price.nse_quote import fetch_nse_52w
+
+            new_cache: dict[str, dict] = {}
+            for ticker in tickers[:30]:
+                try:
+                    data = fetch_nse_52w(ticker)
+                    if data:
+                        new_cache[ticker] = data
+                except Exception:
+                    pass
+
+            if new_cache:
+                _nse_52w_cache = new_cache
+                _nse_52w_ts = now
+                log.info("NSE 52w enriched %d tickers", len(new_cache))
+        except Exception as exc:
+            log.warning("NSE 52w fetch failed: %s", exc)
+
+    if _nse_52w_cache:
+        for ticker in tickers:
+            nse_data = _nse_52w_cache.get(ticker)
+            if nse_data:
+                mask = fundamentals["ticker"] == ticker
+                if nse_data.get("week52_high"):
+                    fundamentals.loc[mask, "week52_high"] = nse_data["week52_high"]
+                if nse_data.get("week52_low"):
+                    fundamentals.loc[mask, "week52_low"] = nse_data["week52_low"]
+
+    return fundamentals
+
+
 # ─── Public API ───────────────────────────────────────────────────────────────
 
 def build_real_snapshot(tickers: list[str], market: str) -> UniverseSnapshot:
@@ -1061,9 +1162,10 @@ def build_real_snapshot(tickers: list[str], market: str) -> UniverseSnapshot:
     fundamentals = _add_value_and_lowvol_percentiles(fundamentals)
     fundamentals = _add_insider_percentile(fundamentals, market)
 
-    # IN-specific: enrich with NSE Bhavcopy delivery_pct
+    # IN-specific: enrich with NSE Bhavcopy delivery_pct + NSE quote 52w high/low
     if market == "IN":
         fundamentals = _enrich_with_bhavcopy(fundamentals, tickers)
+        fundamentals = _enrich_in_with_nse_data(fundamentals, tickers)
 
     return UniverseSnapshot(
         tickers=tickers,

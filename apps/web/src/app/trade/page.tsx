@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import type { TradeSignal, TradeStrategy, CalibrationReport } from "@/lib/types";
+import type { TradeSignal, TradeStrategy, CalibrationReport, BacktestResponse } from "@/lib/types";
 import { tradeApi } from "@/lib/api";
 import SignalFeed from "@/components/trade/SignalFeed";
 import StrategyCard from "@/components/trade/StrategyCard";
 import RiskDashboard from "@/components/trade/RiskDashboard";
 import PositionSizer from "@/components/trade/PositionSizer";
 import CalibrationPanel from "@/components/trade/CalibrationPanel";
+import HistoricalBacktest from "@/components/trade/HistoricalBacktest";
 import GlassPanel from "@/components/ui/GlassPanel";
 import GradientButton from "@/components/ui/GradientButton";
 import {
@@ -16,6 +17,7 @@ import {
   DollarSign,
   Globe,
   Loader2,
+  Play,
 } from "lucide-react";
 
 export default function TradePage() {
@@ -28,6 +30,9 @@ export default function TradePage() {
   const [loading, setLoading] = useState(true);
   const [strategiesLoading, setStrategiesLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [marketOpen, setMarketOpen] = useState<boolean | null>(null);
+  const [backtestResult, setBacktestResult] = useState<BacktestResponse | null>(null);
+  const [backtestRunning, setBacktestRunning] = useState(false);
 
   const fetchStrategies = useCallback(async () => {
     try {
@@ -71,6 +76,38 @@ export default function TradePage() {
     fetchSignals();
     fetchCalibration();
   }, [fetchSignals, fetchCalibration]);
+
+  // Check market status on mount + poll every 60s
+  useEffect(() => {
+    async function check() {
+      try {
+        const res = await tradeApi.getMarketStatus();
+        setMarketOpen(res.is_open);
+      } catch {
+        setMarketOpen(false);
+      }
+    }
+    check();
+    const interval = setInterval(check, 60_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  async function runBacktest() {
+    setBacktestRunning(true);
+    try {
+      const res = await tradeApi.runBacktest({
+        market,
+        years: 20,
+        initial_capital: bankroll,
+        strategy_id: strategyId,
+      });
+      setBacktestResult(res);
+    } catch {
+      // silent
+    } finally {
+      setBacktestRunning(false);
+    }
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
@@ -117,6 +154,42 @@ export default function TradePage() {
           {error}
         </div>
       )}
+
+      {/* Market Status & Historical Backtest */}
+      <section>
+        <GlassPanel>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${marketOpen ? "bg-green-400" : "bg-amber-400"}`} />
+              <span className="text-sm text-on-surface">
+                {marketOpen === null
+                  ? "Checking market status..."
+                  : marketOpen
+                  ? "Market Open — Live Signals Active"
+                  : "Market Closed — Historical Backtest Available"}
+              </span>
+            </div>
+            {!marketOpen && (
+              <GradientButton onClick={runBacktest} disabled={backtestRunning} size="sm">
+                <Play size={12} />
+                {backtestRunning ? "Running..." : "Run 20-Year Backtest"}
+              </GradientButton>
+            )}
+          </div>
+
+          {!marketOpen && !backtestResult && !backtestRunning && (
+            <p className="mt-3 text-xs text-on-surface-variant">
+              Running historical backtest (2006-2026) on FMP data — simulated trades until market opens at 9:30 AM ET
+            </p>
+          )}
+
+          {backtestResult && (
+            <div className="mt-4">
+              <HistoricalBacktest data={backtestResult} />
+            </div>
+          )}
+        </GlassPanel>
+      </section>
 
       {/* Strategy selector */}
       <section>

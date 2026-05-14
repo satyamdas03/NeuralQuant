@@ -1,8 +1,9 @@
 name: nightly-score
 
 on:
-  schedule:
-    - cron: "0 2 * * *"  # 02:00 UTC daily
+  # schedule disabled — daemon cache_refresher replaces nightly GHA
+  # schedule:
+  #   - cron: "0 2 * * *"  # 02:00 UTC daily
   workflow_dispatch:
     inputs:
       market:

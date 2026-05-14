@@ -616,6 +616,32 @@ export interface CalibrationReport {
   lookback_days: number;
 }
 
+export interface BacktestMetrics {
+  total_return_pct: number;
+  cagr_pct: number;
+  sharpe: number;
+  max_drawdown_pct: number;
+  n_trades: number;
+  years: number;
+  initial_capital: number;
+  final_equity: number;
+}
+
+export interface BacktestTrade {
+  date: string;
+  ticker: string;
+  action: string;
+  price: number;
+  shares: number;
+}
+
+export interface BacktestResponse {
+  equity_curve: { date: string; equity: number }[];
+  trades: BacktestTrade[];
+  metrics: BacktestMetrics;
+  error?: string;
+}
+
 export interface RiskProfileConfig {
   profile: string;
   kelly_fraction: number;

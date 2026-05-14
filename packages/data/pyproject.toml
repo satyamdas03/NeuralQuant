@@ -19,6 +19,7 @@ dependencies = [
     "tenacity>=8.2",
     "vadersentiment>=3.3.2",
     "alpaca-py>=0.30",
+    "tzdata>=2024.1",
 ]
 
 [build-system]

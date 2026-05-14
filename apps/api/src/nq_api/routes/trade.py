@@ -554,3 +554,202 @@ def resolve_signal(body: dict) -> dict:
     if ok:
         return {"status": "resolved"}
     return {"status": "error", "detail": "Failed to resolve signal"}
+
+
+# ── Historical Backtest ──────────────────────────────────────────────────────
+
+from pydantic import BaseModel, Field
+
+
+@router.get("/market-status")
+def get_market_status() -> dict:
+    """Return whether US market is currently open. Uses DST-aware ET timezone check."""
+    try:
+        from zoneinfo import ZoneInfo
+        from datetime import datetime, timezone
+        now_et = datetime.now(timezone.utc).astimezone(ZoneInfo("US/Eastern"))
+        t = now_et.hour * 60 + now_et.minute
+        is_open = now_et.weekday() < 5 and 9 * 60 + 30 <= t < 16 * 60
+        return {"is_open": is_open, "next_open": None, "next_close": None}
+    except Exception:
+        return {"is_open": False, "next_open": None, "next_close": None}
+
+
+class BacktestRequest(BaseModel):
+    market: str = "US"
+    years: int = Field(20, ge=1, le=30)
+    initial_capital: float = 10000.0
+    strategy_id: str = "value_play"
+
+
+@router.post("/backtest")
+def run_historical_backtest(req: BacktestRequest) -> dict:
+    """Run multi-year historical backtest using FMP EOD data + composite scoring.
+    Monthly rebalancing across top 50 stocks. Returns equity curve, trades, metrics."""
+    import pandas as pd
+    from datetime import datetime, timedelta
+    from nq_data.fmp import get_fmp_client
+
+    fmp = get_fmp_client()
+    if not fmp._enabled:
+        return {"error": "FMP not configured"}
+
+    tickers = UNIVERSE_BY_MARKET.get(req.market, [])[:50]
+    if not tickers:
+        return {"error": f"No universe for {req.market}"}
+
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=req.years * 365 + 60)
+
+    # Fetch all historical prices (batch by ticker)
+    all_prices: dict[str, list[dict]] = {}
+    for ticker in tickers:
+        try:
+            hist = fmp.get_historical_prices(ticker,
+                from_date=start_date.strftime("%Y-%m-%d"),
+                to_date=end_date.strftime("%Y-%m-%d"))
+            if hist and len(hist) >= 252:
+                all_prices[ticker] = hist
+        except Exception:
+            pass
+
+    if len(all_prices) < 10:
+        return {"error": f"Insufficient price data ({len(all_prices)} stocks)"}
+
+    # Monthly rebalance dates
+    months = pd.date_range(
+        start=start_date + timedelta(days=365),
+        end=end_date,
+        freq="ME"
+    )
+
+    strat = next((s for s in TRADE_STRATEGIES if s["id"] == req.strategy_id), TRADE_STRATEGIES[0])
+    cash = req.initial_capital
+    positions: dict[str, float] = {}  # ticker -> shares
+    equity_curve: list[dict] = []
+    trades: list[dict] = []
+
+    for month_date in months:
+        date_str = month_date.strftime("%Y-%m-%d")
+
+        # Build snapshot rows for this month
+        rows = []
+        for ticker in tickers:
+            hist = all_prices.get(ticker, [])
+            if not hist:
+                continue
+            bar = None
+            for b in hist:
+                if b.get("date", "") <= date_str:
+                    bar = b
+            if not bar:
+                continue
+            price = float(bar.get("close", 0))
+            if price <= 0:
+                continue
+
+            rows.append({
+                "ticker": ticker,
+                "current_price": price,
+                "sector": "",
+                "composite_score": 0.5,
+                "pe_ttm": None, "pb_ratio": None,
+                "gross_profit_margin": None, "piotroski": None,
+                "momentum_raw": 0.0, "accruals_ratio": None,
+                "beta": 1.0, "realized_vol_1y": 0.20,
+            })
+
+        if len(rows) < 10:
+            continue
+
+        df = pd.DataFrame(rows)
+
+        # Simple cross-sectional percentile scoring
+        for col, fill_val in [("gross_profit_margin", 0.4), ("piotroski", 5), ("accruals_ratio", 0.0)]:
+            vals = df[col].fillna(fill_val).astype(float)
+            max_val = vals.max() or 1
+            min_val = vals.min() or 0
+            if max_val > min_val:
+                df[f"{col}_pct"] = (vals - min_val) / (max_val - min_val)
+            else:
+                df[f"{col}_pct"] = 0.5
+
+        df["quality_raw"] = df[[c for c in df.columns if c.endswith("_pct")]].mean(axis=1)
+
+        # Momentum: 12-month return
+        for i, row_data in enumerate(rows):
+            hist = all_prices.get(row_data["ticker"], [])
+            if len(hist) >= 252:
+                closes_series = [float(b.get("close", 0)) for b in hist if b.get("date", "") <= date_str]
+                if len(closes_series) >= 252:
+                    momentum = (closes_series[-21] - closes_series[-252]) / max(closes_series[-252], 0.01)
+                    rows[i]["momentum_raw"] = momentum
+
+        df["momentum_raw"] = [r["momentum_raw"] for r in rows]
+        mom_vals = df["momentum_raw"].fillna(0.0).astype(float)
+        mom_max = mom_vals.max() or 1
+        mom_min = mom_vals.min() or 0
+        df["momentum_pct"] = (mom_vals - mom_min) / max(mom_max - mom_min, 0.01)
+
+        df["composite_score"] = (df["quality_raw"] * 0.4 + df["momentum_pct"] * 0.4 + 0.2) / 1.0
+        df["composite_score"] = df["composite_score"].clip(0, 1)
+
+        # Sell all positions
+        for ticker, shares in list(positions.items()):
+            price_row = next((r for r in rows if r["ticker"] == ticker), None)
+            if price_row:
+                cash += shares * price_row["current_price"]
+            del positions[ticker]
+
+        # Buy top signals
+        per_bet = req.initial_capital * 0.05
+        sorted_df = df.sort_values("composite_score", ascending=False)
+        for _, sig in sorted_df.head(10).iterrows():
+            if cash >= per_bet and sig["current_price"] > 0:
+                shares = int(per_bet / sig["current_price"])
+                if shares > 0:
+                    positions[sig["ticker"]] = shares
+                    cash -= shares * sig["current_price"]
+                    trades.append({
+                        "date": date_str, "ticker": sig["ticker"],
+                        "action": "BUY", "price": round(sig["current_price"], 2),
+                        "shares": shares,
+                    })
+
+        portfolio_value = cash
+        for ticker, shares in positions.items():
+            price_row = next((r for r in rows if r["ticker"] == ticker), None)
+            if price_row:
+                portfolio_value += shares * price_row["current_price"]
+
+        equity_curve.append({"date": date_str, "equity": round(portfolio_value, 2)})
+
+    # Compute metrics
+    if len(equity_curve) < 12:
+        return {"error": "Too few data points for backtest"}
+
+    eq_series = pd.Series([e["equity"] for e in equity_curve])
+    returns = eq_series.pct_change().dropna()
+
+    total_return = (eq_series.iloc[-1] / req.initial_capital - 1) * 100
+    n_years = max(req.years, 1)
+    cagr = ((eq_series.iloc[-1] / req.initial_capital) ** (1 / n_years) - 1) * 100
+    sharpe = float(returns.mean() / returns.std() * (12 ** 0.5)) if len(returns) > 0 and returns.std() > 0 else 0.0
+    running_max = eq_series.cummax()
+    drawdown = (eq_series - running_max) / running_max.replace(0, 1)
+    max_dd = float(drawdown.min() * 100)
+
+    return {
+        "equity_curve": equity_curve[-240:],  # Last 240 months
+        "trades": trades[-100:],
+        "metrics": {
+            "total_return_pct": round(total_return, 2),
+            "cagr_pct": round(cagr, 2),
+            "sharpe": round(sharpe, 2),
+            "max_drawdown_pct": round(max_dd, 2),
+            "n_trades": len(trades),
+            "years": req.years,
+            "initial_capital": req.initial_capital,
+            "final_equity": round(float(eq_series.iloc[-1]), 2),
+        },
+    }

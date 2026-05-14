@@ -363,26 +363,32 @@ def _fetch_finnhub_data(ticker: str, market: str) -> dict:
 
     result: dict = {}
 
-    # Technical indicators (RSI, MACD, ATR, SMA, volume)
-    # Uses Finnhub candles → falls back to yfinance OHLCV automatically
+    # Technical indicators — prefer locally-computed from FMP OHLCV (no API needed)
     try:
-        indicators = client.get_indicators(yf_ticker)
-        if indicators:
-            result["rsi_14"] = indicators.get("rsi_14")
-            result["macd_line"] = indicators.get("macd_line")
-            result["macd_signal"] = indicators.get("macd_signal")
-            result["macd_hist"] = indicators.get("macd_hist")
-            result["atr_14"] = indicators.get("atr_14")
-            result["sma_50"] = indicators.get("sma_50")
-            result["sma_200"] = indicators.get("sma_200")
-            result["price_vs_sma50"] = indicators.get("price_vs_sma50")
-            result["price_vs_sma200"] = indicators.get("price_vs_sma200")
-            result["volume_today"] = indicators.get("volume_today")
-            result["volume_20d_avg"] = indicators.get("volume_20d_avg")
-            result["volume_ratio"] = indicators.get("volume_ratio")
-            result["finnhub_price"] = indicators.get("current_price")
-    except Exception as exc:
-        log.warning("Indicators failed for %s: %s", ticker, exc)
+        from nq_api.data_builder import _fetch_one
+        fund = _fetch_one(ticker, market, fast_pe=True)
+        local_tech = fund.get("_tech_indicators")
+        if local_tech:
+            result.update(local_tech)
+            log.debug("Local indicators for %s: RSI=%s MACD=%s ATR=%s",
+                      ticker, local_tech.get("rsi_14"), local_tech.get("macd_line"), local_tech.get("atr_14"))
+    except Exception:
+        pass
+
+    # Finnhub candles fallback (only if local indicators missing)
+    if not result.get("rsi_14"):
+        try:
+            indicators = client.get_indicators(yf_ticker)
+            if indicators:
+                for key in ("rsi_14", "macd_line", "macd_signal", "macd_hist", "atr_14",
+                            "sma_50", "sma_200", "price_vs_sma50", "price_vs_sma200",
+                            "volume_today", "volume_20d_avg", "volume_ratio"):
+                    if indicators.get(key) is not None and key not in result:
+                        result[key] = indicators.get(key)
+                if indicators.get("current_price") and "finnhub_price" not in result:
+                    result["finnhub_price"] = indicators.get("current_price")
+        except Exception as exc:
+            log.warning("Indicators failed for %s: %s", ticker, exc)
 
     # Insider sentiment
     # Uses Finnhub → falls back to SEC EDGAR Form 4 automatically

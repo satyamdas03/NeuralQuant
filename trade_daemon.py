@@ -19,6 +19,7 @@ import sys
 import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 from pathlib import Path
 from typing import Any
 
@@ -34,6 +35,8 @@ import httpx
 import pandas as pd
 from nq_signals.risk import compute_edge, size_position_kelly, compute_daily_drawdown
 from nq_signals.safety import load_safety_gate, check_order, SafetyGate
+from nq_api.cache import score_cache
+from nq_api.universe import UNIVERSE_BY_MARKET
 
 logging.basicConfig(
     level=logging.INFO,
@@ -95,12 +98,13 @@ def _get_alpaca_clock():
 
 
 def _in_market_hours() -> bool:
-    """Quick check: are we within US market hours window? (9:30-16:00 ET = 13:30-20:00 UTC)"""
-    now = datetime.now(timezone.utc)
-    if now.weekday() >= 5:  # Saturday/Sunday
+    """Check if US market is open (9:30-16:00 ET, M-F) with DST-aware timezone.
+    Handles EDT (UTC-4, Mar-Nov) and EST (UTC-5, Nov-Mar) automatically via zoneinfo."""
+    now_et = datetime.now(timezone.utc).astimezone(ZoneInfo("US/Eastern"))
+    if now_et.weekday() >= 5:  # Saturday/Sunday
         return False
-    t = now.hour * 60 + now.minute
-    return 13 * 60 + 30 <= t < 20 * 60  # 13:30 to 20:00 UTC
+    t = now_et.hour * 60 + now_et.minute
+    return 9 * 60 + 30 <= t < 16 * 60
 
 
 # ── Live signal computation (ported from trade.py _compute_live_signals) ──────
@@ -662,6 +666,51 @@ async def monitor(config: DaemonConfig):
             log.exception("Monitor error — continuing")
 
 
+async def cache_refresher(config: DaemonConfig):
+    """Once-daily score_cache refresh during market-closed hours (01:00-04:00 UTC)."""
+    log.info("Cache refresher started")
+    last_refresh_date: str | None = None
+
+    while True:
+        try:
+            now = datetime.now(timezone.utc)
+            today_str = now.strftime("%Y-%m-%d")
+
+            if 1 <= now.hour < 4 and last_refresh_date != today_str:
+                log.info("Starting daily score_cache refresh")
+                for market in ("US", "IN"):
+                    try:
+                        universe = UNIVERSE_BY_MARKET.get(market, [])[:100]
+                        if not universe:
+                            continue
+                        strat = STRATEGIES.get(config.strategy_id, STRATEGIES["value_play"])
+                        signals = await asyncio.to_thread(
+                            _compute_live_signals, market, universe, 50, strat, config.bankroll
+                        )
+                        if signals:
+                            rows = [{
+                                "ticker": s["ticker"], "market": market,
+                                "sector": s.get("sector", "Unknown"),
+                                "composite_score": s["composite_score"],
+                                "current_price": s.get("current_price"),
+                                "long_name": s.get("long_name", ""),
+                            } for s in signals]
+                            written = score_cache.upsert_scores(rows)
+                            log.info("Cache refresh %s: %d signals, %d upserted", market, len(signals), written)
+                    except Exception as exc:
+                        log.warning("Cache refresh %s failed: %s", market, exc)
+
+                last_refresh_date = today_str
+                log.info("Daily score_cache refresh complete")
+
+            await asyncio.sleep(900)  # Check every 15 minutes
+
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            log.exception("Cache refresher error — continuing")
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 async def main():
@@ -704,6 +753,7 @@ async def main():
             executor(execute_queue, config),
             resolver(config),
             monitor(config),
+            cache_refresher(config),
         )
     except asyncio.CancelledError:
         log.info("Daemon cancelled — exiting")
