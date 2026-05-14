@@ -113,9 +113,11 @@ def _fetch_yf_info_cached(sym: str) -> dict:
 
 
 def _overlay_fmp_info(info: dict, ticker: str) -> None:
-    """Overlay FMP profile + key_metrics + ratios onto yfinance .info dict in-place.
-    FMP values are more reliable for beta, P/B, market_cap, sector, etc.
-    Only overwrites yfinance values when FMP has data and yfinance doesn't.
+    """Overlay FMP data onto yfinance .info dict in-place.
+
+    FMP is the primary data source. yfinance values are kept only when FMP
+    doesn't have data. Sets _cached_ok when FMP provides usable data even
+    if yfinance failed completely.
     """
     try:
         from nq_data.fmp import get_fmp_client
@@ -125,35 +127,25 @@ def _overlay_fmp_info(info: dict, ticker: str) -> None:
 
         profile = fmp.get_profile(ticker)
         if profile:
-            has_usable_data = False
-            # Name and sector are more reliable from FMP
+            has_data = False
             if profile.get("name") and not info.get("longName"):
-                info["longName"] = profile["name"]
-                has_usable_data = True
+                info["longName"] = profile["name"]; has_data = True
             if profile.get("sector") and not info.get("sector"):
-                info["sector"] = profile["sector"]
-                has_usable_data = True
+                info["sector"] = profile["sector"]; has_data = True
             if profile.get("industry") and not info.get("industry"):
-                info["industry"] = profile["industry"]
-                has_usable_data = True
+                info["industry"] = profile["industry"]; has_data = True
             if profile.get("market_cap") and not info.get("marketCap"):
-                info["marketCap"] = profile["market_cap"]
-                has_usable_data = True
-            # Beta from profile (more reliable than yfinance)
+                info["marketCap"] = profile["market_cap"]; has_data = True
             if profile.get("beta") is not None:
-                info["beta"] = profile["beta"]
-                has_usable_data = True
-            # Price from profile — critical for portfolio price fallback
+                info["beta"] = profile["beta"]; has_data = True
             if profile.get("price") is not None:
                 info["currentPrice"] = profile["price"]
-                info["regularMarketPrice"] = profile["price"]
-                has_usable_data = True
-            if has_usable_data:
-                info["_cached_ok"] = True  # FMP provided usable data even if yfinance failed
+                info["regularMarketPrice"] = profile["price"]; has_data = True
+            if has_data:
+                info["_cached_ok"] = True
 
         metrics = fmp.get_key_metrics(ticker)
         if metrics:
-            # Key metrics override — these are the fields yfinance hallucinates
             if metrics.get("pe_ratio") is not None:
                 info["trailingPE"] = metrics["pe_ratio"]
             if metrics.get("pb_ratio") is not None:
@@ -164,16 +156,29 @@ def _overlay_fmp_info(info: dict, ticker: str) -> None:
                 info["dividendYield"] = metrics["dividend_yield"]
             if metrics.get("gross_profit_margin") is not None:
                 info["grossMargins"] = metrics["gross_profit_margin"]
+            if metrics.get("operating_profit_margin") is not None:
+                info["operatingMargins"] = metrics["operating_profit_margin"]
+            if metrics.get("net_profit_margin") is not None:
+                info["profitMargins"] = metrics["net_profit_margin"]
             if metrics.get("revenue_growth") is not None:
                 info["revenueGrowth"] = metrics["revenue_growth"]
+            if metrics.get("earnings_growth") is not None:
+                info["earningsGrowth"] = metrics["earnings_growth"]
             if metrics.get("debt_to_equity") is not None:
                 info["debtToEquity"] = metrics["debt_to_equity"]
             if metrics.get("current_ratio") is not None:
                 info["currentRatio"] = metrics["current_ratio"]
             if metrics.get("roe") is not None:
                 info["returnOnEquity"] = metrics["roe"]
+            if metrics.get("roa") is not None:
+                info["returnOnAssets"] = metrics["roa"]
+            if metrics.get("ev_to_ebitda") is not None:
+                info["enterpriseToEbitda"] = metrics["ev_to_ebitda"]
+            if metrics.get("price_to_sales") is not None:
+                info["priceToSalesTrailing12Months"] = metrics["price_to_sales"]
+            if metrics.get("market_cap") is not None and "marketCap" not in info:
+                info["marketCap"] = metrics["market_cap"]
 
-        # Ratios endpoint provides P/B (more reliable than key_metrics)
         ratios = fmp.get_ratios(ticker)
         if ratios:
             if ratios.get("price_to_book") is not None:
@@ -182,29 +187,70 @@ def _overlay_fmp_info(info: dict, ticker: str) -> None:
                 info["grossMargins"] = ratios["gross_profit_margin"]
             if ratios.get("current_ratio") is not None and "currentRatio" not in info:
                 info["currentRatio"] = ratios["current_ratio"]
+            if ratios.get("return_on_equity") is not None and "returnOnEquity" not in info:
+                info["returnOnEquity"] = ratios["return_on_equity"]
 
-        # Calculate P/E from FMP quote price + income statement EPS
-        # FMP /stable/ doesn't include P/E directly, so we compute it.
-        # This is more reliable than yfinance P/E which often hallucinates.
+        # ── Quote: price, week52, change%, EPS, P/E ──
+        quote = fmp.get_quote(ticker)
         fmp_price = None
         if profile and profile.get("price"):
             fmp_price = float(profile["price"])
-        quote = fmp.get_quote(ticker)
-        if quote and quote.get("price"):
-            fmp_price = float(quote["price"])
-            # Overlay quote price — most reliable live price source
-            info["currentPrice"] = fmp_price
-            info["regularMarketPrice"] = fmp_price
-            info["_cached_ok"] = True
+        if quote:
+            if quote.get("price"):
+                fmp_price = float(quote["price"])
+                info["currentPrice"] = fmp_price
+                info["regularMarketPrice"] = fmp_price
+                info["_cached_ok"] = True
+            if quote.get("year_high") is not None:
+                info["fiftyTwoWeekHigh"] = quote["year_high"]
+            if quote.get("year_low") is not None:
+                info["fiftyTwoWeekLow"] = quote["year_low"]
+            if quote.get("change_pct") is not None:
+                info["regularMarketChangePercent"] = quote["change_pct"]
+            if quote.get("pe") is not None and "trailingPE" not in info:
+                info["trailingPE"] = quote["pe"]
+            if quote.get("eps") is not None and "trailingEps" not in info:
+                info["trailingEps"] = quote["eps"]
+
+        # Compute P/E from FMP price + income statement EPS (most accurate)
         if fmp_price and fmp_price > 0:
             income = fmp.get_income_statement(ticker)
             if income and income.get("eps"):
                 try:
-                    pe_calculated = round(fmp_price / float(income["eps"]), 1)
-                    if 0.5 < pe_calculated < 5000:  # sanity bounds
-                        info["trailingPE"] = pe_calculated
+                    pe_calc = round(fmp_price / float(income["eps"]), 1)
+                    if 0.5 < pe_calc < 5000:
+                        info["trailingPE"] = pe_calc
                 except (TypeError, ValueError, ZeroDivisionError):
                     pass
+
+        # ── Analyst data ──
+        target = fmp.get_price_target(ticker)
+        if target:
+            if target.get("target_avg") is not None:
+                info["targetMeanPrice"] = target["target_avg"]
+            if target.get("target_high") is not None:
+                info["targetHighPrice"] = target["target_high"]
+            if target.get("target_low") is not None:
+                info["targetLowPrice"] = target["target_low"]
+
+        grades = fmp.get_analyst_grades(ticker)
+        if grades:
+            if grades.get("consensus") is not None and "recommendationKey" not in info:
+                info["recommendationKey"] = grades["consensus"]
+            if grades.get("strong_buy") is not None:
+                info["numberOfAnalystOpinions"] = (
+                    (grades.get("strong_buy") or 0) + (grades.get("buy") or 0) +
+                    (grades.get("hold") or 0) + (grades.get("sell") or 0) +
+                    (grades.get("strong_sell") or 0)
+                )
+
+        # ── Financial scores ──
+        scores = fmp.get_financial_scores(ticker)
+        if scores:
+            if scores.get("piotroski_score") is not None:
+                info["_fmp_piotroski"] = scores["piotroski_score"]
+            if scores.get("altman_z_score") is not None:
+                info["_fmp_altman_z"] = scores["altman_z_score"]
 
     except Exception as exc:
         log.debug("FMP overlay failed for %s: %s", ticker, exc)
@@ -503,24 +549,38 @@ def fetch_real_macro_in() -> _LiveMacroIN:
 
 # ─── Per-ticker fundamentals ──────────────────────────────────────────────────
 
-def _synthetic_row(ticker: str) -> dict:
-    """Deterministic synthetic fallback — only used when yfinance fails entirely."""
-    s = hash(ticker) % (2**31 - 1)
-    rng = lambda seed: np.random.RandomState(seed)
+def _empty_row(ticker: str) -> dict:
+    """Return a result with all nulls — no synthetic fabrication."""
     return {
-        "gross_profit_margin":  float(rng(s).uniform(0.10, 0.85)),
-        "roe":                   float(rng(s + 9).uniform(0.03, 0.25)),
-        "accruals_ratio":        float(rng(s + 1).uniform(-0.15, 0.15)),
-        "piotroski":             int(rng(s + 2).randint(2, 9)),
-        "momentum_raw":          float(rng(s + 3).uniform(-0.25, 0.55)),
-        "short_interest_pct":    float(rng(s + 4).uniform(0.01, 0.18)),
-        "pe_ttm":                float(rng(s + 5).uniform(10, 45)),
-        "pb_ratio":              float(rng(s + 6).uniform(1, 8)),
-        "beta":                  float(rng(s + 7).uniform(0.5, 1.8)),
-        "realized_vol_1y":       float(rng(s + 8).uniform(0.15, 0.50)),
-        "_is_real":              False,
-        "_is_synthetic":        {"gross_profit_margin", "roe", "momentum_raw", "short_interest_pct",
-                                  "pe_ttm", "pb_ratio", "beta", "realized_vol_1y", "piotroski"},
+        "gross_profit_margin": None,
+        "roe": None,
+        "accruals_ratio": None,
+        "piotroski": None,
+        "momentum_raw": None,
+        "short_interest_pct": None,
+        "pe_ttm": None,
+        "pb_ratio": None,
+        "beta": None,
+        "realized_vol_1y": None,
+        "delivery_pct": None,
+        "_is_real": False,
+        "_is_synthetic": set(),
+        "current_price": None,
+        "week52_high": None,
+        "week52_low": None,
+        "analyst_target": None,
+        "analyst_rec": None,
+        "market_cap": None,
+        "change_pct": None,
+        "long_name": ticker,
+        "industry": None,
+        "sector": None,
+        "earnings_date": None,
+        "dividend_yield": None,
+        "debt_equity": None,
+        "revenue_growth_yoy": None,
+        "fcf_yield": None,
+        "eps_ttm": None,
     }
 
 
@@ -551,10 +611,10 @@ def _yf_symbol(ticker: str, market: str) -> str:
 def _fetch_one(ticker: str, market: str, fast_pe: bool = True) -> dict:
     """Fetch real fundamentals + price-derived signals for one ticker.
 
+    Data priority: FMP (primary) → yfinance (fallback) → None (no fabrication).
+
     Args:
         fast_pe: If True, skip slow valuation_measures/quarterly_income_stmt calls.
-                  Used during PARA-DEBATE context building where latency matters.
-                  If False, use full 3-tier P/E computation.
     """
     cache_key = f"{ticker}:{market}"
     now = time.time()
@@ -562,132 +622,161 @@ def _fetch_one(ticker: str, market: str, fast_pe: bool = True) -> dict:
         if cache_key in _fund_cache:
             age = now - _fund_ts.get(cache_key, 0)
             cached = _fund_cache[cache_key]
-            # Real data cached for full TTL; synthetic/failed for 30s only
             max_age = FUND_TTL if cached.get("_is_real") else 30
             if age < max_age:
                 return _fund_cache[cache_key]
 
     sym = _yf_symbol(ticker, market)
     info: dict = {}
-    # Use cached wrapper with aggressive delays on Render to avoid Yahoo blocks
     raw_info = _fetch_yf_info_cached(sym)
     if raw_info.get("_cached_ok"):
         info = {k: v for k, v in raw_info.items() if not k.startswith("_")}
     else:
-        log.warning("yfinance failed for %s — using synthetic", sym)
-        result = _synthetic_row(ticker)
+        log.warning("yfinance + FMP both failed for %s — returning empty row", sym)
+        result = _empty_row(ticker)
         with _lock:
             _fund_cache[cache_key] = result
             _fund_ts[cache_key] = now
         return result
 
     try:
-        _synthetic = set()
-        gpm_raw = info.get("grossMargins")
-        gpm = _safe(gpm_raw, np.random.RandomState(hash(ticker) % (2**31)).uniform(0.1, 0.9))
-        if gpm_raw is None:
-            _synthetic.add("gross_profit_margin")
+        _missing: set[str] = set()
 
-        # ── Return on equity (sector-adjusted quality uses this for financials) ──
-        roe_raw = info.get("returnOnEquity")
-        roe = _safe(roe_raw, np.random.RandomState((hash(ticker) + 11) % (2**31)).uniform(0.05, 0.25))
-        # Clamp to sane band — yfinance occasionally returns 5.0 (i.e. 500%)
-        roe = max(-0.50, min(0.80, roe))
-        if roe_raw is None:
-            _synthetic.add("roe")
+        # Lazy yf.Ticker for fallback paths (P/E computation, earnings date, price history)
+        t = yf.Ticker(sym, session=_get_yf_session())
 
-        # ── Short interest % of float ─────────────────────────────────
-        si_raw = info.get("shortPercentOfFloat")
-        si = _safe(si_raw, np.random.RandomState((hash(ticker) + 4) % (2**31)).uniform(0.01, 0.18))
-        if si_raw is None:
-            _synthetic.add("short_interest_pct")
+        # ── Gross profit margin ──
+        gpm = _safe(info.get("grossMargins"), None)
+        if gpm is None:
+            _missing.add("gross_profit_margin")
 
-        # ── Accruals ratio = (NI – OCF) / Total Assets ───────────────
+        # ── Return on equity ──
+        roe = _safe(info.get("returnOnEquity"), None)
+        if roe is not None:
+            roe = max(-0.50, min(0.80, roe))
+        else:
+            _missing.add("roe")
+
+        # ── Short interest (yfinance-only, no FMP alternative) ──
+        si = _safe(info.get("shortPercentOfFloat"), None)
+        if si is None:
+            _missing.add("short_interest_pct")
+
+        # ── Accruals = (NI – OCF) / Total Assets ──
         ni  = _safe(info.get("netIncomeToCommon"))
         ocf = _safe(info.get("operatingCashflow"))
         ta  = _safe(info.get("totalAssets"), 1) or 1
-        accruals = max(-0.3, min(0.3, (ni - ocf) / ta))
+        accruals = max(-0.3, min(0.3, (ni - ocf) / ta)) if (ni or ocf) else None
 
-        # ── Piotroski ─────────────────────────────────────────────────
-        piotroski = _piotroski_from_info(info)
+        # ── Piotroski: prefer FMP financial_scores, fallback to computed from yfinance ──
+        fmp_piotroski = raw_info.get("_fmp_piotroski")
+        if fmp_piotroski is not None:
+            piotroski = int(fmp_piotroski)
+        else:
+            piotroski = _piotroski_from_info(info)
+            if piotroski == 0 and not any([
+                _safe(info.get("netIncomeToCommon")),
+                _safe(info.get("operatingCashflow")),
+            ]):
+                piotroski = None  # No fundamental data at all
 
-        # ── Valuation multiples (TTM P/E from valuation_measures + quarterly stmt) ────
+        # ── P/E ratio (FMP-overlaid trailingPE from quote/key_metrics/income stmt) ──
         pe_raw = info.get("trailingPE")
         vm_pb = None
         if fast_pe:
-            # Fast path: use info['trailingPE'] directly (already TTM in yfinance 1.3+)
-            pe_ttm = _safe(pe_raw, 25.0)
-            if pe_raw is None:
-                _synthetic.add("pe_ttm")
+            pe_ttm = _safe(pe_raw, None)
         else:
-            # Full path: valuation_measures → quarterly income stmt → fallback
             pe_ttm, vm_pb = _compute_ttm_pe(t, info, pe_raw)
             if pe_ttm is None:
-                pe_ttm = _safe(pe_raw, 25.0)
-                _synthetic.add("pe_ttm")
-        # Use Price/Book from valuation_measures if available (more accurate than info dict)
-        pb_raw = vm_pb if vm_pb else info.get("priceToBook")
-        pb_ratio = _safe(pb_raw, 3.0)
-        if pb_raw is None and vm_pb is None:
-            _synthetic.add("pb_ratio")
-        # Clamp to sane ranges — negative P/E (loss-making) treated as high
-        pe_ttm   = max(1.0, min(200.0, pe_ttm))
-        pb_ratio = max(0.1, min(50.0, pb_ratio))
-
-        # ── Beta ──────────────────────────────────────────────────────
-        beta_raw = info.get("beta")
-        beta = _safe(beta_raw, 1.0)
-        if beta_raw is None:
-            _synthetic.add("beta")
-        beta = max(0.01, min(3.0, beta))
-
-        # ── Price history: momentum + realized vol ────────────────────
-        with _lock:
-            cached_prices = _price_cache.get(cache_key)
-            prices_fresh  = time.time() - _price_ts.get(cache_key, 0) < PRICE_TTL
-
-        if cached_prices is not None and prices_fresh and len(cached_prices) >= 253:
-            hist_close = cached_prices
+                pe_ttm = _safe(pe_raw, None)
+        if pe_ttm is None:
+            _missing.add("pe_ttm")
         else:
-            hist = t.history(period="14mo", auto_adjust=True)
-            hist_close = hist["Close"] if not hist.empty else pd.Series(dtype=float)
-            with _lock:
-                _price_cache[cache_key] = hist_close
-                _price_ts[cache_key]    = time.time()
+            pe_ttm = max(1.0, min(200.0, pe_ttm))
 
-        # 12-1 month momentum (Jegadeesh & Titman 1993: skip most-recent 21 trading
-        # days to avoid short-term reversal contamination).
-        # Minimum 253 bars: 252 lookback + 1 current price (matching momentum.py).
+        # ── P/B ratio ──
+        pb_raw = vm_pb if vm_pb else info.get("priceToBook")
+        pb_ratio = _safe(pb_raw, None)
+        if pb_ratio is None:
+            _missing.add("pb_ratio")
+        else:
+            pb_ratio = max(0.1, min(50.0, pb_ratio))
+
+        # ── Beta (FMP profile overlay) ──
+        beta = _safe(info.get("beta"), None)
+        if beta is None:
+            _missing.add("beta")
+        else:
+            beta = max(0.01, min(3.0, beta))
+
+        # ── Price history: momentum + realized vol ──
+        # Try FMP historical prices first (US only, IN blocked by Premium)
+        momentum = None
+        realized_vol = None
+        hist_close = pd.Series(dtype=float)
+
+        if market == "US":
+            try:
+                from nq_data.fmp import get_fmp_client
+                fmp_client = get_fmp_client()
+                if fmp_client._enabled:
+                    fmp_hist = fmp_client.get_historical_prices(ticker, days=370)
+                    if fmp_hist and len(fmp_hist) >= 253:
+                        closes = [float(r["close"]) for r in fmp_hist if r.get("close")]
+                        if len(closes) >= 253:
+                            hist_close = pd.Series(closes)
+                            log.debug("Using FMP historical prices for %s: %d bars", ticker, len(closes))
+            except Exception:
+                pass
+
+        # Fallback to yfinance price history
+        if len(hist_close) < 253:
+            with _lock:
+                cached_prices = _price_cache.get(cache_key)
+                prices_fresh = time.time() - _price_ts.get(cache_key, 0) < PRICE_TTL
+            if cached_prices is not None and prices_fresh and len(cached_prices) >= 253:
+                hist_close = cached_prices
+            else:
+                try:
+                    hist = t.history(period="14mo", auto_adjust=True)
+                    hist_close = hist["Close"] if not hist.empty else pd.Series(dtype=float)
+                    with _lock:
+                        _price_cache[cache_key] = hist_close
+                        _price_ts[cache_key] = time.time()
+                except Exception:
+                    pass
+
+        # Compute momentum (12-1 month, skip most recent month)
         if len(hist_close) >= 253:
-            p1m  = float(hist_close.iloc[-21])   # T-21 trading days (≈1 month ago)
+            p1m  = float(hist_close.iloc[-21])
             p12m = float(hist_close.iloc[-252])
             momentum = (p1m - p12m) / p12m if p12m else 0.0
         else:
-            momentum = float(
-                np.random.RandomState((hash(ticker) + 3) % (2**31)).uniform(-0.25, 0.55)
-            )
-            _synthetic.add("momentum_raw")
+            _missing.add("momentum_raw")
 
-        # Realized annualized volatility (252-day window)
+        # Compute realized vol (annualized, 252-day window)
         if len(hist_close) >= 30:
             log_rets = np.log(hist_close / hist_close.shift(1)).dropna()
             realized_vol = float(log_rets.tail(252).std() * np.sqrt(252))
         else:
-            realized_vol = float(beta * 0.18)  # rough proxy
+            _missing.add("realized_vol_1y")
 
-        # ── Live price snapshot (for LLM context injection) ──────────────
+        # ── Live price fields (from FMP overlay + yfinance fallback) ──
         current_price   = info.get("currentPrice") or info.get("regularMarketPrice")
         week52_high     = info.get("fiftyTwoWeekHigh")
         week52_low      = info.get("fiftyTwoWeekLow")
         analyst_target  = info.get("targetMeanPrice")
         analyst_rec     = info.get("recommendationKey", "")
         market_cap      = info.get("marketCap")
-        change_pct      = info.get("regularMarketChangePercent", 0.0)
+        change_pct      = info.get("regularMarketChangePercent")
         long_name       = info.get("longName") or info.get("shortName") or ticker
         industry        = info.get("industry")
         sector          = info.get("sector")
 
-        # Earnings date
+        if current_price is None:
+            _missing.add("current_price")
+
+        # Earnings date (yfinance-only)
         earnings_date = None
         try:
             cal = t.calendar
@@ -719,7 +808,13 @@ def _fetch_one(ticker: str, market: str, fast_pe: bool = True) -> dict:
                 except Exception:
                     pass
 
-        eps_ttm = info.get("trailingEps") or info.get("dilutedEPS") or (info.get("netIncomeToCommon") / info.get("sharesOutstanding", 1) if info.get("netIncomeToCommon") and info.get("sharesOutstanding") else None)
+        # EPS TTM (FMP quote.trailingEps overlay + yfinance fallback)
+        eps_ttm = info.get("trailingEps") or info.get("dilutedEPS")
+        if eps_ttm is None and info.get("netIncomeToCommon") and info.get("sharesOutstanding"):
+            try:
+                eps_ttm = float(info["netIncomeToCommon"]) / float(info["sharesOutstanding"])
+            except (TypeError, ValueError, ZeroDivisionError):
+                pass
         if eps_ttm is not None:
             try:
                 eps_ttm = round(float(eps_ttm), 2)
@@ -727,44 +822,43 @@ def _fetch_one(ticker: str, market: str, fast_pe: bool = True) -> dict:
                 eps_ttm = None
 
         result = {
-            "gross_profit_margin": float(gpm),
-            "roe":                 float(roe),
-            "accruals_ratio":       float(accruals),
-            "piotroski":            int(piotroski),
-            "momentum_raw":         float(momentum),
-            "short_interest_pct":   float(si),
-            "pe_ttm":               float(pe_ttm),
-            "pb_ratio":             float(pb_ratio),
-            "beta":                 float(beta),
-            "realized_vol_1y":      float(realized_vol),
-            "delivery_pct":         None,  # filled by Bhavcopy for IN market
-            "_is_real":             True,
-            "_is_synthetic":        _synthetic,   # field names with fabricated defaults
-            # Live price fields — used by query.py to inject accurate prices into LLM context
-            "current_price":        float(current_price) if current_price else None,
-            "week52_high":          float(week52_high) if week52_high else None,
-            "week52_low":           float(week52_low) if week52_low else None,
-            "analyst_target":       float(analyst_target) if analyst_target else None,
-            "analyst_rec":          analyst_rec.upper() if analyst_rec else None,
-            "market_cap":           float(market_cap) if market_cap else None,
-            "change_pct":           float(change_pct),
-            "long_name":            long_name,
-            "industry":             industry,
-            "sector":               sector,
-            "earnings_date":        earnings_date,
-            "dividend_yield":       div_pct,
-            "debt_equity":          round(float(info.get("debtToEquity", 100.0)) / 100, 2) if info.get("debtToEquity") is not None else None,
-            "revenue_growth_yoy":   round(float(info.get("revenueGrowth", 0.0)) * 100, 1) if info.get("revenueGrowth") is not None else None,
-            "fcf_yield":            round(fcf_val / market_cap, 4) if (fcf_val := _safe(info.get("freeCashflow")) or 0) > 0 and market_cap else None,
-            "eps_ttm":             eps_ttm,
+            "gross_profit_margin": gpm,
+            "roe": roe,
+            "accruals_ratio": accruals,
+            "piotroski": piotroski,
+            "momentum_raw": momentum,
+            "short_interest_pct": si,
+            "pe_ttm": pe_ttm,
+            "pb_ratio": pb_ratio,
+            "beta": beta,
+            "realized_vol_1y": realized_vol,
+            "delivery_pct": None,
+            "_is_real": True,
+            "_is_synthetic": _missing,
+            "current_price": float(current_price) if current_price else None,
+            "week52_high": float(week52_high) if week52_high else None,
+            "week52_low": float(week52_low) if week52_low else None,
+            "analyst_target": float(analyst_target) if analyst_target else None,
+            "analyst_rec": analyst_rec.upper() if analyst_rec else None,
+            "market_cap": float(market_cap) if market_cap else None,
+            "change_pct": float(change_pct) if change_pct is not None else None,
+            "long_name": long_name,
+            "industry": industry,
+            "sector": sector,
+            "earnings_date": earnings_date,
+            "dividend_yield": div_pct,
+            "debt_equity": round(float(info.get("debtToEquity")) / 100, 2) if info.get("debtToEquity") is not None else None,
+            "revenue_growth_yoy": round(float(info.get("revenueGrowth")) * 100, 1) if info.get("revenueGrowth") is not None else None,
+            "fcf_yield": round(fcf_val / market_cap, 4) if (fcf_val := _safe(info.get("freeCashflow")) or 0) > 0 and market_cap else None,
+            "eps_ttm": eps_ttm,
         }
     except Exception as exc:
-        log.debug("yfinance fetch failed for %s: %s — using synthetic", ticker, exc)
-        result = _synthetic_row(ticker)
+        log.debug("Fundamental fetch failed for %s: %s — returning empty row", ticker, exc)
+        result = _empty_row(ticker)
 
     with _lock:
         _fund_cache[cache_key] = result
-        _fund_ts[cache_key]    = time.time()
+        _fund_ts[cache_key] = now
     return result
 
 
@@ -792,7 +886,7 @@ def fetch_fundamentals_batch(tickers: list[str], market: str = "US", fast_pe: bo
                     results[t] = fut.result()
                 except Exception as e:
                     logger.debug("Non-critical enrichment failed: %s", e)
-                    results[t] = _synthetic_row(t)
+                    results[t] = _empty_row(t)
 
     return results
 
@@ -959,7 +1053,7 @@ def build_real_snapshot(tickers: list[str], market: str) -> UniverseSnapshot:
     from nq_api.universe import sector_of
     rows = []
     for t in tickers:
-        row = fund_map.get(t, _synthetic_row(t)).copy()
+        row = fund_map.get(t, _empty_row(t)).copy()
         row.pop("_is_real", None)
         rows.append({"ticker": t, "sector": sector_of(t, market), **row})
 

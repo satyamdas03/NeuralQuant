@@ -1849,12 +1849,10 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                 eps = fund.get("eps_ttm")
                 cur = "Rs." if target_market == "IN" else "$"
                 # Build a very explicit data block the LLM cannot ignore
-                # Use [ESTIMATE] for synthetic data, [VERIFIED] for real data
-                synthetic_fields = fund.get("_is_synthetic", set())
-                is_real = fund.get("_is_real", False)
+                missing_fields = fund.get("_is_synthetic", set())
                 def _marker(field_name: str) -> str:
-                    """Return [VERIFIED] for real data, [ESTIMATE] for synthetic defaults."""
-                    return "[ESTIMATE]" if field_name in synthetic_fields else "[VERIFIED]"
+                    """All displayed values are real (FMP or yfinance). Missing fields not shown."""
+                    return "[VERIFIED]" if field_name not in missing_fields else "[UNAVAILABLE]"
                 detail_parts = [f"ForeCast={sc}/10"]
                 if price: detail_parts.append(f"CURRENT_PRICE={cur}{price:,.2f} {_marker('current_price')}")
                 if chg: detail_parts.append(f"CHANGE={chg:+.1f}%")
@@ -1880,7 +1878,7 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                 if quality: detail_parts.append(f"Quality={quality:.0%}")
                 lines.append(f"  {t}: {' | '.join(detail_parts)}")
             lines.append("")
-            lines.append("⚠ MANDATORY: ALL values marked [VERIFIED] are REAL live data from yfinance for TODAY. Values marked [ESTIMATE] are approximations when real data is unavailable — treat them with lower confidence. P/E, Beta, Price, Market Cap change after earnings, splits, and volatility shifts. Your training data is WRONG for these values. ALWAYS quote the EXACT [VERIFIED] values shown above. Using different P/E or Beta values is a critical error.")
+            lines.append("⚠ MANDATORY: ALL values marked [VERIFIED] are REAL live data (FMP primary, yfinance fallback) for TODAY. Fields not shown are unavailable — do NOT invent them. P/E, Beta, Price, Market Cap change after earnings, splits, and volatility shifts. Your training data is WRONG for these values. ALWAYS quote the EXACT [VERIFIED] values shown above.")
             parts.append("\n".join(lines))
 
         # Inject competitor comparison for specific stocks

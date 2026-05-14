@@ -255,26 +255,26 @@ def _build_analyst_context(ticker: str, market: str) -> dict:
     _data_quality = []
     if not mom_is_reliable:
         _data_quality.append("momentum_raw is 0.0 (likely data issue, momentum_percentile from score_cache)")
-    # Flag synthetic fields from data_builder (random defaults)
-    _synthetic = fund.get("_is_synthetic", set())
-    if "gross_profit_margin" in _synthetic:
-        _data_quality.append("gross_profit_margin is SYNTHETIC (random default, not real data)")
+    # Flag missing fields — data unavailable from any source (FMP, yfinance, etc.)
+    _missing = fund.get("_is_synthetic", set())
+    if "gross_profit_margin" in _missing:
+        _data_quality.append("gross_profit_margin is UNAVAILABLE (no data from any source)")
     elif gpm_final is None:
         _data_quality.append("gross_profit_margin is N/A")
-    if "roe" in _synthetic:
-        _data_quality.append("roe is SYNTHETIC (random default, not real data)")
+    if "roe" in _missing:
+        _data_quality.append("roe is UNAVAILABLE (no data from any source)")
     elif fund.get("roe") is None:
         _data_quality.append("roe is N/A")
-    if "short_interest_pct" in _synthetic:
-        _data_quality.append("short_interest_pct is SYNTHETIC (random default, not real data)")
-    if "pe_ttm" in _synthetic:
-        _data_quality.append("pe_ttm is SYNTHETIC (default 25.0, not real data — DO NOT use in analysis)")
-    if "pb_ratio" in _synthetic:
-        _data_quality.append("pb_ratio is SYNTHETIC (default 3.0, not real data — DO NOT use in analysis)")
-    if "beta" in _synthetic:
-        _data_quality.append("beta is SYNTHETIC (default 1.0, not real data — DO NOT use in analysis)")
-    if "momentum_raw" in _synthetic:
-        _data_quality.append("momentum_raw is SYNTHETIC (random default, not real data)")
+    if "short_interest_pct" in _missing:
+        _data_quality.append("short_interest_pct is UNAVAILABLE (no FMP/yfinance data)")
+    if "pe_ttm" in _missing:
+        _data_quality.append("pe_ttm is UNAVAILABLE (no data from any source)")
+    if "pb_ratio" in _missing:
+        _data_quality.append("pb_ratio is UNAVAILABLE (no data from any source)")
+    if "beta" in _missing:
+        _data_quality.append("beta is UNAVAILABLE (no data from any source)")
+    if "momentum_raw" in _missing:
+        _data_quality.append("momentum_raw is UNAVAILABLE (no price history from any source)")
     if fund.get("piotroski") is None:
         _data_quality.append("piotroski is N/A")
     if info.get("debtToEquity") is None:

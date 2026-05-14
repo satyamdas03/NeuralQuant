@@ -42,6 +42,7 @@ _TTLS: dict[str, int] = {
     "earnings": 86400,        # 24 hours
     "dividends": 86400,       # 24 hours
     "screener": 3600,         # 1 hour
+    "historical_prices": 3600,  # 1 hour
 }
 
 # ── Symbol resolution ────────────────────────────────────────────────────────
@@ -171,6 +172,31 @@ class FMPClient:
                 self._cache_set("batch_quote", cache_key, chunk_results)
                 results.update(chunk_results)
         return results if results else None
+
+    def get_historical_prices(
+        self, ticker: str, from_date: str | None = None, to_date: str | None = None,
+        days: int = 365,
+    ) -> list[dict] | None:
+        """Historical EOD OHLCV data. Returns list of {date, open, high, low, close, volume, ...}.
+
+        Uses /stable/historical-price-eod/full endpoint.
+        If from_date/to_date omitted, computed from `days` lookback.
+        """
+        from datetime import datetime, timedelta
+        if to_date is None:
+            to_date = datetime.now().strftime("%Y-%m-%d")
+        if from_date is None:
+            from_date = (datetime.now() - timedelta(days=days + 5)).strftime("%Y-%m-%d")
+        sym = self._resolve_symbol(ticker)
+        cache_key = f"{ticker}:{from_date}:{to_date}"
+        data = self._fetch("historical_prices", cache_key, {
+            "symbol": sym, "from": from_date, "to": to_date,
+        })
+        if not data or not isinstance(data, list):
+            return None
+        # Sort ascending (API returns descending by default)
+        data.sort(key=lambda r: r.get("date", ""))
+        return data
 
     def get_key_metrics(self, ticker: str) -> dict | None:
         """Key metrics: P/B, dividend yield, ROE, ROA, margins, debt/equity, etc.
@@ -604,6 +630,7 @@ class FMPClient:
             "earnings": "earnings-calendar",
             "dividends": "dividends",
             "screener": "company-screener",
+            "historical_prices": "historical-price-eod/full",
         }
         return mapping.get(category, category)
 
