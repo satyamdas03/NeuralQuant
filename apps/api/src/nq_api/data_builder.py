@@ -125,22 +125,31 @@ def _overlay_fmp_info(info: dict, ticker: str) -> None:
 
         profile = fmp.get_profile(ticker)
         if profile:
+            has_usable_data = False
             # Name and sector are more reliable from FMP
             if profile.get("name") and not info.get("longName"):
                 info["longName"] = profile["name"]
+                has_usable_data = True
             if profile.get("sector") and not info.get("sector"):
                 info["sector"] = profile["sector"]
+                has_usable_data = True
             if profile.get("industry") and not info.get("industry"):
                 info["industry"] = profile["industry"]
+                has_usable_data = True
             if profile.get("market_cap") and not info.get("marketCap"):
                 info["marketCap"] = profile["market_cap"]
+                has_usable_data = True
             # Beta from profile (more reliable than yfinance)
             if profile.get("beta") is not None:
                 info["beta"] = profile["beta"]
+                has_usable_data = True
             # Price from profile — critical for portfolio price fallback
             if profile.get("price") is not None:
                 info["currentPrice"] = profile["price"]
                 info["regularMarketPrice"] = profile["price"]
+                has_usable_data = True
+            if has_usable_data:
+                info["_cached_ok"] = True  # FMP provided usable data even if yfinance failed
 
         metrics = fmp.get_key_metrics(ticker)
         if metrics:

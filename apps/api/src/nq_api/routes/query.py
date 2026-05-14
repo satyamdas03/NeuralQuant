@@ -1546,17 +1546,50 @@ def _fetch_dynamic_nse_stock(word: str) -> dict | None:
     Try to fetch live data for an NSE stock not in our screener universe.
     word: uppercase stock name/ticker from user query.
     Returns a dict with price, fundamentals, or None if not found.
+    Tries yfinance first, falls back to FMP for price data.
     """
     nse_sym = _NSE_NAME_MAP.get(word)
     if not nse_sym:
         nse_sym = f"{word}.NS"
+
+    def _try_fmp() -> dict | None:
+        """FMP fallback for price when yfinance fails."""
+        try:
+            from nq_data.fmp import get_fmp_client
+            fmp = get_fmp_client()
+            if not fmp._enabled:
+                return None
+            quote = fmp.get_quote(nse_sym)
+            if quote and quote.get("price"):
+                return {
+                    "symbol": nse_sym,
+                    "display": word,
+                    "price": quote["price"],
+                    "currency": "INR",
+                    "change_pct": quote.get("change_pct", 0),
+                    "week52_high": quote.get("year_high"),
+                    "week52_low": quote.get("year_low"),
+                    "pe_ttm": quote.get("pe"),
+                    "pb_ratio": None,
+                    "market_cap": quote.get("market_cap"),
+                    "beta": None,
+                    "analyst_target": None,
+                    "analyst_recommendation": "",
+                    "gross_margin": None,
+                    "revenue_growth": None,
+                    "sector": "",
+                    "longName": word,
+                }
+        except Exception:
+            pass
+        return None
 
     try:
         t = yf.Ticker(nse_sym, session=_get_yf_session())
         info = t.info
         price = info.get("currentPrice") or info.get("regularMarketPrice")
         if not price:
-            return None  # Stock not found or no price data
+            return _try_fmp()  # yfinance got no price, try FMP
 
         return {
             "symbol": nse_sym,
@@ -1579,7 +1612,7 @@ def _fetch_dynamic_nse_stock(word: str) -> dict | None:
         }
     except Exception as e:
         logger.debug("Non-critical enrichment failed: %s", e)
-        return None
+        return _try_fmp()  # yfinance exception, try FMP
 
 
 def _detect_tickers_in_question(question: str, market: str = "US") -> tuple[list[str], list[str]]:
@@ -1687,6 +1720,24 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
         return None
 
     try:
+        # Pre-fetch FMP batch quotes for all detected tickers (single API call, ~200ms)
+        # Falls back gracefully — returns {} if FMP disabled or fails
+        fmp_prices: dict[str, dict] = {}
+        try:
+            from nq_data.fmp import get_fmp_client
+            fmp_client = get_fmp_client()
+            if fmp_client._enabled:
+                # Ensure IN tickers have .NS suffix — FMP requires it for NSE stocks
+                all_tickers = list(in_universe_tickers) + out_of_universe_words
+                if target_market == "IN":
+                    all_tickers = [
+                        t if "." in t else f"{t}.NS" for t in all_tickers
+                    ]
+                if all_tickers:
+                    fmp_prices = fmp_client.get_batch_quotes(all_tickers) or {}
+        except Exception:
+            pass
+
         # FAST PATH: score_cache for screener data (sub-100ms)
         if needs_screener or (not in_universe_tickers and not out_of_universe_words and needs_stock_scores):
             cached = score_cache.read_top(target_market, 20, max_age_seconds=300)
@@ -1709,6 +1760,15 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                         fund = _fetch_one(t, target_market, fast_pe=False)
                         price = fund.get("current_price")
                         chg = fund.get("change_pct", 0)
+                        # FMP batch-quote fallback
+                        if not price:
+                            fmp_fb = (fmp_prices.get(t)
+                                      or fmp_prices.get(f"{t}.NS")
+                                      or fmp_prices.get(f"{t}.BO")
+                                      or {})
+                            if fmp_fb.get("price"):
+                                price = fmp_fb["price"]
+                                chg = fmp_fb.get("change_pct", 0) or chg
                         cur = "Rs." if target_market == "IN" else "$"
                         price_str = f"{cur}{price:,.2f} ({chg:+.1f}%)" if price else "N/A"
                     else:
@@ -1733,6 +1793,15 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                     if fund.get("_is_real"):
                         price = fund.get("current_price")
                         chg = fund.get("change_pct", 0)
+                        # FMP batch-quote fallback
+                        if not price:
+                            fmp_fb = (fmp_prices.get(t)
+                                      or fmp_prices.get(f"{t}.NS")
+                                      or fmp_prices.get(f"{t}.BO")
+                                      or {})
+                            if fmp_fb.get("price"):
+                                price = fmp_fb["price"]
+                                chg = fmp_fb.get("change_pct", 0) or chg
                         pe = fund.get("pe_ttm")
                         cur = "Rs." if target_market == "IN" else "$"
                         price_str = f"{cur}{price:,.2f} ({chg:+.1f}%) [VERIFIED]" if price else "N/A"
@@ -1758,6 +1827,17 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                 sc = int(cached_row.get("composite_score", 0.5) * 10) if cached_row else "N/A"
                 price = fund.get("current_price")
                 chg = fund.get("change_pct", 0)
+                # FMP batch-quote fallback — critical for IN stocks where yfinance fails on cloud IPs
+                if not price:
+                    fmp_fb = (fmp_prices.get(t)
+                              or fmp_prices.get(f"{t}.NS")
+                              or fmp_prices.get(f"{t}.BO")
+                              or {})
+                    if fmp_fb.get("price"):
+                        price = fmp_fb["price"]
+                        chg = fmp_fb.get("change_pct", 0) or chg
+                        if fmp_fb.get("pe"):
+                            fund["pe_ttm"] = fmp_fb["pe"]
                 pe = fund.get("pe_ttm")
                 pb = fund.get("pb_ratio")
                 target = fund.get("analyst_target")
