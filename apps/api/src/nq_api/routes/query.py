@@ -1156,13 +1156,24 @@ def _validate_and_fill_portfolio_prices(
             except Exception:
                 pass
 
+        # ── Price Tier 3: _fetch_one (proven pipeline for IN stocks, FMP+yfinance) ──
+        if not live_price or live_price <= 0:
+            try:
+                from nq_api.data_builder import _fetch_one as _fo
+                fund = _fo(ticker, market, fast_pe=True)
+                if fund.get("current_price"):
+                    live_price = float(fund["current_price"])
+                    price_source = "fetch_one"
+            except Exception as exc:
+                log.debug("_fetch_one fallback failed for %s: %s", ticker, exc)
+
         if not live_price or live_price <= 0:
             # All sources failed
             stock["price_unavailable"] = True
             stock["entry_price"] = "Price unavailable"
             stock["target_price"] = "N/A"
             stock["stop_loss"] = "N/A"
-            fill_notes.append(f"{ticker}: price unavailable from all sources (tried FMP_batch+FMP_profile+yf_cached+yf_direct+yf_download+score_cache)")
+            fill_notes.append(f"{ticker}: price unavailable from all sources (tried FMP_batch+FMP_profile+yf_cached+yf_direct+yf_download+score_cache+fetch_one)")
             log.warning("Portfolio price unavailable for %s/%s (market=%s)", ticker, sym, market)
             continue
 
