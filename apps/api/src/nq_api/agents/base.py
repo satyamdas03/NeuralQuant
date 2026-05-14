@@ -120,6 +120,13 @@ class BaseAnalystAgent(ABC):
             "price", "change_pct", "pe_ttm", "pb_ratio", "market_cap",
             "composite_score", "regime_label", "sector", "momentum_percentile",
             "quality_percentile", "value_percentile", "low_vol_percentile",
+            # Fundamental fields for FUNDAMENTAL agent retry
+            "piotroski", "gross_profit_margin", "roe", "revenue_growth",
+            "debt_equity", "beta", "accruals_ratio",
+            # Technical fields for TECHNICAL agent retry
+            "rsi_14", "macd_hist", "atr_14", "sma_50", "sma_200", "volume_ratio",
+            # Macro fields for MACRO agent retry
+            "vix", "yield_10y", "cpi_yoy", "fed_funds_rate", "hy_spread_oas",
         ]
         simplified_ctx = {k: v for k, v in context.items() if k in essential_keys and v is not None}
         if not simplified_ctx:

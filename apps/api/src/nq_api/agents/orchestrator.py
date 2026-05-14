@@ -115,7 +115,8 @@ def _validate_analyst_response_text(response: AnalystResponse, context: dict) ->
     Corrects e.g. 'P/E of 8x' to 'P/E 30.8x' when context shows pe_ttm=30.8.
     """
     verified = {}
-    for key in ("pe_ttm", "current_price", "beta", "vix", "yield_10y", "cpi_yoy", "fed_funds_rate", "hy_spread_oas"):
+    for key in ("pe_ttm", "current_price", "beta", "vix", "yield_10y", "cpi_yoy",
+                "fed_funds_rate", "hy_spread_oas", "roe", "market_cap", "quality_percentile"):
         val = context.get(key)
         if val is not None:
             try:
@@ -148,7 +149,38 @@ def _validate_analyst_response_text(response: AnalystResponse, context: dict) ->
         (re.compile(r"(10Y[\s]*(?:Treasury[\s]*)?(?:yield[\s]*)?(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)%?", re.I), "yield_10y", 0.15),
         (re.compile(r"(Fed[\s]*Funds[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)%?", re.I), "fed_funds_rate", 0.15),
         (re.compile(r"(HY[\s]*spread[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)%?", re.I), "hy_spread_oas", 0.15),
+        # Quality percentile — catches "quality percentile of 698" (decimal-drop hallucination)
+        (re.compile(r"(quality\s*(?:percentile|pctile)?\s*(?:of|at|is)?\s*)(\d+\.?\d*)", re.I), "quality_percentile", 0.15),
+        (re.compile(r"()(\d+\.?\d*)\s*(?:th\s*)?quality\s*percentile\b", re.I), "quality_percentile", 0.15),
+        # Market cap — catches "$87T market cap" (wrong trillions) and "$487B" patterns
+        (re.compile(r"(market\s*cap\s*(?:of|at|is)?\s*\$?)(\d+\.?\d*)", re.I), "market_cap", 0.15),
+        (re.compile(r"(\$)(\d+\.?\d*)\s*([TBM])?(?:\s*\[VERIFIED\]\s*market\s*cap|\s*market\s*cap)", re.I), "market_cap", 0.15),
     ]
+
+    def _normalise_mcap(raw: float, suffix: str | None = None) -> float:
+        """Normalise market cap to raw dollars."""
+        if suffix:
+            s = suffix.upper()
+            if s == "T":
+                return raw * 1e12
+            elif s == "B":
+                return raw * 1e9
+            elif s == "M":
+                return raw * 1e6
+        # If raw is small (likely already in trillions from "$4.87T"), convert
+        if raw < 1000:
+            return raw * 1e12
+        return raw
+
+    def _format_mcap(val: float) -> str:
+        """Format market cap to human-readable string."""
+        if val >= 1e12:
+            return f"${val/1e12:.2f}T"
+        elif val >= 1e9:
+            return f"${val/1e9:.2f}B"
+        elif val >= 1e6:
+            return f"${val/1e6:.2f}M"
+        return f"${val:,.0f}"
 
     for field_name, text in corrected.items():
         if field_name == "risk_factors":
@@ -171,8 +203,28 @@ def _validate_analyst_response_text(response: AnalystResponse, context: dict) ->
                     # Skip very small numbers for P/E (likely percentages)
                     if metric_key == "pe_ttm" and claimed < 3:
                         continue
-                    min_val = true_val * (1 - tolerance)
-                    max_val = true_val * (1 + tolerance)
+                    # Market cap: normalise suffix (T/B/M in group 3)
+                    if metric_key == "market_cap":
+                        suffix = None
+                        try:
+                            suffix = match.group(3)
+                        except IndexError:
+                            pass
+                        claimed = _normalise_mcap(claimed, suffix)
+                        cmp_true = true_val  # raw dollars from context
+                    elif metric_key == "quality_percentile":
+                        # Decimal-drop detection: if claimed > 1.0 and true_val <= 1.0,
+                        # the LLM likely dropped the decimal (0.698 → 698)
+                        if claimed > 1.0 and true_val <= 1.0:
+                            if claimed >= 100:
+                                claimed = claimed / 1000  # 698 → 0.698
+                            elif claimed >= 10:
+                                claimed = claimed / 100
+                        cmp_true = true_val
+                    else:
+                        cmp_true = true_val
+                    min_val = cmp_true * (1 - tolerance)
+                    max_val = cmp_true * (1 + tolerance)
                     if min_val <= claimed <= max_val:
                         continue
                     # Correct
@@ -191,6 +243,10 @@ def _validate_analyst_response_text(response: AnalystResponse, context: dict) ->
                         replacement = f"Fed Funds {true_val:.2f}%"
                     elif metric_key == "hy_spread_oas":
                         replacement = f"HY spread {true_val:.0f}bps"
+                    elif metric_key == "quality_percentile":
+                        replacement = f"quality percentile {true_val:.3f}"
+                    elif metric_key == "market_cap":
+                        replacement = f"market cap {_format_mcap(true_val)}"
                     else:
                         replacement = f"{metric_key} {true_val:.1f}"
                     t = t.replace(old_text, replacement)
@@ -264,7 +320,10 @@ class ParaDebateOrchestrator:
                 )
             except asyncio.TimeoutError:
                 log.warning("%s agent timed out after %ds for %s", agent.agent_name, int(timeout), ticker)
-                return agent._neutral_fallback()
+                return agent._neutral_fallback(ticker, context)
+            except Exception as exc:
+                log.warning("%s agent crashed for %s: %s", agent.agent_name, ticker, exc)
+                return agent._neutral_fallback(ticker, context)
 
         if _is_ollama():
             # Ollama: sequential execution
@@ -276,11 +335,14 @@ class ParaDebateOrchestrator:
                         timeout=self.SPECIALIST_TIMEOUT,
                     )
                     specialist_outputs.append(
-                        result if isinstance(result, AgentOutput) else agent._neutral_fallback()
+                        result if isinstance(result, AgentOutput) else agent._neutral_fallback(ticker, context)
                     )
                 except asyncio.TimeoutError:
                     log.warning("%s agent timed out after %ds for %s", agent.agent_name, int(self.SPECIALIST_TIMEOUT), ticker)
-                    specialist_outputs.append(agent._neutral_fallback())
+                    specialist_outputs.append(agent._neutral_fallback(ticker, context))
+                except Exception as exc:
+                    log.warning("%s agent crashed for %s: %s", agent.agent_name, ticker, exc)
+                    specialist_outputs.append(agent._neutral_fallback(ticker, context))
             # Adversarial after specialists (Ollama, uses specialist outputs)
             adv_msg = self._adversarial._build_user_message(ticker, context)
             adversarial_output = await _run_one(self._adversarial, self.ADVERSARIAL_TIMEOUT, adv_msg)
