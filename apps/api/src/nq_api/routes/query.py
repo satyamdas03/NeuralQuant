@@ -1025,6 +1025,22 @@ def _validate_portfolio_stocks(portfolio_stocks: list[dict], market: str, summar
     return portfolio_stocks, summary, corrections
 
 
+def _infer_portfolio_market(portfolio_stocks: list[dict], explicit_market: str | None) -> str:
+    """Auto-detect market from portfolio tickers when explicit_market is None.
+    Returns 'IN' if majority of tickers are in NSE universe, else explicit or 'US'."""
+    if explicit_market:
+        return explicit_market
+    if not portfolio_stocks:
+        return "US"
+    try:
+        from nq_api.universe import IN_DEFAULT
+        in_set = frozenset(IN_DEFAULT)
+        n_in = sum(1 for s in portfolio_stocks if s.get("ticker", "").upper() in in_set)
+        return "IN" if n_in >= len(portfolio_stocks) * 0.5 else "US"
+    except Exception:
+        return "US"
+
+
 def _validate_and_fill_portfolio_prices(
     portfolio_stocks: list[dict], market: str
 ) -> tuple[list[dict], list[str]]:
@@ -2866,8 +2882,9 @@ async def run_nl_query_v2(
                         parsed["action_prompts"] = []
                     # Validate portfolio stock data against real yfinance
                     if parsed.get("portfolio_stocks"):
+                        pf_market = _infer_portfolio_market(parsed["portfolio_stocks"], req.market)
                         corrected_stocks, corrected_summary, pf_corrections = await asyncio.to_thread(
-                            _validate_portfolio_stocks, parsed["portfolio_stocks"], req.market or "US", parsed.get("summary", "")
+                            _validate_portfolio_stocks, parsed["portfolio_stocks"], pf_market, parsed.get("summary", "")
                         )
                         parsed["portfolio_stocks"] = corrected_stocks
                         if corrected_summary != parsed.get("summary", ""):
@@ -2875,8 +2892,9 @@ async def run_nl_query_v2(
                         if pf_corrections and parsed.get("summary"):
                             parsed["summary"] += f" [Data verified: {'; '.join(pf_corrections)}]"
                         # Fill live prices for entry/target/stop_loss
+                        pf_market = _infer_portfolio_market(parsed["portfolio_stocks"], req.market)
                         filled_stocks, fill_notes = await asyncio.to_thread(
-                            _validate_and_fill_portfolio_prices, parsed["portfolio_stocks"], req.market or "US"
+                            _validate_and_fill_portfolio_prices, parsed["portfolio_stocks"], pf_market
                         )
                         parsed["portfolio_stocks"] = filled_stocks
                         if fill_notes and parsed.get("summary"):
@@ -3578,8 +3596,9 @@ async def run_nl_query_v2_stream(
                                 parsed["data_quality_flags"].append("Scenario analysis incomplete")
                             # Validate portfolio stock data against real yfinance
                             if parsed.get("portfolio_stocks"):
+                                pf_market = _infer_portfolio_market(parsed["portfolio_stocks"], req.market)
                                 corrected_stocks, corrected_summary, pf_corrections = await asyncio.to_thread(
-                                    _validate_portfolio_stocks, parsed["portfolio_stocks"], req.market or "US", parsed.get("summary", "")
+                                    _validate_portfolio_stocks, parsed["portfolio_stocks"], pf_market, parsed.get("summary", "")
                                 )
                                 parsed["portfolio_stocks"] = corrected_stocks
                                 if corrected_summary != parsed.get("summary", ""):
@@ -3587,8 +3606,9 @@ async def run_nl_query_v2_stream(
                                 if pf_corrections and parsed.get("summary"):
                                     parsed["summary"] += f" [Data verified: {'; '.join(pf_corrections)}]"
                                 # Fill live prices for entry/target/stop_loss
+                                pf_market = _infer_portfolio_market(parsed["portfolio_stocks"], req.market)
                                 filled_stocks, fill_notes = await asyncio.to_thread(
-                                    _validate_and_fill_portfolio_prices, parsed["portfolio_stocks"], req.market or "US"
+                                    _validate_and_fill_portfolio_prices, parsed["portfolio_stocks"], pf_market
                                 )
                                 parsed["portfolio_stocks"] = filled_stocks
                                 if fill_notes and parsed.get("summary"):
