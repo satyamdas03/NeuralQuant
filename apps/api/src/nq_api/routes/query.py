@@ -1042,6 +1042,9 @@ def _validate_and_fill_portfolio_prices(
 
     fill_notes = []
     cur = "₹" if market == "IN" else "$"
+    _CACHED_PATTERN = re.compile(
+        r"(?:cached|enter near|enter at|market price|current price)", re.IGNORECASE
+    )
 
     # ── Phase 0: FMP batch_quotes pre-fetch (single API call, ~200ms, most reliable) ──
     fmp_prices: dict[str, dict] = {}
@@ -1157,6 +1160,10 @@ def _validate_and_fill_portfolio_prices(
             or "Live N/A" in entry_str
             or "unavailable" in entry_str.lower()
             or "enter at market" in entry_str.lower()
+            or "enter near" in entry_str.lower()
+            or "market price" in entry_str.lower()
+            or "current price" in entry_str.lower()
+            or _CACHED_PATTERN.search(entry_str)
         )
 
         # Check if existing entry price is stale (>5% off live)
@@ -1221,15 +1228,17 @@ def _validate_and_fill_portfolio_prices(
             except (ValueError, ZeroDivisionError):
                 pass
 
-    # Strip LLM-fabricated placeholder text from entry_price fields
-    _CACHED_PATTERN = re.compile(
-        r"(?:cached|enter near|enter at|market price|current price)", re.IGNORECASE
-    )
+    # Safety net: stocks that escaped needs_fill but have placeholder text
     for stock in portfolio_stocks:
+        if stock.get("price_unavailable"):
+            continue  # already flagged
         ep = stock.get("entry_price", "")
         if ep and _CACHED_PATTERN.search(ep):
+            # Already-filled prices ($154.32 ...) won't match. Only
+            # LLM-generated placeholders that slipped past needs_fill.
             stock["entry_price"] = "Price unavailable"
             stock["price_unavailable"] = True
+            fill_notes.append(f"{stock.get('ticker','?')}: placeholder in entry_price after fill")
 
     return portfolio_stocks, fill_notes
 
