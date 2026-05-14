@@ -137,23 +137,25 @@ def _validate_analyst_response_text(response: AnalystResponse, context: dict) ->
 
     # Extended patterns for HEAD_ANALYST text (includes yield, VIX, CPI, etc.).
     # Tolerance 0.15 (was 0.20) — FMP primary source, values are trustworthy.
+    # Filler words LLM may insert between preposition and number (e.g. "ROE of only 0%")
+    _FILLER = r"(?:only|just|about|around|approximately|roughly|nearly|almost|a\s+)?\s*"
     text_patterns = [
-        (re.compile(r"(P/[\sE]?E[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)(x?)", re.I), "pe_ttm", 0.15),
-        (re.compile(r"(price[\s-]to[\s-]earnings[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)", re.I), "pe_ttm", 0.15),
+        (re.compile(r"(P/[\sE]?E[\s]*(?:of|at|is|=|:)?[\s]*" + _FILLER + r")(\d+\.?\d*)(x?)", re.I), "pe_ttm", 0.15),
+        (re.compile(r"(price[\s-]to[\s-]earnings[\s]*(?:of|at|is|=|:)?[\s]*" + _FILLER + r")(\d+\.?\d*)", re.I), "pe_ttm", 0.15),
         # Number-first formats: "8x P/E", "trading at 15x P/E"
         (re.compile(r"()(\d+\.?\d*)\s*x?\s*P/E\b", re.I), "pe_ttm", 0.15),
-        (re.compile(r"(ROE[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)", re.I), "roe", 0.15),
-        (re.compile(r"(beta[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)", re.I), "beta", 0.15),
-        (re.compile(r"(VIX[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)", re.I), "vix", 0.15),
-        (re.compile(r"(CPI[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)%?", re.I), "cpi_yoy", 0.15),
-        (re.compile(r"(10Y[\s]*(?:Treasury[\s]*)?(?:yield[\s]*)?(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)%?", re.I), "yield_10y", 0.15),
-        (re.compile(r"(Fed[\s]*Funds[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)%?", re.I), "fed_funds_rate", 0.15),
-        (re.compile(r"(HY[\s]*spread[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)%?", re.I), "hy_spread_oas", 0.15),
+        (re.compile(r"(ROE[\s]*(?:of|at|is|=|:)?[\s]*" + _FILLER + r")(\d+\.?\d*)", re.I), "roe", 0.15),
+        (re.compile(r"(beta[\s]*(?:of|at|is|=|:)?[\s]*" + _FILLER + r")(\d+\.?\d*)", re.I), "beta", 0.15),
+        (re.compile(r"(VIX[\s]*(?:of|at|is|=|:)?[\s]*" + _FILLER + r")(\d+\.?\d*)", re.I), "vix", 0.15),
+        (re.compile(r"(CPI[\s]*(?:of|at|is|=|:)?[\s]*" + _FILLER + r")(\d+\.?\d*)%?", re.I), "cpi_yoy", 0.15),
+        (re.compile(r"(10Y[\s]*(?:Treasury[\s]*)?(?:yield[\s]*)?(?:of|at|is|=|:)?[\s]*" + _FILLER + r")(\d+\.?\d*)%?", re.I), "yield_10y", 0.15),
+        (re.compile(r"(Fed[\s]*Funds[\s]*(?:of|at|is|=|:)?[\s]*" + _FILLER + r")(\d+\.?\d*)%?", re.I), "fed_funds_rate", 0.15),
+        (re.compile(r"(HY[\s]*spread[\s]*(?:of|at|is|=|:)?[\s]*" + _FILLER + r")(\d+\.?\d*)%?", re.I), "hy_spread_oas", 0.15),
         # Quality percentile — catches "quality percentile of 698" (decimal-drop hallucination)
-        (re.compile(r"(quality\s*(?:percentile|pctile)?\s*(?:of|at|is)?\s*)(\d+\.?\d*)", re.I), "quality_percentile", 0.15),
-        (re.compile(r"()(\d+\.?\d*)\s*(?:th\s*)?quality\s*percentile\b", re.I), "quality_percentile", 0.15),
+        (re.compile(r"(quality\s*(?:percentile|pctile)?\s*(?:of|at|is)?\s*" + _FILLER + r")(\d+\.?\d*)", re.I), "quality_percentile", 0.15),
+        (re.compile(r"()(\d+\.?\d*)\s*(?:th\s*)?" + _FILLER + r"quality\s*percentile\b", re.I), "quality_percentile", 0.15),
         # Market cap — catches "$87T market cap" (wrong trillions) and "$487B" patterns
-        (re.compile(r"(market\s*cap\s*(?:of|at|is)?\s*\$?)(\d+\.?\d*)", re.I), "market_cap", 0.15),
+        (re.compile(r"(market\s*cap\s*(?:of|at|is)?\s*\$?" + _FILLER + r")(\d+\.?\d*)", re.I), "market_cap", 0.15),
         (re.compile(r"(\$)(\d+\.?\d*)\s*([TBM])?(?:\s*\[VERIFIED\]\s*market\s*cap|\s*market\s*cap)", re.I), "market_cap", 0.15),
     ]
 
@@ -200,9 +202,11 @@ def _validate_analyst_response_text(response: AnalystResponse, context: dict) ->
                         claimed = float(match.group(2))
                     except (ValueError, IndexError):
                         continue
-                    # Skip very small numbers for P/E (likely percentages)
+                    # Skip P/E values only when followed by % (e.g. "P/E ratio of 2.5%")
                     if metric_key == "pe_ttm" and claimed < 3:
-                        continue
+                        after_match = t[match.end():match.end()+2].strip()
+                        if "%" in after_match or "percent" in after_match.lower():
+                            continue
                     # Market cap: normalise suffix (T/B/M in group 3)
                     if metric_key == "market_cap":
                         suffix = None
