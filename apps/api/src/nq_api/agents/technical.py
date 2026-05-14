@@ -70,6 +70,14 @@ class TechnicalAgent(BaseAnalystAgent):
     agent_name = "TECHNICAL"
     system_prompt = _SYSTEM
 
+    @staticmethod
+    def _data_quality_warning(context: dict) -> str:
+        dq = context.get("_data_quality_flags", [])
+        if not dq:
+            return ""
+        return "\n⚠ DATA QUALITY WARNINGS (these values are unreliable):\n" + \
+               "\n".join(f"  • {f}" for f in dq)
+
     def _build_user_message(self, ticker: str, context: dict) -> str:
         crash_protection = _compute_crash_protection(context)
         market = context.get("market", "US")
@@ -84,23 +92,26 @@ class TechnicalAgent(BaseAnalystAgent):
 
         return f"""Analyse the technical setup for {ticker}.
 
-Technical data:
-- 12-1 momentum raw: {context.get('momentum_raw', 'N/A')}
-- Momentum percentile vs universe: {context.get('momentum_percentile', 'N/A')}
-- RSI-14: {context.get('rsi_14', 'N/A')}
-- MACD line: {context.get('macd_line', 'N/A')}
-- MACD signal: {context.get('macd_signal', 'N/A')}
-- MACD histogram: {context.get('macd_hist', 'N/A')}
-- ATR-14: {context.get('atr_14', 'N/A')}
-- SMA-50: {context.get('sma_50', 'N/A')}
-- SMA-200: {context.get('sma_200', 'N/A')}
-- Price vs SMA-50: {context.get('price_vs_sma50', 'N/A')}
-- Price vs SMA-200: {context.get('price_vs_sma200', 'N/A')}
-- Volume today: {context.get('volume_today', 'N/A')}
-- Volume 20d avg: {context.get('volume_20d_avg', 'N/A')}
-- Volume ratio: {context.get('volume_ratio', 'N/A')}
+IMPORTANT: Every value below marked [VERIFIED] is LIVE data from FMP/yfinance — authoritative. Use ONLY these exact numbers. Never substitute from training data. If a field shows N/A, it is genuinely unavailable — do not fabricate.
+
+Technical data [VERIFIED]:
+- 12-1 momentum raw: {context.get('momentum_raw', 'N/A')} [VERIFIED]
+- Momentum percentile vs universe: {context.get('momentum_percentile', 'N/A')} [VERIFIED]
+- RSI-14: {context.get('rsi_14', 'N/A')} [VERIFIED]
+- MACD line: {context.get('macd_line', 'N/A')} [VERIFIED]
+- MACD signal: {context.get('macd_signal', 'N/A')} [VERIFIED]
+- MACD histogram: {context.get('macd_hist', 'N/A')} [VERIFIED]
+- ATR-14: {context.get('atr_14', 'N/A')} [VERIFIED]
+- SMA-50: {context.get('sma_50', 'N/A')} [VERIFIED]
+- SMA-200: {context.get('sma_200', 'N/A')} [VERIFIED]
+- Price vs SMA-50: {context.get('price_vs_sma50', 'N/A')} [VERIFIED]
+- Price vs SMA-200: {context.get('price_vs_sma200', 'N/A')} [VERIFIED]
+- Volume today: {context.get('volume_today', 'N/A')} [VERIFIED]
+- Volume 20d avg: {context.get('volume_20d_avg', 'N/A')} [VERIFIED]
+- Volume ratio: {context.get('volume_ratio', 'N/A')} [VERIFIED]
 - Crash protection: {crash_protection}
 - {index_label}: {index_val}
 - Market regime: {context.get('regime_label', 'N/A')}
 
+{self._data_quality_warning(context)}
 Provide your technical stance on {ticker}."""

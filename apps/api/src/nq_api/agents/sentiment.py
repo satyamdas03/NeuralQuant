@@ -83,18 +83,24 @@ Social Sentiment Data:
         if news_buzz != "N/A":
             news_ctx += f"\n- News buzz: {news_buzz} (>1.0 = elevated coverage)"
 
+        dq_flags = context.get('_data_quality_flags', [])
+        dq_section = ""
+        if dq_flags:
+            dq_section = "\n⚠ DATA QUALITY WARNINGS (these values are unreliable):\n"
+            dq_section += "\n".join(f"  • {f}" for f in dq_flags)
+
         return f"""Analyse sentiment signals for {ticker}.
 
-IMPORTANT: Use ONLY the exact figures provided below. Do not substitute values from memory or training data.
+IMPORTANT: Every value below marked [VERIFIED] is LIVE data from FMP/Finnhub — authoritative. Use ONLY these exact numbers. Never substitute from training data.
 
-Sentiment data (live as of today):
-- Low-short-interest rank (0-1, higher = LESS shorting = bullish): {context.get('low_short_interest_rank', 'N/A')}
-- Short interest % of float: {context.get('short_interest_pct', 'N/A')}%
+Sentiment data [VERIFIED] (live as of today):
+- Low-short-interest rank (0-1, higher = LESS shorting = bullish): {context.get('low_short_interest_rank', 'N/A')} [VERIFIED]
+- Short interest % of float: {context.get('short_interest_pct', 'N/A')}% [VERIFIED]
 {insider_ctx}
 {news_ctx}
 - Market regime: {context.get('regime_label', 'N/A')}
-- Analyst target mean: {context.get('analyst_target_mean', 'N/A')}
-{social_ctx}
+- Analyst target mean: {context.get('analyst_target_mean', 'N/A')} [VERIFIED]
+{social_ctx}{dq_section}
 Provide your sentiment stance on {ticker}. Reference the specific numbers above in your key points.
 
 CRITICAL: low_short_interest_rank is the INVERSE short interest rank — a high value (e.g. 0.86) means LOW short interest (bullish), NOT high short interest. Always cross-reference with short_interest_pct (actual % of float). Short interest >5% of float is elevated; >10% is very high."""

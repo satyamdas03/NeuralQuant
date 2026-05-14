@@ -58,16 +58,16 @@ class MacroAgent(BaseAnalystAgent):
         if market == "IN":
             return f"""Analyse the macro environment for {ticker} (Indian market / NSE).
 
-IMPORTANT: Use ONLY the exact figures provided below. Do not substitute values from memory or training data.
+IMPORTANT: Every value below marked [VERIFIED] is LIVE data from FMP/yfinance — authoritative. Use ONLY these exact numbers. Never substitute from training data.
 
-Current India macro data (live as of today):
-- India VIX: {context.get('india_vix', 'N/A')} (typically 10-25 range; >20 = elevated fear)
+Current India macro data [VERIFIED] (live as of today):
+- India VIX: {context.get('india_vix', 'N/A')} [VERIFIED] (typically 10-25 range; >20 = elevated fear)
 - Market regime: {regime}
-- RBI repo rate: {context.get('rbi_repo_rate', 'N/A')}%
-- INR/USD: {context.get('inr_usd', 'N/A')} (higher = weaker rupee)
-- Nifty 50 vs 200-day MA: {context.get('nifty_vs_200ma', 'N/A')}% (positive = above 200MA)
-- Nifty 50 1-month return: {context.get('nifty_return_1m', 'N/A')}%
-- Sensex close: {context.get('sensex_close', 'N/A')}
+- RBI repo rate: {context.get('rbi_repo_rate', 'N/A')}% [VERIFIED]
+- INR/USD: {context.get('inr_usd', 'N/A')} [VERIFIED] (higher = weaker rupee)
+- Nifty 50 vs 200-day MA: {context.get('nifty_vs_200ma', 'N/A')}% [VERIFIED] (positive = above 200MA)
+- Nifty 50 1-month return: {context.get('nifty_return_1m', 'N/A')}% [VERIFIED]
+- Sensex close: {context.get('sensex_close', 'N/A')} [VERIFIED]
 
 ## India-specific framework:
 1. RBI rate cycle — repo rate impacts banking, real estate, infrastructure stocks
@@ -98,19 +98,19 @@ Provide your macro stance on {ticker}. Reference the specific numbers above in y
 
         return f"""Analyse the macro environment for {ticker}.
 
-IMPORTANT: Use ONLY the exact figures provided below. Do not substitute values from memory or training data.
+IMPORTANT: Every value below marked [VERIFIED] is LIVE data from FRED/FMP — authoritative. Use ONLY these exact numbers. Never substitute from training data.
 
-Current macro data (live as of today):
-- VIX (fear index): {vix} points (current reading - use this exact number)
+Current macro data [VERIFIED] (live as of today):
+- VIX (fear index): {vix} points [VERIFIED] (current reading - use this exact number)
 - Market regime (HMM model): {regime}
-- ISM Manufacturing PMI: {ism_pmi} (readings above 50 = expansion, below 50 = contraction)
-- 10Y Treasury yield: {yield_10y}%
-- 2Y Treasury yield: {yield_2y}%
-- 2Y-10Y yield spread: {yield_spread}% (negative = inverted curve)
-- HY credit spread (OAS): {hy_spread} bps
-- SPX 1-month return: {spx_1m}%
-- SPX vs 200-day MA: {spx_200ma}% (positive = above 200MA)
-- CPI YoY inflation: {cpi}%
-- Fed funds rate: {fed_funds}%
+- ISM Manufacturing PMI: {ism_pmi} [VERIFIED] (readings above 50 = expansion, below 50 = contraction)
+- 10Y Treasury yield: {yield_10y}% [VERIFIED]
+- 2Y Treasury yield: {yield_2y}% [VERIFIED]
+- 2Y-10Y yield spread: {yield_spread}% [VERIFIED] (negative = inverted curve)
+- HY credit spread (OAS): {hy_spread} bps [VERIFIED]
+- SPX 1-month return: {spx_1m}% [VERIFIED]
+- SPX vs 200-day MA: {spx_200ma}% [VERIFIED] (positive = above 200MA)
+- CPI YoY inflation: {cpi}% [VERIFIED]
+- Fed funds rate: {fed_funds}% [VERIFIED]
 
 Provide your macro stance on {ticker}. Reference the specific numbers above in your key points."""

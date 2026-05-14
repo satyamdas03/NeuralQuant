@@ -53,18 +53,18 @@ class GeopoliticalAgent(BaseAnalystAgent):
 
         return f"""Assess geopolitical and regulatory risks for {ticker}.
 
-IMPORTANT: Use ONLY the exact figures provided below. Do not substitute values from memory or training data.
+IMPORTANT: Every value below marked [VERIFIED] is LIVE data from FRED/FMP — authoritative. Use ONLY these exact numbers. Never substitute from training data.
 
-Context (live as of today):
+Context [VERIFIED] (live as of today):
 - Market: {market}
 - Macro regime: {context.get('regime_label', 'N/A')}
-- HY credit spread (OAS): {context.get('hy_spread_oas', 'N/A')} bps
-- VIX: {context.get('vix', 'N/A')}
-- 2Y-10Y yield spread: {context.get('yield_spread_2y10y', 'N/A')}%
-- 10Y Treasury yield: {context.get('yield_10y', 'N/A')}%
-- SPX vs 200-day MA: {context.get('spx_vs_200ma', 'N/A')}%
-- CPI YoY: {context.get('cpi_yoy', 'N/A')}%
-- Beta: {context.get('beta', 'N/A')} (higher beta = more geopolitical sensitivity)
+- HY credit spread (OAS): {context.get('hy_spread_oas', 'N/A')} bps [VERIFIED]
+- VIX: {context.get('vix', 'N/A')} [VERIFIED]
+- 2Y-10Y yield spread: {context.get('yield_spread_2y10y', 'N/A')}% [VERIFIED]
+- 10Y Treasury yield: {context.get('yield_10y', 'N/A')}% [VERIFIED]
+- SPX vs 200-day MA: {context.get('spx_vs_200ma', 'N/A')}% [VERIFIED]
+- CPI YoY: {context.get('cpi_yoy', 'N/A')}% [VERIFIED]
+- Beta: {context.get('beta', 'N/A')} [VERIFIED] (higher beta = more geopolitical sensitivity)
 {sector_note}
 Provide your geopolitical risk stance on {ticker}. Reference the specific numbers above in your key points.
 

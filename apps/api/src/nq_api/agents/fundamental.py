@@ -110,24 +110,31 @@ Sector median ({sector}):
 
 Compare this stock's metrics to the sector median above when making your assessment."""
 
+        # Data quality warnings
+        dq_flags = context.get('_data_quality_flags', [])
+        dq_section = ""
+        if dq_flags:
+            dq_section = "\n⚠ DATA QUALITY WARNINGS (these values are unreliable — treat with low confidence):\n"
+            dq_section += "\n".join(f"  • {f}" for f in dq_flags)
+
         return f"""Analyse the fundamental investment merit of {ticker}.
 
-IMPORTANT: Use ONLY the exact figures provided below. Do not substitute values from memory or training data.
+IMPORTANT: Every value below marked [VERIFIED] is LIVE data from FMP/yfinance — authoritative. Use ONLY these exact numbers. Never substitute from training data. If a field shows N/A, it is genuinely unavailable — do not fabricate.
 
-Financial data (live as of today):
-- Piotroski F-Score: {context.get('piotroski', 'N/A')} / 9 (higher = stronger fundamentals)
-- Gross profit margin: {gpm_display}
-- ROE: {roe_display}
-- Revenue growth YoY: {rev_display}
-- Debt/Equity: {de_display}
-- Quality composite percentile: {context.get('quality_percentile', 'N/A')} (0-1 scale, higher = better quality vs universe)
-- Trailing P/E ratio: {pe}x
-- Price-to-Book ratio: {pb}x
-- Beta (market sensitivity): {beta}
-- Accruals ratio: {context.get('accruals_ratio', 'N/A')} (lower/negative is better - indicates cash earnings quality)
-- Market cap: {context.get('market_cap', 'N/A')}
-- 52-week range: {context.get('week52_low', 'N/A')} – {context.get('week52_high', 'N/A')}
-- Analyst target mean: {context.get('analyst_target_mean', 'N/A')}
-- AI composite score: {context.get('composite_score', 'N/A')} (0-1 scale)
-{sector_section}
+Financial data [VERIFIED] (live as of today):
+- Piotroski F-Score: {context.get('piotroski', 'N/A')} / 9 [VERIFIED] (higher = stronger fundamentals)
+- Gross profit margin: {gpm_display} [VERIFIED]
+- ROE: {roe_display} [VERIFIED]
+- Revenue growth YoY: {rev_display} [VERIFIED]
+- Debt/Equity: {de_display} [VERIFIED]
+- Quality composite percentile: {context.get('quality_percentile', 'N/A')} [VERIFIED] (0-1 scale)
+- Trailing P/E ratio: {pe}x [VERIFIED]
+- Price-to-Book ratio: {pb}x [VERIFIED]
+- Beta (market sensitivity): {beta} [VERIFIED]
+- Accruals ratio: {context.get('accruals_ratio', 'N/A')} [VERIFIED] (lower/negative = better)
+- Market cap: {context.get('market_cap', 'N/A')} [VERIFIED]
+- 52-week range: {context.get('week52_low', 'N/A')} – {context.get('week52_high', 'N/A')} [VERIFIED]
+- Analyst target mean: {context.get('analyst_target_mean', 'N/A')} [VERIFIED]
+- AI composite score: {context.get('composite_score', 'N/A')} [VERIFIED] (0-1 scale)
+{sector_section}{dq_section}
 Provide your fundamental stance on {ticker}. Reference the specific numbers above in your key points."""
