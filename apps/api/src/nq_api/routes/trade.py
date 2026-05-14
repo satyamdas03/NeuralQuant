@@ -563,14 +563,39 @@ from pydantic import BaseModel, Field
 
 @router.get("/market-status")
 def get_market_status() -> dict:
-    """Return whether US market is currently open. Uses DST-aware ET timezone check."""
+    """Return whether US market is currently open, with next open/close times in ISO format."""
     try:
         from zoneinfo import ZoneInfo
-        from datetime import datetime, timezone
-        now_et = datetime.now(timezone.utc).astimezone(ZoneInfo("US/Eastern"))
+        from datetime import datetime, timezone, timedelta
+        et = ZoneInfo("US/Eastern")
+        now_et = datetime.now(timezone.utc).astimezone(et)
         t = now_et.hour * 60 + now_et.minute
         is_open = now_et.weekday() < 5 and 9 * 60 + 30 <= t < 16 * 60
-        return {"is_open": is_open, "next_open": None, "next_close": None}
+
+        def _next_trading_day(d: datetime) -> datetime:
+            d = d + timedelta(days=1)
+            while d.weekday() >= 5:
+                d = d + timedelta(days=1)
+            return d
+
+        if is_open:
+            next_open = _next_trading_day(now_et).replace(hour=9, minute=30, second=0, microsecond=0)
+            next_close = now_et.replace(hour=16, minute=0, second=0, microsecond=0)
+        elif t < 9 * 60 + 30 and now_et.weekday() < 5:
+            # Before market open on a trading day
+            next_open = now_et.replace(hour=9, minute=30, second=0, microsecond=0)
+            next_close = now_et.replace(hour=16, minute=0, second=0, microsecond=0)
+        else:
+            # After market close or weekend
+            next_day = _next_trading_day(now_et)
+            next_open = next_day.replace(hour=9, minute=30, second=0, microsecond=0)
+            next_close = next_day.replace(hour=16, minute=0, second=0, microsecond=0)
+
+        return {
+            "is_open": is_open,
+            "next_open": next_open.isoformat(),
+            "next_close": next_close.isoformat(),
+        }
     except Exception:
         return {"is_open": False, "next_open": None, "next_close": None}
 

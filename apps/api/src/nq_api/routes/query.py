@@ -1724,20 +1724,36 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                     momentum = row.get("momentum_percentile")
                     quality = row.get("quality_percentile")
                     value = row.get("value_percentile")
-                    # Fetch live price for top stocks only (first 5)
-                    if i < 5:
-                        fund = _fetch_one(t, target_market, fast_pe=False)
-                        price = fund.get("current_price")
-                        chg = fund.get("change_pct", 0)
-                        # FMP batch-quote fallback
-                        if not price:
+                    # Fetch live price for top stocks (first N)
+                    # IN: FMP batch quotes first (fast, already pre-fetched), _fetch_one only as fallback
+                    # US: _fetch_one first (FMP direct, sub-2s)
+                    n_live = 3 if target_market == "IN" else 5
+                    if i < n_live:
+                        price = None
+                        chg = 0
+                        if target_market == "IN":
+                            # Try FMP batch quotes first for IN — yfinance unreliable on Render
                             fmp_fb = (fmp_prices.get(t)
                                       or fmp_prices.get(f"{t}.NS")
                                       or fmp_prices.get(f"{t}.BO")
                                       or {})
                             if fmp_fb.get("price"):
                                 price = fmp_fb["price"]
-                                chg = fmp_fb.get("change_pct", 0) or chg
+                                chg = fmp_fb.get("change_pct", 0) or 0
+                            if not price:
+                                fund = _fetch_one(t, target_market, fast_pe=True)
+                                price = fund.get("current_price")
+                                chg = fund.get("change_pct", 0)
+                        else:
+                            fund = _fetch_one(t, target_market, fast_pe=False)
+                            price = fund.get("current_price")
+                            chg = fund.get("change_pct", 0)
+                            # FMP batch-quote fallback
+                            if not price:
+                                fmp_fb = (fmp_prices.get(t) or {})
+                                if fmp_fb.get("price"):
+                                    price = fmp_fb["price"]
+                                    chg = fmp_fb.get("change_pct", 0) or chg
                         cur = "Rs." if target_market == "IN" else "$"
                         price_str = f"{cur}{price:,.2f} ({chg:+.1f}%)" if price else "N/A"
                     else:
@@ -3294,7 +3310,7 @@ async def run_nl_query_v2_stream(
         while not context_done.is_set():
             yield 'data: {"status":"running"}\n\n'
             elapsed = time.monotonic() - ctx_start
-            if elapsed > 30:                       # bumped 15s -> 30s
+            if elapsed > 55:                       # 55s: must be >= max inner timeout (45s) + buffer
                 context_task.cancel()
                 result_holder.setdefault("error", "Context gathering timed out")
                 break
