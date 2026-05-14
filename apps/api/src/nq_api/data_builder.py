@@ -832,7 +832,23 @@ def _fetch_one(ticker: str, market: str, fast_pe: bool = True) -> dict:
         sector          = info.get("sector")
 
         if current_price is None:
-            _missing.add("current_price")
+            # yf.download fallback — more reliable than .info on cloud IPs (different Yahoo endpoint)
+            try:
+                import yfinance as yf
+                sess = _get_yf_session()
+                yf_kw = {"period": "5d", "progress": False, "auto_adjust": True, "threads": False}
+                if sess:
+                    yf_kw["session"] = sess
+                hist = yf.download(sym, **yf_kw)
+                if hist is not None and not hist.empty and "Close" in hist.columns:
+                    close_vals = hist["Close"].dropna()
+                    if len(close_vals) > 0:
+                        current_price = float(close_vals.iloc[-1])
+                        log.debug("yf.download fallback price for %s: %.2f", ticker, current_price)
+            except Exception:
+                pass
+            if current_price is None:
+                _missing.add("current_price")
 
         # Earnings date (yfinance-only)
         earnings_date = None
