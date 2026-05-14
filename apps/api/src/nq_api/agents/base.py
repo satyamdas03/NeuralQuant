@@ -72,8 +72,8 @@ class BaseAnalystAgent(ABC):
     def _build_user_message(self, ticker: str, context: dict) -> str:
         ...
 
-    def run(self, ticker: str, context: dict) -> AgentOutput:
-        user_msg = self._build_user_message(ticker, context)
+    def run(self, ticker: str, context: dict, _msg_override: str | None = None) -> AgentOutput:
+        user_msg = _msg_override if _msg_override else self._build_user_message(ticker, context)
         ctx_keys = [k for k in context if context.get(k) is not None and k != "ticker"][:5]
         logger.info("%s agent starting for %s (context keys: %s...)", self.agent_name, ticker, ctx_keys)
         try:

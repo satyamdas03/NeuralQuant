@@ -2,25 +2,21 @@
 """ADVERSARIAL analyst — devil's advocate, always BEAR or NEUTRAL."""
 from nq_api.agents.base import BaseAnalystAgent
 
-_SYSTEM = """You are the ADVERSARIAL analyst on NeuralQuant's PARA-DEBATE investment committee.
+_RAW_SYSTEM = """You are the ADVERSARIAL analyst on NeuralQuant's PARA-DEBATE investment committee.
 Your SOLE mandate: find the strongest possible BEAR case, regardless of consensus.
 
 You are the devil's advocate. Even if all other analysts are bullish, your job is to surface the best reasons to be skeptical. This is NOT contrarianism for its own sake — it is structured risk management.
 
-CRITICAL DATA RULE: The user message will contain live data with exact numerical values AND the individual specialist agent outputs.
-You MUST use ONLY those exact numbers when building your bear case. Never substitute values from
-your training data. If composite score is 0.72, write "composite 0.72" — not "high" or "0.7".
+CRITICAL DATA RULE: All numerical values below are marked [VERIFIED] — they come from live financial data APIs (FMP, yfinance), NOT from LLM training data. You MUST use ONLY these exact numbers when building your bear case. Never substitute values from your training data. If composite score is 0.72, write "composite 0.72" — not "high" or "0.7".
 
-Challenge framework:
+Challenge framework — use raw data thresholds to identify bear signals:
 1. What would have to go wrong for the bull thesis to fail?
 2. Are there hidden risks in the balance sheet or earnings quality?
 3. Is the valuation pricing in perfection?
-4. What does high institutional ownership / low short interest imply about downside risk?
+4. What does low short interest imply about complacency risk?
 5. What is the asymmetric downside scenario?
-6. Where do the specialists DISAGREE? Are they all relying on the same assumption?
-7. Is any specialist overconfident despite weak data?
 
-## THRESHOLDS (use these to strengthen bear arguments)
+## THRESHOLDS (use these with the [VERIFIED] data below)
 - P/E >25 and revenue growth <15% = valuation pricing in perfection (strong bear signal)
 - Debt/Equity >1.5 = balance sheet risk
 - Momentum <25th pctile = technical weakness
@@ -30,12 +26,14 @@ Challenge framework:
 - Short interest >80th pctile = smart money bearish
 - RSI >70 = overbought (potential reversal)
 - MACD histogram negative = bearish momentum
+- Piotroski <4 = weak financial health
+- P/B >5 = growth priced in, no margin of safety
 
 ## REASONING PROTOCOL (mandatory)
-1. CITE specific data — "P/E at 36x with only 8% revenue growth = perfection priced in"
+1. CITE specific [VERIFIED] data — "P/E at 36x [VERIFIED] with only 8% revenue growth = perfection priced in"
 2. COMPARE to risk thresholds — "debt/equity at 1.8 exceeds the 1.5 danger threshold"
-3. CHALLENGE individual agents — "FUNDAMENTAL claims strong quality but piotroski is only 3/9"
-4. FIND contradictions — "TECHNICAL says strong momentum but RSI at 78 = overbought"
+3. CHECK fundamentals — "piotroski only 3/9 [VERIFIED] = weak financial health"
+4. FIND contradictions — "composite 0.62 [VERIFIED] but momentum only 15th pctile = model may be over-weighting stale factors"
 5. CONCLUDE with clear BEAR argument — "BEAR because valuation assumes growth that fundamentals don't support"
 
 You MUST output BEAR or NEUTRAL — never BULL. Your role is to stress-test the investment.
@@ -45,21 +43,21 @@ STANCE: [BEAR|NEUTRAL]  (never BULL)
 CONVICTION: [HIGH|MEDIUM|LOW]
 THESIS: [2-3 sentences — the strongest bear argument, citing the provided data figures]
 KEY_POINTS:
-- [Risk 1 - must cite specific numbers from the provided data]
-- [Risk 2 - must cite specific numbers from the provided data]
-- [Risk 3 - must cite specific numbers from the provided data]"""
+- [Risk 1 - must cite specific [VERIFIED] numbers from the provided data]
+- [Risk 2 - must cite specific [VERIFIED] numbers from the provided data]
+- [Risk 3 - must cite specific [VERIFIED] numbers from the provided data]"""
 
 
 class AdversarialAgent(BaseAnalystAgent):
     agent_name = "ADVERSARIAL"
-    system_prompt = _SYSTEM
+    system_prompt = _RAW_SYSTEM
 
     def _build_user_message(self, ticker: str, context: dict) -> str:
+        """Build message with specialist outputs (sequential mode)."""
         bull_thesis = context.get("bull_thesis", "No bull thesis provided.")
         bear_thesis = context.get("bear_thesis", "No bear thesis provided.")
         specialist_outputs = context.get("specialist_outputs", {})
 
-        # Build individual specialist breakdown
         specialist_lines = []
         for name, data in specialist_outputs.items():
             kp = data.get('key_points', [])
@@ -72,7 +70,7 @@ class AdversarialAgent(BaseAnalystAgent):
 
         return f"""Find the strongest possible bear case for {ticker}.
 
-IMPORTANT: Use ONLY the exact figures provided below. Do not substitute values from memory or training data.
+IMPORTANT: Use ONLY the [VERIFIED] figures below. Do not substitute values from memory or training data.
 
 INDIVIDUAL SPECIALIST OUTPUTS (challenge these individually):
 {specialist_section}
@@ -83,20 +81,60 @@ BULL THESIS (aggregated from bullish agents):
 BEAR THESIS (aggregated from bearish agents):
 {bear_thesis}
 
-Key data to challenge (live as of today):
-- AI composite score: {context.get('composite_score', 'N/A')}
-- Quality percentile: {context.get('quality_percentile', 'N/A')}
-- Momentum percentile: {context.get('momentum_percentile', 'N/A')}
-- P/E ratio: {context.get('pe_ttm', 'N/A')}x
-- P/B ratio: {context.get('pb_ratio', 'N/A')}x
-- Gross margin: {context.get('gross_profit_margin', 'N/A')}
-- Debt/Equity: {context.get('debt_equity', 'N/A')}
-- Revenue growth: {context.get('revenue_growth', 'N/A')}
-- Insider cluster score: {context.get('insider_cluster_score', 'N/A')}
-- Low-short-interest rank (0-1, higher = LESS shorting = bullish): {context.get('low_short_interest_rank', 'N/A')}
-- Short interest % of float: {context.get('short_interest_pct', 'N/A')}%
-- RSI-14: {context.get('rsi_14', 'N/A')}
-- MACD histogram: {context.get('macd_hist', 'N/A')}
+{self._build_data_section(context)}
 
-Stress-test this thesis and provide the best bear argument. Reference the specific numbers above.
+Stress-test this thesis and provide the best bear argument. Reference the specific [VERIFIED] numbers above.
 Look for contradictions between agents and challenge overconfident stances with weak data."""
+
+    def _build_user_message_raw(self, ticker: str, context: dict) -> str:
+        """Build message from raw context only (parallel mode — no specialist outputs)."""
+        return f"""Find the strongest possible bear case for {ticker}.
+
+IMPORTANT: Use ONLY the [VERIFIED] figures below. Every value marked [VERIFIED] comes from live financial APIs. Do not substitute values from your training data.
+
+{self._build_data_section(context)}
+
+Use the THRESHOLDS from your system prompt to identify bear signals. For each data point, check if it crosses a danger threshold.
+Build a structured bear argument citing specific [VERIFIED] numbers. Conclude with BEAR (not NEUTRAL unless truly no risks exist)."""
+
+    def _build_data_section(self, context: dict) -> str:
+        """Shared data section with [VERIFIED] markers on all live data."""
+        def _v(key, fmt=None, suffix=""):
+            val = context.get(key)
+            if val is None:
+                return "N/A"
+            if fmt:
+                return f"{fmt(val)}{suffix}"
+            return f"{val}{suffix}"
+
+        return f"""Key data [VERIFIED — live as of today]:
+- AI composite score: {_v('composite_score')} [VERIFIED]
+- Quality percentile: {_v('quality_percentile')} [VERIFIED]
+- Momentum percentile: {_v('momentum_percentile')} [VERIFIED]
+- Value percentile: {_v('value_percentile')} [VERIFIED]
+- Low-vol percentile: {_v('low_vol_percentile')} [VERIFIED]
+- P/E ratio: {_v('pe_ttm')}x [VERIFIED]
+- P/B ratio: {_v('pb_ratio')}x [VERIFIED]
+- Beta: {_v('beta')} [VERIFIED]
+- Piotroski score: {_v('piotroski')}/9 [VERIFIED]
+- ROE: {_v('roe')} [VERIFIED]
+- Gross margin: {_v('gross_profit_margin')} [VERIFIED]
+- Accruals ratio: {_v('accruals_ratio')} [VERIFIED]
+- Debt/Equity: {_v('debt_equity')} [VERIFIED]
+- Revenue growth: {_v('revenue_growth')}% [VERIFIED]
+- Short interest: {_v('short_interest_pct')}% of float [VERIFIED]
+- Insider cluster score: {_v('insider_cluster_score')} [VERIFIED]
+- 52-week high: {_v('week52_high')} [VERIFIED]
+- 52-week low: {_v('week52_low')} [VERIFIED]
+- Analyst target: {_v('analyst_target_mean')} [VERIFIED]
+- Market cap: {_v('market_cap')} [VERIFIED]
+- RSI-14: {_v('rsi_14')} [VERIFIED]
+- MACD histogram: {_v('macd_hist')} [VERIFIED]
+- Realized volatility: {_v('realized_vol_1y')} [VERIFIED]
+- Regime: {context.get('regime_label', 'N/A')} [VERIFIED]
+
+Data quality: {', '.join(context.get('_data_quality_flags', ['all fields available']))}"""
+
+    def run_raw(self, ticker: str, context: dict) -> dict:
+        """Run adversarial with raw context only (no specialist outputs)."""
+        return self.run(ticker, context, _msg_override=self._build_user_message_raw(ticker, context))

@@ -20,17 +20,18 @@ from nq_api.agents.head_analyst import HeadAnalystAgent
 STANCE_SCORE = {"BULL": 1.0, "NEUTRAL": 0.0, "BEAR": -1.0}
 CONVICTION_MULT = {"HIGH": 1.0, "MEDIUM": 0.7, "LOW": 0.4}
 
-# Metric validation patterns — correct agent hallucinations against injected data
+# Metric validation patterns — correct agent hallucinations against injected [VERIFIED] data.
+# Tolerances tightened post-Session 49: FMP is primary source, values are accurate.
 _METRIC_PATTERNS = [
     # P/E ratio: "P/E of 3x", "P/E at 28.9x", "trading at 32x P/E", "PE of 8"
-    (re.compile(r"(P/[\sE]?E[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)(x?)", re.I), "pe_ttm", 0.5),
-    (re.compile(r"(price[\s-]to[\s-]earnings[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)", re.I), "pe_ttm", 0.5),
+    (re.compile(r"(P/[\sE]?E[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)(x?)", re.I), "pe_ttm", 0.30),
+    (re.compile(r"(price[\s-]to[\s-]earnings[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)", re.I), "pe_ttm", 0.30),
     # Number-first formats: "8x P/E", "trading at 15x P/E"
-    (re.compile(r"()(\d+\.?\d*)\s*x?\s*P/E\b", re.I), "pe_ttm", 0.5),
+    (re.compile(r"()(\d+\.?\d*)\s*x?\s*P/E\b", re.I), "pe_ttm", 0.30),
     # Price: "$196.50", "price of $284"
-    (re.compile(r"(\$)(\d+\.?\d*)", re.I), "current_price", 0.5),
+    (re.compile(r"(\$)(\d+\.?\d*)", re.I), "current_price", 0.30),
     # Beta: "beta of 0.89", "beta: 2.24"
-    (re.compile(r"(beta[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)", re.I), "beta", 0.5),
+    (re.compile(r"(beta[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)", re.I), "beta", 0.30),
 ]
 
 
@@ -133,19 +134,20 @@ def _validate_analyst_response_text(response: AnalystResponse, context: dict) ->
         "risk_factors": list(response.risk_factors),
     }
 
-    # Extended patterns for HEAD_ANALYST text (includes yield, VIX, CPI, etc.)
+    # Extended patterns for HEAD_ANALYST text (includes yield, VIX, CPI, etc.).
+    # Tolerance 0.15 (was 0.20) — FMP primary source, values are trustworthy.
     text_patterns = [
-        (re.compile(r"(P/[\sE]?E[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)(x?)", re.I), "pe_ttm", 0.20),
-        (re.compile(r"(price[\s-]to[\s-]earnings[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)", re.I), "pe_ttm", 0.20),
+        (re.compile(r"(P/[\sE]?E[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)(x?)", re.I), "pe_ttm", 0.15),
+        (re.compile(r"(price[\s-]to[\s-]earnings[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)", re.I), "pe_ttm", 0.15),
         # Number-first formats: "8x P/E", "trading at 15x P/E"
-        (re.compile(r"()(\d+\.?\d*)\s*x?\s*P/E\b", re.I), "pe_ttm", 0.20),
-        (re.compile(r"(ROE[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)", re.I), "roe", 0.20),
-        (re.compile(r"(beta[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)", re.I), "beta", 0.20),
-        (re.compile(r"(VIX[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)", re.I), "vix", 0.20),
-        (re.compile(r"(CPI[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)%?", re.I), "cpi_yoy", 0.20),
-        (re.compile(r"(10Y[\s]*(?:Treasury[\s]*)?(?:yield[\s]*)?(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)%?", re.I), "yield_10y", 0.20),
-        (re.compile(r"(Fed[\s]*Funds[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)%?", re.I), "fed_funds_rate", 0.20),
-        (re.compile(r"(HY[\s]*spread[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)%?", re.I), "hy_spread_oas", 0.20),
+        (re.compile(r"()(\d+\.?\d*)\s*x?\s*P/E\b", re.I), "pe_ttm", 0.15),
+        (re.compile(r"(ROE[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)", re.I), "roe", 0.15),
+        (re.compile(r"(beta[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)", re.I), "beta", 0.15),
+        (re.compile(r"(VIX[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)", re.I), "vix", 0.15),
+        (re.compile(r"(CPI[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)%?", re.I), "cpi_yoy", 0.15),
+        (re.compile(r"(10Y[\s]*(?:Treasury[\s]*)?(?:yield[\s]*)?(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)%?", re.I), "yield_10y", 0.15),
+        (re.compile(r"(Fed[\s]*Funds[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)%?", re.I), "fed_funds_rate", 0.15),
+        (re.compile(r"(HY[\s]*spread[\s]*(?:of|at|is|=|:)?[\s]*)(\d+\.?\d*)%?", re.I), "hy_spread_oas", 0.15),
     ]
 
     for field_name, text in corrected.items():
@@ -251,11 +253,13 @@ class ParaDebateOrchestrator:
     async def analyse(
         self, ticker: str, market: str, context: dict
     ) -> AnalystResponse:
-        # Step 1: run 5 specialists — sequentially if Ollama (can't parallelise), else parallel
-        async def _run_one(agent, timeout: float):
+        # Step 1: run 5 specialists + 1 adversarial IN PARALLEL.
+        # Adversarial uses raw context only (via run_raw) — no dependency on specialist outputs.
+        # On cloud: 6 parallel API calls. On Ollama: sequential (single-threaded).
+        async def _run_one(agent, timeout: float, msg_override=None):
             try:
                 return await asyncio.wait_for(
-                    asyncio.to_thread(agent.run, ticker, context),
+                    asyncio.to_thread(agent.run, ticker, context, msg_override),
                     timeout=timeout,
                 )
             except asyncio.TimeoutError:
@@ -263,7 +267,7 @@ class ParaDebateOrchestrator:
                 return agent._neutral_fallback()
 
         if _is_ollama():
-            # Ollama processes one request at a time — run sequentially with retries
+            # Ollama: sequential execution
             specialist_outputs: list[AgentOutput] = []
             for agent in self._specialists:
                 try:
@@ -277,57 +281,33 @@ class ParaDebateOrchestrator:
                 except asyncio.TimeoutError:
                     log.warning("%s agent timed out after %ds for %s", agent.agent_name, int(self.SPECIALIST_TIMEOUT), ticker)
                     specialist_outputs.append(agent._neutral_fallback())
+            # Adversarial after specialists (Ollama, uses specialist outputs)
+            adv_msg = self._adversarial._build_user_message(ticker, context)
+            adversarial_output = await _run_one(self._adversarial, self.ADVERSARIAL_TIMEOUT, adv_msg)
         else:
+            # Cloud: run ALL 6 agents in parallel — adversarial gets raw context
+            all_agents = self._specialists + [self._adversarial]
+            all_timeouts = [self.SPECIALIST_TIMEOUT] * 5 + [self.ADVERSARIAL_TIMEOUT]
+            # Adversarial: raw context (no specialist outputs needed for bear thesis)
+            adv_raw_msg = self._adversarial._build_user_message_raw(ticker, context)
+            all_msgs = [None] * 5 + [adv_raw_msg]
             raw_results = await asyncio.gather(
-                *[_run_one(a, self.SPECIALIST_TIMEOUT) for a in self._specialists],
+                *[_run_one(a, t, m) for a, t, m in zip(all_agents, all_timeouts, all_msgs)],
             )
             specialist_outputs = [
-                r if isinstance(r, AgentOutput)
-                else agent._neutral_fallback()
-                for r, agent in zip(raw_results, self._specialists)
+                r if isinstance(r, AgentOutput) else agent._neutral_fallback()
+                for r, agent in zip(raw_results[:5], self._specialists)
             ]
-
-        # Step 2: build bull and bear thesis summaries + pass all specialist outputs to adversarial
-        # Validate specialist outputs against injected context metrics
-        specialist_outputs = [_validate_agent_metrics(o, context) for o in specialist_outputs]
-        bull_summary = "; ".join(
-            o.thesis for o in specialist_outputs if o.stance == "BULL"
-        ) or "Mixed signals from panel."
-        bear_summary = "; ".join(
-            o.thesis for o in specialist_outputs if o.stance == "BEAR"
-        ) or "No strong bear signals from panel."
-
-        # Build structured specialist outputs for adversarial context
-        specialist_outputs_dict = {}
-        for o in specialist_outputs:
-            specialist_outputs_dict[o.agent] = {
-                "stance": o.stance,
-                "conviction": o.conviction,
-                "thesis": o.thesis,
-                "key_points": o.key_points,
-            }
-
-        adversarial_context = {
-            **context,
-            "bull_thesis": bull_summary,
-            "bear_thesis": bear_summary,
-            "specialist_outputs": specialist_outputs_dict,
-        }
-        try:
-            adversarial_output = await asyncio.wait_for(
-                asyncio.to_thread(self._adversarial.run, ticker, adversarial_context),
-                timeout=self.ADVERSARIAL_TIMEOUT,
-            )
-        except asyncio.TimeoutError:
-            log.warning("ADVERSARIAL agent timed out after %ds for %s", self.ADVERSARIAL_TIMEOUT, ticker)
-            adversarial_output = self._adversarial._neutral_fallback()
+            adversarial_output = raw_results[5]
+            if not isinstance(adversarial_output, AgentOutput):
+                adversarial_output = self._adversarial._neutral_fallback()
 
         # Enforce adversarial constraint — override BULL to BEAR
-        # (defence against LLM disobeying its system prompt constraint)
         if adversarial_output.stance == "BULL":
             adversarial_output = adversarial_output.model_copy(update={"stance": "BEAR"})
 
-        # Validate adversarial output against injected metrics (correct "P/E of 3x" hallucinations)
+        # Step 2: validate ALL agent outputs against [VERIFIED] context metrics
+        specialist_outputs = [_validate_agent_metrics(o, context) for o in specialist_outputs]
         adversarial_output = _validate_agent_metrics(adversarial_output, context)
 
         # Step 2b: algorithmic guardrails — override LLM optimism on SEVERE red flags only

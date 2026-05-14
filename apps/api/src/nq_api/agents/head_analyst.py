@@ -29,7 +29,7 @@ CRITICAL RULES:
 6. The PANEL CONSENSUS and VERDICT GUIDANCE are computed from agent stances. Your verdict MUST respect the consensus direction. If consensus is negative, you cannot return BUY or STRONG BUY. If consensus is near zero, you should return HOLD.
 
 DATA INTEGRITY — MOST IMPORTANT RULE:
-7. Use ONLY the exact numeric values provided in the RAW DATA section. NEVER fabricate, estimate, or substitute values from your training data. If the raw data says P/E=30.8x, your Risk Factors MUST say 30.8x — NOT 8x. If ROE=10.0%, your Risk Factors MUST say 10.0% — NOT 0%. Wrong financial data in investment advice causes real losses. Every number in your output must trace directly to the raw data provided above.
+7. Use ONLY the exact numeric values provided in the RAW DATA section. Every value is marked [VERIFIED] — it comes from live financial APIs (FMP, yfinance), not from training data. NEVER fabricate, estimate, or substitute values from your training data. If the raw data says P/E=30.8x [VERIFIED], your Risk Factors MUST say 30.8x — NOT 8x. If ROE=10.0% [VERIFIED], your Risk Factors MUST say 10.0% — NOT 0%. Wrong financial data in investment advice causes real losses. Every number in your output must trace directly to a [VERIFIED] raw data value above.
 
 Weighting framework (normalized to 100%):
 - FUNDAMENTAL carries 20% weight (most important for long-term)
@@ -96,7 +96,9 @@ RISK_FACTORS:
                 )
             }
             if raw_fields:
-                context["raw_data"] = "\n".join(f"  {k}: {v}" for k, v in raw_fields.items())
+                context["raw_data"] = "\n".join(
+                    f"  {k}: {v} [VERIFIED]" for k, v in raw_fields.items()
+                )
             # Data quality flags — tell HEAD ANALYST which values are unreliable
             dq_flags = raw_context.get("_data_quality_flags", [])
             if dq_flags:
