@@ -137,10 +137,13 @@ def _needs_clarification(
     # Portfolio intent — always clarify vague portfolio queries
     # (e.g. "invest 10 lakhs" without specifying sectors/risk/return)
     if _is_portfolio_intent(question):
+        if profile is not None:
+            return False  # profile already provides risk/time/goal context
         _PORTFOLIO_CLARIFY_PATTERNS = [
             "sector", "risk", "time horizon", "timeframe", "goal",
             "aggressive", "conservative", "balanced", "growth", "income",
             "short term", "long term", "mid term", "dividend",
+            "return", "months", "years", "drawdown", "volatility",
         ]
         # If question mentions specific preferences, skip clarification
         if any(p in q for p in _PORTFOLIO_CLARIFY_PATTERNS):
