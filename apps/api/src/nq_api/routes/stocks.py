@@ -967,6 +967,17 @@ def _fetch_stock_meta(ticker: str, market: str) -> dict | Exception:
                 except Exception:
                     pass
 
+        # yf.download fallback — more reliable than .info on cloud IPs (different Yahoo endpoint)
+        if price_now is None:
+            try:
+                hist = yf.download(sym, period="5d", progress=False, auto_adjust=True, threads=False)
+                if hist is not None and not hist.empty and "Close" in hist.columns:
+                    close_vals = hist["Close"].dropna()
+                    if len(close_vals) > 0:
+                        price_now = float(close_vals.iloc[-1])
+            except Exception:
+                pass
+
         return {
             "ticker":                  ticker,
             "name":                    info.get("longName") or info.get("shortName") or ticker,
@@ -983,7 +994,7 @@ def _fetch_stock_meta(ticker: str, market: str) -> dict | Exception:
             "sector":                  info.get("sector"),
             "industry":                info.get("industry"),
             "dividend_yield":          div_pct,
-            "current_price":           info.get("currentPrice") or info.get("regularMarketPrice"),
+            "current_price":           price_now,
         }
     except Exception as exc:
         return exc
