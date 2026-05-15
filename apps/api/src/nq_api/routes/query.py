@@ -441,7 +441,7 @@ Required fields:
 
 MANDATORY FIELD RULES — EVERY field must be filled with substantive, data-rich content:
 1. summary: MUST be 4-8 sentences, NOT 1-2 sentences. Include specific numbers, allocations. Do NOT start with the verdict word (BUY/SELL/HOLD) — let the data speak. This is the user's primary read.
-2. metrics: MUST include at least 4 metrics with values, benchmarks, and status. For stock queries: P/E, momentum, quality, ForeCast score. For portfolio queries: target return, risk level, diversification score.
+2. metrics: MUST include at least 5 metrics with values, benchmarks, and status. For stock queries: Current Price, P/E, momentum, quality, ForeCast score. For portfolio queries: target return, risk level, diversification score. Current Price MUST match the [VERIFIED] CURRENT_PRICE value exactly — this is the most important metric for users.
 3. reasoning.why_this: MUST cite 3+ specific data points with numbers. Not "strong momentum" — "92nd percentile momentum, P/E 18 vs sector 25, revenue growth +22% YoY".
 4. reasoning.why_not_alt: MUST name a specific alternative stock and explain with data why it's inferior. "Similar P/E but lower ForeCast score (6 vs 8) and weaker momentum (65th vs 92nd percentile)".
 5. scenarios: ALWAYS include Bear/Base/Bull with specific prices or percentages and named triggers.
@@ -874,44 +874,69 @@ def _extract_verified_values(platform_ctx: str | None) -> dict[str, float]:
 
 
 def _validate_response_metrics(result, verified: dict[str, float]) -> "StructuredQueryResponse":
-    """Validate LLM metrics against [VERIFIED] data. Correct P/E, Beta, Price discrepancies > tolerance."""
-    if not verified or not hasattr(result, 'metrics') or not result.metrics:
-        return result
-
+    """Validate LLM metrics + summary against [VERIFIED] data. Correct P/E, Beta, Price discrepancies > tolerance."""
     corrections_made = []
 
-    for metric in result.metrics:
-        name = metric.name.upper() if metric.name else ""
-        value_str = str(metric.value) if metric.value else ""
-        num_match = _val_re.search(r'[\d,]+\.?\d*', value_str.replace(",", ""))
-        if not num_match:
-            continue
-        try:
-            llm_val = float(num_match.group())
-        except ValueError:
-            continue
+    # ── Validate metrics array ──
+    if verified and hasattr(result, 'metrics') and result.metrics:
+        for metric in result.metrics:
+            name = metric.name.upper() if metric.name else ""
+            value_str = str(metric.value) if metric.value else ""
+            num_match = _val_re.search(r'[\d,]+\.?\d*', value_str.replace(",", ""))
+            if not num_match:
+                continue
+            try:
+                llm_val = float(num_match.group())
+            except ValueError:
+                continue
 
-        for patterns, ctx_key, tolerance in _VALIDATION_RULES:
-            if ctx_key not in verified:
-                continue
-            if not any(p in name for p in patterns):
-                continue
-            ctx_val = verified[ctx_key]
-            if ctx_val > 0 and abs(llm_val - ctx_val) / ctx_val > tolerance:
-                old_val = metric.value
-                if "P/E" in ctx_key or "PE" in ctx_key:
-                    metric.value = f"{ctx_val:.1f}x"
-                elif "BETA" in ctx_key:
-                    metric.value = f"{ctx_val:.2f}"
-                elif "PRICE" in ctx_key:
-                    cur = "₹" if "Rs" in value_str else "$"
-                    metric.value = f"{cur}{ctx_val:,.2f}"
-                else:
-                    metric.value = str(ctx_val)
-                corrections_made.append(f"{name}: {old_val} → {metric.value}")
-                logger.info("Corrected LLM metric %s from %s to %s (verified: %s)",
-                            name, old_val, metric.value, ctx_val)
-            break
+            for patterns, ctx_key, tolerance in _VALIDATION_RULES:
+                if ctx_key not in verified:
+                    continue
+                if not any(p in name for p in patterns):
+                    continue
+                ctx_val = verified[ctx_key]
+                if ctx_val > 0 and abs(llm_val - ctx_val) / ctx_val > tolerance:
+                    old_val = metric.value
+                    if "P/E" in ctx_key or "PE" in ctx_key:
+                        metric.value = f"{ctx_val:.1f}x"
+                    elif "BETA" in ctx_key:
+                        metric.value = f"{ctx_val:.2f}"
+                    elif "PRICE" in ctx_key:
+                        cur = "₹" if "Rs" in value_str else "$"
+                        metric.value = f"{cur}{ctx_val:,.2f}"
+                    else:
+                        metric.value = str(ctx_val)
+                    corrections_made.append(f"{name}: {old_val} → {metric.value}")
+                    logger.info("Corrected LLM metric %s from %s to %s (verified: %s)",
+                                name, old_val, metric.value, ctx_val)
+                break
+
+    # ── Validate summary price claims ──
+    if verified.get("CURRENT_PRICE") and verified["CURRENT_PRICE"] > 0 and hasattr(result, 'summary') and result.summary:
+        ctx_price = verified["CURRENT_PRICE"]
+        # Match patterns like "$196.50", "₹2,246.00", "trades at $196.50"
+        price_patterns = [
+            (r'\$([\d,]+\.?\d*)', "$"),
+            (r'₹([\d,]+\.?\d*)', "₹"),
+            (r'Rs\.?\s*([\d,]+\.?\d*)', "Rs."),
+        ]
+        for pattern, cur in price_patterns:
+            for m in re.finditer(pattern, result.summary):
+                try:
+                    claimed = float(m.group(1).replace(",", ""))
+                except ValueError:
+                    continue
+                if abs(claimed - ctx_price) / ctx_price > 0.05:
+                    old_text = m.group(0)
+                    new_text = f"{cur}{ctx_price:,.2f}"
+                    result.summary = result.summary.replace(old_text, new_text, 1)
+                    corrections_made.append(f"Summary price: {old_text} → {new_text}")
+                    logger.info("Corrected summary price from %s to %s (verified: %s)",
+                                old_text, new_text, ctx_price)
+                break  # Only correct first price occurrence in summary
+            if corrections_made:
+                break
 
     if corrections_made and hasattr(result, 'summary') and result.summary:
         if "Corrected" not in result.summary:
