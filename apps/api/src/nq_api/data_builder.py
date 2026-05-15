@@ -136,7 +136,7 @@ def _overlay_fmp_info(info: dict, ticker: str) -> None:
                 info["industry"] = profile["industry"]; has_data = True
             if profile.get("market_cap") and not info.get("marketCap"):
                 info["marketCap"] = profile["market_cap"]; has_data = True
-            if profile.get("beta") is not None:
+            if profile.get("beta") is not None and profile["beta"] > 0:
                 info["beta"] = profile["beta"]; has_data = True
             if profile.get("price") is not None and profile["price"] > 0:
                 info["currentPrice"] = profile["price"]
@@ -181,7 +181,7 @@ def _overlay_fmp_info(info: dict, ticker: str) -> None:
 
         ratios = fmp.get_ratios(ticker)
         if ratios:
-            if ratios.get("price_to_book") is not None:
+            if ratios.get("price_to_book") is not None and ratios["price_to_book"] > 0 and "priceToBook" not in info:
                 info["priceToBook"] = ratios["price_to_book"]
             if ratios.get("gross_profit_margin") is not None and "grossMargins" not in info:
                 info["grossMargins"] = ratios["gross_profit_margin"]
@@ -641,6 +641,7 @@ def _fetch_one(ticker: str, market: str, fast_pe: bool = True) -> dict:
 
     try:
         _missing: set[str] = set()
+        result: dict = {}  # placeholder until final result dict assigned below
 
         # Lazy yf.Ticker for fallback paths (P/E computation, earnings date, price history)
         t = yf.Ticker(sym, session=_get_yf_session())
@@ -834,7 +835,7 @@ def _fetch_one(ticker: str, market: str, fast_pe: bool = True) -> dict:
         if current_price is None:
             # yf.download fallback — more reliable than .info on cloud IPs (different Yahoo endpoint)
             try:
-                import yfinance as yf
+                # yf already imported at module level (Python 3.14 compat)
                 sess = _get_yf_session()
                 yf_kw = {"period": "5d", "progress": False, "auto_adjust": True, "threads": False}
                 if sess:

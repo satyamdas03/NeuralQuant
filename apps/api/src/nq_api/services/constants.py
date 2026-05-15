@@ -1,0 +1,231 @@
+"""Constants for the query service — ticker maps, keywords, macro configs."""
+import os
+
+MODEL = os.environ.get("ANTHROPIC_DEFAULT_SONNET_MODEL", "claude-sonnet-4-6")
+# When bypassing Ollama proxy, use real Anthropic model name
+_CLOUD_MODEL = os.environ.get("NQ_QUERY_MODEL", "claude-sonnet-4-6")
+
+_STOP_WORDS = {
+    "WHAT", "WHEN", "WHERE", "WILL", "HAVE", "DOES", "WERE", "THAN",
+    "THAT", "WITH", "FROM", "THIS", "THEY", "BEEN", "ALSO", "SOME",
+    "INTO", "OVER", "AFTER", "WOULD", "COULD", "ABOUT", "WHICH",
+    "CAUSE", "EFFECT", "IMPACT", "STOCK", "STOCKS",
+}
+
+# Keyword -> sector ETF / representative tickers for news injection
+_SECTOR_MAP: dict[str, list[str]] = {
+    "OIL":      ["XLE", "XOM", "CVX"],
+    "ENERGY":   ["XLE", "XOM", "CVX"],
+    "GAS":      ["XLE", "UNG"],
+    "CRUDE":    ["XLE", "XOM"],
+    "IRAN":     ["XLE", "XOM", "^GSPC"],
+    "WAR":      ["^GSPC", "XLE", "GLD"],
+    "GEOPOLIT": ["^GSPC", "GLD"],
+    "TECH":     ["XLK", "NVDA", "AAPL"],
+    "AI":       ["XLK", "NVDA", "MSFT"],
+    "RATE":     ["^TNX", "XLF", "TLT"],
+    "FED":      ["^TNX", "XLF", "SPY"],
+    "GOLD":     ["GLD", "GDX"],
+    "CRYPTO":   ["BTC-USD", "ETH-USD"],
+    "BITCOIN":  ["BTC-USD"],
+    "BANK":     ["XLF", "JPM", "BAC"],
+    "PHARMA":   ["XLV", "JNJ", "PFE"],
+    "INDIA":    ["INDA", "^BSESN", "^NSEI"],
+    "NSE":      ["INDA", "^BSESN", "^NSEI"],
+    "NIFTY":    ["^NSEI"],
+    "SENSEX":   ["^BSESN"],
+}
+
+_PORTFOLIO_KEYWORDS = [
+    "portfolio", "allocate", "allocation", "diversify",
+    "how to invest", "where should i invest", "build a portfolio",
+    "investment plan", "invest my money", "investment strategy",
+    "split my money", "where to put", "how much in", "lump sum",
+    "monthly sip", "recurring investment", "long term plan",
+    "retirement plan", "child education", "goal based",
+    "i have", "i hold", "my holdings", "i own", "i bought",
+    "my portfolio", "i want to invest", "should i buy",
+]
+
+_CLARIFICATION_STOCK_KEYWORDS = [
+    "should i buy", "should i sell", "should i hold",
+    "is it a good time", "is it worth", "should i invest in",
+    "what about", "what do you think about",
+    "best stocks", "recommend", "suggest", "which stock",
+    "top picks", "good stocks", "hot stocks",
+]
+
+_SECTOR_KEYWORDS = [
+    "IT", "tech", "technology", "pharma", "healthcare", "banking", "finance",
+    "energy", "oil", "gas", "real estate", "infrastructure", "auto", "FMCG",
+    "consumer", "telecom", "defence", "defense", "manufacturing", "fintech",
+    "ESG", "green", "renewable", "semiconductor", "AI", "cloud",
+]
+
+_CLARIFICATION_SKIP_PATTERNS = [
+    # Factual queries -- answer directly
+    "what is", "what's", "what was", "how much", "how many",
+    "p/e", "pe ratio", "price of", "price for", "current price",
+    "market cap", "earnings", "revenue", "dividend",
+    "compare", "versus", " vs ",
+    "how is", "how does", "how has",
+    "explain", "define", "meaning of",
+    "show me", "tell me about",
+]
+
+_SCREENER_KEYWORDS = {
+    "SCREENER", "BEST STOCK", "TOP STOCK", "RANK", "RANKING", "TOP PICK",
+    "RECOMMEND", "BUY RIGHT NOW", "SHOULD I BUY", "WHICH STOCK",
+    "NEURALQUANT", "YOUR PLATFORM", "YOUR SCREENER", "YOUR MODEL",
+    "TOP PICKS", "TOP 3", "TOP 5", "TOP 10", "BEST PICK", "BEST PICKS",
+    "YOUR TOP", "STOCK PICKS", "STOCK PICK", "WHICH STOCKS",
+    "NAME SPECIFIC", "NAME SHARES", "NAME STOCKS",
+    # Investment / portfolio allocation triggers
+    "INVEST", "SUGGEST", "PORTFOLIO", "ALLOCAT", "WHERE TO PUT",
+    "LAKH", "CRORE", "LAKHS", "CRORES", "10L", "5L", "20L",
+    "MAKE 15", "MAKE 20", "MAKE 10", "RETURN TARGET", "TARGET RETURN",
+    "12 MONTH", "6 MONTH", "1 YEAR", "YEAR RETURN",
+}
+_INDIA_KEYWORDS = {"INDIA", "INDIAN", "NSE", "BSE", "NIFTY", "SENSEX", "RUPEE", "LAKH", "CRORE", "INR"}
+
+# NSE common stock name -> ticker mappings (handles natural language names)
+_NSE_NAME_MAP = {
+    "TRENT": "TRENT.NS",
+    "TITAN": "TITAN.NS",
+    "ZOMATO": "ZOMATO.NS",
+    "NYKAA": "NYKAA.NS",
+    "PAYTM": "PAYTM.NS",
+    "DMART": "DMART.NS",
+    "ZYDUS": "ZYDUSLIFE.NS",
+    "ZYDUSLIFE": "ZYDUSLIFE.NS",
+    "DIXON": "DIXON.NS",
+    "IRCTC": "IRCTC.NS",
+    "PIDILITE": "PIDILITIND.NS",
+    "PIDILITIND": "PIDILITIND.NS",
+    "EICHER": "EICHERMOT.NS",
+    "EICHERMOT": "EICHERMOT.NS",
+    "BAJAJ": "BAJFINANCE.NS",
+    "BAJFINANCE": "BAJFINANCE.NS",
+    "BAJAJFINANCE": "BAJFINANCE.NS",
+    "HDFC": "HDFCBANK.NS",
+    "HDFCBANK": "HDFCBANK.NS",
+    "ICICI": "ICICIBANK.NS",
+    "ICICIBANK": "ICICIBANK.NS",
+    "KOTAK": "KOTAKBANK.NS",
+    "KOTAKBANK": "KOTAKBANK.NS",
+    "RELIANCE": "RELIANCE.NS",
+    "INFOSYS": "INFY.NS",
+    "INFY": "INFY.NS",
+    "WIPRO": "WIPRO.NS",
+    "HCLTECH": "HCLTECH.NS",
+    "SUNPHARMA": "SUNPHARMA.NS",
+    "DRREDDY": "DRREDDY.NS",
+    "CIPLA": "CIPLA.NS",
+    "MARUTI": "MARUTI.NS",
+    "TATAMOTORS": "TATAMOTORS.NS",
+    "TATASTEEL": "TATASTEEL.NS",
+    "TATA": "TCS.NS",  # Ambiguous -- default to TCS; user should be specific
+    "TCS": "TCS.NS",
+    "ADANI": "ADANIENT.NS",
+    "ADANIENT": "ADANIENT.NS",
+    "HINDALCO": "HINDALCO.NS",
+    "ONGC": "ONGC.NS",
+    "NTPC": "NTPC.NS",
+    "POWERGRID": "POWERGRID.NS",
+    "COALINDIA": "COALINDIA.NS",
+    "SBIN": "SBIN.NS",
+    "SBI": "SBIN.NS",
+    "AXISBANK": "AXISBANK.NS",
+    "AXIS": "AXISBANK.NS",
+    "INDUSINDBANK": "INDUSINDBK.NS",
+    "INDUSINDBK": "INDUSINDBK.NS",
+    "BAJAJFINSV": "BAJAJFINSV.NS",
+    "NESTLEIND": "NESTLEIND.NS",
+    "NESTLE": "NESTLEIND.NS",
+    "ASIANPAINTS": "ASIANPAINT.NS",
+    "ASIANPAINT": "ASIANPAINT.NS",
+    "ULTRACEMCO": "ULTRACEMCO.NS",
+    "SHREECEM": "SHREECEM.NS",
+    "GRASIM": "GRASIM.NS",
+    "TECHM": "TECHM.NS",
+    "LTI": "LTIM.NS",
+    "LTIM": "LTIM.NS",
+    "MPHASIS": "MPHASIS.NS",
+    "PERSISTENT": "PERSISTENT.NS",
+    "COFORGE": "COFORGE.NS",
+    "HAPPIEST": "HAPPSTMNDS.NS",
+    "HAPPSTMNDS": "HAPPSTMNDS.NS",
+    "TATAPOWER": "TATAPOWER.NS",
+    "JSWENERGY": "JSWENERGY.NS",
+    "POLYCAB": "POLYCAB.NS",
+    "APLAPOLLO": "APLAPOLLO.NS",
+    "BHARTIARTL": "BHARTIARTL.NS",
+    "BHARTI": "BHARTIARTL.NS",
+    "AIRTEL": "BHARTIARTL.NS",
+    "JSWSTEEL": "JSWSTEEL.NS",
+    "JSW": "JSWSTEEL.NS",
+    "HAVELLS": "HAVELLS.NS",
+    "VOLTAS": "VOLTAS.NS",
+    "CROMPTON": "CROMPTON.NS",
+    "ABFRL": "ABFRL.NS",
+    "MINDA": "MINDAIND.NS",
+    "VARUNBEV": "VARUNBEV.NS",
+    "VARUN": "VARUNBEV.NS",
+    "JUBLFOOD": "JUBLFOOD.NS",
+    "JUBILEE": "JUBLFOOD.NS",
+    "DOMINOS": "JUBLFOOD.NS",
+    "APOLLOHOSP": "APOLLOHOSP.NS",
+    "APOLLO": "APOLLOHOSP.NS",
+    "FORTIS": "FORTIS.NS",
+    "MAXHEALTH": "MAXHEALTH.NS",
+    "MANKIND": "MANKIND.NS",
+    "ALKEM": "ALKEM.NS",
+    "TORNTPHARM": "TORNTPHARM.NS",
+    "TORRENT": "TORNTPHARM.NS",
+    "DEEPAKNTR": "DEEPAKNTR.NS",
+    "DEEPAK": "DEEPAKNTR.NS",
+    "GLAND": "GLAND.NS",
+    "LAURUS": "LAURUSLABS.NS",
+    "LAURUSLABS": "LAURUSLABS.NS",
+}
+
+# Words that should never be treated as stock tickers
+_TICKER_STOP_WORDS = {
+    "SHOULD", "INVEST", "INDIA", "INDIAN", "STOCK", "SHARE", "SHARES",
+    "MARKET", "NIFTY", "SENSEX", "RUPEE", "LAKH", "LAKHS", "LACS", "CRORE", "CRORES",
+    "MILLION", "BILLION", "WANT", "GIVE", "TELL", "BEST", "GOOD", "HIGH", "LARGE",
+    "SMALL", "LONG", "TERM", "CURRENT", "TODAY", "YEAR", "YEARS", "MONTH", "MONTHS",
+    "WEEK", "WEEKS", "PLEASE", "WHICH", "ABOUT", "PORTFOLIO", "INVEST", "ADVICE",
+    "RETURN", "RETURNS", "GROWTH", "VALUE", "STRONG", "WEAK", "RISK", "SAFE",
+    "SECTOR", "NSE", "BSE", "BULL", "BEAR", "TRADE", "PRICE", "RANGE", "TARGET",
+    "PROFIT", "PROFITS", "EARN", "EARNINGS",
+    # Common English words that look like tickers
+    "THE", "AND", "FOR", "WITH", "NOT", "BUT", "ARE", "WAS", "THIS",
+    "THAT", "HAVE", "FROM", "OR", "ONE", "ALL", "WERE", "WHAT", "HOW",
+    "CAN", "WILL", "EACH", "MAKE", "LIKE", "LONG", "OVER", "SUCH",
+    "A", "AN", "IS", "IT", "OF", "TO", "IN", "ON", "BY", "MY", "ME",
+    "NEXT", "PLAN", "SOLID", "WOULD", "SOME", "VERY", "JUST",
+    "THAN", "ALSO", "INTO", "THEIR", "MUCH", "MANY", "EVEN", "ONLY",
+    "MOST", "BEEN", "BEING", "BEFORE", "AFTER", "BETWEEN", "THROUGH",
+    "DURING", "WITHOUT", "WITHIN", "ALONG", "FOLLOWING", "ACROSS",
+    "BEHIND", "BEYOND", "PLUS", "UNDER", "UPON", "DESPITE", "UNTIL",
+    "WHILE", "WHERE", "WHEN", "WHY", "WHO", "WHOM", "WHOSE",
+    "AMONG", "OTHER", "COULD", "THESE", "THOSE",
+    # Common English words that are valid S&P 500 tickers -- must block
+    "NOW", "SEE", "NEW", "SALE", "WELL", "CAT", "DOG", "FAST",
+    "WORK", "KEY", "ALL", "ANY", "BIG", "OLD", "CASH", "PLAY",
+}
+
+# SSE streaming phase labels
+_PHASE_LABELS = {
+    "classify":  "Understanding your question",
+    "news":      "Scanning latest market headlines",
+    "macro":     "Loading macro context (VIX, SPX, yields, CPI)",
+    "platform":  "Reading NeuralQuant ForeCast scores + factor data",
+    "context":   "Assembling reasoning context",
+    "prompt":    "Sending data to AI (Claude Sonnet 4.6)",
+    "thinking":  "AI is reasoning over the data",
+    "generate":  "AI is generating structured response",
+    "parse":     "Parsing AI output into rich cards",
+    "render":    "Building NeuralQuant ForeCast",
+}

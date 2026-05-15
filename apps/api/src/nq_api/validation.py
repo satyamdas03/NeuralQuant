@@ -43,7 +43,7 @@ class ValidationRule:
 VALIDATION_RULES: list[ValidationRule] = [
     ValidationRule(["P/E", "PE", "PRICE-EARNINGS"], "P_E_TTM", 0.15),
     ValidationRule(["BETA"], "BETA", 0.20),
-    ValidationRule(["PRICE", "CURRENT_PRICE"], "CURRENT_PRICE", 0.05),
+    ValidationRule(["CURRENT PRICE", "SHARE PRICE"], "CURRENT_PRICE", 0.05),
     ValidationRule(["EPS"], "EPS", 0.15),
     ValidationRule(["P/B", "PRICE-BOOK", "PRICE TO BOOK"], "P_B", 0.20),
     ValidationRule(["MARKET CAP", "MCAP", "MKT CAP"], "MCAP", 0.20),
@@ -105,7 +105,7 @@ def validate_metrics(
             if ctx_val > 0 and abs(llm_val - ctx_val) / ctx_val > rule.tolerance:
                 old_val = metric.value
                 metric.value = rule.format_value(ctx_val, value_str)
-                corrections.append(f"{name}: {old_val} → {metric.value}")
+                corrections.append(f"{name}: {old_val} -> {metric.value}")
                 logger.info(
                     "Corrected LLM metric %s from %s to %s (verified: %s)",
                     name, old_val, metric.value, ctx_val,
@@ -149,7 +149,7 @@ def validate_summary_prices(
                 old_text = m.group(0)
                 new_text = f"{cur_symbol}{ctx_price:,.2f}"
                 summary = summary.replace(old_text, new_text, 1)
-                corrections.append(f"Summary price: {old_text} → {new_text}")
+                corrections.append(f"Summary price: {old_text} -> {new_text}")
                 logger.info(
                     "Corrected summary price from %s to %s (verified: %s)",
                     old_text, new_text, ctx_price,
@@ -255,7 +255,7 @@ def validate_portfolio_stocks(
                     )
                     if rationale != old_r:
                         corrections.append(
-                            f"{ticker} P/E: {claimed:.1f}x → {real['pe']:.1f}x"
+                            f"{ticker} P/E: {claimed:.1f}x -> {real['pe']:.1f}x"
                         )
 
         # Beta claims — 25% tolerance
@@ -274,7 +274,7 @@ def validate_portfolio_stocks(
                 )
                 if rationale != old_r:
                     corrections.append(
-                        f"{ticker} Beta: {claimed:.2f} → {real['beta']:.2f}"
+                        f"{ticker} Beta: {claimed:.2f} -> {real['beta']:.2f}"
                     )
 
         # Yield claims — 30% tolerance
@@ -294,7 +294,7 @@ def validate_portfolio_stocks(
                     )
                     if rationale != old_r:
                         corrections.append(
-                            f"{ticker} Yield: {claimed:.1f}% → {real['div']:.1f}%"
+                            f"{ticker} Yield: {claimed:.1f}% -> {real['div']:.1f}%"
                         )
 
         if rationale != stock.get("rationale", ""):
@@ -316,7 +316,7 @@ def validate_portfolio_stocks(
                     new_text = f"{m.group(1)}{real['pe']:.1f}"
                     summary = summary.replace(old_text, new_text, 1)
                     corrections.append(
-                        f"{ticker} summary P/E: {claimed:.1f}x → {real['pe']:.1f}x"
+                        f"{ticker} summary P/E: {claimed:.1f}x -> {real['pe']:.1f}x"
                     )
 
     return portfolio_stocks, summary, corrections

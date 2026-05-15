@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { OptionsSnapshot, StockMeta, Market } from "@/lib/types";
 import { api } from "@/lib/api";
 import GhostBorderCard from "@/components/ui/GhostBorderCard";
@@ -69,11 +69,17 @@ export default function ConsensusPanel({ ticker, market = "US", meta }: { ticker
   const [expanded, setExpanded] = useState(false);
 
   // Try fetching richer options/ownership data (may fail if OpenBB disabled)
-  useState(() => {
+  useEffect(() => {
+    let cancelled = false;
     api.getOptionsSnapshot(ticker, market)
-      .then(setOptionsData)
-      .catch(() => setOptionsData(null));
-  });
+      .then((data) => {
+        if (!cancelled) setOptionsData(data);
+      })
+      .catch(() => {
+        if (!cancelled) setOptionsData(null);
+      });
+    return () => { cancelled = true; };
+  }, [ticker, market]);
 
   // Determine consensus from meta (always available) or options (richer)
   const metaConsensus = meta?.analyst_consensus;
