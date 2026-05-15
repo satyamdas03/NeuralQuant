@@ -309,9 +309,16 @@ async def run_nl_query_v2(
     # REACT or DEEP: use LLM with structured prompt
     client, query_model = _query_client(api_key)
 
-    # ── Detect ticker from question when not provided ───────────────────────
+    # ── Detect ticker and market from question when not provided ───────────
     effective_ticker_v2 = req.ticker
     effective_market_v2 = req.market or "US"
+    # India keyword detection — runs regardless of ticker presence
+    from nq_api.services.constants import _INDIA_KEYWORDS as _ik_v2
+    _q_upper_v2 = req.question.upper()
+    _has_india_signal_v2 = any(k in _q_upper_v2 for k in _ik_v2)
+    if _has_india_signal_v2 and not req.market:
+        effective_market_v2 = "IN"
+        log.info("Auto-detected IN market from India keywords in /v2")
     if not effective_ticker_v2:
         try:
             detected, _ = _detect_tickers_in_question(req.question, effective_market_v2)
@@ -764,6 +771,13 @@ async def run_nl_query_v2_stream(
         # ── Detect ticker and market from question when not provided ───────────
         stream_ticker = req.ticker
         stream_market = req.market or "US"
+        # India keyword detection — runs regardless of ticker presence
+        from nq_api.services.constants import _INDIA_KEYWORDS
+        _q_upper = req.question.upper()
+        _has_india_signal = any(k in _q_upper for k in _INDIA_KEYWORDS)
+        if _has_india_signal and not req.market:
+            stream_market = "IN"
+            log.info("Auto-detected IN market from India keywords in /v2/stream")
         if not stream_ticker:
             try:
                 detected, _ = _detect_tickers_in_question(req.question, stream_market)
@@ -777,8 +791,8 @@ async def run_nl_query_v2_stream(
                         log.info("Auto-detected IN market for /v2/stream: %s", detected)
             except Exception:
                 pass
-        else:
-            stream_market = req.market or "US"
+        elif req.market:
+            stream_market = req.market
 
         yield f'data: {_json.dumps({"status":"phase","phase":"news","label":_PHASE_LABELS["news"]})}\n\n'
         yield f'data: {_json.dumps({"status":"phase","phase":"macro","label":_PHASE_LABELS["macro"]})}\n\n'

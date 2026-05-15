@@ -27,19 +27,19 @@ def _build_profile_prompt(profile: UserProfile) -> str:
 
 
 def _infer_portfolio_market(portfolio_stocks: list[dict], explicit_market: str | None) -> str:
-    """Auto-detect market from portfolio tickers when explicit_market is None.
-    Returns 'IN' if majority of tickers are in NSE universe, else explicit or 'US'."""
-    if explicit_market:
-        return explicit_market
+    """Auto-detect market from portfolio tickers. If explicit_market is None or 'US',
+    checks if majority of stocks are IN — overrides to 'IN' when stocks are Indian."""
     if not portfolio_stocks:
-        return "US"
+        return explicit_market or "US"
     try:
         from nq_api.universe import IN_DEFAULT
         in_set = frozenset(IN_DEFAULT)
         n_in = sum(1 for s in portfolio_stocks if s.get("ticker", "").upper() in in_set)
-        return "IN" if n_in >= len(portfolio_stocks) * 0.5 else "US"
+        if n_in >= len(portfolio_stocks) * 0.5:
+            return "IN"
     except Exception:
-        return "US"
+        pass
+    return explicit_market or "US"
 
 
 def _validate_and_fill_portfolio_prices(
