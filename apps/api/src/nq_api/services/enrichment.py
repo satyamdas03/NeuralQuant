@@ -539,7 +539,15 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                 quality = cached_row.get("quality_percentile")
                 if momentum: detail_parts.append(f"Momentum={momentum:.0%}")
                 if quality: detail_parts.append(f"Quality={quality:.0%}")
-                lines.append(f"  {t}: {' | '.join(detail_parts)}")
+                # Label with full name + exchange for IN stocks so LLM recognizes the entity
+                label = t
+                if target_market == "IN":
+                    exchange_sym = f"{t}.NS" if "." not in t else t
+                    long_name = fund.get("long_name") or ""
+                    label = f"{t} (NSE: {exchange_sym})"
+                    if long_name and long_name != t:
+                        label = f"{long_name} -- {label}"
+                lines.append(f"  {label}: {' | '.join(detail_parts)}")
             lines.append("")
             lines.append("⚠ MANDATORY: ALL values marked [VERIFIED] are REAL live data (FMP primary, yfinance fallback) for TODAY. Fields not shown are unavailable -- do NOT invent them. P/E, Beta, Price, Market Cap change after earnings, splits, and volatility shifts. Your training data is WRONG for these values. ALWAYS quote the EXACT [VERIFIED] values shown above.")
             parts.append("\n".join(lines))
@@ -605,9 +613,16 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                 parts.append("\n".join(dynamic_lines))
 
     except Exception as exc:
+        log.exception("_enrich_with_platform_data failed: %s", exc)
         return f"[Platform data unavailable: {exc}]"
 
-    return "\n\n".join(parts) if parts else None
+    result = "\n\n".join(parts) if parts else None
+    if result:
+        log.info("PLATFORM_CTX length=%d chars, parts=%d", len(result), len(parts))
+        log.info("PLATFORM_CTX preview: %s", result[:500])
+    else:
+        log.warning("PLATFORM_CTX is EMPTY/NONE — parts=%d", len(parts))
+    return result
 
 
 def _enrich_snap_structured(req) -> tuple[list, "ReasoningBlock", str]:
