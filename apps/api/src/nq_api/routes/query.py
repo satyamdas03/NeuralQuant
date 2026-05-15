@@ -846,214 +846,13 @@ def _fetch_enrichment(ticker: str | None, market: str = "US") -> dict:
 
 
 # ── Post-processing: validate LLM output against injected data ────────────────
-import re as _val_re
-
-_VALIDATION_RULES = [
-    (["P/E", "PE", "PRICE-EARNINGS"], "P/E_TTM", 0.15),
-    (["BETA"], "BETA", 0.20),
-    (["PRICE", "CURRENT_PRICE"], "CURRENT_PRICE", 0.05),
-    (["EPS"], "EPS", 0.15),
-    (["P/B", "PRICE-BOOK", "PRICE TO BOOK"], "P/B", 0.20),
-    (["MARKET CAP", "MCAP", "MKT CAP"], "MCAP", 0.20),
-]
-
-
-def _extract_verified_values(platform_ctx: str | None) -> dict[str, float]:
-    """Extract [VERIFIED] and [ESTIMATE] values from platform context for post-hoc validation."""
-    if not platform_ctx:
-        return {}
-    verified = {}
-    for m in _val_re.finditer(r'(\w[\w/]*)=([\$₹]?[\d,]+\.?\d*)\s*\[(?:VERIFIED|ESTIMATE)\]', platform_ctx):
-        key = m.group(1).upper().replace("/", "_")
-        val_str = m.group(2).replace(",", "").replace("$", "").replace("₹", "")
-        try:
-            verified[key] = float(val_str)
-        except ValueError:
-            pass
-    return verified
-
-
-def _validate_response_metrics(result, verified: dict[str, float]) -> "StructuredQueryResponse":
-    """Validate LLM metrics + summary against [VERIFIED] data. Correct P/E, Beta, Price discrepancies > tolerance."""
-    corrections_made = []
-
-    # ── Validate metrics array ──
-    if verified and hasattr(result, 'metrics') and result.metrics:
-        for metric in result.metrics:
-            name = metric.name.upper() if metric.name else ""
-            value_str = str(metric.value) if metric.value else ""
-            num_match = _val_re.search(r'[\d,]+\.?\d*', value_str.replace(",", ""))
-            if not num_match:
-                continue
-            try:
-                llm_val = float(num_match.group())
-            except ValueError:
-                continue
-
-            for patterns, ctx_key, tolerance in _VALIDATION_RULES:
-                if ctx_key not in verified:
-                    continue
-                if not any(p in name for p in patterns):
-                    continue
-                ctx_val = verified[ctx_key]
-                if ctx_val > 0 and abs(llm_val - ctx_val) / ctx_val > tolerance:
-                    old_val = metric.value
-                    if "P/E" in ctx_key or "PE" in ctx_key:
-                        metric.value = f"{ctx_val:.1f}x"
-                    elif "BETA" in ctx_key:
-                        metric.value = f"{ctx_val:.2f}"
-                    elif "PRICE" in ctx_key:
-                        cur = "₹" if "Rs" in value_str else "$"
-                        metric.value = f"{cur}{ctx_val:,.2f}"
-                    else:
-                        metric.value = str(ctx_val)
-                    corrections_made.append(f"{name}: {old_val} → {metric.value}")
-                    logger.info("Corrected LLM metric %s from %s to %s (verified: %s)",
-                                name, old_val, metric.value, ctx_val)
-                break
-
-    # ── Validate summary price claims ──
-    if verified.get("CURRENT_PRICE") and verified["CURRENT_PRICE"] > 0 and hasattr(result, 'summary') and result.summary:
-        ctx_price = verified["CURRENT_PRICE"]
-        # Match patterns like "$196.50", "₹2,246.00", "trades at $196.50"
-        price_patterns = [
-            (r'\$([\d,]+\.?\d*)', "$"),
-            (r'₹([\d,]+\.?\d*)', "₹"),
-            (r'Rs\.?\s*([\d,]+\.?\d*)', "Rs."),
-        ]
-        for pattern, cur in price_patterns:
-            for m in re.finditer(pattern, result.summary):
-                try:
-                    claimed = float(m.group(1).replace(",", ""))
-                except ValueError:
-                    continue
-                if abs(claimed - ctx_price) / ctx_price > 0.05:
-                    old_text = m.group(0)
-                    new_text = f"{cur}{ctx_price:,.2f}"
-                    result.summary = result.summary.replace(old_text, new_text, 1)
-                    corrections_made.append(f"Summary price: {old_text} → {new_text}")
-                    logger.info("Corrected summary price from %s to %s (verified: %s)",
-                                old_text, new_text, ctx_price)
-                break  # Only correct first price occurrence in summary
-            if corrections_made:
-                break
-
-    if corrections_made and hasattr(result, 'summary') and result.summary:
-        if "Corrected" not in result.summary:
-            result.summary += f" [Corrected metrics: {'; '.join(corrections_made)}]"
-
-    return result
-
-
-def _validate_portfolio_stocks(portfolio_stocks: list[dict], market: str, summary: str = "") -> tuple[list[dict], str, list[str]]:
-    """Fetch real yfinance data for each portfolio stock and validate rationale + summary claims.
-
-    Returns (corrected_stocks, corrected_summary, correction_notes).
-    """
-    if not portfolio_stocks:
-        return portfolio_stocks, summary, []
-
-    corrections = []
-    ticker_to_real: dict[str, dict] = {}
-
-    # Batch-fetch real data
-    for stock in portfolio_stocks:
-        ticker = stock.get("ticker", "")
-        if not ticker:
-            continue
-        sym = ticker + ".NS" if market == "IN" and "." not in ticker else ticker
-        info = _fetch_yf_info_cached(sym)
-        if not info.get("_cached_ok"):
-            continue
-        real_pe = info.get("trailingPE")
-        real_beta = info.get("beta")
-        real_div = info.get("dividendYield")
-        if real_div and real_div < 1:
-            real_div = real_div * 100
-        ticker_to_real[ticker] = {
-            "pe": real_pe,
-            "beta": real_beta,
-            "div": real_div,
-        }
-
-    # Validate per-stock rationale
-    for stock in portfolio_stocks:
-        ticker = stock.get("ticker", "")
-        real = ticker_to_real.get(ticker)
-        if not real:
-            continue
-        rationale = stock.get("rationale", "")
-        if not rationale:
-            continue
-
-        real_pe = real["pe"]
-        real_beta = real["beta"]
-        real_div = real["div"]
-
-        # P/E claims — tolerance 10% (tighter than 20% to catch stock-to-stock swaps)
-        pe_patterns = [
-            re.compile(r"P/E\s*(?:of|at|is|:|=)?\s*\D{0,15}(\d+\.?\d*)", re.I),
-            re.compile(r"(\d+\.?\d*)\s*x?\s*P/E\b", re.I),
-        ]
-        for pe_pat in pe_patterns:
-            pe_matches = list(pe_pat.finditer(rationale))
-            for m in pe_matches:
-                claimed = float(m.group(1))
-                if real_pe and real_pe > 0 and abs(claimed - real_pe) / real_pe > 0.10:
-                    old_r = rationale
-                    rationale = re.sub(re.escape(m.group(0)),
-                                       f"P/E {real_pe:.1f}", rationale, count=1, flags=re.I)
-                    if rationale != old_r:
-                        corrections.append(f"{ticker} P/E: {claimed:.1f}x → {real_pe:.1f}x")
-
-        # Beta claims
-        beta_matches = list(re.finditer(r"beta\s*(?:of|at|is|:|=)?\s*(\d+\.?\d*)", rationale, re.I))
-        for m in beta_matches:
-            claimed = float(m.group(1))
-            if real_beta and abs(claimed - real_beta) / max(real_beta, 0.1) > 0.25:
-                old_r = rationale
-                rationale = re.sub(r"beta\s*(?:of|at|is|:|=)?\s*" + re.escape(m.group(1)),
-                                   f"beta {real_beta:.2f}", rationale, count=1, flags=re.I)
-                if rationale != old_r:
-                    corrections.append(f"{ticker} Beta: {claimed:.2f} → {real_beta:.2f}")
-
-        # Yield claims
-        if real_div and real_div > 0:
-            yield_matches = list(re.finditer(r"~?(\d+\.?\d*)%\s*(?:yield|dividend)", rationale, re.I))
-            for m in yield_matches:
-                claimed = float(m.group(1))
-                if abs(claimed - real_div) / real_div > 0.30:
-                    old_r = rationale
-                    rationale = re.sub(r"~?" + re.escape(m.group(1)) + r"%\s*(?=yield|dividend)",
-                                       f"~{real_div:.1f}%", rationale, count=1, flags=re.I)
-                    if rationale != old_r:
-                        corrections.append(f"{ticker} Yield: {claimed:.1f}% → {real_div:.1f}%")
-
-        if rationale != stock.get("rationale", ""):
-            stock["rationale"] = rationale
-
-    # Validate summary — replace P/E claims near ticker mentions
-    if summary and ticker_to_real:
-        for ticker, real in ticker_to_real.items():
-            real_pe = real["pe"]
-            if not real_pe:
-                continue
-            # Match ticker name followed by up to 70 chars (not crossing sentence boundary) then P/E claim
-            # Flexible: allows words like "only" / "attractive" between P/E and the number
-            pattern = re.compile(
-                rf"({re.escape(ticker)}[^.\n]{{0,70}}P/E\s*(?:of|at|is|:|=)?\s*\D{{0,15}})(\d+\.?\d*)",
-                re.I,
-            )
-            for m in pattern.finditer(summary):
-                claimed = float(m.group(2))
-                if abs(claimed - real_pe) / real_pe > 0.10:
-                    prefix = m.group(1)
-                    old_text = m.group(0)
-                    new_text = f"{prefix}{real_pe:.1f}"
-                    summary = summary.replace(old_text, new_text, 1)
-                    corrections.append(f"{ticker} summary P/E: {claimed:.1f}x → {real_pe:.1f}x")
-
-    return portfolio_stocks, summary, corrections
+from nq_api.validation import (
+    extract_verified_values,
+    validate_metrics,
+    validate_summary_prices,
+    validate_response,
+    validate_portfolio_stocks,
+)
 
 
 def _infer_portfolio_market(portfolio_stocks: list[dict], explicit_market: str | None) -> str:
@@ -2966,7 +2765,7 @@ async def run_nl_query_v2(
                     if parsed.get("portfolio_stocks"):
                         pf_market = _infer_portfolio_market(parsed["portfolio_stocks"], req.market)
                         corrected_stocks, corrected_summary, pf_corrections = await asyncio.to_thread(
-                            _validate_portfolio_stocks, parsed["portfolio_stocks"], pf_market, parsed.get("summary", "")
+                            validate_portfolio_stocks, parsed["portfolio_stocks"], pf_market, parsed.get("summary", "")
                         )
                         parsed["portfolio_stocks"] = corrected_stocks
                         if corrected_summary != parsed.get("summary", ""):
@@ -2983,8 +2782,8 @@ async def run_nl_query_v2(
                             parsed["summary"] += f" [Live prices verified: {'; '.join(fill_notes)}]"
                 result = StructuredQueryResponse(**parsed)
                 # Validate LLM metrics against injected [VERIFIED] data
-                verified = _extract_verified_values(platform_ctx)
-                result = _validate_response_metrics(result, verified)
+                verified = extract_verified_values(platform_ctx)
+                _, result.summary, _ = validate_response(result.metrics or [], result.summary or "", verified)
                 # Attach stock summary from enrichment data
                 result.stock_summary = _build_stock_summary(effective_ticker_v2, effective_market_v2, enrichment, platform_ctx)
                 # Persist conversation turn (best-effort)
@@ -3010,8 +2809,8 @@ async def run_nl_query_v2(
         freeform_resp = _parse_query_response(raw, route)
         result = _structured_from_markdown(raw, freeform_resp, route, _build_stock_summary(effective_ticker_v2, effective_market_v2, enrichment, platform_ctx))
         # Validate LLM metrics against injected [VERIFIED] data
-        verified = _extract_verified_values(platform_ctx)
-        result = _validate_response_metrics(result, verified)
+        verified = extract_verified_values(platform_ctx)
+        _, result.summary, _ = validate_response(result.metrics or [], result.summary or "", verified)
         return result
 
     except (anthropic.APITimeoutError, asyncio.TimeoutError):
@@ -3680,7 +3479,7 @@ async def run_nl_query_v2_stream(
                             if parsed.get("portfolio_stocks"):
                                 pf_market = _infer_portfolio_market(parsed["portfolio_stocks"], req.market)
                                 corrected_stocks, corrected_summary, pf_corrections = await asyncio.to_thread(
-                                    _validate_portfolio_stocks, parsed["portfolio_stocks"], pf_market, parsed.get("summary", "")
+                                    validate_portfolio_stocks, parsed["portfolio_stocks"], pf_market, parsed.get("summary", "")
                                 )
                                 parsed["portfolio_stocks"] = corrected_stocks
                                 if corrected_summary != parsed.get("summary", ""):
@@ -3697,8 +3496,12 @@ async def run_nl_query_v2_stream(
                                     parsed["summary"] += f" [Live prices verified: {'; '.join(fill_notes)}]"
                         result_holder["result"] = StructuredQueryResponse(**parsed)
                         # Validate LLM metrics against injected [VERIFIED] data
-                        verified = _extract_verified_values(result_holder.get("platform_ctx"))
-                        result_holder["result"] = _validate_response_metrics(result_holder["result"], verified)
+                        verified = extract_verified_values(result_holder.get("platform_ctx"))
+                        _, result_holder["result"].summary, _ = validate_response(
+                            result_holder["result"].metrics or [],
+                            result_holder["result"].summary or "",
+                            verified,
+                        )
                         # Attach stock summary from enrichment data
                         result_holder["result"].stock_summary = _build_stock_summary(
                             stream_ticker, req.market or "US",
@@ -3735,8 +3538,12 @@ async def run_nl_query_v2_stream(
                         _build_stock_summary(stream_ticker, req.market or "US", result_holder.get("enrichment", {}), result_holder.get("platform_ctx")),
                     )
                     # Validate LLM metrics against injected [VERIFIED] data
-                    verified = _extract_verified_values(result_holder.get("platform_ctx"))
-                    result_holder["result"] = _validate_response_metrics(result_holder["result"], verified)
+                    verified = extract_verified_values(result_holder.get("platform_ctx"))
+                    _, result_holder["result"].summary, _ = validate_response(
+                        result_holder["result"].metrics or [],
+                        result_holder["result"].summary or "",
+                        verified,
+                    )
             except anthropic.APITimeoutError:
                 result_holder["result"] = StructuredQueryResponse(
                     verdict="HOLD", confidence=0, timeframe="Medium-term",
