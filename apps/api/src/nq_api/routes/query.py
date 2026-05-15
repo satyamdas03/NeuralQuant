@@ -630,6 +630,9 @@ _TICKER_STOP_WORDS = {
     "BEHIND", "BEYOND", "PLUS", "UNDER", "UPON", "DESPITE", "UNTIL",
     "WHILE", "WHERE", "WHEN", "WHY", "WHO", "WHOM", "WHOSE",
     "AMONG", "OTHER", "COULD", "THESE", "THOSE",
+    # Common English words that are valid S&P 500 tickers — must block
+    "NOW", "SEE", "NEW", "SALE", "WELL", "CAT", "DOG", "FAST",
+    "WORK", "KEY", "ALL", "ANY", "BIG", "OLD", "CASH", "PLAY",
 }
 
 _SCREENER_KEYWORDS = {
@@ -1630,12 +1633,23 @@ def _detect_tickers_in_question(question: str, market: str = "US") -> tuple[list
     # to avoid false positives from common English words.
     # When market=IN, only check Indian tickers.
     search_pool = known_in if market == "IN" else (known_us | known_in)
+    in_tickers: list[str] = []
+    us_matches: list[str] = []
     for t in search_pool:
         base = t.replace(".NS", "").replace(".BO", "")
         if len(base) <= 2:
             continue  # single/double-letter tickers match too many English words
+        if base in _TICKER_STOP_WORDS:
+            continue  # common English word that happens to be a ticker (e.g. NOW)
         if re.search(r'\b' + re.escape(base) + r'\b', q_upper):
-            in_universe.append(t)
+            in_tickers.append(t)
+            if t in known_in:
+                in_universe.append(t)
+            elif t in known_us:
+                us_matches.append(t)
+    # IN tickers first (user intent more likely for direct ticker matches),
+    # then US tickers. Avoids non-deterministic set iteration picking wrong ticker.
+    in_universe.extend(us_matches)
 
     # For India queries, also check NSE name map keys
     out_of_universe = []
@@ -1709,6 +1723,14 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
 
     needs_screener = any(k in q_upper for k in _SCREENER_KEYWORDS)
     in_universe_tickers, out_of_universe_words = _detect_tickers_in_question(question, target_market)
+
+    # Auto-detect IN market when all in-universe tickers are Indian (no India keywords needed)
+    if target_market != "IN" and in_universe_tickers:
+        from nq_api.universe import IN_DEFAULT
+        in_set = set(IN_DEFAULT)
+        if all(t in in_set for t in in_universe_tickers):
+            target_market = "IN"
+            log.info("Auto-detected IN market from tickers: %s", in_universe_tickers)
     needs_stock_scores = (
         in_universe_tickers
         or out_of_universe_words
@@ -2567,11 +2589,18 @@ async def run_nl_query_v2(
 
     # ── Detect ticker from question when not provided ───────────────────────
     effective_ticker_v2 = req.ticker
+    effective_market_v2 = req.market or "US"
     if not effective_ticker_v2:
         try:
-            detected, _ = _detect_tickers_in_question(req.question, req.market or "US")
+            detected, _ = _detect_tickers_in_question(req.question, effective_market_v2)
             if detected:
                 effective_ticker_v2 = detected[0].replace(".NS", "").replace(".BO", "")
+                # Auto-detect IN market when all detected tickers are Indian
+                from nq_api.universe import IN_DEFAULT
+                in_set = set(IN_DEFAULT)
+                if all(t in in_set for t in detected):
+                    effective_market_v2 = "IN"
+                    log.info("Auto-detected IN market for /v2: %s", detected)
         except Exception:
             pass
 
@@ -2584,11 +2613,11 @@ async def run_nl_query_v2(
             return default
 
     headlines, macro_ctx, platform_ctx, finnhub_news, enrichment = await asyncio.gather(
-        _timed(asyncio.to_thread(_fetch_relevant_news, req.question, req.ticker, 5), 8.0, []),
-        _timed(asyncio.to_thread(_build_macro_context, req.question, req.market or "US", today), 10.0, None),
-        _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, req.market or "US"), 22.0, None),
-        _timed(asyncio.to_thread(_fetch_finnhub_news_summaries, req.ticker, req.market or "US", 5), 8.0, []),
-        _timed(asyncio.to_thread(_fetch_enrichment, effective_ticker_v2, req.market or 'US'), 25.0, {}),
+        _timed(asyncio.to_thread(_fetch_relevant_news, req.question, effective_ticker_v2, 5), 8.0, []),
+        _timed(asyncio.to_thread(_build_macro_context, req.question, effective_market_v2, today), 10.0, None),
+        _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, effective_market_v2), 22.0, None),
+        _timed(asyncio.to_thread(_fetch_finnhub_news_summaries, effective_ticker_v2, effective_market_v2, 5), 8.0, []),
+        _timed(asyncio.to_thread(_fetch_enrichment, effective_ticker_v2, effective_market_v2), 25.0, {}),
     )
 
     context_parts = [
@@ -2599,13 +2628,13 @@ async def run_nl_query_v2(
         context_parts.append(macro_ctx)
     if platform_ctx:
         context_parts.append(platform_ctx)
-    if req.ticker:
-        context_parts.append(f"Stock in focus: {req.ticker} ({req.market or 'US'} market)")
+    if effective_ticker_v2:
+        context_parts.append(f"Stock in focus: {effective_ticker_v2} ({effective_market_v2} market)")
         # Sector peer comparison
         try:
             from nq_api.universe import sector_of
             from nq_api.cache.score_cache import read_sector_median
-            sector = sector_of(req.ticker, req.market or "US")
+            sector = sector_of(effective_ticker_v2, effective_market_v2)
             if sector and sector != "Unknown":
                 medians = read_sector_median(sector, req.market or "US")
                 if medians:
@@ -2918,7 +2947,7 @@ async def run_nl_query_v2(
                 verified = _extract_verified_values(platform_ctx)
                 result = _validate_response_metrics(result, verified)
                 # Attach stock summary from enrichment data
-                result.stock_summary = _build_stock_summary(effective_ticker_v2, req.market or "US", enrichment, platform_ctx)
+                result.stock_summary = _build_stock_summary(effective_ticker_v2, effective_market_v2, enrichment, platform_ctx)
                 # Persist conversation turn (best-effort)
                 if user_id and req.session_key:
                     await asyncio.to_thread(
@@ -2940,7 +2969,7 @@ async def run_nl_query_v2(
                 raw = block.text
                 break
         freeform_resp = _parse_query_response(raw, route)
-        result = _structured_from_markdown(raw, freeform_resp, route, _build_stock_summary(effective_ticker_v2, req.market or "US", enrichment, platform_ctx))
+        result = _structured_from_markdown(raw, freeform_resp, route, _build_stock_summary(effective_ticker_v2, effective_market_v2, enrichment, platform_ctx))
         # Validate LLM metrics against injected [VERIFIED] data
         verified = _extract_verified_values(platform_ctx)
         result = _validate_response_metrics(result, verified)
