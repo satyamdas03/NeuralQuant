@@ -28,130 +28,6 @@ const CATEGORIES: { key: NewsDeskItem["category"] | "all"; label: string }[] = [
   { key: "insider", label: "Insider" },
 ];
 
-const MOCK_NEWS: NewsDeskResponse = {
-  sentiment: "bullish",
-  headlines: [
-    {
-      title: "Fed signals potential rate cuts in Q3 as inflation cools",
-      publisher: "Reuters",
-      url: "https://finance.yahoo.com/news/fed-rate-cuts",
-      time: "2h ago",
-      category: "macro",
-      tickers: ["SPY", "QQQ", "TLT"],
-      sentiment: "bullish",
-    },
-    {
-      title: "NVIDIA announces next-gen Blackwell chips, orders surge 40%",
-      publisher: "Bloomberg",
-      url: "https://finance.yahoo.com/news/nvidia-blackwell",
-      time: "3h ago",
-      category: "us_markets",
-      tickers: ["NVDA", "AMD", "SMCI"],
-      sentiment: "bullish",
-    },
-    {
-      title: "TCS beats Q4 estimates with 8.2% revenue growth in constant currency",
-      publisher: "Economic Times",
-      url: "https://finance.yahoo.com/news/tcs-q4-results",
-      time: "4h ago",
-      category: "india",
-      tickers: ["TCS.NS", "INFY.NS", "WIPRO.NS"],
-      sentiment: "bullish",
-    },
-    {
-      title: "Apple faces antitrust suit from DOJ over App Store monopoly claims",
-      publisher: "Wall Street Journal",
-      url: "https://finance.yahoo.com/news/apple-doj-antitrust",
-      time: "5h ago",
-      category: "us_markets",
-      tickers: ["AAPL", "GOOGL", "META"],
-      sentiment: "bearish",
-    },
-    {
-      title: "Reliance Industries greenlights $10B renewable energy expansion",
-      publisher: "Moneycontrol",
-      url: "https://finance.yahoo.com/news/reliance-renewable-energy",
-      time: "6h ago",
-      category: "india",
-      tickers: ["RELIANCE.NS", "TATAPOWER.NS"],
-      sentiment: "bullish",
-    },
-    {
-      title: "Microsoft Azure revenue jumps 31%, cloud wars intensify",
-      publisher: "CNBC",
-      url: "https://finance.yahoo.com/news/microsoft-azure-revenue",
-      time: "7h ago",
-      category: "earnings",
-      tickers: ["MSFT", "AMZN", "GOOGL"],
-      sentiment: "bullish",
-    },
-    {
-      title: "CEO of Palantir sells $45M in shares amid volatility spike",
-      publisher: "SEC Filings",
-      url: "https://finance.yahoo.com/news/palantir-ceo-sells",
-      time: "8h ago",
-      category: "insider",
-      tickers: ["PLTR"],
-      sentiment: "bearish",
-    },
-    {
-      title: "India GDP growth hits 7.8% in Q4, beating consensus 7.2%",
-      publisher: "Business Standard",
-      url: "https://finance.yahoo.com/news/india-gdp-q4",
-      time: "9h ago",
-      category: "macro",
-      tickers: ["INDA", "EPI", "MINDX"],
-      sentiment: "bullish",
-    },
-    {
-      title: "Tesla deliveries miss estimates by 12% in first quarter",
-      publisher: "Financial Times",
-      url: "https://finance.yahoo.com/news/tesla-deliveries-miss",
-      time: "10h ago",
-      category: "earnings",
-      tickers: ["TSLA", "RIVN", "NIO"],
-      sentiment: "bearish",
-    },
-    {
-      title: "HDFC Bank merger integration completed, cost synergies ahead of plan",
-      publisher: "Mint",
-      url: "https://finance.yahoo.com/news/hdfc-bank-merger",
-      time: "11h ago",
-      category: "india",
-      tickers: ["HDFCBANK.NS", "KOTAKBANK.NS"],
-      sentiment: "bullish",
-    },
-    {
-      title: "Oil prices climb to $88 as Middle East tensions flare",
-      publisher: "Reuters",
-      url: "https://finance.yahoo.com/news/oil-prices-middle-east",
-      time: "12h ago",
-      category: "macro",
-      tickers: ["USO", "XLE", "CVX"],
-      sentiment: "bearish",
-    },
-    {
-      title: "Insider buying spikes at regional banks post-SVB anniversary",
-      publisher: "MarketWatch",
-      url: "https://finance.yahoo.com/news/regional-banks-insider-buying",
-      time: "14h ago",
-      category: "insider",
-      tickers: ["PNFP", "TFC", "ZION"],
-      sentiment: "bullish",
-    },
-  ],
-  trending: [
-    "NVIDIA",
-    "Fed Rates",
-    "TCS",
-    "AI Chips",
-    "India GDP",
-    "Tesla",
-    "Oil",
-    "HDFC Bank",
-  ],
-};
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function sentimentIcon(s: NewsDeskItem["sentiment"]) {
@@ -350,8 +226,7 @@ export default function NewsDeskPage() {
         setError(false);
       })
       .catch((e) => {
-        console.warn("NewsDesk API failed, falling back to mock data:", e);
-        setData(MOCK_NEWS);
+        console.warn("NewsDesk API failed:", e);
         setError(true);
       })
       .finally(() => setLoading(false));
@@ -400,7 +275,7 @@ export default function NewsDeskPage() {
       {/* Error fallback notice */}
       {error && (
         <div className="rounded-lg bg-primary/10 border border-primary/20 px-3 py-2 text-xs text-primary">
-          API endpoint unavailable — showing demo headlines.
+          News feed temporarily unavailable. Please try again later.
         </div>
       )}
 
