@@ -417,7 +417,7 @@ class FinnhubClient:
 
     # ── Internal ────────────────────────────────────────────────────────────
 
-    def _resolve_symbol(self, ticker: str) -> str:
+    def _resolve_symbol(self, ticker: str, market: str = "US") -> str:
         """Map NeuralQuant tickers to Finnhub symbols.
 
         Finnhub uses:
@@ -426,14 +426,15 @@ class FinnhubClient:
         - BSE: ticker.BO
         """
         if ticker.startswith("^"):
-            # Index tickers — Finnhub doesn't support most indices
-            # Map common ones
             idx_map = {
                 "^NSEI": "NSE:NIFTY50",
                 "^NSEBANK": "NSE:NIFTY_BANK",
                 "^BSESN": "BSE:SENSEX",
             }
             return idx_map.get(ticker, ticker)
+        # Auto-add .NS suffix for Indian stocks when not already suffixed
+        if market == "IN" and not ticker.endswith(".NS") and not ticker.endswith(".BO"):
+            return ticker + ".NS"
         return ticker
 
     def _fetch(
