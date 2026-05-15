@@ -368,9 +368,9 @@ class ParaDebateOrchestrator:
             if not isinstance(adversarial_output, AgentOutput):
                 adversarial_output = self._adversarial._neutral_fallback()
 
-        # Enforce adversarial constraint — override BULL to BEAR
-        if adversarial_output.stance == "BULL":
-            adversarial_output = adversarial_output.model_copy(update={"stance": "BEAR"})
+        # Adversarial agent's system prompt now allows BULL when data overwhelmingly
+        # supports it and no bear thresholds are crossed. Trust its honest assessment.
+        # No forced BEAR override — fabricated bear cases mislead investors.
 
         # Step 2: validate ALL agent outputs against [VERIFIED] context metrics
         specialist_outputs = [_validate_agent_metrics(o, context) for o in specialist_outputs]
@@ -393,15 +393,14 @@ class ParaDebateOrchestrator:
 
         all_outputs = specialist_outputs + [adversarial_output]
 
-        # Step 3: compute consensus score (adversarial included with 1.5x weight)
-        # Adversarial is the dedicated bear voice — weighting it higher prevents systematic BUY bias
+        # Step 3: compute consensus score (all agents equal weight now)
+        # Adversarial no longer forced BEAR — honest assessment means equal weight is fair
         weighted_outputs = []
         for o in specialist_outputs:
             weighted_outputs.append((STANCE_SCORE[o.stance], CONVICTION_MULT[o.conviction]))
-        # Adversarial gets 1.5x weight (was 2x — caused systematic SELL bias)
         adv_score = STANCE_SCORE[adversarial_output.stance]
         adv_conv = CONVICTION_MULT[adversarial_output.conviction]
-        weighted_outputs.append((adv_score, adv_conv * 1.5))
+        weighted_outputs.append((adv_score, adv_conv))
 
         total_weight = sum(w for _, w in weighted_outputs)
         consensus = (
@@ -410,12 +409,12 @@ class ParaDebateOrchestrator:
 
         # Step 4: HEAD ANALYST synthesis (with consensus guardrails)
         # Map consensus to expected verdict range to prevent systematic bias
-        # Wider HOLD zone: ±0.35 (was ±0.25) to counter bearish drag from adversarial
+        # HOLD zone: ±0.25 (no more systematic bearish drag after adversarial fix)
         if consensus <= -0.5:
             verdict_guidance = "STRONG SELL or SELL"
-        elif consensus <= -0.35:
+        elif consensus <= -0.25:
             verdict_guidance = "SELL or HOLD"
-        elif consensus <= 0.35:
+        elif consensus <= 0.25:
             verdict_guidance = "HOLD"
         elif consensus <= 0.5:
             verdict_guidance = "HOLD or BUY"
