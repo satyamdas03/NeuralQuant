@@ -358,7 +358,7 @@ async def run_nl_query_v2(
             from nq_api.cache.score_cache import read_sector_median
             sector = sector_of(effective_ticker_v2, effective_market_v2)
             if sector and sector != "Unknown":
-                medians = read_sector_median(sector, req.market or "US")
+                medians = read_sector_median(sector, effective_market_v2)
                 if medians:
                     lines = [f"Sector median ({sector}):"]
                     for k, v in medians.items():
@@ -462,7 +462,7 @@ async def run_nl_query_v2(
         detected_tickers_v2 = []
         if not req.ticker:
             try:
-                detected_tickers_v2, _ = _detect_tickers_in_question(req.question, req.market or "US")
+                detected_tickers_v2, _ = _detect_tickers_in_question(req.question, effective_market_v2)
             except Exception:
                 pass
         else:
@@ -478,16 +478,16 @@ async def run_nl_query_v2(
         # Build dynamic clarification context with live market data
         _fmp_ctx = _fetch_fmp_context_for_clarification(
             detected_tickers_v2[0] if detected_tickers_v2 else "",
-            req.market or "US",
+            effective_market_v2,
         ) if detected_tickers_v2 else None
         _clarification_qs = _generate_clarification_questions(
-            req.question, detected_tickers_v2, req.market or "US", route,
+            req.question, detected_tickers_v2, effective_market_v2, route,
             fmp_context=_fmp_ctx,
         )
         _ctx_str = "Answer these questions so I can give you a personalized response."
         if _fmp_ctx and detected_tickers_v2:
             _ctx_parts = []
-            cur = "₹" if (req.market or "US") == "IN" else "$"
+            cur = "₹" if effective_market_v2 == "IN" else "$"
             if _fmp_ctx.get("price"):
                 _ctx_parts.append(f"Price: {cur}{_fmp_ctx['price']:,.2f}")
             if _fmp_ctx.get("pe"):
@@ -554,7 +554,7 @@ async def run_nl_query_v2(
         system_prompt = _SYSTEM_STRUCTURED
         if portfolio_intent:
             system_prompt = _SYSTEM_STRUCTURED + "\n\n" + _PORTFOLIO_OUTPUT_RULES
-            snap = _build_market_snapshot(req.market or "US")
+            snap = _build_market_snapshot(effective_market_v2)
             if snap:
                 user_msg = user_msg + "\n\n" + snap
             # Inject profile if present
@@ -647,7 +647,7 @@ async def run_nl_query_v2(
                         parsed["action_prompts"] = []
                     # Validate portfolio stock data against real yfinance
                     if parsed.get("portfolio_stocks"):
-                        pf_market = _infer_portfolio_market(parsed["portfolio_stocks"], req.market)
+                        pf_market = _infer_portfolio_market(parsed["portfolio_stocks"], effective_market_v2)
                         corrected_stocks, corrected_summary, pf_corrections = await asyncio.to_thread(
                             validate_portfolio_stocks, parsed["portfolio_stocks"], pf_market, parsed.get("summary", "")
                         )
@@ -657,7 +657,7 @@ async def run_nl_query_v2(
                         if pf_corrections and parsed.get("summary"):
                             parsed["summary"] += f" [Data verified: {'; '.join(pf_corrections)}]"
                         # Fill live prices for entry/target/stop_loss
-                        pf_market = _infer_portfolio_market(parsed["portfolio_stocks"], req.market)
+                        pf_market = _infer_portfolio_market(parsed["portfolio_stocks"], effective_market_v2)
                         filled_stocks, fill_notes = await asyncio.to_thread(
                             _validate_and_fill_portfolio_prices, parsed["portfolio_stocks"], pf_market
                         )
@@ -674,11 +674,11 @@ async def run_nl_query_v2(
                 if user_id and req.session_key:
                     await asyncio.to_thread(
                         _save_conversation_turn, user_id, req.session_key,
-                        "user", req.question, req.ticker, req.market or "US"
+                        "user", req.question, effective_ticker_v2, effective_market_v2
                     )
                     await asyncio.to_thread(
                         _save_conversation_turn, user_id, req.session_key,
-                        "assistant", result.summary, req.ticker, req.market or "US"
+                        "assistant", result.summary, effective_ticker_v2, effective_market_v2
                     )
                 return result
             except (ValidationError, Exception) as e:
@@ -761,15 +761,24 @@ async def run_nl_query_v2_stream(
         query_start = time.monotonic()
         today = date.today().strftime("%B %d, %Y")
 
-        # ── Detect ticker from question when not provided ───────────────────────
+        # ── Detect ticker and market from question when not provided ───────────
         stream_ticker = req.ticker
+        stream_market = req.market or "US"
         if not stream_ticker:
             try:
-                detected, _ = _detect_tickers_in_question(req.question, req.market or "US")
+                detected, _ = _detect_tickers_in_question(req.question, stream_market)
                 if detected:
                     stream_ticker = detected[0].replace(".NS", "").replace(".BO", "")
+                    # Auto-detect IN market when all detected tickers are Indian
+                    from nq_api.universe import IN_DEFAULT
+                    in_set = set(IN_DEFAULT)
+                    if all(t in in_set for t in detected):
+                        stream_market = "IN"
+                        log.info("Auto-detected IN market for /v2/stream: %s", detected)
             except Exception:
                 pass
+        else:
+            stream_market = req.market or "US"
 
         yield f'data: {_json.dumps({"status":"phase","phase":"news","label":_PHASE_LABELS["news"]})}\n\n'
         yield f'data: {_json.dumps({"status":"phase","phase":"macro","label":_PHASE_LABELS["macro"]})}\n\n'
@@ -786,26 +795,26 @@ async def run_nl_query_v2_stream(
                     return default
 
             headlines, macro_ctx, platform_ctx, finnhub_news, enrichment = await asyncio.gather(
-                _timed(asyncio.to_thread(_fetch_relevant_news, req.question, req.ticker, 5), 8.0, []),
-                _timed(asyncio.to_thread(_build_macro_context, req.question, req.market or "US", today), 10.0, None),
-                _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, req.market or "US"), 45.0, None),
-                _timed(asyncio.to_thread(_fetch_finnhub_news_summaries, req.ticker, req.market or "US", 5), 8.0, []),
-                _timed(asyncio.to_thread(_fetch_enrichment, stream_ticker, req.market or 'US'), 45.0, {}),
+                _timed(asyncio.to_thread(_fetch_relevant_news, req.question, stream_ticker, 5), 8.0, []),
+                _timed(asyncio.to_thread(_build_macro_context, req.question, stream_market, today), 10.0, None),
+                _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, stream_market), 45.0, None),
+                _timed(asyncio.to_thread(_fetch_finnhub_news_summaries, stream_ticker, stream_market, 5), 8.0, []),
+                _timed(asyncio.to_thread(_fetch_enrichment, stream_ticker, stream_market), 45.0, {}),
             )
             context_parts = [f"Today's date: {today}", f"User question: {req.question}"]
             if macro_ctx:
                 context_parts.append(macro_ctx)
             if platform_ctx:
                 context_parts.append(platform_ctx)
-            if req.ticker:
-                context_parts.append(f"Stock in focus: {req.ticker} ({req.market or 'US'} market)")
+            if stream_ticker:
+                context_parts.append(f"Stock in focus: {stream_ticker} ({stream_market} market)")
                 # Sector peer comparison
                 try:
                     from nq_api.universe import sector_of
                     from nq_api.cache.score_cache import read_sector_median
-                    sector = sector_of(req.ticker, req.market or "US")
+                    sector = sector_of(stream_ticker, stream_market)
                     if sector and sector != "Unknown":
-                        medians = read_sector_median(sector, req.market or "US")
+                        medians = read_sector_median(sector, stream_market)
                         if medians:
                             lines = [f"Sector median ({sector}):"]
                             for k, v in medians.items():
@@ -907,7 +916,7 @@ async def run_nl_query_v2_stream(
                 detected_tickers_stream = []
                 if not req.ticker:
                     try:
-                        detected_tickers_stream, _ = _detect_tickers_in_question(req.question, req.market or "US")
+                        detected_tickers_stream, _ = _detect_tickers_in_question(req.question, stream_market)
                     except Exception:
                         pass
                 else:
@@ -921,16 +930,16 @@ async def run_nl_query_v2_stream(
                 # Build dynamic clarification context with live market data (streaming)
                 _fmp_ctx_s = _fetch_fmp_context_for_clarification(
                     detected_tickers_stream[0] if detected_tickers_stream else "",
-                    req.market or "US",
+                    stream_market,
                 ) if detected_tickers_stream else None
                 _clarification_qs_s = _generate_clarification_questions(
-                    req.question, detected_tickers_stream, req.market or "US", route,
+                    req.question, detected_tickers_stream, stream_market, route,
                     fmp_context=_fmp_ctx_s,
                 )
                 _ctx_str_s = "Answer these questions so I can give you a personalized response."
                 if _fmp_ctx_s and detected_tickers_stream:
                     _ctx_parts_s = []
-                    cur_s = "₹" if (req.market or "US") == "IN" else "$"
+                    cur_s = "₹" if stream_market == "IN" else "$"
                     if _fmp_ctx_s.get("price"):
                         _ctx_parts_s.append(f"Price: {cur_s}{_fmp_ctx_s['price']:,.2f}")
                     if _fmp_ctx_s.get("pe"):
@@ -997,7 +1006,7 @@ async def run_nl_query_v2_stream(
                 system_prompt = _SYSTEM_STRUCTURED
                 if portfolio_intent:
                     system_prompt = _SYSTEM_STRUCTURED + "\n\n" + _PORTFOLIO_OUTPUT_RULES
-                    snap = _build_market_snapshot(req.market or "US")
+                    snap = _build_market_snapshot(stream_market)
                     if snap:
                         result_holder["user_msg"] = result_holder["user_msg"] + "\n\n" + snap
                     # Inject profile if present
@@ -1122,7 +1131,7 @@ async def run_nl_query_v2_stream(
                                 parsed["data_quality_flags"].append("Scenario analysis incomplete")
                             # Validate portfolio stock data against real yfinance
                             if parsed.get("portfolio_stocks"):
-                                pf_market = _infer_portfolio_market(parsed["portfolio_stocks"], req.market)
+                                pf_market = _infer_portfolio_market(parsed["portfolio_stocks"], stream_market)
                                 corrected_stocks, corrected_summary, pf_corrections = await asyncio.to_thread(
                                     validate_portfolio_stocks, parsed["portfolio_stocks"], pf_market, parsed.get("summary", "")
                                 )
@@ -1132,7 +1141,7 @@ async def run_nl_query_v2_stream(
                                 if pf_corrections and parsed.get("summary"):
                                     parsed["summary"] += f" [Data verified: {'; '.join(pf_corrections)}]"
                                 # Fill live prices for entry/target/stop_loss
-                                pf_market = _infer_portfolio_market(parsed["portfolio_stocks"], req.market)
+                                pf_market = _infer_portfolio_market(parsed["portfolio_stocks"], stream_market)
                                 filled_stocks, fill_notes = await asyncio.to_thread(
                                     _validate_and_fill_portfolio_prices, parsed["portfolio_stocks"], pf_market
                                 )
@@ -1149,7 +1158,7 @@ async def run_nl_query_v2_stream(
                         )
                         # Attach stock summary from enrichment data
                         result_holder["result"].stock_summary = _build_stock_summary(
-                            stream_ticker, req.market or "US",
+                            stream_ticker, stream_market,
                             result_holder.get("enrichment", {}),
                             result_holder.get("platform_ctx"),
                         )
@@ -1158,11 +1167,11 @@ async def run_nl_query_v2_stream(
                             try:
                                 await asyncio.to_thread(
                                     _save_conversation_turn, user_id_stream, req.session_key,
-                                    "user", req.question, req.ticker, req.market or "US"
+                                    "user", req.question, stream_ticker, stream_market
                                 )
                                 await asyncio.to_thread(
                                     _save_conversation_turn, user_id_stream, req.session_key,
-                                    "assistant", result_holder["result"].summary, req.ticker, req.market or "US"
+                                    "assistant", result_holder["result"].summary, stream_ticker, stream_market
                                 )
                             except Exception:
                                 pass
@@ -1180,7 +1189,7 @@ async def run_nl_query_v2_stream(
                     freeform_resp = _parse_query_response(raw, route)
                     result_holder["result"] = _structured_from_markdown(
                         raw, freeform_resp, route,
-                        _build_stock_summary(stream_ticker, req.market or "US", result_holder.get("enrichment", {}), result_holder.get("platform_ctx")),
+                        _build_stock_summary(stream_ticker, stream_market, result_holder.get("enrichment", {}), result_holder.get("platform_ctx")),
                     )
                     # Validate LLM metrics against injected [VERIFIED] data
                     verified = extract_verified_values(result_holder.get("platform_ctx"))

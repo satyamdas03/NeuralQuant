@@ -50,9 +50,14 @@ _PORTFOLIO_KEYWORDS = [
 _CLARIFICATION_STOCK_KEYWORDS = [
     "should i buy", "should i sell", "should i hold",
     "is it a good time", "is it worth", "should i invest in",
-    "what about", "what do you think about",
+    "what about", "what do you think about", "how about",
+    "thoughts on", "view on", "outlook for", "outlook on",
+    "analysis of", "analyze", "is bullish", "is bearish",
     "best stocks", "recommend", "suggest", "which stock",
-    "top picks", "good stocks", "hot stocks",
+    "top picks", "good stocks", "hot stocks", "stock picks",
+    "what stocks", "invest in stocks", "stock to buy",
+    "stock to sell", "worth buying", "worth selling",
+    "buy signal", "sell signal", "entry point", "exit point",
 ]
 
 _SECTOR_KEYWORDS = [

@@ -39,6 +39,17 @@ def _needs_clarification(
         # Vague portfolio query without specifics -> clarify
         return True
 
+    # Investment decision keywords ALWAYS need clarification (highest priority).
+    # These override skip patterns -- "tell me about TCS, should I buy?" is
+    # an investment question, not a factual lookup.
+    _DECISION_KEYWORDS = [
+        "should i buy", "should i sell", "should i hold", "should i invest",
+        "is it a good time", "is it worth", "worth buying", "worth selling",
+        "buy signal", "sell signal", "entry point", "exit point",
+    ]
+    if any(kw in q for kw in _DECISION_KEYWORDS):
+        return True
+
     # Skip factual/direct questions with clear tickers
     if detected_tickers and any(p in q for p in _CLARIFICATION_SKIP_PATTERNS):
         return False
