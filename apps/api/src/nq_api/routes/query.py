@@ -1364,39 +1364,53 @@ def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, plat
             except ValueError:
                 pass
 
-    # If enrichment lacks fundamentals (price/P/E/beta), fetch from _fetch_one
-    needs_fundamentals = not price or not pe or not beta
-    if needs_fundamentals and effective_ticker:
+    # Always refresh price-sensitive fields from live source.
+    # Enrichment cache has 1h TTL — price/P/E/market cap change intraday.
+    # Technical indicators (RSI/MACD) are fine from cache.
+    if effective_ticker:
         try:
             from nq_api.data_builder import _fetch_one
             fund = _fetch_one(effective_ticker, detected_market, fast_pe=False)
             if fund and fund.get("_is_real"):
-                if not price:
-                    price = fund.get("current_price")
-                if not change_pct:
-                    change_pct = fund.get("change_pct")
-                if not pe:
-                    pe = fund.get("pe_ttm")
-                if not pb:
-                    pb = fund.get("pb_ratio")
-                if not mcap:
-                    mcap = fund.get("market_cap")
-                if not high52:
-                    high52 = fund.get("week52_high") or fund.get("week_52_high")
-                if not low52:
-                    low52 = fund.get("week52_low") or fund.get("week_52_low")
-                if not target:
-                    target = fund.get("analyst_target")
-                if not rec:
-                    rec = fund.get("analyst_rec", "")
-                if not beta:
-                    beta = fund.get("beta")
-                if not sector:
-                    sector = fund.get("sector", "")
-                if not name or name == effective_ticker:
-                    name = fund.get("long_name", effective_ticker)
-                if not eps:
-                    eps = fund.get("eps_ttm")
+                live_price = fund.get("current_price")
+                if live_price:
+                    price = live_price
+                live_chg = fund.get("change_pct")
+                if live_chg is not None:
+                    change_pct = live_chg
+                live_pe = fund.get("pe_ttm")
+                if live_pe:
+                    pe = live_pe
+                live_pb = fund.get("pb_ratio")
+                if live_pb:
+                    pb = live_pb
+                live_mcap = fund.get("market_cap")
+                if live_mcap:
+                    mcap = live_mcap
+                live_high52 = fund.get("week52_high") or fund.get("week_52_high")
+                if live_high52:
+                    high52 = live_high52
+                live_low52 = fund.get("week52_low") or fund.get("week_52_low")
+                if live_low52:
+                    low52 = live_low52
+                live_target = fund.get("analyst_target")
+                if live_target:
+                    target = live_target
+                live_rec = fund.get("analyst_rec", "")
+                if live_rec:
+                    rec = live_rec
+                live_beta = fund.get("beta")
+                if live_beta:
+                    beta = live_beta
+                live_sector = fund.get("sector", "")
+                if live_sector:
+                    sector = live_sector
+                live_name = fund.get("long_name", "")
+                if live_name and (not name or name == effective_ticker):
+                    name = live_name
+                live_eps = fund.get("eps_ttm")
+                if live_eps:
+                    eps = live_eps
         except Exception:
             pass
 

@@ -138,7 +138,7 @@ def _overlay_fmp_info(info: dict, ticker: str) -> None:
                 info["marketCap"] = profile["market_cap"]; has_data = True
             if profile.get("beta") is not None:
                 info["beta"] = profile["beta"]; has_data = True
-            if profile.get("price") is not None:
+            if profile.get("price") is not None and profile["price"] > 0:
                 info["currentPrice"] = profile["price"]
                 info["regularMarketPrice"] = profile["price"]; has_data = True
             if has_data:
@@ -146,33 +146,33 @@ def _overlay_fmp_info(info: dict, ticker: str) -> None:
 
         metrics = fmp.get_key_metrics(ticker)
         if metrics:
-            if metrics.get("pe_ratio") is not None:
+            if metrics.get("pe_ratio") is not None and metrics["pe_ratio"] > 0:
                 info["trailingPE"] = metrics["pe_ratio"]
-            if metrics.get("pb_ratio") is not None:
+            if metrics.get("pb_ratio") is not None and metrics["pb_ratio"] > 0:
                 info["priceToBook"] = metrics["pb_ratio"]
-            if metrics.get("beta") is not None and "beta" not in info:
+            if metrics.get("beta") is not None and metrics["beta"] > 0 and "beta" not in info:
                 info["beta"] = metrics["beta"]
-            if metrics.get("dividend_yield") is not None:
+            if metrics.get("dividend_yield") is not None and metrics["dividend_yield"] >= 0:
                 info["dividendYield"] = metrics["dividend_yield"]
-            if metrics.get("gross_profit_margin") is not None:
+            if metrics.get("gross_profit_margin") is not None and metrics["gross_profit_margin"] != 0:
                 info["grossMargins"] = metrics["gross_profit_margin"]
-            if metrics.get("operating_profit_margin") is not None:
+            if metrics.get("operating_profit_margin") is not None and metrics["operating_profit_margin"] != 0:
                 info["operatingMargins"] = metrics["operating_profit_margin"]
-            if metrics.get("net_profit_margin") is not None:
+            if metrics.get("net_profit_margin") is not None and metrics["net_profit_margin"] != 0:
                 info["profitMargins"] = metrics["net_profit_margin"]
-            if metrics.get("revenue_growth") is not None:
+            if metrics.get("revenue_growth") is not None and metrics["revenue_growth"] != 0:
                 info["revenueGrowth"] = metrics["revenue_growth"]
-            if metrics.get("earnings_growth") is not None:
+            if metrics.get("earnings_growth") is not None and metrics["earnings_growth"] != 0:
                 info["earningsGrowth"] = metrics["earnings_growth"]
-            if metrics.get("debt_to_equity") is not None:
+            if metrics.get("debt_to_equity") is not None and metrics["debt_to_equity"] >= 0:
                 info["debtToEquity"] = metrics["debt_to_equity"]
-            if metrics.get("current_ratio") is not None:
+            if metrics.get("current_ratio") is not None and metrics["current_ratio"] > 0:
                 info["currentRatio"] = metrics["current_ratio"]
-            if metrics.get("roe") is not None:
+            if metrics.get("roe") is not None and metrics["roe"] != 0:
                 info["returnOnEquity"] = metrics["roe"]
-            if metrics.get("roa") is not None:
+            if metrics.get("roa") is not None and metrics["roa"] != 0:
                 info["returnOnAssets"] = metrics["roa"]
-            if metrics.get("ev_to_ebitda") is not None:
+            if metrics.get("ev_to_ebitda") is not None and metrics["ev_to_ebitda"] > 0:
                 info["enterpriseToEbitda"] = metrics["ev_to_ebitda"]
             if metrics.get("price_to_sales") is not None:
                 info["priceToSalesTrailing12Months"] = metrics["price_to_sales"]
