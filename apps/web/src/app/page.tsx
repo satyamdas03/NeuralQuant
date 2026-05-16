@@ -37,7 +37,7 @@ export default function Landing() {
             S&amp;P 500 and NIFTY 500.
           </p>
           <div className="mt-8">
-            <GradientButton href="/dashboard" size="md">
+            <GradientButton href="/signup" size="md">
               Get started free
             </GradientButton>
           </div>

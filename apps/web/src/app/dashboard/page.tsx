@@ -11,7 +11,6 @@ import GhostBorderCard from "@/components/ui/GhostBorderCard";
 import RegimeBadge from "@/components/ui/RegimeBadge";
 import { ArrowUpRight, ArrowDownRight, TrendingUp, Newspaper } from "lucide-react";
 import SocialBuzzCard from "@/components/ui/SocialBuzzCard";
-import MarketWrapCard from "@/components/ui/MarketWrapCard";
 
 // ─── Index Bar ────────────────────────────────────────────────────────────────
 
@@ -234,12 +233,9 @@ export default function DashboardPage() {
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
-    const seen = localStorage.getItem("nq_onboarding_seen");
-    if (!seen) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setShowOnboarding(true);
-      localStorage.setItem("nq_onboarding_seen", "1");
-    }
+    // Always show welcome modal — user can skip if they want
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setShowOnboarding(true);
   }, []);
 
   const [indices, setIndices] = useState<IndexData[]>([]);
@@ -298,7 +294,6 @@ export default function DashboardPage() {
           <div id="dashboard-news-panel">
             <NewsPanel news={news} loading={newsLoading} />
           </div>
-          <MarketWrapCard />
           <GhostBorderCard id="dashboard-equity-sectors">
             <div className="flex items-center gap-2 pb-3 border-b border-ghost-border">
               <TrendingUp size={14} className="text-secondary" />
@@ -318,15 +313,15 @@ export default function DashboardPage() {
               </div>
             )}
           </GhostBorderCard>
+          <div id="dashboard-forecast-picks">
+            <TopAIPicks stocks={topStocks} regime={regime} loading={stocksLoading} />
+          </div>
         </div>
 
         {/* Right sidebar */}
         <div className="space-y-5">
           <div id="dashboard-market-movers">
             <MoversPanel gainers={gainers} losers={losers} active={active} loading={moversLoading} />
-          </div>
-          <div id="dashboard-forecast-picks">
-            <TopAIPicks stocks={topStocks} regime={regime} loading={stocksLoading} />
           </div>
           <div id="dashboard-social-buzz">
             <SocialBuzzCard />
