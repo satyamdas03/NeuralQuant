@@ -36,9 +36,9 @@ export default function MarketWrapCard() {
     if (data[tab]) return;
     let cancelled = false;
     setLoading(true);
-    apiFetch(`/market-wrap/today?market=${tab}`)
+    apiFetch<WrapData>(`/market-wrap/today?market=${tab}`)
       .then((d) => { if (!cancelled) setData((p) => ({ ...p, [tab]: d })); })
-      .catch(() => { if (!cancelled) setData((p) => ({ ...p, [tab]: null })); })
+      .catch(() => { if (!cancelled) setData((p) => ({ ...p, [tab]: null as WrapData | null })); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [tab]);
