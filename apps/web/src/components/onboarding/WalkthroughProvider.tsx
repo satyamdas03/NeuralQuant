@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useCallback, useEffect } from "react";
-import Joyride, { type Step, type CallBackProps, STATUS, EVENTS } from "react-joyride";
+import { Joyride, type Step, type EventData, STATUS, EVENTS } from "react-joyride";
 
 type WalkthroughContextType = {
   startTour: () => void;
@@ -24,7 +24,7 @@ const TOUR_STEPS: Step[] = [
     title: "Market Indices",
     content: "Real-time snapshot of major US and Indian stock indices. See how NIFTY 50, S&P 500, SENSEX and more are performing at a glance. This is your pulse on global markets.",
     placement: "bottom",
-    disableBeacon: true,
+    skipBeacon: true,
   },
   {
     target: "#dashboard-news-panel",
@@ -169,7 +169,7 @@ export default function WalkthroughProvider({ children }: { children: React.Reac
   }, []);
 
   const handleCallback = useCallback(
-    (data: CallBackProps) => {
+    (data: EventData) => {
       const { status, type } = data;
 
       if (type === EVENTS.TOUR_END) {
@@ -210,20 +210,20 @@ export default function WalkthroughProvider({ children }: { children: React.Reac
         steps={steps}
         run={run}
         continuous
-        showSkipButton
-        showProgress
         scrollToFirstStep
-        disableOverlayClose
-        spotlightClicks
-        hideCloseButton
         styles={joyrideStyles}
-        callback={handleCallback}
+        onEvent={handleCallback}
         locale={{
           back: "Back",
           close: "Close",
           last: "Got it!",
           next: "Next",
           skip: "Skip tour",
+        }}
+        options={{
+          showProgress: true,
+          overlayClickAction: false,
+          buttons: ["back", "skip", "primary"],
         }}
       />
     </WalkthroughContext.Provider>
