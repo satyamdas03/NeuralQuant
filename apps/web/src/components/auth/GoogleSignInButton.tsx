@@ -5,10 +5,16 @@ import { createClient } from "@/lib/supabase/client";
 export function GoogleSignInButton({ label = "Continue with Google" }: { label?: string }) {
   const handleGoogleSignIn = async () => {
     const supabase = createClient();
+    const envUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+    const base = envUrl || (typeof window !== "undefined" ? window.location.origin : "");
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: base ? `${base}/auth/callback` : undefined,
+        queryParams: {
+          access_type: "offline",
+          prompt: "consent",
+        },
       },
     });
   };

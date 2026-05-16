@@ -1,6 +1,4 @@
 // OAuth / email-confirm callback: exchange code for session.
-// Also forwards Supabase auth errors (otp_expired, access_denied, etc.) to
-// /login with a readable message so users aren't stranded on a blank landing page.
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
@@ -12,8 +10,17 @@ export async function GET(request: Request) {
   const error = url.searchParams.get("error");
   const next = url.searchParams.get("next") || "/dashboard";
 
-  // Supabase redirected back with an auth error — forward to /login with detail
+  console.log("[auth/callback] params:", {
+    hasCode: !!code,
+    errorCode,
+    error,
+    errorDesc,
+    next,
+    origin: url.origin,
+  });
+
   if (errorCode || error) {
+    console.error("[auth/callback] Supabase auth error:", errorCode || error, errorDesc);
     const login = new URL("/login", url.origin);
     const msg =
       errorCode === "otp_expired"
@@ -23,14 +30,23 @@ export async function GET(request: Request) {
     return NextResponse.redirect(login);
   }
 
-  if (code) {
-    const supabase = await createClient();
-    const { error: exErr } = await supabase.auth.exchangeCodeForSession(code);
-    if (exErr) {
-      const login = new URL("/login", url.origin);
-      login.searchParams.set("error", exErr.message);
-      return NextResponse.redirect(login);
-    }
+  if (!code) {
+    console.error("[auth/callback] No code in callback, redirecting to login");
+    const login = new URL("/login", url.origin);
+    login.searchParams.set("error", "No authentication code received. Please try again.");
+    return NextResponse.redirect(login);
   }
+
+  const supabase = await createClient();
+  const { data, error: exErr } = await supabase.auth.exchangeCodeForSession(code);
+
+  if (exErr) {
+    console.error("[auth/callback] exchangeCodeForSession failed:", exErr.message);
+    const login = new URL("/login", url.origin);
+    login.searchParams.set("error", exErr.message);
+    return NextResponse.redirect(login);
+  }
+
+  console.log("[auth/callback] Session created for:", data?.user?.email || "unknown");
   return NextResponse.redirect(new URL(next, url.origin));
 }
