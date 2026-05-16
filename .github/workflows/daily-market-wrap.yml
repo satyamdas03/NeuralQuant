@@ -1,0 +1,38 @@
+name: daily-market-wrap
+
+on:
+  schedule:
+    - cron: "30 23 * * 1-5"  # 23:30 UTC Mon-Fri (= after US market close)
+  workflow_dispatch:
+    inputs:
+      market:
+        description: "Market (US, IN)"
+        required: false
+        default: "US"
+        type: choice
+        options:
+          - US
+          - IN
+
+jobs:
+  send-wrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        market: [US, IN]
+    steps:
+      - name: Send market wrap
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "${{ secrets.API_URL }}/market-wrap/broadcast" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.API_ADMIN_TOKEN }}" \
+            -d "{\"market\": \"${{ matrix.market }}\", \"tier\": \"investor\"}")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+          echo "HTTP $HTTP_CODE: $BODY"
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Market wrap broadcast failed for market=${{ matrix.market }}"
+            exit 1
+          fi

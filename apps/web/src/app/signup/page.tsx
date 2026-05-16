@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import GradientButton from "@/components/ui/GradientButton";
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 
 function SignupForm() {
   const router = useRouter();
@@ -88,6 +89,12 @@ function SignupForm() {
           />
           {error && <p className="text-sm text-error">{error}</p>}
           {info && <p className="text-sm text-tertiary">{info}</p>}
+          <GoogleSignInButton label="Sign up with Google" />
+          <div className="flex items-center gap-2 text-xs text-on-surface-variant">
+            <span className="h-px flex-1 bg-ghost-border" />
+            <span>or</span>
+            <span className="h-px flex-1 bg-ghost-border" />
+          </div>
           <GradientButton className="w-full justify-center">
             {loading ? "Creating…" : "Create account"}
           </GradientButton>

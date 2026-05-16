@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import type { IndexData, NewsItem, SectorData, AIScore, Mover } from "@/lib/types";
@@ -9,12 +9,9 @@ import MarketIndexCard from "@/components/ui/MarketIndexCard";
 import SectorHeatmapBlock from "@/components/ui/SectorHeatmapBlock";
 import GhostBorderCard from "@/components/ui/GhostBorderCard";
 import RegimeBadge from "@/components/ui/RegimeBadge";
-import SuggestionChips from "@/components/ui/SuggestionChips";
-import ChatInputArea from "@/components/ui/ChatInputArea";
-import AIResponseCard from "@/components/ui/AIResponseCard";
-import GlassPanel from "@/components/ui/GlassPanel";
-import { ArrowUpRight, ArrowDownRight, TrendingUp, Newspaper, Zap, Swords } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, TrendingUp, Newspaper } from "lucide-react";
 import SocialBuzzCard from "@/components/ui/SocialBuzzCard";
+import MarketWrapCard from "@/components/ui/MarketWrapCard";
 
 // ─── Index Bar ────────────────────────────────────────────────────────────────
 
@@ -98,185 +95,6 @@ function NewsPanel({ news, loading }: { news: NewsItem[]; loading: boolean }) {
         </div>
       )}
     </GhostBorderCard>
-  );
-}
-
-// ─── Inline Ask AI ─────────────────────────────────────────────────────────────
-
-interface ChatMsg {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  sources?: string[];
-  followUps?: string[];
-  loading?: boolean;
-  structured?: import("@/lib/types").StructuredQueryResponse | null;
-  phaseLabel?: string;
-}
-
-const EXAMPLES = [
-  "What is the effect of Iran-US tensions on oil stocks?",
-  "Should I invest in Trent right now?",
-  "1-month outlook for TCS",
-  "Best Indian stocks for ₹10L investment",
-];
-
-function HomeAskAI() {
-  const [messages, setMessages] = useState<ChatMsg[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [slowLoad, setSlowLoad] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const slowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  const ask = async (question: string) => {
-    const q = question.trim();
-    if (!q || loading) return;
-    setSlowLoad(false);
-
-    const userMsg: ChatMsg = { id: Date.now().toString(), role: "user", content: q };
-    const phId = (Date.now() + 1).toString();
-    const ph: ChatMsg = { id: phId, role: "assistant", content: "", loading: true, phaseLabel: "Thinking..." };
-
-    setMessages((prev) => [...prev, userMsg, ph]);
-    setLoading(true);
-    slowTimer.current = setTimeout(() => setSlowLoad(true), 8000);
-
-    const history = messages
-      .filter((m) => !m.loading)
-      .map((m) => ({ role: m.role, content: m.content }));
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 300_000);
-
-    try {
-      const res = await api.runQueryStream(
-        { question: q, history },
-        controller.signal,
-        (phase, label) => {
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === phId ? { ...m, phaseLabel: label } : m
-            )
-          );
-        },
-      );
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === phId
-            ? { ...m, content: res.summary || "", sources: res.data_sources, followUps: res.follow_up_questions, loading: false, structured: res, phaseLabel: undefined }
-            : m
-        )
-      );
-    } catch (e) {
-      const errMsg = e instanceof Error && e.message.includes("auth required")
-        ? "Sign in required to ask questions."
-        : e instanceof DOMException && e.name === "AbortError"
-        ? "Query timed out after 5 minutes. Try a shorter question or retry."
-        : "Failed — backend may be starting. Retry in 30s.";
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === phId
-            ? { ...m, content: errMsg, loading: false, phaseLabel: undefined }
-            : m
-        )
-      );
-    } finally {
-      clearTimeout(timeout);
-      setLoading(false);
-      setSlowLoad(false);
-      if (slowTimer.current) clearTimeout(slowTimer.current);
-    }
-  };
-
-  return (
-    <GlassPanel strong>
-      <div className="flex items-center justify-between pb-3 border-b border-ghost-border">
-        <div className="flex items-center gap-2">
-          <Zap size={14} className="text-primary" />
-          <h2 className="font-headline text-sm font-semibold text-on-surface">
-            Ask anything about markets
-          </h2>
-          <Link href="/screener" className="inline-flex items-center gap-2 text-sm text-secondary hover:underline">
-            <Swords size={16} /> Debate a stock
-          </Link>
-        </div>
-        {messages.length > 0 && (
-          <button
-            onClick={() => setMessages([])}
-            className="text-xs text-on-surface-variant hover:text-on-surface transition-colors"
-          >
-            Clear
-          </button>
-        )}
-      </div>
-
-      {slowLoad && (
-        <div className="mt-3 rounded-lg bg-primary/10 px-3 py-2 text-xs text-primary border border-primary/20">
-          Backend warming up — may take 30–60s. Please wait…
-        </div>
-      )}
-
-      <div className="mt-3 space-y-3">
-        {messages.length > 0 ? (
-          <div className="max-h-[50vh] space-y-3 overflow-y-auto pr-1 scroll-smooth">
-            {messages.map((msg) =>
-              msg.role === "user" ? (
-                <div key={msg.id} className="flex justify-end">
-                  <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-primary/15 border border-primary/20 px-4 py-2.5 text-sm text-on-surface">
-                    {msg.content}
-                  </div>
-                </div>
-              ) : msg.content === "Sign in required to ask questions." ? (
-                <div key={msg.id} className="flex justify-start">
-                  <div className="max-w-[80%] rounded-2xl rounded-tl-sm bg-surface-container border border-ghost-border px-4 py-2.5 text-sm text-on-surface-variant">
-                    Sign in required to ask questions.{" "}
-                    <Link href="/login" className="text-primary hover:underline">Sign in →</Link>
-                  </div>
-                </div>
-              ) : (
-                <AIResponseCard
-                  key={msg.id}
-                  answer={msg.loading ? "…" : msg.content}
-                  sources={msg.loading ? [] : msg.sources}
-                  structured={msg.structured}
-                />
-              )
-            )}
-            {messages.some((m) => m.loading) && (() => {
-              const loadingMsg = messages.find((m) => m.loading);
-              return (
-                <div className="flex items-center gap-2 py-1 text-sm text-on-surface-variant">
-                  <span className="animate-pulse text-primary">●</span>
-                  <span>{loadingMsg?.phaseLabel || "Thinking..."}</span>
-                  {[0, 1, 2].map((i) => (
-                    <span
-                      key={i}
-                      className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce"
-                      style={{ animationDelay: `${i * 0.15}s` }}
-                    />
-                  ))}
-                </div>
-              );
-            })()}
-            {messages.length > 0 && !loading && messages[messages.length - 1].followUps && (
-              <SuggestionChips
-                suggestions={messages[messages.length - 1].followUps!}
-                onSelect={ask}
-              />
-            )}
-            <div ref={bottomRef} />
-          </div>
-        ) : (
-          <SuggestionChips suggestions={EXAMPLES} onSelect={ask} />
-        )}
-
-        <ChatInputArea onSubmit={ask} disabled={loading} />
-      </div>
-    </GlassPanel>
   );
 }
 
@@ -469,15 +287,19 @@ export default function DashboardPage() {
     <div className="space-y-5 p-4 lg:p-6">
       {showOnboarding && <WelcomeModal onClose={() => setShowOnboarding(false)} />}
       {/* Market Indices */}
-      <IndexBar indices={indices} loading={indicesLoading} />
+      <div id="dashboard-market-indices">
+        <IndexBar indices={indices} loading={indicesLoading} />
+      </div>
 
       {/* Bento Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5">
         {/* Left column */}
         <div className="space-y-5">
-          <NewsPanel news={news} loading={newsLoading} />
-          <HomeAskAI />
-          <GhostBorderCard>
+          <div id="dashboard-news-panel">
+            <NewsPanel news={news} loading={newsLoading} />
+          </div>
+          <MarketWrapCard />
+          <GhostBorderCard id="dashboard-equity-sectors">
             <div className="flex items-center gap-2 pb-3 border-b border-ghost-border">
               <TrendingUp size={14} className="text-secondary" />
               <h2 className="font-headline text-sm font-semibold text-on-surface">Equity Sectors</h2>
@@ -500,9 +322,15 @@ export default function DashboardPage() {
 
         {/* Right sidebar */}
         <div className="space-y-5">
-          <MoversPanel gainers={gainers} losers={losers} active={active} loading={moversLoading} />
-          <TopAIPicks stocks={topStocks} regime={regime} loading={stocksLoading} />
-          <SocialBuzzCard />
+          <div id="dashboard-market-movers">
+            <MoversPanel gainers={gainers} losers={losers} active={active} loading={moversLoading} />
+          </div>
+          <div id="dashboard-forecast-picks">
+            <TopAIPicks stocks={topStocks} regime={regime} loading={stocksLoading} />
+          </div>
+          <div id="dashboard-social-buzz">
+            <SocialBuzzCard />
+          </div>
         </div>
       </div>
     </div>

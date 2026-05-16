@@ -179,6 +179,33 @@ def market_label(market: str) -> str:
     return "NIFTY 500" if market == "IN" else "S&P 500"
 
 
+@router.get("/today")
+async def get_today_market_wrap(market: str = "US"):
+    """Return the daily market wrap data as JSON (for frontend display)."""
+    from nq_api.routes.market import _market_overview_sync
+    from nq_api.cache.score_cache import read_top_picks
+
+    try:
+        market_data = _market_overview_sync(market)
+    except Exception:
+        logger.exception("Market wrap today: failed to fetch market data")
+        market_data = {"indices": [], "futures": []}
+
+    try:
+        top_picks = read_top_picks(market=market, limit=5)
+    except Exception:
+        logger.exception("Market wrap today: failed to fetch top picks")
+        top_picks = []
+
+    return {
+        "date": datetime.now(timezone.utc).strftime("%A, %B %d, %Y"),
+        "market": market,
+        "market_label": market_label(market),
+        "indices": market_data.get("indices", []),
+        "top_picks": top_picks,
+    }
+
+
 @router.post("/send")
 async def send_market_wrap(
     req: MarketWrapRequest,

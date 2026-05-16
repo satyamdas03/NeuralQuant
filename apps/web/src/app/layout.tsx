@@ -3,6 +3,7 @@ import Script from "next/script";
 import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import AppShell from "@/components/layout/AppShell";
+import WalkthroughProvider from "@/components/onboarding/WalkthroughProvider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -43,7 +44,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             src="https://plausible.io/js/script.js"
           />
         )}
-        <AppShell>{children}</AppShell>
+        <WalkthroughProvider>
+          <AppShell>{children}</AppShell>
+        </WalkthroughProvider>
       </body>
     </html>
   );

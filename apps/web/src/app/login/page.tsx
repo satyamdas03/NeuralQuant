@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import GradientButton from "@/components/ui/GradientButton";
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +65,12 @@ function LoginForm() {
             className="w-full rounded-lg bg-surface-high px-3 py-2 text-sm text-on-surface outline-none placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary"
           />
           {error && <p className="text-sm text-error">{error}</p>}
+          <GoogleSignInButton />
+          <div className="flex items-center gap-2 text-xs text-on-surface-variant">
+            <span className="h-px flex-1 bg-ghost-border" />
+            <span>or</span>
+            <span className="h-px flex-1 bg-ghost-border" />
+          </div>
           <GradientButton className="w-full justify-center">
             {loading ? "Signing in…" : "Sign in"}
           </GradientButton>

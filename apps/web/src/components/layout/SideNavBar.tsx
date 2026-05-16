@@ -38,7 +38,7 @@ export default function SideNavBar() {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col bg-surface-lowest border-r border-ghost-border lg:flex">
+    <aside id="sidebar-nav" className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col bg-surface-lowest border-r border-ghost-border lg:flex">
       <div className="flex h-16 items-center gap-2 px-6">
         <span className="font-headline text-lg font-bold tracking-tight text-primary">
           NeuralQuant

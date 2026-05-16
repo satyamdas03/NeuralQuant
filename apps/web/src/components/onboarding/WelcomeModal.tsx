@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { authedApi } from "@/lib/api";
+import { useWalkthrough } from "./WalkthroughProvider";
 
 type StockOption = {
   ticker: string;  // canonical (no .NS suffix)
@@ -27,9 +28,16 @@ interface WelcomeModalProps {
 }
 
 export default function WelcomeModal({ onClose }: WelcomeModalProps) {
+  const { startTour } = useWalkthrough();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleClose = () => {
+    onClose();
+    // Start the interactive walkthrough after welcome modal closes
+    setTimeout(() => startTour(), 800);
+  };
 
   const toggle = (ticker: string) => {
     setSelected((prev) => {
@@ -45,7 +53,7 @@ export default function WelcomeModal({ onClose }: WelcomeModalProps) {
 
   const handleContinue = async () => {
     if (selected.size === 0) {
-      onClose();
+      handleClose();
       return;
     }
 
@@ -86,7 +94,7 @@ export default function WelcomeModal({ onClose }: WelcomeModalProps) {
       setError("Couldn't save your watchlist. Please try again.");
     } finally {
       setCreating(false);
-      if (!error) onClose();
+      if (!error) handleClose();
     }
   };
 
@@ -134,7 +142,7 @@ export default function WelcomeModal({ onClose }: WelcomeModalProps) {
 
         <div className="mt-6 flex items-center justify-between">
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-sm text-on-surface-variant transition-colors hover:text-on-surface"
           >
             Skip
