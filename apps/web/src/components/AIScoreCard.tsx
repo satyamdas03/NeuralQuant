@@ -31,7 +31,7 @@ function ScoreRing({ score }: { score: number }) {
 
 export function AIScoreCard({ data }: { data: AIScore }) {
   return (
-    <div className="p-6 rounded-2xl ghost-border bg-surface-low/60 backdrop-blur-sm">
+    <div className="p-6 ghost-border bg-surface-low/60 backdrop-blur-sm">
       <div className="flex items-start justify-between mb-4">
         <div>
           <h2 className="font-headline text-3xl font-bold text-on-surface">{data.ticker}</h2>
@@ -46,8 +46,8 @@ export function AIScoreCard({ data }: { data: AIScore }) {
           <p className="font-headline text-4xl font-bold text-on-surface">{data.score_1_10}<span className="text-xl text-on-surface-variant">/10</span></p>
           <p className="text-on-surface-variant text-sm">ForeCast Score™</p>
           <span className={`text-xs mt-1 font-medium ${
-            data.confidence === "high" ? "text-tertiary" :
-            data.confidence === "medium" ? "text-secondary" : "text-error"
+            data.confidence === "high" ? "text-primary-fixed" :
+            data.confidence === "medium" ? "text-on-surface-variant" : "text-cyber-red"
           }`}>
             {data.confidence.toUpperCase()} CONFIDENCE
           </span>

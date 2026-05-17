@@ -24,7 +24,7 @@ const FEATURE_ROWS = [
 
 function WhyCard({ icon, title, desc }: { icon: string; title: string; desc: string }) {
   return (
-    <div className="rounded-xl bg-surface-container ghost-border p-4">
+    <div className="bg-surface-container ghost-border p-4">
       <div className="text-2xl mb-2">{icon}</div>
       <h3 className="font-headline text-sm font-semibold text-on-surface">{title}</h3>
       <p className="mt-1 text-xs text-on-surface-variant leading-relaxed">{desc}</p>
@@ -89,7 +89,7 @@ export default function PricingPage() {
         <div className="mt-8 flex justify-center gap-2">
           <button
             onClick={() => setCurrency("INR")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
               currency === "INR"
                 ? "bg-primary text-on-primary"
                 : "ghost-border text-on-surface-variant hover:text-on-surface"
@@ -99,7 +99,7 @@ export default function PricingPage() {
           </button>
           <button
             onClick={() => setCurrency("USD")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
               currency === "USD"
                 ? "bg-primary text-on-primary"
                 : "ghost-border text-on-surface-variant hover:text-on-surface"
@@ -119,7 +119,7 @@ export default function PricingPage() {
           {TIERS.map((tier) => (
             <div
               key={tier.key}
-              className={`relative rounded-2xl ghost-border bg-surface-low/40 p-6 flex flex-col ${
+              className={`relative ghost-border bg-surface-low/40 p-6 flex flex-col ${
                 tier.popular ? "ring-2 ring-primary" : ""
               }`}
             >
@@ -143,7 +143,7 @@ export default function PricingPage() {
                 {tier.key === "free" ? (
                   <Link
                     href="/signup"
-                    className="block text-center px-6 py-3 rounded-xl ghost-border text-on-surface-variant hover:text-on-surface font-medium text-sm transition-colors"
+                    className="block text-center px-6 py-3 ghost-border text-on-surface-variant hover:text-on-surface font-medium text-sm transition-colors"
                   >
                     Get started free
                   </Link>
@@ -151,7 +151,7 @@ export default function PricingPage() {
                   <button
                     onClick={() => handleCheckout(tier.key)}
                     disabled={loading !== null}
-                    className="w-full px-6 py-3 rounded-xl bg-gradient-to-r from-[#c1c1ff] to-[#bdf4ff] text-[#0f0f1a] font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+                    className="w-full px-6 py-3 bg-gradient-to-r from-[#c1c1ff] to-[#bdf4ff] text-[#0f0f1a] font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
                   >
                     {loading === tier.key ? "Redirecting…" : "Subscribe with PayPal"}
                   </button>
@@ -169,7 +169,7 @@ export default function PricingPage() {
         <div className="mt-16">
           <h2 className="font-headline text-2xl font-bold text-center">Why upgrade?</h2>
           <p className="mt-2 text-on-surface-variant text-center max-w-lg mx-auto text-sm">
-            NeuralQuant uses institutional-grade AI scoring on 100+ stocks. Free gives you a taste; Investor unlocks the full engine.
+            QuantAlpha uses institutional-grade AI scoring on 100+ stocks. Free gives you a taste; Investor unlocks the full engine.
           </p>
           <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
             <WhyCard
@@ -214,7 +214,7 @@ export default function PricingPage() {
                 <tr className="border-b border-outline/20">
                   <th className="text-left py-3 px-4 text-on-surface-variant font-medium">Feature</th>
                   <th className="text-center py-3 px-4 text-on-surface-variant font-medium">Free</th>
-                  <th className="text-center py-3 px-4 font-medium text-primary bg-primary/5 rounded-t-lg">Investor</th>
+                  <th className="text-center py-3 px-4 font-medium text-primary bg-primary/5">Investor</th>
                   <th className="text-center py-3 px-4 text-on-surface-variant font-medium">Pro</th>
                   <th className="text-center py-3 px-4 text-on-surface-variant font-medium">API</th>
                 </tr>

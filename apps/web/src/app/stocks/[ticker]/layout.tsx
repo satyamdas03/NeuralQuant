@@ -13,16 +13,16 @@ export async function generateMetadata({
   const currency = isIndia ? "₹" : "$";
 
   return {
-    title: `${name} Stock Score — NeuralQuant 5-Factor AI Analysis | ${market}`,
+    title: `${name} Stock Score — QuantAlpha 5-Factor AI Analysis | ${market}`,
     description: `AI-powered ${name} stock analysis with 5-factor quant scoring (quality, momentum, value, low-vol, insider), HMM regime detection, and multi-agent PARA-DEBATE. ${currency} price targets and sector-adjusted ratings.`,
     openGraph: {
-      title: `${name} Stock Score — NeuralQuant`,
+      title: `${name} Stock Score — QuantAlpha`,
       description: `5-factor AI analysis + multi-agent debate for ${name}. Free stock intelligence.`,
       type: "website",
-      url: `https://neuralquant.vercel.app/stocks/${ticker}`,
+      url: `https://neuralquant.co/stocks/${ticker}`,
     },
     alternates: {
-      canonical: `https://neuralquant.vercel.app/stocks/${ticker}`,
+      canonical: `https://neuralquant.co/stocks/${ticker}`,
     },
   };
 }

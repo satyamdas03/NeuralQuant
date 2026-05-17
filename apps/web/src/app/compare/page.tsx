@@ -14,12 +14,12 @@ import { ArrowLeft, Check, Minus, X, ArrowRight } from "lucide-react";
 
 const AI_LABELS = {
   neuralquant: {
-    name: "NeuralQuant",
-    color: "text-tertiary",
-    bg: "bg-tertiary/10",
+    name: "QuantAlpha",
+    color: "text-primary-fixed",
+    bg: "bg-primary-fixed/10",
   },
   chatgpt: { name: "ChatGPT", color: "text-primary", bg: "bg-primary/10" },
-  claude: { name: "Claude", color: "text-secondary", bg: "bg-secondary/10" },
+  claude: { name: "Claude", color: "text-primary-fixed", bg: "bg-primary-fixed/10" },
   grok: {
     name: "Grok",
     color: "text-on-surface-variant",
@@ -29,10 +29,10 @@ const AI_LABELS = {
 
 function WinnerIcon({ winner }: { winner: Winner }) {
   if (winner === "neuralquant")
-    return <Check size={14} className="text-tertiary" />;
+    return <Check size={14} className="text-primary-fixed" />;
   if (winner === "partial")
     return <Minus size={14} className="text-primary" />;
-  return <X size={14} className="text-error" />;
+  return <X size={14} className="text-cyber-red" />;
 }
 
 export default function ComparePage() {
@@ -53,10 +53,10 @@ export default function ComparePage() {
           <ArrowLeft size={16} /> Dashboard
         </Link>
         <h1 className="font-headline text-4xl md:text-5xl font-bold tracking-tight">
-          Why NeuralQuant beats general AI
+          Why QuantAlpha beats general AI
         </h1>
         <p className="mt-4 text-lg text-on-surface-variant max-w-2xl">
-          We ran the same finance questions on NeuralQuant, ChatGPT, Claude, and
+          We ran the same finance questions on QuantAlpha, ChatGPT, Claude, and
           Grok. Here&apos;s what happened.
         </p>
       </div>
@@ -70,12 +70,12 @@ export default function ComparePage() {
                 Blind comparison across {COMPARE_QUESTIONS.length} finance tasks
               </p>
               <p className="mt-1 font-headline text-3xl font-bold">
-                <span className="text-tertiary">{neuralquantWins}</span>
+                <span className="text-primary-fixed">{neuralquantWins}</span>
                 <span className="text-on-surface-variant text-lg">
                   /{COMPARE_QUESTIONS.length}
                 </span>
                 <span className="text-on-surface-variant text-base ml-2">
-                  NeuralQuant wins
+                  QuantAlpha wins
                 </span>
               </p>
             </div>
@@ -124,7 +124,7 @@ function CompareCard({
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <WinnerIcon winner={question.winner} />
-            <span className="text-xs font-medium text-tertiary">NQ wins</span>
+            <span className="text-xs font-medium text-primary-fixed">QA wins</span>
           </div>
         </div>
       </button>
@@ -138,7 +138,7 @@ function CompareCard({
           ).map(([ai, response]) => {
             const label = AI_LABELS[ai];
             return (
-              <div key={ai} className={`rounded-lg p-3 ${label.bg}`}>
+              <div key={ai} className={`p-3 ${label.bg}`}>
                 <p className={`text-xs font-semibold ${label.color} mb-1`}>
                   {label.name}
                 </p>
@@ -148,8 +148,8 @@ function CompareCard({
               </div>
             );
           })}
-          <div className="rounded-lg bg-tertiary/5 border border-tertiary/20 p-3 mt-2">
-            <p className="text-xs text-tertiary font-semibold">Verdict</p>
+          <div className="bg-primary-fixed/5 border border-primary-fixed/20 p-3 mt-2">
+            <p className="text-xs text-primary-fixed font-semibold">Verdict</p>
             <p className="text-sm text-on-surface mt-1">{question.verdict}</p>
           </div>
         </div>

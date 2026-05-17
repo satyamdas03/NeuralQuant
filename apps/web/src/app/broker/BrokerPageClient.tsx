@@ -90,11 +90,11 @@ export default function BrokerPageClient() {
         Broker Connect
       </h1>
       <p className="text-[#a0a0b0] mb-6 text-sm">
-        Open a trade ticket in your broker app. NeuralQuant never holds funds or executes orders.
+        Open a trade ticket in your broker app. QuantAlpha never holds funds or executes orders.
       </p>
 
       {/* Deep Link Trade */}
-      <div className="bg-[#131322] rounded-xl p-6 border border-[#1e1e30] mb-6">
+      <div className="bg-[#131322] p-6 border border-[#1e1e30] mb-6">
         <h2 className="text-lg font-semibold mb-4">Quick Trade</h2>
         <div className="flex flex-wrap gap-3 items-end">
           <div>
@@ -104,7 +104,7 @@ export default function BrokerPageClient() {
               value={symbol}
               onChange={(e) => setSymbol(e.target.value.toUpperCase())}
               placeholder="e.g. AAPL"
-              className="bg-[#0a0a14] border border-[#1e1e30] rounded-lg px-3 py-2 text-sm w-32 focus:border-[#c1c1ff] outline-none"
+              className="bg-[#0a0a14] border border-[#1e1e30] px-3 py-2 text-sm w-32 focus:border-[#c1c1ff] outline-none"
             />
           </div>
           <div>
@@ -112,7 +112,7 @@ export default function BrokerPageClient() {
             <select
               value={side}
               onChange={(e) => setSide(e.target.value as "buy" | "sell")}
-              className="bg-[#0a0a14] border border-[#1e1e30] rounded-lg px-3 py-2 text-sm focus:border-[#c1c1ff] outline-none"
+              className="bg-[#0a0a14] border border-[#1e1e30] px-3 py-2 text-sm focus:border-[#c1c1ff] outline-none"
             >
               <option value="buy">Buy</option>
               <option value="sell">Sell</option>
@@ -123,7 +123,7 @@ export default function BrokerPageClient() {
             <select
               value={broker}
               onChange={(e) => setBroker(e.target.value as "alpaca" | "zerodha")}
-              className="bg-[#0a0a14] border border-[#1e1e30] rounded-lg px-3 py-2 text-sm focus:border-[#c1c1ff] outline-none"
+              className="bg-[#0a0a14] border border-[#1e1e30] px-3 py-2 text-sm focus:border-[#c1c1ff] outline-none"
             >
               <option value="alpaca">Alpaca (US)</option>
               <option value="zerodha">Zerodha (India)</option>
@@ -132,13 +132,13 @@ export default function BrokerPageClient() {
           <button
             onClick={getDeepLink}
             disabled={!symbol.trim() || loading}
-            className="px-4 py-2 bg-gradient-to-r from-[#c1c1ff] to-[#bdf4ff] text-[#0e0e0e] rounded-lg font-semibold text-sm disabled:opacity-50 hover:opacity-90"
+            className="px-4 py-2 bg-gradient-to-r from-[#c1c1ff] to-[#bdf4ff] text-[#0e0e0e] font-semibold text-sm disabled:opacity-50 hover:opacity-90"
           >
             {loading ? "..." : "Open Trade Ticket"}
           </button>
         </div>
         {deepLink && (
-          <div className="mt-4 p-3 bg-[#0a0a14] rounded-lg border border-[#1e1e30]">
+          <div className="mt-4 p-3 bg-[#0a0a14] border border-[#1e1e30]">
             <p className="text-xs text-[#a0a0b0] mb-1">Trade ticket URL:</p>
             <a href={deepLink} target="_blank" rel="noopener noreferrer" className="text-[#bdf4ff] text-sm break-all hover:underline">
               {deepLink}
@@ -148,13 +148,13 @@ export default function BrokerPageClient() {
       </div>
 
       {/* Alpaca Account */}
-      <div className="bg-[#131322] rounded-xl p-6 border border-[#1e1e30] mb-6">
+      <div className="bg-[#131322] p-6 border border-[#1e1e30] mb-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Alpaca Account</h2>
           <button
             onClick={() => { fetchAccount(); fetchPositions(); }}
             disabled={accountLoading}
-            className="text-xs px-3 py-1 border border-[#c1c1ff] text-[#c1c1ff] rounded-lg hover:bg-[#c1c1ff] hover:text-[#0e0e0e] disabled:opacity-50"
+            className="text-xs px-3 py-1 border border-[#c1c1ff] text-[#c1c1ff] hover:bg-[#c1c1ff] hover:text-[#0e0e0e] disabled:opacity-50"
           >
             {accountLoading ? "..." : "Refresh"}
           </button>
@@ -179,7 +179,7 @@ export default function BrokerPageClient() {
 
       {/* Positions */}
       {positions.length > 0 && (
-        <div className="bg-[#131322] rounded-xl p-6 border border-[#1e1e30]">
+        <div className="bg-[#131322] p-6 border border-[#1e1e30]">
           <h2 className="text-lg font-semibold mb-4">Positions</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -213,8 +213,8 @@ export default function BrokerPageClient() {
       )}
 
       {/* Disclaimer */}
-      <div className="mt-6 p-4 bg-[#131322] rounded-xl border border-[#1e1e30] text-xs text-[#a0a0b0]">
-        <strong>Disclaimer:</strong> NeuralQuant provides analysis and trade suggestions only. We never hold funds, route orders, or execute trades.
+      <div className="mt-6 p-4 bg-[#131322] border border-[#1e1e30] text-xs text-[#a0a0b0]">
+        <strong>Disclaimer:</strong> QuantAlpha provides analysis and trade suggestions only. We never hold funds, route orders, or execute trades.
         Always do your own research. This is not investment advice.
       </div>
     </div>

@@ -10,24 +10,21 @@ import {
   Star,
   Bell,
   Newspaper,
-  Database,
   GitCompareArrows,
   BarChart3,
   LogIn,
   Terminal,
   TrendingUp,
 } from "lucide-react";
-import GradientButton from "@/components/ui/GradientButton";
 
 const NAV = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard", label: "Workspace", icon: LayoutDashboard },
   { href: "/news", label: "NewsDesk", icon: Newspaper },
   { href: "/screener", label: "Screener", icon: ScanSearch },
   { href: "/query", label: "Ask AI", icon: MessageSquareText },
-  { href: "/backtest", label: "Backtest", icon: FlaskConical },
+  { href: "/backtest", label: "Strategy", icon: FlaskConical },
   { href: "/performance", label: "Performance", icon: BarChart3 },
   { href: "/trade", label: "Trade", icon: TrendingUp, beta: true },
-  { href: "/sources", label: "Data Sources", icon: Database },
   { href: "/terminal", label: "Terminal", icon: Terminal, beta: true },
   { href: "/compare", label: "Compare", icon: GitCompareArrows },
   { href: "/watchlist", label: "Watchlist", icon: Star },
@@ -38,53 +35,79 @@ export default function SideNavBar() {
   const pathname = usePathname();
 
   return (
-    <aside id="sidebar-nav" className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col bg-surface-lowest border-r border-ghost-border lg:flex">
-      <div className="flex h-16 items-center gap-2 px-6">
-        <span className="font-headline text-lg font-bold tracking-tight text-primary">
-          NeuralQuant
+    <aside
+      id="sidebar-nav"
+      className="fixed left-0 top-0 h-full w-[280px] hidden lg:flex flex-col bg-surface-container-lowest border-r border-border-glow py-8 gap-2 z-50"
+    >
+      <div className="px-6 mb-8 flex flex-col gap-2">
+        <span className="font-mono text-[11px] font-bold tracking-[0.2em] text-primary-fixed uppercase">
+          QuantAlpha
+        </span>
+        <span className="font-mono text-[12px] text-text-muted">
+          V2.0.4-BETA
         </span>
       </div>
 
-      <div className="px-4 pb-4">
-        <GradientButton href="/dashboard" className="w-full justify-center">
-          Open Dashboard
-        </GradientButton>
-      </div>
-
-      <nav className="flex-1 space-y-1 px-3">
+      <nav className="flex-1 flex flex-col gap-1 px-0">
         {NAV.map(({ href, label, icon: Icon, beta }) => {
           const active = pathname.startsWith(href);
           return (
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+              className={`flex items-center gap-4 px-6 py-4 transition-all duration-200 group relative overflow-hidden ${
                 active
-                  ? "bg-surface-high text-on-surface font-medium"
-                  : "text-on-surface-variant hover:bg-surface-high hover:text-on-surface"
+                  ? "bg-primary-fixed/10 text-primary-fixed border-l-4 border-primary-fixed"
+                  : "text-text-muted hover:bg-surface-container-low hover:text-primary border-l-4 border-transparent"
               }`}
             >
               <Icon size={18} />
-              <span className="flex items-center gap-1.5">
+              <span className="font-mono text-[11px] font-bold tracking-[0.2em] uppercase">
                 {label}
-                {beta && (
-                  <span className="text-[9px] font-medium px-1 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/25 leading-none">
-                    BETA
-                  </span>
-                )}
               </span>
+              {beta && (
+                <span className="text-[9px] font-medium px-1 py-0.5 bg-amber-500/15 text-amber-400 border border-amber-500/25 leading-none font-mono">
+                  BETA
+                </span>
+              )}
             </Link>
           );
         })}
       </nav>
 
-      <div className="border-t border-ghost-border px-3 py-4">
+      <div className="px-6 mt-auto flex flex-col gap-4">
+        <Link
+          href="/query"
+          className="bg-primary-fixed text-background font-mono text-[12px] px-4 py-3 hover:shadow-[0_0_20px_rgba(0,255,178,0.3)] transition-all duration-300 w-full text-center font-bold tracking-[0.1em] uppercase"
+        >
+          New Research
+        </Link>
+        <div className="flex flex-col gap-1">
+          <a
+            href="#"
+            className="flex items-center gap-4 text-text-muted px-0 py-2 hover:text-primary transition-all duration-200"
+          >
+            <span className="font-mono text-[11px] font-bold tracking-[0.2em] uppercase">
+              Documentation
+            </span>
+          </a>
+          <a
+            href="#"
+            className="flex items-center gap-4 text-text-muted px-0 py-2 hover:text-primary transition-all duration-200"
+          >
+            <span className="font-mono text-[11px] font-bold tracking-[0.2em] uppercase">
+              Support
+            </span>
+          </a>
+        </div>
         <Link
           href="/login"
-          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-on-surface-variant hover:bg-surface-high hover:text-on-surface transition-colors"
+          className="flex items-center gap-4 text-text-muted px-0 py-2 hover:text-primary transition-all duration-200"
         >
-          <LogIn size={18} />
-          Sign In
+          <LogIn size={16} />
+          <span className="font-mono text-[11px] font-bold tracking-[0.2em] uppercase">
+            Sign In
+          </span>
         </Link>
       </div>
     </aside>

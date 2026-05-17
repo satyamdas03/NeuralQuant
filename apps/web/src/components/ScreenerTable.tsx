@@ -4,13 +4,13 @@ import RegimeBadge from "@/components/ui/RegimeBadge";
 
 export function ScreenerTable({ stocks }: { stocks: AIScore[] }) {
   return (
-    <div className="overflow-hidden rounded-2xl ghost-border">
+    <div className="overflow-hidden glass border border-border-glow">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-surface-low text-on-surface-variant text-xs uppercase tracking-wider">
+          <thead className="bg-surface-container-low text-text-muted font-mono text-[10px] font-bold tracking-[0.2em] uppercase">
             <tr>
               <th className="px-4 py-3 text-left">Ticker</th>
-              <th className="px-4 py-3 text-center">ForeCast Score</th>
+              <th className="px-4 py-3 text-center">Score</th>
               <th className="px-4 py-3 text-center">Quality</th>
               <th className="px-4 py-3 text-center">Momentum</th>
               <th className="px-4 py-3 text-center">Regime</th>
@@ -34,17 +34,17 @@ export function ScreenerTable({ stocks }: { stocks: AIScore[] }) {
                 </td>
                 <td className="px-4 py-3 text-center">
                   <span
-                    className={`text-lg font-bold ${
+                    className={`font-mono text-lg font-bold ${
                       s.score_1_10 >= 7
-                        ? "text-tertiary"
+                        ? "text-tertiary-fixed-dim"
                         : s.score_1_10 >= 4
-                        ? "text-primary"
-                        : "text-error"
+                        ? "text-primary-fixed"
+                        : "text-cyber-red"
                     }`}
                   >
                     {s.score_1_10}
                   </span>
-                  <span className="text-xs text-on-surface-variant">/10</span>
+                  <span className="font-mono text-[11px] text-text-muted">/10</span>
                 </td>
                 <td className="px-4 py-3 text-center tabular-nums text-on-surface">
                   {(s.sub_scores.quality * 100).toFixed(0)}%

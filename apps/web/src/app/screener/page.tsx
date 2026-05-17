@@ -88,11 +88,11 @@ function ScreenerInner() {
     <div className="space-y-5 p-4 lg:p-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <ScanSearch size={20} className="text-secondary" />
+          <ScanSearch size={20} className="text-primary-fixed" />
           <div>
             <h1 className="font-headline text-xl font-bold text-on-surface">AI Screener</h1>
             <p className="text-xs text-on-surface-variant">
-              Stocks ranked by NeuralQuant ForeCast Score™
+              Stocks ranked by QuantAlpha ForeCast Score™
             </p>
           </div>
         </div>
@@ -104,7 +104,7 @@ function ScreenerInner() {
           <button
             key={m}
             onClick={() => switchMarket(m)}
-            className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
               market === m
                 ? "gradient-cta text-on-primary-container gradient-cta-shadow"
                 : "bg-surface-high text-on-surface-variant hover:bg-surface-highest hover:text-on-surface"
@@ -121,7 +121,7 @@ function ScreenerInner() {
         const preset = PRESETS.find(p => p.id === activePreset);
         if (!preset) return null;
         return (
-          <div className="rounded-lg bg-primary/10 border border-primary/20 px-4 py-2.5 text-xs text-on-surface leading-relaxed">
+          <div className="bg-primary/10 border border-primary/20 px-4 py-2.5 text-xs text-on-surface leading-relaxed">
             <span className="font-semibold text-primary">{preset.name}:</span> {preset.description}
           </div>
         );

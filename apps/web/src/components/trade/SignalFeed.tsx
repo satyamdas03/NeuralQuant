@@ -90,7 +90,7 @@ export default function SignalFeed({ signals, loading }: { signals: TradeSignal[
                 </div>
               </div>
 
-              <div className="flex items-center gap-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5">
+              <div className="flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5">
                 <DollarSign size={14} className="text-emerald-400" />
                 <span className="font-mono text-sm font-bold text-emerald-300">
                   ${s.bet.toFixed(0)}

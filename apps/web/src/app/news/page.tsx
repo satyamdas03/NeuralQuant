@@ -31,14 +31,14 @@ const CATEGORIES: { key: NewsDeskItem["category"] | "all"; label: string }[] = [
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function sentimentIcon(s: NewsDeskItem["sentiment"]) {
-  if (s === "bullish") return <TrendingUp size={14} className="text-tertiary" />;
-  if (s === "bearish") return <TrendingDown size={14} className="text-error" />;
+  if (s === "bullish") return <TrendingUp size={14} className="text-primary-fixed" />;
+  if (s === "bearish") return <TrendingDown size={14} className="text-cyber-red" />;
   return <Minus size={14} className="text-on-surface-variant" />;
 }
 
 function sentimentClass(s: NewsDeskItem["sentiment"]) {
-  if (s === "bullish") return "bg-tertiary/10 text-tertiary border-tertiary/20";
-  if (s === "bearish") return "bg-error/10 text-error border-error/20";
+  if (s === "bullish") return "bg-primary-fixed/10 text-primary-fixed border-primary-fixed/20";
+  if (s === "bearish") return "bg-cyber-red/10 text-cyber-red border-cyber-red/20";
   return "bg-surface-high text-on-surface-variant border-ghost-border";
 }
 
@@ -53,13 +53,13 @@ function SentimentBadge({ sentiment }: { sentiment: NewsDeskResponse["sentiment"
     bullish: {
       icon: TrendingUp,
       label: "Bullish",
-      class: "bg-tertiary/10 text-tertiary border-tertiary/20",
+      class: "bg-primary-fixed/10 text-primary-fixed border-primary-fixed/20",
       pulse: "animate-pulse-glow",
     },
     bearish: {
       icon: TrendingDown,
       label: "Bearish",
-      class: "bg-error/10 text-error border-error/20",
+      class: "bg-cyber-red/10 text-cyber-red border-cyber-red/20",
       pulse: "",
     },
     neutral: {
@@ -123,7 +123,7 @@ function NewsCard({ item }: { item: NewsDeskItem }) {
                 <Link
                   key={ticker}
                   href={`/stocks/${ticker}`}
-                  className="inline-flex items-center gap-0.5 rounded-md bg-surface-high px-1.5 py-0.5 text-[10px] font-medium text-on-surface-variant hover:text-primary hover:bg-surface-highest transition-colors"
+                  className="inline-flex items-center gap-0.5 bg-surface-high px-1.5 py-0.5 text-[10px] font-medium text-on-surface-variant hover:text-primary hover:bg-surface-highest transition-colors"
                 >
                   <ArrowUpRight size={10} />
                   {ticker}
@@ -151,7 +151,7 @@ function TrendingSidebar({ topics }: { topics: string[] }) {
   return (
     <GhostBorderCard>
       <div className="flex items-center gap-2 pb-3 border-b border-ghost-border">
-        <Radio size={14} className="text-secondary" />
+        <Radio size={14} className="text-primary-fixed" />
         <h2 className="font-headline text-sm font-semibold text-on-surface">
           Trending Topics
         </h2>
@@ -193,17 +193,17 @@ function CategoryStats({ headlines }: { headlines: NewsDeskItem[] }) {
         </h2>
       </div>
       <div className="grid grid-cols-3 gap-2 pt-3">
-        <div className="rounded-lg bg-surface-high p-2 text-center">
+        <div className="bg-surface-high p-2 text-center">
           <div className="text-lg font-bold text-on-surface">{stats.total}</div>
           <div className="text-[10px] text-on-surface-variant uppercase tracking-wide">Headlines</div>
         </div>
-        <div className="rounded-lg bg-tertiary/10 p-2 text-center border border-tertiary/20">
-          <div className="text-lg font-bold text-tertiary">{stats.bullish}</div>
-          <div className="text-[10px] text-tertiary/80 uppercase tracking-wide">Bullish</div>
+        <div className="bg-primary-fixed/10 p-2 text-center border border-primary-fixed/20">
+          <div className="text-lg font-bold text-primary-fixed">{stats.bullish}</div>
+          <div className="text-[10px] text-primary-fixed/80 uppercase tracking-wide">Bullish</div>
         </div>
-        <div className="rounded-lg bg-error/10 p-2 text-center border border-error/20">
-          <div className="text-lg font-bold text-error">{stats.bearish}</div>
-          <div className="text-[10px] text-error/80 uppercase tracking-wide">Bearish</div>
+        <div className="bg-cyber-red/10 p-2 text-center border border-cyber-red/20">
+          <div className="text-lg font-bold text-cyber-red">{stats.bearish}</div>
+          <div className="text-[10px] text-cyber-red/80 uppercase tracking-wide">Bearish</div>
         </div>
       </div>
     </GhostBorderCard>
@@ -260,7 +260,7 @@ export default function NewsDeskPage() {
             <button
               key={key}
               onClick={() => setActiveCategory(key)}
-              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`px-3 py-1.5 text-xs font-medium transition-colors ${
                 activeCategory === key
                   ? "bg-surface-high text-on-surface border border-ghost-border"
                   : "text-on-surface-variant hover:bg-surface-high hover:text-on-surface"
@@ -274,7 +274,7 @@ export default function NewsDeskPage() {
 
       {/* Error fallback notice */}
       {error && (
-        <div className="rounded-lg bg-primary/10 border border-primary/20 px-3 py-2 text-xs text-primary">
+        <div className="bg-primary/10 border border-primary/20 px-3 py-2 text-xs text-primary">
           News feed temporarily unavailable. Please try again later.
         </div>
       )}
@@ -288,7 +288,7 @@ export default function NewsDeskPage() {
               {[1, 2, 3, 4, 5].map((i) => (
                 <div
                   key={i}
-                  className="h-[88px] rounded-xl bg-surface-container animate-pulse"
+                  className="h-[88px] bg-surface-container animate-pulse"
                 />
               ))}
             </div>

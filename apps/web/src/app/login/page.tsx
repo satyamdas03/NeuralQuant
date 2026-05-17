@@ -37,10 +37,10 @@ function LoginForm() {
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-sm glass-strong ghost-border rounded-2xl p-8">
+      <div className="w-full max-w-sm glass-strong ghost-border p-8">
         <div className="mb-6 text-center">
-          <h1 className="font-headline text-2xl font-bold text-on-surface">
-            Sign in to NeuralQuant
+          <h1 className="font-headline text-2xl font-bold text-primary-fixed">
+            Sign in to QuantAlpha
           </h1>
           <p className="mt-1 text-xs text-on-surface-variant">
             Institutional-grade AI stock intelligence
@@ -53,7 +53,7 @@ function LoginForm() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
-            className="w-full rounded-lg bg-surface-high px-3 py-2 text-sm text-on-surface outline-none placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary"
+            className="w-full bg-surface-high px-3 py-2 text-sm text-on-surface outline-none placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary-fixed"
           />
           <input
             type="password"
@@ -62,7 +62,7 @@ function LoginForm() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="password"
-            className="w-full rounded-lg bg-surface-high px-3 py-2 text-sm text-on-surface outline-none placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary"
+            className="w-full bg-surface-high px-3 py-2 text-sm text-on-surface outline-none placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary-fixed"
           />
           {error && <p className="text-sm text-error">{error}</p>}
           <GoogleSignInButton />
@@ -77,7 +77,7 @@ function LoginForm() {
         </form>
         <p className="mt-4 text-center text-sm text-on-surface-variant">
           No account?{" "}
-          <Link href="/signup" className="text-secondary hover:text-primary transition-colors">
+          <Link href="/signup" className="text-primary-fixed hover:text-primary transition-colors">
             Create one
           </Link>
         </p>

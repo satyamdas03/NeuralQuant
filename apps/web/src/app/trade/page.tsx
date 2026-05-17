@@ -125,7 +125,7 @@ export default function TradePage() {
 
         <div className="flex items-center gap-2">
           {/* Market toggle */}
-          <div className="flex rounded-lg bg-surface-high border border-ghost-border overflow-hidden">
+          <div className="flex bg-surface-high border border-ghost-border overflow-hidden">
             {(["US", "IN"] as const).map((m) => (
               <button
                 key={m}
@@ -150,7 +150,7 @@ export default function TradePage() {
 
       {/* Error banner */}
       {error && (
-        <div className="rounded-xl bg-rose-500/10 border border-rose-500/25 px-4 py-3 text-sm text-rose-400">
+        <div className="bg-cyber-red/10 border border-cyber-red/25 px-4 py-3 text-sm text-cyber-red">
           {error}
         </div>
       )}
@@ -222,7 +222,7 @@ export default function TradePage() {
                 type="number"
                 value={bankroll}
                 onChange={(e) => setBankroll(Number(e.target.value) || 0)}
-                className="w-24 rounded-lg bg-surface-high border border-ghost-border px-2 py-1 text-xs font-mono text-on-surface focus:border-primary/40 focus:outline-none"
+                className="w-24 bg-surface-high border border-ghost-border px-2 py-1 text-xs font-mono text-on-surface focus:border-primary/40 focus:outline-none"
               />
             </div>
           </div>

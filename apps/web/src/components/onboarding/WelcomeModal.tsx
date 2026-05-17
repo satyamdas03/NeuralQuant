@@ -105,9 +105,9 @@ export default function WelcomeModal({ onClose }: WelcomeModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="glass-strong ghost-border mx-4 w-full max-w-md rounded-2xl p-8">
+      <div className="glass-strong ghost-border mx-4 w-full max-w-md p-8">
         <h2 className="font-headline text-xl font-bold text-on-surface">
-          Welcome to NeuralQuant
+          Welcome to QuantAlpha
         </h2>
         <p className="mt-2 text-sm text-on-surface-variant">
           Pick 3–5 stocks to start your first watchlist. You can always change
@@ -121,7 +121,7 @@ export default function WelcomeModal({ onClose }: WelcomeModalProps) {
               <button
                 key={stock.ticker}
                 onClick={() => toggle(stock.ticker)}
-                className={`rounded-lg border px-3 py-2.5 text-left text-sm font-medium transition-colors ${
+                className={`border px-3 py-2.5 text-left text-sm font-medium transition-colors ${
                   isSelected
                     ? "bg-primary/20 text-primary ghost-border"
                     : "bg-surface-low text-on-surface-variant border-ghost-border hover:bg-surface-high"
@@ -150,7 +150,7 @@ export default function WelcomeModal({ onClose }: WelcomeModalProps) {
           <button
             onClick={handleContinue}
             disabled={creating}
-            className="rounded-lg bg-gradient-to-r from-[#c1c1ff] to-[#bdf4ff] px-5 py-2.5 text-sm font-semibold text-[#0f0f1a] transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="bg-gradient-to-r from-[#c1c1ff] to-[#bdf4ff] px-5 py-2.5 text-sm font-semibold text-[#0f0f1a] transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             {creating ? "Creating..." : buttonLabel}
           </button>

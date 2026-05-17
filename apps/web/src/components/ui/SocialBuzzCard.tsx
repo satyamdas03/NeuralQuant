@@ -69,7 +69,7 @@ export default function SocialBuzzCard() {
   return (
     <GhostBorderCard>
       <div className="flex items-center gap-2 mb-3">
-        <MessageSquare size={16} className="text-secondary" />
+        <MessageSquare size={16} className="text-primary-fixed" />
         <h3 className="font-semibold text-sm text-on-surface">Social Buzz</h3>
       </div>
       <div className="space-y-2">
@@ -91,7 +91,7 @@ export default function SocialBuzzCard() {
                     <Hash size={10} /> {item.stocktwits_mentions}
                   </span>
                 )}
-                <span className={`text-xs font-medium ${isBullish ? "text-tertiary" : isBearish ? "text-error" : "text-on-surface-variant"}`}>
+                <span className={`font-mono text-[10px] font-medium ${isBullish ? "text-tertiary-fixed-dim" : isBearish ? "text-cyber-red" : "text-text-muted"}`}>
                   {isBullish ? "↑" : isBearish ? "↓" : "→"} {bullishPct}%
                 </span>
               </div>

@@ -221,7 +221,7 @@ export default function TerminalPage() {
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={safePage <= 1}
-                className="rounded px-2 py-1 border border-ghost-border hover:bg-surface-container disabled:opacity-30 disabled:cursor-not-allowed"
+                className="px-2 py-1 border border-ghost-border hover:bg-surface-container disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 Prev
               </button>
@@ -233,7 +233,7 @@ export default function TerminalPage() {
                   <button
                     key={pg}
                     onClick={() => setPage(pg)}
-                    className={`rounded px-2 py-1 border ${
+                    className={`px-2 py-1 border ${
                       pg === safePage
                         ? "bg-primary/20 border-primary/50 text-primary"
                         : "border-ghost-border hover:bg-surface-container"
@@ -246,7 +246,7 @@ export default function TerminalPage() {
               <button
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={safePage >= totalPages}
-                className="rounded px-2 py-1 border border-ghost-border hover:bg-surface-container disabled:opacity-30 disabled:cursor-not-allowed"
+                className="px-2 py-1 border border-ghost-border hover:bg-surface-container disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 Next
               </button>
@@ -261,7 +261,7 @@ export default function TerminalPage() {
       return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {entries.map(([key, value]) => (
-            <div key={key} className="rounded-lg bg-surface-lowest border border-ghost-border px-3 py-2">
+            <div key={key} className="bg-surface-lowest border border-ghost-border px-3 py-2">
               <div className="text-xs text-on-surface-variant font-mono">{key}</div>
               <div className="text-sm text-on-surface font-mono truncate" title={String(value)}>
                 {value !== null && value !== undefined ? String(value).slice(0, 80) : "—"}
@@ -288,7 +288,7 @@ export default function TerminalPage() {
         <p className="mt-1 text-sm text-on-surface-variant">
           Explore financial data across equity, fixed income, and macro categories
         </p>
-        <div className="mt-3 rounded-lg border border-ghost-border bg-surface-container/50 px-4 py-3 text-xs text-on-surface-variant leading-relaxed">
+        <div className="mt-3 border border-ghost-border bg-surface-container/50 px-4 py-3 text-xs text-on-surface-variant leading-relaxed">
           <p className="font-medium text-on-surface mb-1">How to use the Data Terminal</p>
           <ol className="list-decimal list-inside space-y-1">
             <li>Pick a <strong>category</strong> from the left panel, or use the search bar to find a command.</li>
@@ -302,7 +302,7 @@ export default function TerminalPage() {
 
       {/* Offline / warming banner */}
       {!healthLoading && health && !health.online && (
-        <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-400">
+        <div className="mb-4 flex items-center gap-2 border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-400">
           {health.enabled ? <Loader2 size={18} className="animate-spin" /> : <AlertTriangle size={18} />}
           <span>
             {health.enabled
@@ -324,7 +324,7 @@ export default function TerminalPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search commands..."
-                className="w-full rounded-lg bg-surface-container border border-ghost-border px-9 py-2 text-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:border-primary/50"
+                className="w-full bg-surface-container border border-ghost-border px-9 py-2 text-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:border-primary/50"
               />
               {searchQuery && (
                 <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface">
@@ -349,7 +349,7 @@ export default function TerminalPage() {
                           return next;
                         });
                       }}
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-on-surface hover:bg-surface-container transition-colors"
+                      className="flex w-full items-center gap-2 px-3 py-2 text-sm font-medium text-on-surface hover:bg-surface-container transition-colors"
                     >
                       <Icon size={16} className={`text-${cat.color}`} />
                       <span className="flex-1 text-left">{cat.label}</span>
@@ -372,7 +372,7 @@ export default function TerminalPage() {
                               setMeta(null);
                               setError(null);
                             }}
-                            className={`flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-xs transition-colors ${
+                            className={`flex w-full items-center gap-2 px-3 py-1.5 text-xs transition-colors ${
                               selectedId === ep.id
                                 ? "bg-surface-high text-primary font-medium"
                                 : "text-on-surface-variant hover:bg-surface-container hover:text-on-surface"
@@ -414,7 +414,7 @@ export default function TerminalPage() {
                       <select
                         value={params[p.name] ?? p.default ?? ""}
                         onChange={(e) => setParams((prev) => ({ ...prev, [p.name]: e.target.value }))}
-                        className="w-full rounded-lg bg-surface-container border border-ghost-border px-3 py-2 text-sm text-on-surface focus:outline-none focus:border-primary/50 font-mono"
+                        className="w-full bg-surface-container border border-ghost-border px-3 py-2 text-sm text-on-surface focus:outline-none focus:border-primary/50 font-mono"
                       >
                         {p.options.map((opt: string) => (
                           <option key={opt} value={opt}>{opt}</option>
@@ -426,7 +426,7 @@ export default function TerminalPage() {
                         value={params[p.name] ?? p.default ?? ""}
                         onChange={(e) => setParams((prev) => ({ ...prev, [p.name]: e.target.value }))}
                         placeholder={p.description}
-                        className="w-full rounded-lg bg-surface-container border border-ghost-border px-3 py-2 text-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:border-primary/50 font-mono"
+                        className="w-full bg-surface-container border border-ghost-border px-3 py-2 text-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:border-primary/50 font-mono"
                       />
                     )}
                   </div>
@@ -445,7 +445,7 @@ export default function TerminalPage() {
 
               {/* Error */}
               {error && (
-                <div className="mt-4 rounded-lg border border-error/30 bg-error/10 p-3 text-sm text-error">
+                <div className="mt-4 border border-cyber-red/30 bg-cyber-red/10 p-3 text-sm text-cyber-red">
                   {error}
                 </div>
               )}
@@ -462,7 +462,7 @@ export default function TerminalPage() {
                       {result !== null && (
                         <button
                           onClick={() => exportToCSV(result, `${selected.path.replace(/\//g, "_")}_${Date.now()}`)}
-                          className="ml-auto flex items-center gap-1 rounded px-2 py-1 border border-ghost-border hover:bg-surface-container transition-colors"
+                          className="ml-auto flex items-center gap-1 px-2 py-1 border border-ghost-border hover:bg-surface-container transition-colors"
                           title="Download CSV"
                         >
                           <Download size={12} /> Export CSV

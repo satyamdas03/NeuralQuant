@@ -4,23 +4,23 @@ import type { AgentOutput, AnalystResponse } from "@/lib/types";
 import GlassPanel from "@/components/ui/GlassPanel";
 
 const STANCE_COLORS: Record<string, string> = {
-  BULL:    "text-tertiary bg-tertiary/10 ghost-border",
-  BEAR:    "text-error bg-error/10 ghost-border",
-  NEUTRAL: "text-secondary bg-secondary/10 ghost-border",
+  BULL:    "text-primary-fixed bg-primary-fixed/10 ghost-border",
+  BEAR:    "text-cyber-red bg-cyber-red/10 ghost-border",
+  NEUTRAL: "text-on-surface-variant bg-surface-high ghost-border",
 };
 
 const VERDICT_COLORS: Record<string, string> = {
-  "STRONG BUY":  "text-tertiary bg-tertiary/20",
-  "BUY":         "text-tertiary bg-tertiary/10",
-  "HOLD":        "text-secondary bg-secondary/10",
-  "SELL":        "text-error bg-error/10",
-  "STRONG SELL": "text-error bg-error/20",
+  "STRONG BUY":  "text-primary-fixed bg-primary-fixed/20",
+  "BUY":         "text-primary-fixed bg-primary-fixed/10",
+  "HOLD":        "text-on-surface-variant bg-surface-high",
+  "SELL":        "text-cyber-red bg-cyber-red/10",
+  "STRONG SELL": "text-cyber-red bg-cyber-red/20",
 };
 
 function AgentCard({ output }: { output: AgentOutput }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="ghost-border rounded-xl overflow-hidden">
+    <div className="ghost-border overflow-hidden">
       <button
         onClick={() => setOpen(!open)}
         className="w-full flex items-center justify-between p-4 hover:bg-surface-high transition-colors"

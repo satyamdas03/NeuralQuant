@@ -116,8 +116,8 @@ export default function MarketWrapCard() {
           {wrap.top_picks.length > 0 && (
             <div className="mt-2 px-4 pb-4">
               <div className="flex items-center gap-1 pb-2 text-[10px] text-on-surface-variant">
-                <TrendingUp size={10} className="text-tertiary"/>
-                Top NeuralQuant Picks
+                <TrendingUp size={10} className="text-primary-fixed"/>
+                Top QuantAlpha Picks
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {wrap.top_picks.map((p) => (

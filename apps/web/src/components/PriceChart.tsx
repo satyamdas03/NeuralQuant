@@ -15,7 +15,7 @@ type Period = typeof PERIODS[number];
 function CustomTooltip({ active, payload, label, symbol }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-surface-container ghost-border rounded-lg px-3 py-2 text-xs shadow-xl">
+    <div className="bg-surface-container ghost-border px-3 py-2 text-xs shadow-xl">
       <p className="text-on-surface-variant mb-1">{label}</p>
       <p className="font-semibold text-on-surface">{symbol}{payload[0].value.toFixed(2)}</p>
     </div>
@@ -52,10 +52,10 @@ export function PriceChart({ ticker, market = "US" }: { ticker: string; market?:
           <span className="font-semibold text-on-surface text-sm">Price</span>
           {!loading && data.length > 0 && (
             <>
-              <span className={`text-sm font-bold tabular-nums ${positive ? "text-tertiary" : "text-error"}`}>
+              <span className={`text-sm font-bold tabular-nums ${positive ? "text-primary-fixed" : "text-cyber-red"}`}>
                 {symbol}{data[data.length - 1]?.close.toFixed(2)}
               </span>
-              <span className={`text-xs px-2 py-0.5 rounded-full ${positive ? "bg-tertiary/10 text-tertiary" : "bg-error/10 text-error"}`}>
+              <span className={`text-xs px-2 py-0.5 rounded-full ${positive ? "bg-primary-fixed/10 text-primary-fixed" : "bg-cyber-red/10 text-cyber-red"}`}>
                 {positive ? "+" : ""}{pctChange.toFixed(2)}%
               </span>
             </>
@@ -66,7 +66,7 @@ export function PriceChart({ ticker, market = "US" }: { ticker: string; market?:
             <button
               key={p}
               onClick={() => setPeriod(p)}
-              className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors ${
+              className={`px-2.5 py-1 text-xs font-medium transition-colors ${
                 period === p
                   ? "bg-primary text-on-surface"
                   : "text-on-surface-variant hover:text-on-surface hover:bg-surface-high"
@@ -79,7 +79,7 @@ export function PriceChart({ ticker, market = "US" }: { ticker: string; market?:
       </div>
 
       {loading ? (
-        <div className="h-48 bg-surface-container rounded-lg animate-pulse" />
+        <div className="h-48 bg-surface-container animate-pulse" />
       ) : data.length === 0 ? (
         <div className="h-48 flex items-center justify-center text-on-surface-variant text-sm">
           No chart data available

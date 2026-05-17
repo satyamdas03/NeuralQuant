@@ -14,8 +14,8 @@ export default function GhostBorderCard({
   return (
     <div
       id={id}
-      className={`rounded-xl bg-surface-container ghost-border p-4 ${
-        hover ? "hover-glow cursor-pointer" : ""
+      className={`glass border border-border-glow p-4 ${
+        hover ? "hover:shadow-[0_0_20px_rgba(0,255,178,0.15)] hover:border-primary-fixed/40 cursor-pointer transition-all duration-300" : ""
       } ${className}`}
     >
       {children}

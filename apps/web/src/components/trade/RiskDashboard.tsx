@@ -20,9 +20,9 @@ export default function RiskDashboard({
 
       {loading ? (
         <div className="space-y-3 animate-pulse">
-          <div className="h-8 rounded-lg bg-surface-high" />
-          <div className="h-8 rounded-lg bg-surface-high" />
-          <div className="h-8 rounded-lg bg-surface-high" />
+          <div className="h-8 bg-surface-high" />
+          <div className="h-8 bg-surface-high" />
+          <div className="h-8 bg-surface-high" />
         </div>
       ) : calibration && calibration.n_trades > 0 ? (
         <div className="space-y-3">

@@ -199,7 +199,7 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
   return (
     <GlassPanel strong className="flex flex-col space-y-4">
       {slowLoad && (
-        <div className="rounded-lg bg-primary/10 px-3 py-2 text-xs text-primary border border-primary/20">
+        <div className="bg-primary/10 px-3 py-2 text-xs text-primary border border-primary/20">
           Backend warming up — may take 30–60s. Please wait…
         </div>
       )}
@@ -209,7 +209,7 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
           {messages.map((msg) =>
             msg.role === "user" ? (
               <div key={msg.id} className="flex justify-end">
-                <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-primary/15 border border-primary/20 px-4 py-2.5 text-sm text-on-surface">
+                <div className="max-w-[80%] rounded-tr-sm bg-primary/15 border border-primary/20 px-4 py-2.5 text-sm text-on-surface">
                   {msg.content}
                 </div>
               </div>
@@ -220,7 +220,7 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
                 ) : (
                   <div className="flex items-center gap-2 py-1 text-sm text-on-surface-variant">
                     <span className="animate-pulse text-primary">●</span>
-                    <span>Connecting to NeuralQuant AI...</span>
+                    <span>Connecting to QuantAlpha AI...</span>
                   </div>
                 )}
               </div>
@@ -257,7 +257,7 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
         {messages.length > 0 && (
           <button
             onClick={clear}
-            className="mb-0.5 rounded-xl px-3 py-2.5 text-on-surface-variant hover:bg-surface-high hover:text-on-surface transition-colors"
+            className="mb-0.5 px-3 py-2.5 text-on-surface-variant hover:bg-surface-high hover:text-on-surface transition-colors"
             title="Clear conversation"
           >
             ✕

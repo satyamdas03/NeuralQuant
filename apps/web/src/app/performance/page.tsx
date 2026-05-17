@@ -61,7 +61,7 @@ export default function PerformancePage() {
         <div>
           <h1 className="font-headline text-xl font-bold text-on-surface">Performance & Accuracy</h1>
           <p className="text-xs text-on-surface-variant">
-            Walk-forward validation results — NeuralQuant ForeCast vs market
+            Walk-forward validation results — QuantAlpha ForeCast vs market
           </p>
         </div>
       </div>
@@ -223,14 +223,14 @@ export default function PerformancePage() {
                 </table>
               </div>
               <p className="mt-2 text-[10px] text-on-surface-variant">
-                Current top-scored US stocks from NeuralQuant ForeCast engine.
+                Current top-scored US stocks from QuantAlpha ForeCast engine.
               </p>
             </GlassPanel>
           )}
 
-          {/* Why NeuralQuant */}
+          {/* Why QuantAlpha */}
           <GhostBorderCard className="p-4">
-            <h2 className="font-headline text-sm font-semibold text-on-surface mb-3">Why NeuralQuant?</h2>
+            <h2 className="font-headline text-sm font-semibold text-on-surface mb-3">Why QuantAlpha?</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <WhyCard icon="📊" title="Walk-Forward Validation" desc="Scores are backtested against real forward 3-month returns, not in-sample fits." />
               <WhyCard icon="🎯" title="Multi-Factor Scoring" desc="50+ signals across quality, momentum, value, volatility, and insider activity." />

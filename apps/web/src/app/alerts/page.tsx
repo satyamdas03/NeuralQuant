@@ -74,7 +74,7 @@ export default function AlertsPage() {
             <p className="text-sm text-on-surface-variant">Sign in to manage stock alerts</p>
             <Link
               href="/login"
-              className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-on-surface text-sm font-medium hover:bg-primary/80 transition-colors"
+              className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-primary text-on-surface text-sm font-medium hover:bg-primary/80 transition-colors"
             >
               <LogIn size={14} /> Sign in
             </Link>
@@ -218,7 +218,7 @@ function DeliveryRow({ delivery }: { delivery: AlertDelivery }) {
       </div>
       <div className="flex items-center gap-2 tabular-nums">
         {delta != null && (
-          <span className={up ? "text-tertiary" : "text-error"}>
+          <span className={up ? "text-tertiary-fixed-dim" : "text-cyber-red"}>
             {up ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
             {up ? "+" : ""}{delta.toFixed(2)}
           </span>
@@ -274,7 +274,7 @@ function AddAlertCard({
             value={ticker}
             onChange={e => setTicker(e.target.value.toUpperCase())}
             placeholder="AAPL"
-            className="w-full px-3 py-2 rounded-lg bg-surface-container text-on-surface text-sm ghost-border focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full px-3 py-2 bg-surface-container text-on-surface text-sm ghost-border focus:outline-none focus:ring-1 focus:ring-primary-fixed"
           />
         </div>
         <div>
@@ -282,7 +282,7 @@ function AddAlertCard({
           <select
             value={market}
             onChange={e => setMarket(e.target.value as "US" | "IN")}
-            className="w-full px-3 py-2 rounded-lg bg-surface-container text-on-surface text-sm ghost-border"
+            className="w-full px-3 py-2 bg-surface-container text-on-surface text-sm ghost-border"
           >
             <option value="US">US</option>
             <option value="IN">India</option>
@@ -293,7 +293,7 @@ function AddAlertCard({
           <select
             value={alertType}
             onChange={e => setAlertType(e.target.value as AlertType)}
-            className="w-full px-3 py-2 rounded-lg bg-surface-container text-on-surface text-sm ghost-border"
+            className="w-full px-3 py-2 bg-surface-container text-on-surface text-sm ghost-border"
           >
             <option value="score_change">Score Change</option>
             <option value="regime_change">Regime Change</option>
@@ -307,7 +307,7 @@ function AddAlertCard({
               type="number" step="0.05" min="0" max="1"
               value={threshold}
               onChange={e => setThreshold(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-surface-container text-on-surface text-sm ghost-border focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-full px-3 py-2 bg-surface-container text-on-surface text-sm ghost-border focus:outline-none focus:ring-1 focus:ring-primary-fixed"
             />
           </div>
         ) : (
@@ -317,7 +317,7 @@ function AddAlertCard({
               type="number" step="0.05" min="0.01" max="0.50"
               value={minDelta}
               onChange={e => setMinDelta(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-surface-container text-on-surface text-sm ghost-border focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-full px-3 py-2 bg-surface-container text-on-surface text-sm ghost-border focus:outline-none focus:ring-1 focus:ring-primary-fixed"
             />
           </div>
         )}

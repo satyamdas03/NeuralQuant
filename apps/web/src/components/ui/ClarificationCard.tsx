@@ -24,10 +24,10 @@ export default function ClarificationCard({ questions, context, onSubmit }: Prop
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-xl bg-surface-container ghost-border p-4 space-y-4"
+      className="bg-surface-container ghost-border p-4 space-y-4"
     >
       {context && (
-        <div className="rounded-lg bg-primary/10 border border-primary/20 px-3 py-2">
+        <div className="bg-primary/10 border border-primary/20 px-3 py-2">
           <p className="text-sm text-on-surface font-medium">{context}</p>
         </div>
       )}
@@ -67,7 +67,7 @@ export default function ClarificationCard({ questions, context, onSubmit }: Prop
                 setAnswers((prev) => ({ ...prev, [qi]: e.target.value }))
               }
               placeholder="Type your answer..."
-              className="w-full rounded-lg bg-surface-high px-3 py-2 text-sm text-on-surface border border-outline/20 focus:outline-none focus:ring-2 focus:ring-primary/40"
+              className="w-full bg-surface-high px-3 py-2 text-sm text-on-surface border border-outline/20 focus:outline-none focus:ring-2 focus:ring-primary-fixed/40"
             />
           )}
         </div>
@@ -76,7 +76,7 @@ export default function ClarificationCard({ questions, context, onSubmit }: Prop
       <button
         type="submit"
         disabled={submitting}
-        className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full bg-primary px-4 py-2 text-sm font-medium text-on-primary hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {submitting ? "Getting Answer..." : "Answer & Continue"}
       </button>

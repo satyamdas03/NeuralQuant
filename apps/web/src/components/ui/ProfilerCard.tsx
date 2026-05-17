@@ -30,7 +30,7 @@ export default function ProfilerCard({ defaultAmount, onSubmit }: Props) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-xl bg-surface-container ghost-border p-4 space-y-3"
+      className="bg-surface-container ghost-border p-4 space-y-3"
     >
       <p className="text-sm text-on-surface font-medium">
         Before I build your portfolio, I need to understand your goals:
@@ -41,7 +41,7 @@ export default function ProfilerCard({ defaultAmount, onSubmit }: Props) {
         <select
           value={risk}
           onChange={(e) => setRisk(e.target.value as UserProfile["risk_profile"])}
-          className="w-full rounded-lg bg-surface-high px-3 py-2 text-sm text-on-surface border border-outline/20 focus:outline-none focus:ring-2 focus:ring-primary/40"
+          className="w-full bg-surface-high px-3 py-2 text-sm text-on-surface border border-outline/20 focus:outline-none focus:ring-2 focus:ring-primary-fixed/40"
         >
           <option value="conservative">Conservative — Protect capital</option>
           <option value="balanced">Balanced — Growth & stability</option>
@@ -54,7 +54,7 @@ export default function ProfilerCard({ defaultAmount, onSubmit }: Props) {
         <select
           value={horizon}
           onChange={(e) => setHorizon(e.target.value as UserProfile["time_horizon"])}
-          className="w-full rounded-lg bg-surface-high px-3 py-2 text-sm text-on-surface border border-outline/20 focus:outline-none focus:ring-2 focus:ring-primary/40"
+          className="w-full bg-surface-high px-3 py-2 text-sm text-on-surface border border-outline/20 focus:outline-none focus:ring-2 focus:ring-primary-fixed/40"
         >
           <option value="<1yr">&lt; 1 year</option>
           <option value="1-3yr">1 – 3 years</option>
@@ -68,7 +68,7 @@ export default function ProfilerCard({ defaultAmount, onSubmit }: Props) {
         <select
           value={goal}
           onChange={(e) => setGoal(e.target.value as UserProfile["goal"])}
-          className="w-full rounded-lg bg-surface-high px-3 py-2 text-sm text-on-surface border border-outline/20 focus:outline-none focus:ring-2 focus:ring-primary/40"
+          className="w-full bg-surface-high px-3 py-2 text-sm text-on-surface border border-outline/20 focus:outline-none focus:ring-2 focus:ring-primary-fixed/40"
         >
           <option value="wealth_building">Wealth Building</option>
           <option value="retirement">Retirement</option>
@@ -85,14 +85,14 @@ export default function ProfilerCard({ defaultAmount, onSubmit }: Props) {
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           placeholder="e.g. INR 10,00,000 or $50,000"
-          className="w-full rounded-lg bg-surface-high px-3 py-2 text-sm text-on-surface border border-outline/20 focus:outline-none focus:ring-2 focus:ring-primary/40"
+          className="w-full bg-surface-high px-3 py-2 text-sm text-on-surface border border-outline/20 focus:outline-none focus:ring-2 focus:ring-primary-fixed/40"
         />
       </div>
 
       <button
         type="submit"
         disabled={submitting}
-        className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full bg-primary px-4 py-2 text-sm font-medium text-on-primary hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {submitting ? "Building..." : "Build My Portfolio"}
       </button>

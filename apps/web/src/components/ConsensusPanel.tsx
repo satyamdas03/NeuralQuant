@@ -24,14 +24,14 @@ function fmtBigNum(v: number | null): string {
 }
 
 const CONSENSUS_COLORS: Record<string, string> = {
-  strong_buy: "bg-tertiary text-on-primary",
-  buy: "bg-tertiary/80 text-on-primary",
-  outperform: "bg-tertiary/60 text-on-primary",
-  hold: "bg-secondary/20 text-on-surface",
-  neutral: "bg-secondary/20 text-on-surface",
-  underperform: "bg-error/20 text-error",
-  sell: "bg-error text-on-primary",
-  strong_sell: "bg-error text-on-primary",
+  strong_buy: "bg-primary-fixed text-background",
+  buy: "bg-primary-fixed/80 text-background",
+  outperform: "bg-primary-fixed/60 text-background",
+  hold: "bg-surface-high text-on-surface",
+  neutral: "bg-surface-high text-on-surface",
+  underperform: "bg-cyber-red/20 text-cyber-red",
+  sell: "bg-cyber-red text-background",
+  strong_sell: "bg-cyber-red text-background",
 };
 
 function ConsensusBadge({ consensus }: { consensus: string | null }) {
@@ -57,9 +57,9 @@ function RatingBar({ buy, hold, sell }: { buy: number | null; hold: number | nul
   const sellPct = (s / total) * 100;
   return (
     <div className="flex h-2 rounded-full overflow-hidden bg-surface-container mt-1">
-      {buyPct > 0 && <div className="bg-tertiary" style={{ width: `${buyPct}%` }} title={`${b} Buy`} />}
-      {holdPct > 0 && <div className="bg-secondary" style={{ width: `${holdPct}%` }} title={`${h} Hold`} />}
-      {sellPct > 0 && <div className="bg-error" style={{ width: `${sellPct}%` }} title={`${s} Sell`} />}
+      {buyPct > 0 && <div className="bg-primary-fixed" style={{ width: `${buyPct}%` }} title={`${b} Buy`} />}
+      {holdPct > 0 && <div className="bg-surface-high" style={{ width: `${holdPct}%` }} title={`${h} Hold`} />}
+      {sellPct > 0 && <div className="bg-cyber-red" style={{ width: `${sellPct}%` }} title={`${s} Sell`} />}
     </div>
   );
 }
@@ -167,13 +167,13 @@ export default function ConsensusPanel({ ticker, market = "US", meta }: { ticker
                 {consensus.target_high !== null && (
                   <div>
                     <span className="text-[10px] text-on-surface-variant uppercase">High Target</span>
-                    <div className="text-sm font-medium text-tertiary">{cur}{fmtNum(consensus.target_high, 0)}</div>
+                    <div className="text-sm font-medium text-primary-fixed">{cur}{fmtNum(consensus.target_high, 0)}</div>
                   </div>
                 )}
                 {consensus.target_low !== null && (
                   <div>
                     <span className="text-[10px] text-on-surface-variant uppercase">Low Target</span>
-                    <div className="text-sm font-medium text-error">{cur}{fmtNum(consensus.target_low, 0)}</div>
+                    <div className="text-sm font-medium text-cyber-red">{cur}{fmtNum(consensus.target_low, 0)}</div>
                   </div>
                 )}
               </div>

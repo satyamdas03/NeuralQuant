@@ -49,7 +49,7 @@ function NewsPanel({ news, loading }: { news: NewsItem[]; loading: boolean }) {
     <GhostBorderCard>
       <div className="flex items-center justify-between pb-3 border-b border-ghost-border">
         <div className="flex items-center gap-2">
-          <Newspaper size={14} className="text-secondary" />
+          <Newspaper size={14} className="text-primary-fixed" />
           <h2 className="font-headline text-sm font-semibold text-on-surface">
             Market Summary
           </h2>
@@ -171,7 +171,7 @@ function TopAIPicks({ stocks, regime, loading }: { stocks: AIScore[]; regime: st
     <GhostBorderCard>
       <div className="flex items-center justify-between pb-3 border-b border-ghost-border">
         <div className="flex items-center gap-2">
-          <TrendingUp size={14} className="text-tertiary" />
+          <TrendingUp size={14} className="text-tertiary-fixed-dim" />
           <h2 className="font-headline text-sm font-semibold text-on-surface">Top ForeCast Picks</h2>
         </div>
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
@@ -217,7 +217,7 @@ function TopAIPicks({ stocks, regime, loading }: { stocks: AIScore[]; regime: st
             ))}
           </div>
           <div className="px-4 py-3 border-t border-ghost-border">
-            <Link href="/screener" className="text-xs text-secondary hover:text-primary transition-colors">
+            <Link href="/screener" className="text-xs text-primary-fixed hover:text-primary transition-colors">
               View full screener →
             </Link>
           </div>
@@ -296,7 +296,7 @@ export default function DashboardPage() {
           </div>
           <GhostBorderCard id="dashboard-equity-sectors">
             <div className="flex items-center gap-2 pb-3 border-b border-ghost-border">
-              <TrendingUp size={14} className="text-secondary" />
+              <TrendingUp size={14} className="text-primary-fixed" />
               <h2 className="font-headline text-sm font-semibold text-on-surface">Equity Sectors</h2>
             </div>
             {sectorsLoading && !sectors.length ? (

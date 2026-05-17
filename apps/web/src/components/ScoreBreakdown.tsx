@@ -12,7 +12,7 @@ export function ScoreBreakdown({ scores }: { scores: SubScores }) {
   ];
 
   return (
-    <div className="p-5 rounded-2xl ghost-border bg-surface-low/60">
+    <div className="p-5 ghost-border bg-surface-low/60">
       <h3 className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-2">
         Factor Breakdown
       </h3>

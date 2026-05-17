@@ -7,7 +7,7 @@ function MetricCard({ label, value, suffix = "", highlight = false }: {
   label: string; value: string | number; suffix?: string; highlight?: boolean;
 }) {
   return (
-    <div className="rounded-lg bg-surface-high/50 border border-ghost-border px-3 py-2.5">
+    <div className="bg-surface-high/50 border border-ghost-border px-3 py-2.5">
       <div className="text-[10px] text-on-surface-variant uppercase tracking-wide">{label}</div>
       <div className={`text-sm font-mono font-semibold mt-0.5 ${highlight ? "text-primary" : "text-on-surface"}`}>
         {value}{suffix}
@@ -68,7 +68,7 @@ export default function HistoricalBacktest({ data }: { data: BacktestResponse })
           <h3 className="text-xs font-semibold text-on-surface-variant uppercase tracking-wide">
             Equity Curve ({metrics.years}yr)
           </h3>
-          <span className={`text-xs font-mono ${up ? "text-tertiary" : "text-error"}`}>
+          <span className={`text-xs font-mono ${up ? "text-primary-fixed" : "text-cyber-red"}`}>
             {up ? "+" : ""}{metrics.total_return_pct.toFixed(1)}%
           </span>
         </div>
@@ -90,7 +90,7 @@ export default function HistoricalBacktest({ data }: { data: BacktestResponse })
         <div className="max-h-48 overflow-y-auto space-y-1">
           <h4 className="text-[10px] text-on-surface-variant uppercase tracking-wide mb-1">Recent Trades</h4>
           {trades.slice(-15).reverse().map((t, i) => (
-            <div key={i} className="flex items-center justify-between text-[11px] font-mono text-on-surface-variant bg-surface-high/30 rounded px-2 py-1">
+            <div key={i} className="flex items-center justify-between text-[11px] font-mono text-on-surface-variant bg-surface-high/30 px-2 py-1">
               <span>{t.date}</span>
               <span className="text-primary/80">{t.ticker}</span>
               <span>{t.action}</span>

@@ -5,161 +5,176 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ═══════════════════════════════════════════════════════════
-   OBSIDIAN QUANTUM — "The Sovereign Ledger" Design System
-   NeuralQuant Institutional-Grade Dark Theme
+   OBSIDIAN QUANTUM V2 — Cyber-Financial Minimalism
+   QuantAlpha AI Institutional-Grade Design System
+   Design: Anjali / Implemented: Claude
    ═══════════════════════════════════════════════════════════ */
 
 @theme inline {
-  /* ─── Surface Hierarchy ─── */
-  --color-surface: #131313;
-  --color-surface-lowest: #0e0e0e;
-  --color-surface-low: #1c1b1b;
-  --color-surface-container: #201f1f;
-  --color-surface-high: #2a2a2a;
-  --color-surface-highest: #353534;
+  /* ─── Obsidian Surface Hierarchy ─── */
+  --color-surface: #10131c;
+  --color-surface-lowest: #0a0e16;
+  --color-surface-low: #181c24;
+  --color-surface-container: #1c2028;
+  --color-surface-high: #262a33;
+  --color-surface-highest: #31353e;
+  --color-surface-deep: #090E1A;
+  --color-panel-glass: rgba(13, 20, 37, 0.7);
 
-  /* ─── Brand & Semantic ─── */
-  --color-primary: #c1c1ff;
-  --color-primary-container: #5d5cff;
-  --color-secondary: #bdf4ff;
-  --color-secondary-container: #00e3fd;
-  --color-tertiary: #4edea3;
-  --color-tertiary-container: #00845a;
+  /* ─── Brand: Sharp Emerald ─── */
+  --color-primary: #47ffb8;
+  --color-primary-dim: #00e29d;
+  --color-primary-container: #00ffb2;
+  --color-on-primary: #003824;
+  --color-on-primary-container: #00724d;
+  --color-primary-fixed: #47ffb8;
+  --color-primary-fixed-dim: #00e29d;
+
+  /* ─── Secondary: Deep Indigo ─── */
+  --color-secondary: #c1c1ff;
+  --color-secondary-container: #5d5cff;
+  --color-on-secondary: #1500a8;
+  --color-secondary-fixed: #e1dfff;
+  --color-secondary-fixed-dim: #c1c1ff;
+
+  /* ─── Gold (Warnings / Signals) ─── */
+  --color-tertiary: #fffcff;
+  --color-tertiary-container: #ffdc91;
+  --color-tertiary-fixed: #FFD166;
+  --color-tertiary-fixed-dim: #edc157;
+  --color-on-tertiary: #3f2e00;
+
+  /* ─── Cyber Red (Errors / Bearish) ─── */
   --color-error: #ffb4ab;
   --color-error-container: #93000a;
+  --color-on-error: #690005;
+  --color-cyber-red: #FF4158;
 
   /* ─── Text ─── */
-  --color-on-surface: #e5e2e1;
-  --color-on-surface-variant: #c7c4d8;
+  --color-on-surface: #e0e2ee;
+  --color-on-surface-variant: #b9cbbe;
   --color-on-primary-container: #fdf9ff;
+  --color-text-primary: #E8F4FF;
+  --color-text-muted: rgba(232, 244, 255, 0.45);
 
-  /* ─── Borders & Outlines ─── */
-  --color-outline: #908fa1;
-  --color-outline-variant: #464556;
-  --color-ghost-border: rgba(70, 69, 86, 0.15);
+  /* ─── Borders ─── */
+  --color-outline: #83958a;
+  --color-outline-variant: #3a4a41;
+  --color-ghost-border: rgba(0, 255, 178, 0.15);
+  --color-border-glow: rgba(0, 255, 178, 0.15);
 
   /* ─── Mapped shadcn tokens ─── */
-  --color-background: var(--color-surface);
-  --color-foreground: var(--color-on-surface);
+  --color-background: var(--color-surface-deep);
+  --color-foreground: var(--color-text-primary);
   --color-card: var(--color-surface-container);
-  --color-card-foreground: var(--color-on-surface);
+  --color-card-foreground: var(--color-text-primary);
   --color-popover: var(--color-surface-container);
-  --color-popover-foreground: var(--color-on-surface);
-  --color-primary-foreground: var(--color-on-primary-container);
-  --color-secondary-foreground: var(--color-on-primary-container);
+  --color-popover-foreground: var(--color-text-primary);
+  --color-primary-foreground: var(--color-on-primary);
+  --color-secondary-foreground: var(--color-on-primary);
   --color-muted: var(--color-surface-high);
-  --color-muted-foreground: var(--color-on-surface-variant);
+  --color-muted-foreground: var(--color-text-muted);
   --color-accent: var(--color-surface-high);
-  --color-accent-foreground: var(--color-on-surface);
-  --color-destructive: var(--color-error);
-  --color-border: var(--color-ghost-border);
+  --color-accent-foreground: var(--color-text-primary);
+  --color-destructive: var(--color-cyber-red);
+  --color-border: var(--color-border-glow);
   --color-input: var(--color-surface-highest);
-  --color-ring: var(--color-secondary);
+  --color-ring: var(--color-primary);
 
   /* ─── Charts ─── */
-  --color-chart-1: #c1c1ff;
-  --color-chart-2: #bdf4ff;
-  --color-chart-3: #4edea3;
-  --color-chart-4: #ffb4ab;
-  --color-chart-5: #908fa1;
+  --color-chart-1: #47ffb8;
+  --color-chart-2: #c1c1ff;
+  --color-chart-3: #FFD166;
+  --color-chart-4: #FF4158;
+  --color-chart-5: #83958a;
 
   /* ─── Sidebar ─── */
   --color-sidebar: var(--color-surface-lowest);
-  --color-sidebar-foreground: var(--color-on-surface);
+  --color-sidebar-foreground: var(--color-text-primary);
   --color-sidebar-primary: var(--color-primary);
-  --color-sidebar-primary-foreground: var(--color-on-primary-container);
+  --color-sidebar-primary-foreground: var(--color-on-primary);
   --color-sidebar-accent: var(--color-surface-high);
-  --color-sidebar-accent-foreground: var(--color-on-surface);
-  --color-sidebar-border: var(--color-ghost-border);
+  --color-sidebar-accent-foreground: var(--color-text-primary);
+  --color-sidebar-border: var(--color-border-glow);
   --color-sidebar-ring: var(--color-primary);
 
-  /* ─── Fonts ─── */
-  --font-sans: var(--font-inter);
-  --font-heading: var(--font-space-grotesk);
-  --font-mono: var(--font-geist-mono);
+  /* ─── Fonts: Syne (headline/body) + Space Mono (data/labels) ─── */
+  --font-sans: var(--font-syne);
+  --font-heading: var(--font-syne);
+  --font-mono: var(--font-space-mono);
+  --font-headline: var(--font-syne);
 
-  /* ─── Radius ─── */
-  --radius-sm: 0.25rem;
-  --radius-md: 0.375rem;
-  --radius-lg: 0.5rem;
-  --radius-xl: 0.75rem;
-  --radius-2xl: 1rem;
-  --radius-3xl: 1.5rem;
-  --radius-4xl: 2rem;
-
-  /* ─── shadcn radius mapping ─── */
-  --radius: 0.5rem;
+  /* ─── Brutalist Sharp Corners (0px radius) ─── */
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
+  --radius-2xl: 0;
+  --radius-3xl: 0;
+  --radius-4xl: 0;
+  --radius: 0;
 }
 
-/* ─── Light mode (not used but required by shadcn) ─── */
+/* ─── Base Root (required by shadcn) ─── */
 :root {
-  --color-background: #131313;
-  --color-foreground: #e5e2e1;
-  --color-card: #201f1f;
-  --color-card-foreground: #e5e2e1;
-  --color-popover: #201f1f;
-  --color-popover-foreground: #e5e2e1;
-  --color-primary: #5d5cff;
-  --color-primary-foreground: #fdf9ff;
-  --color-secondary: #00e3fd;
-  --color-secondary-foreground: #0e0e0e;
-  --color-muted: #2a2a2a;
-  --color-muted-foreground: #c7c4d8;
-  --color-accent: #2a2a2a;
-  --color-accent-foreground: #e5e2e1;
-  --color-destructive: #ffb4ab;
-  --color-border: rgba(70, 69, 86, 0.15);
-  --color-input: #353534;
-  --color-ring: #bdf4ff;
-  --color-chart-1: #5d5cff;
-  --color-chart-2: #00e3fd;
-  --color-chart-3: #4edea3;
-  --color-chart-4: #ffb4ab;
-  --color-chart-5: #908fa1;
-  --color-sidebar: #0e0e0e;
-  --color-sidebar-foreground: #e5e2e1;
-  --color-sidebar-primary: #5d5cff;
-  --color-sidebar-primary-foreground: #fdf9ff;
-  --color-sidebar-accent: #2a2a2a;
-  --color-sidebar-accent-foreground: #e5e2e1;
-  --color-sidebar-border: rgba(70, 69, 86, 0.15);
-  --color-sidebar-ring: #5d5cff;
-  --radius: 0.5rem;
+  --color-background: #050810;
+  --color-foreground: #E8F4FF;
+  --color-card: #1c2028;
+  --color-card-foreground: #E8F4FF;
+  --color-popover: #1c2028;
+  --color-popover-foreground: #E8F4FF;
+  --color-primary: #00ffb2;
+  --color-primary-foreground: #003824;
+  --color-secondary: #c1c1ff;
+  --color-secondary-foreground: #0a0e16;
+  --color-muted: #262a33;
+  --color-muted-foreground: rgba(232, 244, 255, 0.45);
+  --color-accent: #262a33;
+  --color-accent-foreground: #E8F4FF;
+  --color-destructive: #FF4158;
+  --color-border: rgba(0, 255, 178, 0.15);
+  --color-input: #31353e;
+  --color-ring: #47ffb8;
+  --color-sidebar: #0a0e16;
+  --color-sidebar-foreground: #E8F4FF;
+  --color-sidebar-primary: #47ffb8;
+  --color-sidebar-primary-foreground: #003824;
+  --color-sidebar-accent: #262a33;
+  --color-sidebar-accent-foreground: #E8F4FF;
+  --color-sidebar-border: rgba(0, 255, 178, 0.15);
+  --color-sidebar-ring: #47ffb8;
+  --radius: 0;
 }
 
-/* ─── Dark mode (primary theme) ─── */
+/* ─── Dark mode (the ONLY mode) ─── */
 .dark {
-  --color-background: #131313;
-  --color-foreground: #e5e2e1;
-  --color-card: #201f1f;
-  --color-card-foreground: #e5e2e1;
-  --color-popover: #201f1f;
-  --color-popover-foreground: #e5e2e1;
-  --color-primary: #c1c1ff;
-  --color-primary-foreground: #0e0e0e;
-  --color-secondary: #bdf4ff;
-  --color-secondary-foreground: #0e0e0e;
-  --color-muted: #2a2a2a;
-  --color-muted-foreground: #c7c4d8;
-  --color-accent: #2a2a2a;
-  --color-accent-foreground: #e5e2e1;
-  --color-destructive: #ffb4ab;
-  --color-border: rgba(70, 69, 86, 0.15);
-  --color-input: #353534;
-  --color-ring: #bdf4ff;
-  --color-chart-1: #c1c1ff;
-  --color-chart-2: #bdf4ff;
-  --color-chart-3: #4edea3;
-  --color-chart-4: #ffb4ab;
-  --color-chart-5: #908fa1;
-  --color-sidebar: #0e0e0e;
-  --color-sidebar-foreground: #e5e2e1;
-  --color-sidebar-primary: #c1c1ff;
-  --color-sidebar-primary-foreground: #0e0e0e;
-  --color-sidebar-accent: #2a2a2a;
-  --color-sidebar-accent-foreground: #e5e2e1;
-  --color-sidebar-border: rgba(70, 69, 86, 0.15);
-  --color-sidebar-ring: #c1c1ff;
+  --color-background: #050810;
+  --color-foreground: #E8F4FF;
+  --color-card: #1c2028;
+  --color-card-foreground: #E8F4FF;
+  --color-popover: #1c2028;
+  --color-popover-foreground: #E8F4FF;
+  --color-primary: #47ffb8;
+  --color-primary-foreground: #003824;
+  --color-secondary: #c1c1ff;
+  --color-secondary-foreground: #0a0e16;
+  --color-muted: #262a33;
+  --color-muted-foreground: rgba(232, 244, 255, 0.45);
+  --color-accent: #262a33;
+  --color-accent-foreground: #E8F4FF;
+  --color-destructive: #FF4158;
+  --color-border: rgba(0, 255, 178, 0.15);
+  --color-input: #31353e;
+  --color-ring: #47ffb8;
+  --color-sidebar: #0a0e16;
+  --color-sidebar-foreground: #E8F4FF;
+  --color-sidebar-primary: #47ffb8;
+  --color-sidebar-primary-foreground: #003824;
+  --color-sidebar-accent: #262a33;
+  --color-sidebar-accent-foreground: #E8F4FF;
+  --color-sidebar-border: rgba(0, 255, 178, 0.15);
+  --color-sidebar-ring: #47ffb8;
+  color-scheme: dark;
 }
 
 /* ─── Base Styles ─── */
@@ -168,58 +183,70 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-surface text-on-surface;
+    @apply text-text-primary;
+    background-color: #050810;
+    background-image:
+      linear-gradient(rgba(0, 255, 178, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 255, 178, 0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
   html {
     @apply font-sans;
   }
-  /* No-Line Rule: remove default borders, use surface shifts */
-  hr {
-    @apply border-0 bg-outline-variant/15;
-  }
 }
 
-/* ─── Glassmorphism Utility ─── */
+/* ─── Utility Classes ─── */
 @layer utilities {
+  /* Glassmorphism panels */
   .glass {
-    background: rgba(53, 53, 52, 0.6);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
+    background: rgba(13, 20, 37, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(0, 255, 178, 0.15);
   }
   .glass-strong {
-    background: rgba(53, 53, 52, 0.8);
+    background: rgba(13, 20, 37, 0.85);
     backdrop-filter: blur(32px);
     -webkit-backdrop-filter: blur(32px);
+    border: 1px solid rgba(0, 255, 178, 0.25);
+  }
+  .glass-panel {
+    background: rgba(13, 20, 37, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(0, 255, 178, 0.15);
+  }
+  .neon-accent-top {
+    border-top: 2px solid #47ffb8;
   }
   .ghost-border {
-    border: 1px solid rgba(70, 69, 86, 0.15);
+    border: 1px solid rgba(0, 255, 178, 0.15);
   }
   .gradient-cta {
-    background: linear-gradient(135deg, #c1c1ff 0%, #5d5cff 100%);
+    background: #00ffb2;
+    color: #003824;
   }
   .gradient-cta-shadow {
-    box-shadow: 0 8px 32px rgba(93, 92, 255, 0.4);
+    box-shadow: 0 0 30px rgba(0, 255, 178, 0.3);
+  }
+  .ambient-glow {
+    box-shadow: 0 0 20px rgba(0, 255, 178, 0.3);
   }
   .hover-glow {
-    transition: box-shadow 0.3s ease;
+    transition: box-shadow 0.3s ease, border-color 0.3s ease;
   }
   .hover-glow:hover {
-    box-shadow: 0 0 15px rgba(193, 193, 255, 0.2);
-  }
-  .ambient-shadow {
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-  }
-  .press-scale {
-    transition: transform 0.1s ease;
-  }
-  .press-scale:active {
-    transform: scale(0.98);
+    box-shadow: 0 0 20px rgba(0, 255, 178, 0.3);
+    border-color: rgba(0, 255, 178, 0.4);
   }
   .font-headline {
-    font-family: var(--font-heading), sans-serif;
+    font-family: var(--font-syne), sans-serif;
     letter-spacing: -0.02em;
+  }
+  .font-data {
+    font-family: var(--font-space-mono), monospace;
   }
   .tabular-nums {
     font-variant-numeric: tabular-nums;
@@ -231,27 +258,51 @@
   .hide-scrollbar::-webkit-scrollbar {
     display: none;
   }
+
+  /* Grid overlay for institutional shell */
+  .grid-overlay {
+    background-size: 60px 60px;
+    background-image:
+      linear-gradient(to right, rgba(0, 255, 178, 0.03) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(0, 255, 178, 0.03) 1px, transparent 1px);
+  }
+
+  /* Scanline CRTV effect */
+  .scanline-overlay {
+    background: linear-gradient(
+      to bottom,
+      transparent 50%,
+      rgba(0, 255, 178, 0.02) 50%
+    );
+    background-size: 100% 4px;
+  }
 }
 
 /* ─── Keyframes ─── */
 @keyframes pulse-glow {
-  0%, 100% {
-    box-shadow: 0 0 8px rgba(78, 222, 163, 0.3);
-  }
-  50% {
-    box-shadow: 0 0 16px rgba(78, 222, 163, 0.6);
-  }
+  0%, 100% { box-shadow: 0 0 8px rgba(0, 255, 178, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(0, 255, 178, 0.6); }
 }
 
-@keyframes fade-in {
-  from { opacity: 0; transform: translateY(8px); }
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(24px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
 }
 
 .animate-pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
 }
 
-.animate-fade-in {
-  animation: fade-in 0.3s ease-out;
+.animate-fade-up {
+  animation: fade-up 0.7s ease-out both;
 }

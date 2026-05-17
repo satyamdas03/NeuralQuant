@@ -58,7 +58,7 @@ export default function StrategyCard({
           <button
             key={s.id}
             onClick={() => onSelect(s.id)}
-            className={`text-left transition-all duration-200 rounded-xl border p-3 ${
+            className={`text-left transition-all duration-200 border p-3 ${
               selected
                 ? "border-primary/40 bg-primary/5 shadow-[0_0_12px_rgba(193,193,255,0.08)]"
                 : "border-ghost-border glass hover:border-primary/20 hover:bg-surface-high"

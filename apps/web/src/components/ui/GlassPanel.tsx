@@ -11,7 +11,7 @@ export default function GlassPanel({
 }: Props) {
   return (
     <div
-      className={`rounded-2xl ${
+      className={`${
         strong ? "glass-strong" : "glass"
       } ghost-border p-4 ${className}`}
     >

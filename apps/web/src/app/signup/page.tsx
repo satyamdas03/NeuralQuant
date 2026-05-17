@@ -60,13 +60,13 @@ function SignupForm() {
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-sm glass-strong ghost-border rounded-2xl p-8">
+      <div className="w-full max-w-sm glass-strong ghost-border p-8">
         <div className="mb-6 text-center">
-          <h1 className="font-headline text-2xl font-bold text-on-surface">
+          <h1 className="font-headline text-2xl font-bold text-primary-fixed">
             Create your account
           </h1>
           <p className="mt-1 text-xs text-on-surface-variant">
-            Join NeuralQuant — AI stock intelligence
+            Join QuantAlpha — AI stock intelligence
           </p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-3">
@@ -76,7 +76,7 @@ function SignupForm() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
-            className="w-full rounded-lg bg-surface-high px-3 py-2 text-sm text-on-surface outline-none placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary"
+            className="w-full bg-surface-high px-3 py-2 text-sm text-on-surface outline-none placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary-fixed"
           />
           <input
             type="password"
@@ -85,10 +85,10 @@ function SignupForm() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="password (min 6 chars)"
-            className="w-full rounded-lg bg-surface-high px-3 py-2 text-sm text-on-surface outline-none placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary"
+            className="w-full bg-surface-high px-3 py-2 text-sm text-on-surface outline-none placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary-fixed"
           />
           {error && <p className="text-sm text-error">{error}</p>}
-          {info && <p className="text-sm text-tertiary">{info}</p>}
+          {info && <p className="text-sm text-tertiary-fixed-dim">{info}</p>}
           <GoogleSignInButton label="Sign up with Google" />
           <div className="flex items-center gap-2 text-xs text-on-surface-variant">
             <span className="h-px flex-1 bg-ghost-border" />
@@ -101,7 +101,7 @@ function SignupForm() {
         </form>
         <p className="mt-4 text-center text-sm text-on-surface-variant">
           Already have one?{" "}
-          <Link href="/login" className="text-secondary hover:text-primary transition-colors">
+          <Link href="/login" className="text-primary-fixed hover:text-primary transition-colors">
             Sign in
           </Link>
         </p>

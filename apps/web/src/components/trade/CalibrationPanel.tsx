@@ -42,23 +42,23 @@ export default function CalibrationPanel({
           </div>
 
           <div className="grid grid-cols-2 gap-2 mt-3">
-            <div className="rounded-lg bg-surface-high p-2">
+            <div className="bg-surface-high p-2">
               <div className="text-[9px] text-on-surface-variant">Total PnL</div>
               <div className={`text-sm font-mono font-bold ${report.total_pnl >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
                 {report.total_pnl >= 0 ? "+" : ""}${report.total_pnl.toFixed(0)}
               </div>
             </div>
-            <div className="rounded-lg bg-surface-high p-2">
+            <div className="bg-surface-high p-2">
               <div className="text-[9px] text-on-surface-variant">Profit Factor</div>
               <div className="text-sm font-mono font-bold text-on-surface">
                 {report.profit_factor.toFixed(2)}x
               </div>
             </div>
-            <div className="rounded-lg bg-surface-high p-2">
+            <div className="bg-surface-high p-2">
               <div className="text-[9px] text-on-surface-variant">Sharpe</div>
               <div className="text-sm font-mono font-bold text-on-surface">{report.sharpe.toFixed(2)}</div>
             </div>
-            <div className="rounded-lg bg-surface-high p-2">
+            <div className="bg-surface-high p-2">
               <div className="text-[9px] text-on-surface-variant">Trades</div>
               <div className="text-sm font-mono font-bold text-on-surface">{report.n_trades}</div>
             </div>

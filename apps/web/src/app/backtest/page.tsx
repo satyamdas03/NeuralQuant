@@ -55,7 +55,7 @@ function BacktestForm() {
   return (
     <div className="space-y-5 p-4 lg:p-6">
       <div className="flex items-center gap-3">
-        <FlaskConical size={20} className="text-secondary" />
+        <FlaskConical size={20} className="text-primary-fixed" />
         <div>
           <h1 className="font-headline text-xl font-bold text-on-surface">Strategy Backtest</h1>
           <p className="text-xs text-on-surface-variant">
@@ -94,7 +94,7 @@ function BacktestForm() {
             {loading ? "Running…" : "Run backtest"}
           </GradientButton>
           {validationMsg && <p className="text-xs text-primary">{validationMsg}</p>}
-          {error && <p className="text-sm text-error">{error}</p>}
+          {error && <p className="text-sm text-cyber-red">{error}</p>}
         </div>
       </GhostBorderCard>
 
@@ -150,7 +150,7 @@ function Input({ label, value, onChange }: { label: string; value: string; onCha
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-lg bg-surface-high px-3 py-2 text-sm text-on-surface outline-none focus:ring-1 focus:ring-primary"
+        className="w-full bg-surface-high px-3 py-2 text-sm text-on-surface outline-none focus:ring-1 focus:ring-primary-fixed"
       />
     </label>
   );
@@ -171,7 +171,7 @@ function NumberInput({ label, value, onChange, min, max }: {
           const n = Number(e.target.value);
           onChange(Number.isFinite(n) ? n : 0);
         }}
-        className="w-full rounded-lg bg-surface-high px-3 py-2 text-sm text-on-surface outline-none focus:ring-1 focus:ring-primary tabular-nums"
+        className="w-full bg-surface-high px-3 py-2 text-sm text-on-surface outline-none focus:ring-1 focus:ring-primary-fixed tabular-nums"
       />
     </label>
   );
@@ -186,7 +186,7 @@ function Select({ label, value, onChange, options }: {
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-lg bg-surface-high px-3 py-2 text-sm text-on-surface outline-none focus:ring-1 focus:ring-primary"
+        className="w-full bg-surface-high px-3 py-2 text-sm text-on-surface outline-none focus:ring-1 focus:ring-primary-fixed"
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>{o.label}</option>

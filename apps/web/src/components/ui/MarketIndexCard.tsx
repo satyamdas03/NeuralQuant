@@ -8,12 +8,12 @@ export default function MarketIndexCard({ index }: Props) {
   const up = index.change_pct >= 0;
 
   return (
-    <div className="flex items-center justify-between rounded-lg bg-surface-container px-3 py-2 ghost-border">
+    <div className="flex items-center justify-between glass border border-border-glow px-3 py-2">
       <div>
-        <p className="text-xs font-medium text-on-surface-variant">
+        <p className="font-mono text-[10px] font-bold tracking-[0.2em] uppercase text-text-muted">
           {index.name}
         </p>
-        <p className="tabular-nums text-sm font-semibold text-on-surface">
+        <p className="tabular-nums font-mono text-sm font-bold text-primary">
           {index.price.toLocaleString(undefined, {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
@@ -21,8 +21,8 @@ export default function MarketIndexCard({ index }: Props) {
         </p>
       </div>
       <span
-        className={`tabular-nums text-xs font-medium ${
-          up ? "text-tertiary" : "text-error"
+        className={`tabular-nums font-mono text-[11px] font-bold ${
+          up ? "text-tertiary-fixed-dim" : "text-cyber-red"
         }`}
       >
         {up ? "+" : ""}

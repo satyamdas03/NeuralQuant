@@ -75,12 +75,12 @@ export default function WatchlistPage() {
             value={newTicker}
             onChange={(e) => setNewTicker(e.target.value)}
             placeholder="AAPL or RELIANCE"
-            className="flex-1 rounded-lg bg-surface-high px-3 py-2 text-sm uppercase text-on-surface outline-none placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary"
+            className="flex-1 bg-surface-high px-3 py-2 text-sm uppercase text-on-surface outline-none placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary-fixed"
           />
           <select
             value={newMarket}
             onChange={(e) => setNewMarket(e.target.value as "US" | "IN")}
-            className="rounded-lg bg-surface-high px-3 py-2 text-sm text-on-surface outline-none"
+            className="bg-surface-high px-3 py-2 text-sm text-on-surface outline-none"
           >
             <option value="US">US</option>
             <option value="IN">IN</option>
@@ -96,13 +96,13 @@ export default function WatchlistPage() {
       {loading ? (
         <div className="space-y-2">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-14 bg-surface-container rounded-xl animate-pulse" />
+            <div key={i} className="h-14 bg-surface-container animate-pulse" />
           ))}
         </div>
       ) : items.length === 0 ? (
         <p className="text-sm text-on-surface-variant">
           No tickers yet. Add a stock above, or browse the{" "}
-          <Link href="/screener" className="text-secondary hover:text-primary">
+          <Link href="/screener" className="text-primary-fixed hover:text-primary">
             screener
           </Link>
           .
@@ -126,7 +126,7 @@ export default function WatchlistPage() {
                 </div>
                 <button
                   onClick={() => handleDelete(item.id)}
-                  className="rounded-lg p-2 text-on-surface-variant hover:bg-surface-high hover:text-error transition-colors"
+                  className="p-2 text-on-surface-variant hover:bg-surface-high hover:text-cyber-red transition-colors"
                 >
                   <Trash2 size={14} />
                 </button>

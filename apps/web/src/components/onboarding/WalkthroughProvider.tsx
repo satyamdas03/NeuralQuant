@@ -47,7 +47,7 @@ const TOUR_STEPS: Step[] = [
   {
     target: "#dashboard-forecast-picks",
     title: "Top ForeCast Picks",
-    content: "NeuralQuant's AI composite scores ranking the highest-conviction stocks. Each score blends fundamentals, technicals, sentiment, and macro fit into a single 1-10 rating.",
+    content: "QuantAlpha's AI composite scores ranking the highest-conviction stocks. Each score blends fundamentals, technicals, sentiment, and macro fit into a single 1-10 rating.",
     placement: "left",
   },
   {
@@ -61,7 +61,7 @@ const TOUR_STEPS: Step[] = [
   {
     target: "#query-input-area",
     title: "Ask AI Anything",
-    content: "Ask NeuralQuant any financial question in plain English. Portfolio allocation, stock deep dives, market scenarios — the AI pulls live data from FMP, yfinance, and news sources to answer with verified numbers.",
+    content: "Ask QuantAlpha any financial question in plain English. Portfolio allocation, stock deep dives, market scenarios — the AI pulls live data from FMP, yfinance, and news sources to answer with verified numbers.",
     placement: "top",
   },
 
@@ -97,7 +97,7 @@ const TOUR_STEPS: Step[] = [
   {
     target: "#performance-score-breakdown",
     title: "AI Score Methodology",
-    content: "Understand exactly how NeuralQuant computes its 1-10 rating. Each factor (quality, momentum, value, sentiment, macro) is scored independently, then blended with dynamic weights based on market regime.",
+    content: "Understand exactly how QuantAlpha computes its 1-10 rating. Each factor (quality, momentum, value, sentiment, macro) is scored independently, then blended with dynamic weights based on market regime.",
     placement: "bottom",
   },
 

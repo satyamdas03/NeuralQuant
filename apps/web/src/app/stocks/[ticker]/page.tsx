@@ -102,7 +102,7 @@ export default function StockPage() {
           </p>
           <button
             onClick={() => window.location.reload()}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-primary/80 text-on-surface text-sm font-medium transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/80 text-on-surface text-sm font-medium transition-colors"
           >
             <ArrowRight size={14} /> Retry
           </button>
@@ -121,7 +121,7 @@ export default function StockPage() {
             "@context": "https://schema.org",
             "@type": "FinancialProduct",
             name: ticker,
-            description: `NeuralQuant AI analysis for ${ticker}`,
+            description: `QuantAlpha AI analysis for ${ticker}`,
             url: `https://neuralquant.vercel.app/stocks/${ticker}`,
           }),
         }}
@@ -139,7 +139,7 @@ export default function StockPage() {
         </div>
         <button
           onClick={handleWatchlist}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${
             watchlisted
               ? "ghost-border bg-primary/10 text-primary"
               : "ghost-border text-on-surface-variant hover:text-on-surface hover:bg-surface-high"
@@ -212,18 +212,18 @@ function StockPageSkeleton({ ticker }: { ticker: string }) {
             Computing 5-factor score — first load takes 10-30 s on cold start…
           </p>
         </div>
-        <div className="h-10 w-28 rounded-lg bg-surface-container" />
+        <div className="h-10 w-28 bg-surface-container" />
       </div>
       <div className="grid md:grid-cols-3 gap-5">
         {[0, 1, 2].map((i) => (
-          <div key={i} className="h-40 rounded-2xl bg-surface-container" />
+          <div key={i} className="h-40 bg-surface-container" />
         ))}
       </div>
-      <div className="h-16 rounded-2xl bg-surface-container" />
-      <div className="h-64 rounded-2xl bg-surface-container" />
+      <div className="h-16 bg-surface-container" />
+      <div className="h-64 bg-surface-container" />
       <div className="grid md:grid-cols-2 gap-5">
-        <div className="h-48 rounded-2xl bg-surface-container" />
-        <div className="h-48 rounded-2xl bg-surface-container" />
+        <div className="h-48 bg-surface-container" />
+        <div className="h-48 bg-surface-container" />
       </div>
       <div className="flex items-center justify-center gap-2 text-sm text-on-surface-variant py-4">
         <Loader2 size={14} className="animate-spin text-primary" />
@@ -236,9 +236,9 @@ function StockPageSkeleton({ ticker }: { ticker: string }) {
 function SentimentCard({ s, ticker }: { s: SentimentResponse | null; ticker: string }) {
   const color =
     !s ? "text-on-surface-variant"
-    : s.label === "Bullish" ? "text-tertiary"
-    : s.label === "Bearish" ? "text-error"
-    : "text-secondary";
+    : s.label === "Bullish" ? "text-primary-fixed"
+    : s.label === "Bearish" ? "text-cyber-red"
+    : "text-primary-fixed";
   return (
     <GhostBorderCard>
       <div className="flex items-center justify-between mb-3">
@@ -269,7 +269,7 @@ function SentimentCard({ s, ticker }: { s: SentimentResponse | null; ticker: str
                 <span className="leading-snug line-clamp-2">{h.title}</span>
                 <span
                   className={`shrink-0 tabular-nums ${
-                    h.score > 0 ? "text-tertiary" : h.score < 0 ? "text-error" : "text-on-surface-variant"
+                    h.score > 0 ? "text-primary-fixed" : h.score < 0 ? "text-cyber-red" : "text-on-surface-variant"
                   }`}
                 >
                   {h.score >= 0 ? "+" : ""}{h.score.toFixed(2)}
@@ -285,7 +285,7 @@ function SentimentCard({ s, ticker }: { s: SentimentResponse | null; ticker: str
 
 function BacktestCTA({ ticker, market }: { ticker: string; market: Market }) {
   return (
-    <div className="bg-gradient-to-br from-primary/10 to-secondary/10 ghost-border rounded-2xl p-5 flex flex-col justify-between">
+    <div className="bg-gradient-to-br from-primary/10 to-secondary/10 ghost-border p-5 flex flex-col justify-between">
       <div>
         <h3 className="font-semibold text-xs text-on-surface-variant uppercase tracking-wide">Strategy Backtest</h3>
         <p className="text-sm text-on-surface-variant mt-2 leading-relaxed">
@@ -294,7 +294,7 @@ function BacktestCTA({ ticker, market }: { ticker: string; market: Market }) {
       </div>
       <Link
         href={`/backtest?ticker=${ticker}&market=${market}`}
-        className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-primary/80 text-on-surface text-sm font-medium w-fit transition-colors"
+        className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/80 text-on-surface text-sm font-medium w-fit transition-colors"
       >
         Run backtest <ArrowRight size={14} />
       </Link>
