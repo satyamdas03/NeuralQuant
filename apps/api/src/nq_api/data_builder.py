@@ -632,12 +632,30 @@ def _fetch_one(ticker: str, market: str, fast_pe: bool = True) -> dict:
     if raw_info.get("_cached_ok"):
         info = {k: v for k, v in raw_info.items() if not k.startswith("_")}
     else:
-        log.warning("yfinance + FMP both failed for %s — returning empty row", sym)
-        result = _empty_row(ticker)
-        with _lock:
-            _fund_cache[cache_key] = result
-            _fund_ts[cache_key] = now
-        return result
+        # yfinance info + FMP both failed — try yf.download as last resort.
+        # yf.download uses different Yahoo endpoint, often works on cloud IPs
+        # when Ticker.info doesn't. If we can at least get a price, we
+        # continue with partial data instead of returning empty row.
+        dl_price = None
+        try:
+            dl_hist = yf.download(sym, period="5d", progress=False, auto_adjust=True,
+                                  threads=False, session=_get_yf_session())
+            if dl_hist is not None and not dl_hist.empty and "Close" in dl_hist.columns:
+                close_vals = dl_hist["Close"].dropna()
+                if len(close_vals) > 0:
+                    dl_price = float(close_vals.iloc[-1])
+        except Exception:
+            pass
+        if dl_price and dl_price > 0:
+            info = {"currentPrice": dl_price, "regularMarketPrice": dl_price}
+            log.info("yf.download rescued %s: price=%.2f (info+FMP both failed)", sym, dl_price)
+        else:
+            log.warning("yfinance + FMP + yf.download all failed for %s — returning empty row", sym)
+            result = _empty_row(ticker)
+            with _lock:
+                _fund_cache[cache_key] = result
+                _fund_ts[cache_key] = now
+            return result
 
     try:
         _missing: set[str] = set()

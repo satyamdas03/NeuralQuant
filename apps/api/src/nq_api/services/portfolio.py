@@ -62,7 +62,9 @@ def _validate_and_fill_portfolio_prices(
     fill_notes = []
     cur = "Rs." if market == "IN" else "$"
     _CACHED_PATTERN = re.compile(
-        r"(?:cached|enter near|enter at|market price|current price)", re.IGNORECASE
+        r"(?:cached|enter near|enter at|market price|current price"
+        r"|stale|estimated|not available|price not found|n/a"
+        r"|currently trading|approx|around ~?\$|enter \w+ price)", re.IGNORECASE
     )
 
     # -- Phase 0: FMP batch_quotes pre-fetch (single API call, ~200ms, most reliable) --
@@ -78,7 +80,10 @@ def _validate_and_fill_portfolio_prices(
                 if s.get("ticker")
             ]
             if market == "IN":
-                all_tickers = [t if "." in t else f"{t}.NS" for t in all_tickers]
+                # Add .NS and .BO suffix variants — some stocks are NSE, some BSE
+                ns_tickers = [t if "." in t else f"{t}.NS" for t in all_tickers]
+                bo_tickers = [t.replace(".NS", ".BO") for t in ns_tickers]
+                all_tickers = ns_tickers + bo_tickers
             if all_tickers:
                 fmp_prices = fmp_client.get_batch_quotes(all_tickers) or {}
                 log.debug("FMP batch_quotes: requested %d tickers, got %d prices",
@@ -195,6 +200,11 @@ def _validate_and_fill_portfolio_prices(
             or "current price" in entry_str.lower()
             or _CACHED_PATTERN.search(entry_str)
         )
+
+        # If entry_price has text but no digits, it's LLM placeholder — force fill
+        if not needs_fill and entry_str:
+            if not any(c.isdigit() for c in entry_str):
+                needs_fill = True
 
         # Check if existing entry price is stale (>5% off live)
         entry_off = 0.0

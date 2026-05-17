@@ -377,9 +377,11 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                 # Ensure IN tickers have .NS suffix -- FMP requires it for NSE stocks
                 all_tickers = list(in_universe_tickers) + out_of_universe_words
                 if target_market == "IN":
-                    all_tickers = [
+                    ns_tickers = [
                         t if "." in t else f"{t}.NS" for t in all_tickers
                     ]
+                    bo_tickers = [t.replace(".NS", ".BO") for t in ns_tickers]
+                    all_tickers = ns_tickers + bo_tickers
                 if all_tickers:
                     fmp_prices = fmp_client.get_batch_quotes(all_tickers) or {}
         except Exception:
@@ -405,7 +407,7 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                     # Fetch live price for top stocks (first N)
                     # IN: FMP batch quotes first (fast, already pre-fetched), _fetch_one only as fallback
                     # US: _fetch_one first (FMP direct, sub-2s)
-                    n_live = 3 if target_market == "IN" else 5
+                    n_live = 5  # all markets get live prices for top 5
                     if i < n_live:
                         price = None
                         chg = 0
@@ -484,7 +486,7 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
             if not cached_all:
                 cached_all = score_cache.read_top(target_market, 50, max_age_seconds=999999999)
             cache_map = {r.get("ticker"): r for r in cached_all} if cached_all else {}
-            for t in in_universe_tickers[:5]:
+            for t in in_universe_tickers[:10]:
                 fund = _fetch_one(t, target_market, fast_pe=False)
                 cached_row = cache_map.get(t, {})
                 sc = int(cached_row.get("composite_score", 0.5) * 10) if cached_row else "N/A"
