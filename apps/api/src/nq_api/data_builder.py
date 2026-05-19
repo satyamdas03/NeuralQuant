@@ -44,8 +44,8 @@ def _get_yf_session():
     if _yf_session is None:
         try:
             from curl_cffi.requests import Session as CurlSession
-            _yf_session = CurlSession(impersonate="chrome")
-            log.info("Using curl_cffi session for yfinance (impersonate=chrome)")
+            _yf_session = CurlSession(impersonate="chrome", timeout=30)
+            log.info("Using curl_cffi session for yfinance (impersonate=chrome, timeout=30s)")
         except ImportError:
             log.error("curl_cffi is NOT installed — yfinance calls will fail on cloud IPs! "
                        "Add curl_cffi to dependencies.")
@@ -490,27 +490,31 @@ def fetch_real_macro() -> _LiveMacro:
 
     m = _LiveMacro()
 
+    _on_gha = bool(os.environ.get("GITHUB_ACTIONS"))
+
     # --- yfinance: VIX ---
-    try:
-        h = yf.Ticker("^VIX", session=_get_yf_session()).history(period="5d", auto_adjust=True)
-        if not h.empty:
-            m.vix = float(h["Close"].iloc[-1])
-    except Exception:
-        pass
+    if not _on_gha:
+        try:
+            h = yf.Ticker("^VIX", session=_get_yf_session()).history(period="5d", auto_adjust=True)
+            if not h.empty:
+                m.vix = float(h["Close"].iloc[-1])
+        except Exception:
+            pass
 
     # --- yfinance: SPX 200-day MA + 1-month return ---
-    try:
-        spx = yf.Ticker("^GSPC", session=_get_yf_session()).history(period="252d", auto_adjust=True)
-        if len(spx) >= 200:
-            last = float(spx["Close"].iloc[-1])
-            ma200 = float(spx["Close"].tail(200).mean())
-            m.spx_vs_200ma = (last - ma200) / ma200
-        if len(spx) >= 22:
-            m.spx_return_1m = (
-                float(spx["Close"].iloc[-1]) / float(spx["Close"].iloc[-22]) - 1
-            )
-    except Exception:
-        pass
+    if not _on_gha:
+        try:
+            spx = yf.Ticker("^GSPC", session=_get_yf_session()).history(period="252d", auto_adjust=True)
+            if len(spx) >= 200:
+                last = float(spx["Close"].iloc[-1])
+                ma200 = float(spx["Close"].tail(200).mean())
+                m.spx_vs_200ma = (last - ma200) / ma200
+            if len(spx) >= 22:
+                m.spx_return_1m = (
+                    float(spx["Close"].iloc[-1]) / float(spx["Close"].iloc[-22]) - 1
+                )
+        except Exception:
+            pass
 
     # --- FRED: HY spread, ISM PMI, 2Y/10Y yields, CPI, Fed funds ---
     fred_key = os.environ.get("FRED_API_KEY", "").strip()
@@ -542,16 +546,20 @@ def fetch_real_macro() -> _LiveMacro:
         except Exception as exc:
             log.warning("FRED fetch failed: %s — using yfinance proxies for missing fields", exc)
             # Fallback: yield curve from yfinance TNX/IRX
-            try:
-                tnx = yf.Ticker("^TNX", session=_get_yf_session()).history(period="5d", auto_adjust=True)
-                irx = yf.Ticker("^IRX", session=_get_yf_session()).history(period="5d", auto_adjust=True)
-                if not tnx.empty and not irx.empty:
-                    t10 = float(tnx["Close"].iloc[-1])
-                    t3m = float(irx["Close"].iloc[-1])
-                    m.yield_10y = t10
-                    m.yield_spread_2y10y = (t10 - t3m) / 100
-            except Exception:
-                pass
+            if not _on_gha:
+                try:
+                    tnx = yf.Ticker("^TNX", session=_get_yf_session()).history(period="5d", auto_adjust=True)
+                    irx = yf.Ticker("^IRX", session=_get_yf_session()).history(period="5d", auto_adjust=True)
+                    if not tnx.empty and not irx.empty:
+                        t10 = float(tnx["Close"].iloc[-1])
+                        t3m = float(irx["Close"].iloc[-1])
+                        m.yield_10y = t10
+                        m.yield_spread_2y10y = (t10 - t3m) / 100
+                except Exception:
+                    pass
+
+    if _on_gha:
+        log.info("GHA detected — yfinance macro calls skipped, using FMP for treasury rates")
 
     # FMP treasury rates as supplement when FRED/yfinance missing
     if m.yield_10y is None or m.fed_funds_rate is None:
@@ -588,43 +596,51 @@ def fetch_real_macro_in() -> _LiveMacroIN:
 
     m = _LiveMacroIN()
 
+    _on_gha = bool(os.environ.get("GITHUB_ACTIONS"))
+
     # India VIX
-    try:
-        h = yf.Ticker("^INDIAVIX", session=_get_yf_session()).history(period="5d", auto_adjust=True)
-        if not h.empty:
-            m.india_vix = float(h["Close"].iloc[-1])
-    except Exception:
-        pass
+    if not _on_gha:
+        try:
+            h = yf.Ticker("^INDIAVIX", session=_get_yf_session()).history(period="5d", auto_adjust=True)
+            if not h.empty:
+                m.india_vix = float(h["Close"].iloc[-1])
+        except Exception:
+            pass
 
     # Nifty 50 — 200-day MA + 1-month return
-    try:
-        nifty = yf.Ticker("^NSEI", session=_get_yf_session()).history(period="252d", auto_adjust=True)
-        if len(nifty) >= 200:
-            last = float(nifty["Close"].iloc[-1])
-            ma200 = float(nifty["Close"].tail(200).mean())
-            m.nifty_vs_200ma = (last - ma200) / ma200
-        if len(nifty) >= 22:
-            m.nifty_return_1m = (
-                float(nifty["Close"].iloc[-1]) / float(nifty["Close"].iloc[-22]) - 1
-            )
-            m.sensex_close = last
-    except Exception:
-        pass
+    if not _on_gha:
+        try:
+            nifty = yf.Ticker("^NSEI", session=_get_yf_session()).history(period="252d", auto_adjust=True)
+            if len(nifty) >= 200:
+                last = float(nifty["Close"].iloc[-1])
+                ma200 = float(nifty["Close"].tail(200).mean())
+                m.nifty_vs_200ma = (last - ma200) / ma200
+            if len(nifty) >= 22:
+                m.nifty_return_1m = (
+                    float(nifty["Close"].iloc[-1]) / float(nifty["Close"].iloc[-22]) - 1
+                )
+                m.sensex_close = last
+        except Exception:
+            pass
 
     # USD/INR — use USDINR=X which returns ~83.5 (INR per USD).
     # INRUSD=X returns ~0.012 (USD per INR) which is confusing for agents.
-    try:
-        usdinr = yf.Ticker("USDINR=X", session=_get_yf_session()).history(period="5d", auto_adjust=True)
-        if not usdinr.empty:
-            m.inr_usd = round(float(usdinr["Close"].iloc[-1]), 2)
-    except Exception:
-        # Fallback: try INRUSD=X and invert
+    if not _on_gha:
         try:
-            inrusd = yf.Ticker("INRUSD=X", session=_get_yf_session()).history(period="5d", auto_adjust=True)
-            if not inrusd.empty:
-                m.inr_usd = round(1.0 / float(inrusd["Close"].iloc[-1]), 2)
+            usdinr = yf.Ticker("USDINR=X", session=_get_yf_session()).history(period="5d", auto_adjust=True)
+            if not usdinr.empty:
+                m.inr_usd = round(float(usdinr["Close"].iloc[-1]), 2)
         except Exception:
-            pass
+            # Fallback: try INRUSD=X and invert
+            try:
+                inrusd = yf.Ticker("INRUSD=X", session=_get_yf_session()).history(period="5d", auto_adjust=True)
+                if not inrusd.empty:
+                    m.inr_usd = round(1.0 / float(inrusd["Close"].iloc[-1]), 2)
+            except Exception:
+                pass
+
+    if _on_gha:
+        log.info("GHA detected — India yfinance macro calls skipped")
 
     # RBI repo rate — not available via yfinance; use known current value
     # Updated manually or via a future RBI API connector
@@ -731,6 +747,16 @@ def _fetch_one(ticker: str, market: str, fast_pe: bool = True) -> dict:
         raw_info = {"_cached_ok": True, "_fmp_piotroski": fmp_info.get("_fmp_piotroski")}
 
     if not info:
+        # On GHA, skip yfinance entirely — cloud IPs are rate-limited.
+        # FMP is the sole data source. If FMP doesn't have the ticker,
+        # return empty row rather than hang for minutes on yfinance.
+        if os.environ.get("GITHUB_ACTIONS"):
+            log.warning("FMP failed for %s on GHA — returning empty row (yfinance blocked)", sym)
+            result = _empty_row(ticker)
+            with _lock:
+                _fund_cache[cache_key] = result
+                _fund_ts[cache_key] = now
+            return result
         raw_info = _fetch_yf_info_cached(sym)
         if raw_info.get("_cached_ok"):
             info = {k: v for k, v in raw_info.items() if not k.startswith("_")}
@@ -765,7 +791,9 @@ def _fetch_one(ticker: str, market: str, fast_pe: bool = True) -> dict:
         result: dict = {}  # placeholder until final result dict assigned below
 
         # Lazy yf.Ticker for fallback paths (P/E computation, earnings date, price history)
-        t = yf.Ticker(sym, session=_get_yf_session())
+        # Skip on GHA — cloud IPs are rate-limited, FMP is sole source
+        _on_gha = bool(os.environ.get("GITHUB_ACTIONS"))
+        t = None if _on_gha else yf.Ticker(sym, session=_get_yf_session())
 
         # ── Gross profit margin ──
         gpm = _safe(info.get("grossMargins"), None)
@@ -955,20 +983,22 @@ def _fetch_one(ticker: str, market: str, fast_pe: bool = True) -> dict:
 
         if current_price is None:
             # yf.download fallback — more reliable than .info on cloud IPs (different Yahoo endpoint)
-            try:
-                # yf already imported at module level (Python 3.14 compat)
-                sess = _get_yf_session()
-                yf_kw = {"period": "5d", "progress": False, "auto_adjust": True, "threads": False}
-                if sess:
-                    yf_kw["session"] = sess
-                hist = yf.download(sym, **yf_kw)
-                if hist is not None and not hist.empty and "Close" in hist.columns:
-                    close_vals = hist["Close"].dropna()
-                    if len(close_vals) > 0:
-                        current_price = float(close_vals.iloc[-1])
-                        log.debug("yf.download fallback price for %s: %.2f", ticker, current_price)
-            except Exception:
-                pass
+            # Skip on GHA — cloud IPs are rate-limited, FMP is the sole source.
+            if not os.environ.get("GITHUB_ACTIONS"):
+                try:
+                    # yf already imported at module level (Python 3.14 compat)
+                    sess = _get_yf_session()
+                    yf_kw = {"period": "5d", "progress": False, "auto_adjust": True, "threads": False}
+                    if sess:
+                        yf_kw["session"] = sess
+                    hist = yf.download(sym, **yf_kw)
+                    if hist is not None and not hist.empty and "Close" in hist.columns:
+                        close_vals = hist["Close"].dropna()
+                        if len(close_vals) > 0:
+                            current_price = float(close_vals.iloc[-1])
+                            log.debug("yf.download fallback price for %s: %.2f", ticker, current_price)
+                except Exception:
+                    pass
             if current_price is None:
                 _missing.add("current_price")
 
@@ -1170,18 +1200,22 @@ def _add_value_and_lowvol_percentiles(df: pd.DataFrame) -> pd.DataFrame:
     Low-vol: inverse of realized_vol rank — less volatile is better
     """
     if "pe_ttm" in df.columns and "pb_ratio" in df.columns:
-        pe_rank  = df["pe_ttm"].rank(pct=True, na_option="keep").fillna(0.5)
-        pb_rank  = df["pb_ratio"].rank(pct=True, na_option="keep").fillna(0.5)
+        pe_col  = pd.to_numeric(df["pe_ttm"], errors="coerce")
+        pb_col  = pd.to_numeric(df["pb_ratio"], errors="coerce")
+        pe_rank  = pe_col.rank(pct=True, na_option="keep").fillna(0.5)
+        pb_rank  = pb_col.rank(pct=True, na_option="keep").fillna(0.5)
         # Invert: high P/E rank → low value score
         df["value_percentile"] = 1.0 - (pe_rank * 0.50 + pb_rank * 0.50)
     else:
         df["value_percentile"] = 0.5
 
     if "realized_vol_1y" in df.columns:
-        vol_rank = df["realized_vol_1y"].rank(pct=True, na_option="keep").fillna(0.5)
+        vol_col = pd.to_numeric(df["realized_vol_1y"], errors="coerce")
+        vol_rank = vol_col.rank(pct=True, na_option="keep").fillna(0.5)
         df["low_vol_percentile"] = 1.0 - vol_rank   # less volatile = better
     elif "beta" in df.columns:
-        beta_rank = df["beta"].rank(pct=True, na_option="keep").fillna(0.5)
+        beta_col = pd.to_numeric(df["beta"], errors="coerce")
+        beta_rank = beta_col.rank(pct=True, na_option="keep").fillna(0.5)
         df["low_vol_percentile"] = 1.0 - beta_rank
     else:
         df["low_vol_percentile"] = 0.5

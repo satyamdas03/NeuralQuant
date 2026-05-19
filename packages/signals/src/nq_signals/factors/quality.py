@@ -77,14 +77,20 @@ def compute_quality_composite(universe: pd.DataFrame) -> pd.DataFrame:
     # Component ranks — computed ACROSS the whole universe so scores are
     # comparable cross-sectionally. Sector-adjusted ranking is applied
     # downstream (see nq_api.sector_rank.apply_sector_adjustment).
-    df["_gpm_rank"] = df["gross_profit_margin"].rank(pct=True)
-    df["_accruals_rank"] = df["accruals_ratio"].rank(pct=True, ascending=False)  # Lower = better
-    df["_piotroski_rank"] = df["piotroski"].rank(pct=True)
+    # Coerce to numeric first — mixed-type columns (strings from failed fetches)
+    # cause numpy ufunc 'isfinite' errors.
+    gpm_col = pd.to_numeric(df["gross_profit_margin"], errors="coerce")
+    acc_col = pd.to_numeric(df["accruals_ratio"], errors="coerce")
+    pio_col = pd.to_numeric(df["piotroski"], errors="coerce")
+    df["_gpm_rank"] = gpm_col.rank(pct=True)
+    df["_accruals_rank"] = acc_col.rank(pct=True, ascending=False)  # Lower = better
+    df["_piotroski_rank"] = pio_col.rank(pct=True)
     if has_sector_split:
         # ROE rank only meaningful within financials — compute cohort rank
         # using all rows (so a financial's ROE is compared against the broader
         # market of profitable firms), but only APPLY it to financial rows.
-        df["_roe_rank"] = df["roe"].rank(pct=True)
+        roe_col = pd.to_numeric(df["roe"], errors="coerce")
+        df["_roe_rank"] = roe_col.rank(pct=True)
     else:
         df["_roe_rank"] = 0.5
 

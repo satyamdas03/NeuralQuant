@@ -21,8 +21,8 @@ def compute_growth_cross_sectional(universe: pd.DataFrame) -> pd.DataFrame:
         df["growth_percentile"] = 0.5
         return df
 
-    growth = df["revenue_growth_yoy"]
-    valid = growth.notna() & np.isfinite(growth)
+    growth = pd.to_numeric(df["revenue_growth_yoy"], errors="coerce")
+    valid = growth.notna()
     if valid.sum() < 3:
         df["growth_percentile"] = 0.5
         return df

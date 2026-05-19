@@ -100,7 +100,9 @@ def run_market(market: str) -> int:
                     "dividend_yield": _f(row.get("dividend_yield")),
                 })
         except Exception as exc:
+            import traceback
             print(f"[{market}] chunk failed: {exc}", file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
         time.sleep(SLEEP_BETWEEN_CHUNKS)
 
     # Rank within market

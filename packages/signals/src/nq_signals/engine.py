@@ -123,16 +123,18 @@ class SignalEngine:
 
         # 3. Short interest (lower short interest = better) — US only
         if "short_interest_pct" in df.columns and snapshot.market != "IN":
-            df["short_interest_percentile"] = 1.0 - df["short_interest_pct"].rank(pct=True)
+            si_col = pd.to_numeric(df["short_interest_pct"], errors="coerce")
+            df["short_interest_percentile"] = 1.0 - si_col.rank(pct=True)
         else:
             df["short_interest_percentile"] = 0.5
 
         # 3b. IN market: delivery_pct as a liquidity conviction signal
         # Higher delivery % = stronger institutional conviction
         if "delivery_pct" in df.columns and df["delivery_pct"].notna().any():
-            valid = df["delivery_pct"].dropna()
+            del_col = pd.to_numeric(df["delivery_pct"], errors="coerce")
+            valid = del_col.dropna()
             if len(valid) > 5:
-                df["delivery_percentile"] = df["delivery_pct"].rank(pct=True, na_option="keep").fillna(0.5)
+                df["delivery_percentile"] = del_col.rank(pct=True, na_option="keep").fillna(0.5)
             else:
                 df["delivery_percentile"] = 0.5
         else:

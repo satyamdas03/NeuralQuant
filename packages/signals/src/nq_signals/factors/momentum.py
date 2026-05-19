@@ -44,6 +44,7 @@ def compute_momentum_cross_sectional(universe: pd.DataFrame,
     if crash_flag:
         df["momentum_percentile"] = 0.5
     else:
-        df["momentum_percentile"] = df["momentum_raw"].rank(pct=True, na_option="keep")
+        mom_col = pd.to_numeric(df["momentum_raw"], errors="coerce")
+        df["momentum_percentile"] = mom_col.rank(pct=True, na_option="keep")
         # NaN tickers (insufficient history) keep NaN — they are excluded from ranking
     return df
