@@ -189,7 +189,8 @@ def _warm_one_ticker(sym: str, market: str) -> dict | None:
 
 def warm_stock_meta(market: str = "US") -> int:
     """Populate stock_meta table in parallel (8 workers, 15s timeout per ticker)."""
-    from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as FutureTimeout
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
+    from concurrent.futures import FIRST_COMPLETED, wait as fut_wait
     from nq_api.cache.score_cache import _supabase_rest
 
     tickers = UNIVERSE_FULL.get(market, [])
@@ -201,19 +202,27 @@ def warm_stock_meta(market: str = "US") -> int:
         batch = ticker_syms[i : i + 50]
         ex = ThreadPoolExecutor(max_workers=8)
         try:
-            futures = {ex.submit(_warm_one_ticker, sym, market): sym for sym in batch}
-            for future in as_completed(futures):
-                sym = futures[future]
-                try:
-                    row = future.result(timeout=15)
-                    if row:
-                        _supabase_rest("stock_meta", method="PATCH", body=[row],
-                                       query={"ticker": f"eq.{sym}", "market": f"eq.{market}"})
-                        written += 1
-                except FutureTimeout:
+            fut_map = {ex.submit(_warm_one_ticker, sym, market): sym for sym in batch}
+            pending = set(fut_map.keys())
+            deadline = False
+            while pending and not deadline:
+                done, pending = fut_wait(pending, timeout=15, return_when=FIRST_COMPLETED)
+                if not done:  # 15s timeout — remaining futures are hung
+                    deadline = True
+                for future in done:
+                    sym = fut_map[future]
+                    try:
+                        row = future.result(timeout=0)
+                        if row:
+                            _supabase_rest("stock_meta", method="PATCH", body=[row],
+                                           query={"ticker": f"eq.{sym}", "market": f"eq.{market}"})
+                            written += 1
+                    except Exception as exc:
+                        print(f"[{market}] stock_meta failed for {sym}: {exc}", file=sys.stderr)
+            if deadline and pending:
+                for future in pending:
+                    sym = fut_map[future]
                     print(f"[{market}] stock_meta timeout for {sym}", file=sys.stderr)
-                except Exception as exc:
-                    print(f"[{market}] stock_meta failed for {sym}: {exc}", file=sys.stderr)
         finally:
             ex.shutdown(wait=False)  # don't block on hung yfinance threads
 
