@@ -199,7 +199,8 @@ def warm_stock_meta(market: str = "US") -> int:
     written = 0
     for i in range(0, len(ticker_syms), 50):
         batch = ticker_syms[i : i + 50]
-        with ThreadPoolExecutor(max_workers=8) as ex:
+        ex = ThreadPoolExecutor(max_workers=8)
+        try:
             futures = {ex.submit(_warm_one_ticker, sym, market): sym for sym in batch}
             for future in as_completed(futures):
                 sym = futures[future]
@@ -213,6 +214,8 @@ def warm_stock_meta(market: str = "US") -> int:
                     print(f"[{market}] stock_meta timeout for {sym}", file=sys.stderr)
                 except Exception as exc:
                     print(f"[{market}] stock_meta failed for {sym}: {exc}", file=sys.stderr)
+        finally:
+            ex.shutdown(wait=False)  # don't block on hung yfinance threads
 
         done = min(i + 50, len(ticker_syms))
         print(f"[{market}] warmed {written}/{done} stock_meta rows")
