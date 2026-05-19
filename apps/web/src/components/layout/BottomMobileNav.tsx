@@ -7,7 +7,6 @@ import {
   ScanSearch,
   MessageSquareText,
   Newspaper,
-  BarChart3,
   TrendingUp,
 } from "lucide-react";
 
@@ -17,7 +16,6 @@ const NAV = [
   { href: "/screener", label: "Screener", icon: ScanSearch },
   { href: "/query", label: "Ask AI", icon: MessageSquareText, center: true },
   { href: "/trade", label: "Trade", icon: TrendingUp, beta: true },
-  { href: "/performance", label: "Perf", icon: BarChart3 },
 ];
 
 export default function BottomMobileNav() {

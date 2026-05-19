@@ -39,7 +39,15 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
   const [savedProfile, setSavedProfile] = useState<UserProfile | null>(null);
   const [lastUserQuestion, setLastUserQuestion] = useState<string>("");
   const [clarificationAnswers, setClarificationAnswers] = useState<string[] | undefined>(undefined);
-  const [sessionId] = useState(() => crypto.randomUUID());
+  const [sessionId, setSessionId] = useState(() => {
+    try {
+      const stored = localStorage.getItem("nq_session_id");
+      if (stored) return stored;
+    } catch {}
+    const id = crypto.randomUUID();
+    try { localStorage.setItem("nq_session_id", id); } catch {}
+    return id;
+  });
 
   // Force re-render every 500ms while a request is in flight so the timeline's
   // elapsed-time counters update visually. Without this, "0.0s" stays frozen
@@ -194,7 +202,12 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
     }
   };
 
-  const clear = () => setMessages([]);
+  const clear = () => {
+    setMessages([]);
+    const newId = crypto.randomUUID();
+    try { localStorage.setItem("nq_session_id", newId); } catch {}
+    setSessionId(newId);
+  };
 
   return (
     <GlassPanel strong className="flex flex-col space-y-4">

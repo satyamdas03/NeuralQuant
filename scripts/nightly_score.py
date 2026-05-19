@@ -70,6 +70,7 @@ def run_market(market: str) -> int:
                     "momentum_percentile": _f(row.get("momentum_percentile"), 0.5),
                     "quality_percentile": _f(row.get("quality_percentile"), 0.5),
                     "low_vol_percentile": _f(row.get("low_vol_percentile"), 0.5),
+                    "growth_percentile": _f(row.get("growth_percentile"), 0.5),
                     "short_interest_percentile": _f(row.get("short_interest_percentile"), 0.5),
                     "current_price": _f(row.get("current_price")),
                     "analyst_target": _f(row.get("analyst_target")),

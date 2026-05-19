@@ -39,6 +39,40 @@ REGIME_WEIGHTS = {
     4: {"momentum": 0.20, "quality": 0.15, "value": 0.30, "low_vol": 0.05, "growth": 0.30},
 }
 
+class IndiaRegimeWrapper:
+    """Thin wrapper around India HMM model dict exposing same interface as RegimeDetector.
+
+    The India HMM is trained via scripts/fit_hmm_india.py and saved as a plain dict
+    (not a RegimeDetector) because it uses different features than the US model.
+    This wrapper adapts the dict to the RegimeDetector interface so the engine
+    treats both identically.
+    """
+
+    def __init__(self, model_dict: dict):
+        self._hmm = model_dict["hmm"]
+        self._scaler = model_dict["scaler"]
+        self._regime_map = model_dict["regime_map"]
+        self._feature_cols = model_dict["feature_cols"]
+        self._fitted = model_dict.get("fitted", True)
+
+    def get_current_state(self, latest_row: pd.DataFrame) -> RegimeState:
+        X = latest_row[self._feature_cols].fillna(0).values
+        X_scaled = self._scaler.transform(X)
+        raw = self._hmm.predict_proba(X_scaled)
+        reordered = np.zeros_like(raw)
+        for hmm_state, semantic_id in self._regime_map.items():
+            reordered[:, semantic_id - 1] = raw[:, hmm_state]
+        idx = int(np.argmax(reordered[0]))
+        regime_id = idx + 1
+        return RegimeState(
+            regime_id=regime_id,
+            label=REGIME_LABELS[regime_id],
+            confidence=float(reordered[0][idx]),
+            posteriors=reordered[0],
+            factor_weights=REGIME_WEIGHTS[regime_id],
+        )
+
+
 class RegimeDetector:
     def __init__(self, n_regimes: int = 4, random_state: int = 42):
         self.n_regimes = n_regimes

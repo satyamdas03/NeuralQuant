@@ -11,6 +11,7 @@ _FEATURE_DISPLAY = {
     "momentum_percentile":       ("12-1 Momentum",       True),
     "value_percentile":          ("Value (P/E + P/B)",   True),
     "low_vol_percentile":        ("Low Volatility",      True),
+    "growth_percentile":         ("Revenue Growth YoY",  True),
     # NOTE: engine stores 1 - rank_pct, so HIGH value = GOOD (low short interest).
     # higher_is_better MUST be True here — the inversion already happened in the engine.
     "short_interest_percentile": ("Low Short Interest",  True),
@@ -95,6 +96,7 @@ def row_to_ai_score(row: pd.Series, market: str, score_1_10_override: int | None
             short_interest=round(float(row.get("short_interest_percentile", 0.5)), 3),
             value=round(float(row.get("value_percentile", 0.5)), 3),
             low_vol=round(float(row.get("low_vol_percentile", 0.5)), 3),
+            growth=round(float(row.get("growth_percentile", 0.5)), 3),
         ),
         top_drivers=build_top_drivers(row),
         confidence=_confidence(row),

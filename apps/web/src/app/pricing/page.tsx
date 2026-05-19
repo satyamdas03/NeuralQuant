@@ -200,7 +200,7 @@ export default function PricingPage() {
             <WhyCard
               icon="📈"
               title="Proven Edge"
-              desc="Top-decile stocks outperform the market by measurable margins. See our /performance page for details."
+              desc="Top-decile stocks outperform the market by measurable margins."
             />
           </div>
         </div>

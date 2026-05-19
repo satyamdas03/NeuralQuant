@@ -66,6 +66,7 @@ def get_user_profile(user: User = Depends(get_current_user)):
             time_horizon=row.get("time_horizon", ""),
             goal=row.get("goal", ""),
             investable_amount=row.get("investable_amount"),
+            email_market_wrap=row.get("email_market_wrap", True),
         )
     return None
 
@@ -78,6 +79,7 @@ def save_user_profile(profile: UserProfile, user: User = Depends(get_current_use
         "time_horizon": profile.time_horizon,
         "goal": profile.goal,
         "investable_amount": profile.investable_amount,
+        "email_market_wrap": profile.email_market_wrap,
         "updated_at": "now()",
     }
     _supabase_rest(

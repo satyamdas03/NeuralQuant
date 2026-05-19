@@ -83,6 +83,7 @@ export interface UserProfile {
   goal: "wealth_building" | "retirement" | "education" | "passive_income" | "tax_saving";
   investable_amount?: string;
   updated_at?: string;
+  email_market_wrap?: boolean;
 }
 
 export interface QueryRequest {

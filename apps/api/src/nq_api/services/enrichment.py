@@ -61,7 +61,7 @@ def _fetch_relevant_news(question: str, ticker: str | None, n: int = 8) -> list[
 
 
 def _fetch_finnhub_news_summaries(ticker: str | None, market: str = "US", n: int = 5) -> list[dict]:
-    """Fetch Finnhub news with full summaries for richer Ask AI context."""
+    """Fetch Finnhub news with full summaries + article body extraction for richer Ask AI context."""
     if not ticker:
         return []
     from nq_api.data_builder import _yf_symbol
@@ -79,15 +79,69 @@ def _fetch_finnhub_news_summaries(ticker: str | None, market: str = "US", n: int
             return []
         results = []
         for a in articles[:n]:
+            url = a.get("url", "")
+            title = a.get("title", "")
+            summary = a.get("summary", "")
+            source = a.get("source", "")
+
+            # Attempt to fetch full article body from URL
+            body = _fetch_article_body(url) if url else ""
+
             results.append({
-                "title": a.get("title", ""),
-                "summary": a.get("summary", ""),
-                "source": a.get("source", ""),
+                "title": title,
+                "summary": summary,
+                "body": body,
+                "source": source,
+                "url": url,
             })
         return results
     except Exception as e:
         logger.debug("Non-critical enrichment failed: %s", e)
         return []
+
+
+def _fetch_article_body(url: str, timeout: float = 5.0, max_len: int = 2000) -> str:
+    """Fetch and extract readable text from a news article URL.
+
+    Uses httpx for fast fetching + basic HTML tag stripping.
+    Returns empty string on any failure (paywall, timeout, etc.).
+    Intentionally lightweight — no heavy NLP deps.
+    """
+    import re as _re
+    try:
+        import httpx
+        with httpx.Client(timeout=timeout, follow_redirects=True) as client:
+            resp = client.get(
+                url,
+                headers={"User-Agent": "Mozilla/5.0 (compatible; QuantAlpha/2.0)"},
+            )
+            if resp.status_code != 200:
+                return ""
+            html = resp.text
+            if not html or len(html) < 200:
+                return ""
+    except Exception:
+        return ""
+
+    # Strip scripts, styles, and HTML tags
+    try:
+        text = _re.sub(r"<script[^>]*>.*?</script>", "", html, flags=_re.DOTALL | _re.IGNORECASE)
+        text = _re.sub(r"<style[^>]*>.*?</style>", "", text, flags=_re.DOTALL | _re.IGNORECASE)
+        text = _re.sub(r"<[^>]+>", " ", text)
+        # Collapse whitespace
+        text = _re.sub(r"&nbsp;", " ", text)
+        text = _re.sub(r"&amp;", "&", text)
+        text = _re.sub(r"&lt;", "<", text)
+        text = _re.sub(r"&gt;", ">", text)
+        text = _re.sub(r"&quot;", "\"", text)
+        text = _re.sub(r"&#\d+;", " ", text)
+        text = _re.sub(r"\s+", " ", text).strip()
+    except Exception:
+        return ""
+
+    if len(text) < 100:
+        return ""
+    return text[:max_len]
 
 
 def _fetch_enrichment(ticker: str | None, market: str = "US") -> dict:

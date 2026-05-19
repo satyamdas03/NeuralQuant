@@ -9,6 +9,7 @@ import numpy as np
 
 from .factors.quality import compute_quality_composite
 from .factors.momentum import compute_momentum_cross_sectional, apply_crash_protection
+from .factors.growth import compute_growth_cross_sectional
 from .regime.hmm_detector import RegimeDetector, RegimeState, REGIME_WEIGHTS
 
 # Fixed allocations for regime-invariant signals. Pulled from the remaining
@@ -30,8 +31,10 @@ class UniverseSnapshot:
 
 
 class SignalEngine:
-    def __init__(self, regime_detector: Optional[RegimeDetector] = None):
+    def __init__(self, regime_detector: Optional[RegimeDetector] = None,
+                 regime_detector_in=None):
         self._regime_detector = regime_detector
+        self._regime_detector_in = regime_detector_in
 
     def _get_regime(self, macro, market: str = "US") -> RegimeState:
         """Get current market regime from macro snapshot."""
@@ -44,8 +47,18 @@ class SignalEngine:
             )
 
         if market == "IN":
-            # IN market: map India VIX → VIX, Nifty 200MA → SPX proxy
-            # No HMM trained on IN features yet; use India VIX heuristic
+            # Use India HMM if available, fall back to VIX heuristic
+            if self._regime_detector_in is not None:
+                macro_row = pd.DataFrame([{
+                    "india_vix": float(getattr(macro, "india_vix", 15.0) or 15.0),
+                    "india_vix_20d_chg": float(getattr(macro, "india_vix_20d_chg", 0.0) or 0.0),
+                    "nifty_vs_200ma": float(getattr(macro, "nifty_vs_200ma", 0.0) or 0.0),
+                    "inr_usd_1m_chg": float(getattr(macro, "inr_usd_1m_chg", 0.0) or 0.0),
+                    "nifty_1m_return": float(getattr(macro, "nifty_1m_return", 0.0) or 0.0),
+                }])
+                return self._regime_detector_in.get_current_state(macro_row)
+
+            # Fallback: hardcoded India VIX thresholds
             ivix = float(getattr(macro, "india_vix", 15.0) or 15.0)
             nifty_200ma = float(getattr(macro, "nifty_vs_200ma", 0.0) or 0.0)
             if ivix > 25 or nifty_200ma < -0.08:
@@ -105,6 +118,9 @@ class SignalEngine:
         # 2. Momentum — requires momentum_raw column
         df = compute_momentum_cross_sectional(df, crash_flag=crash_flag)
 
+        # 3. Growth — revenue growth YoY cross-sectional percentile
+        df = compute_growth_cross_sectional(df)
+
         # 3. Short interest (lower short interest = better) — US only
         if "short_interest_pct" in df.columns and snapshot.market != "IN":
             df["short_interest_percentile"] = 1.0 - df["short_interest_pct"].rank(pct=True)
@@ -140,14 +156,13 @@ class SignalEngine:
         low_vol  = df.get("low_vol_percentile",  pd.Series(0.5, index=df.index))
         insider  = df.get("insider_percentile",  pd.Series(0.5, index=df.index))
 
-        # REGIME_WEIGHTS includes a "growth" factor that is not yet computed.
-        # Normalize the 4 active factors so they fill the regime_budget slot
-        # entirely, preventing systematic score compression.
-        # Formula: scale = regime_budget / sum(active_factor_weights)
-        # → composite always sums to 1.0 regardless of which factors are active.
-        _active_keys = ["quality", "momentum", "value", "low_vol"]
+        # All 5 regime-weighted factors now active (growth was previously defined
+        # but never computed — its weight was silently redistributed).
+        _active_keys = ["quality", "momentum", "value", "low_vol", "growth"]
         _used_w = sum(w.get(k, 0.0) for k in _active_keys)
         _scale = regime_budget / _used_w if _used_w > 0 else regime_budget
+
+        growth = df.get("growth_percentile", pd.Series(0.5, index=df.index))
 
         if snapshot.market == "IN":
             df["composite_score"] = (
@@ -156,7 +171,8 @@ class SignalEngine:
                 delivery  * DELIVERY_WEIGHT +
                 insider   * INSIDER_WEIGHT +
                 value     * w.get("value",     0.10) * _scale +
-                low_vol   * w.get("low_vol",   0.15) * _scale
+                low_vol   * w.get("low_vol",   0.15) * _scale +
+                growth    * w.get("growth",    0.25) * _scale
             )
         else:
             df["composite_score"] = (
@@ -165,7 +181,8 @@ class SignalEngine:
                 short_int * SHORT_INT_WEIGHT +
                 insider   * INSIDER_WEIGHT +
                 value     * w.get("value",     0.10) * _scale +
-                low_vol   * w.get("low_vol",   0.15) * _scale
+                low_vol   * w.get("low_vol",   0.15) * _scale +
+                growth    * w.get("growth",    0.25) * _scale
             )
 
         df["regime_id"] = regime.regime_id

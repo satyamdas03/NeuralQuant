@@ -17,6 +17,7 @@ class SubScores(BaseModel):
     short_interest: float        # 0-1
     value: float                 # 0-1 (0.5 = neutral placeholder)
     low_vol: float               # 0-1 (0.5 = neutral placeholder)
+    growth: float = 0.5          # 0-1 (revenue growth YoY percentile)
     insider: float = 0.5         # 0-1 (EDGAR Form 4 cluster score, US only)
 
 
@@ -87,6 +88,7 @@ class UserProfile(BaseModel):
     time_horizon: str  # <1yr | 1-3yr | 3-5yr | 5yr+
     goal: str  # wealth_building | retirement | education | passive_income | tax_saving
     investable_amount: str | None = None
+    email_market_wrap: bool = True  # opt-in for daily market wrap emails
 
 
 class QueryRequest(BaseModel):

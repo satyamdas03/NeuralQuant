@@ -57,8 +57,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const corePages = [
     { url: SITE_URL, lastModified: new Date(), changeFrequency: "weekly" as const, priority: 1.0 },
     { url: `${SITE_URL}/pricing`, lastModified: new Date(), changeFrequency: "monthly" as const, priority: 0.9 },
-    { url: `${SITE_URL}/performance`, lastModified: new Date(), changeFrequency: "weekly" as const, priority: 0.8 },
-    { url: `${SITE_URL}/compare`, lastModified: new Date(), changeFrequency: "monthly" as const, priority: 0.5 },
   ];
 
   return [...corePages, ...stockPages, ...sectorPages];

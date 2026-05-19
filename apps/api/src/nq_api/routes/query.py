@@ -163,13 +163,19 @@ async def run_nl_query(
         for h in headlines:
             context_parts.append(f"  • {h}")
     if finnhub_news:
-        context_parts.append("Detailed news summaries (use these for deeper context):")
+        context_parts.append("Detailed news summaries with article excerpts (use these for deeper context — they contain the FULL available text, not just headlines):")
         for a in finnhub_news:
-            summary_text = a.get("summary", "")
             title_text = a.get("title", "")
+            summary_text = a.get("summary", "")
+            body_text = a.get("body", "")
             source_text = a.get("source", "")
+            parts = [f"[{source_text}] {title_text}"]
             if summary_text:
-                context_parts.append(f"  • [{source_text}] {title_text}: {summary_text[:300]}")
+                parts.append(f"  Summary: {summary_text}")
+            if body_text:
+                parts.append(f"  Article excerpt: {body_text[:800]}")
+            if summary_text or body_text:
+                context_parts.append("  • " + "\n  ".join(parts))
     if enrichment:
         tech_lines = ["Technical indicators & sentiment (REAL-TIME DATA):"]
         field_labels = {"rsi_14": "RSI-14", "macd_line": "MACD", "macd_signal": "MACD Signal",
@@ -379,13 +385,19 @@ async def run_nl_query_v2(
         for h in headlines:
             context_parts.append(f"  • {h}")
     if finnhub_news:
-        context_parts.append("Detailed news summaries (use these for deeper context):")
+        context_parts.append("Detailed news summaries with article excerpts (use these for deeper context — they contain the FULL available text, not just headlines):")
         for a in finnhub_news:
-            summary_text = a.get("summary", "")
             title_text = a.get("title", "")
+            summary_text = a.get("summary", "")
+            body_text = a.get("body", "")
             source_text = a.get("source", "")
+            parts = [f"[{source_text}] {title_text}"]
             if summary_text:
-                context_parts.append(f"  • [{source_text}] {title_text}: {summary_text[:300]}")
+                parts.append(f"  Summary: {summary_text}")
+            if body_text:
+                parts.append(f"  Article excerpt: {body_text[:800]}")
+            if summary_text or body_text:
+                context_parts.append("  • " + "\n  ".join(parts))
     if enrichment:
         tech_lines = ["Technical indicators & sentiment (REAL-TIME DATA):"]
         field_labels = {"rsi_14": "RSI-14", "macd_line": "MACD", "macd_signal": "MACD Signal",

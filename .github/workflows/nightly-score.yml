@@ -1,9 +1,8 @@
 name: nightly-score
 
 on:
-  # schedule disabled — daemon cache_refresher replaces nightly GHA
-  # schedule:
-  #   - cron: "0 2 * * *"  # 02:00 UTC daily
+  schedule:
+    - cron: "0 2 * * *"  # 02:00 UTC daily — populates score_cache_history for backtest accuracy
   workflow_dispatch:
     inputs:
       market:
