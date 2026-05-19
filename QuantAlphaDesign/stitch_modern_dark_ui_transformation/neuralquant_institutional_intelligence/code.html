@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NeuralQuant - Institutional Grade Equity Research</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&amp;family=Syne:wght@400;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-primary-fixed": "#002113",
+                        "border-glow": "rgba(0, 255, 178, 0.15)",
+                        "on-tertiary": "#3f2e00",
+                        "surface-container-highest": "#31353e",
+                        "secondary": "#c1c1ff",
+                        "on-surface": "#e0e2ee",
+                        "on-tertiary-container": "#7d5e00",
+                        "background": "#10131c",
+                        "primary-container": "#00ffb2",
+                        "on-tertiary-fixed-variant": "#5b4300",
+                        "outline": "#83958a",
+                        "surface-variant": "#31353e",
+                        "on-secondary-fixed": "#09006b",
+                        "primary-fixed": "#47ffb8",
+                        "inverse-surface": "#e0e2ee",
+                        "primary-fixed-dim": "#00e29d",
+                        "tertiary-container": "#ffdc91",
+                        "surface-container-lowest": "#0a0e16",
+                        "surface-container-low": "#181c24",
+                        "text-muted": "rgba(232, 244, 255, 0.45)",
+                        "on-primary-fixed-variant": "#005236",
+                        "on-secondary": "#1500a8",
+                        "tertiary-fixed": "#ffdf9b",
+                        "secondary-fixed-dim": "#c1c1ff",
+                        "secondary-container": "#2e25d4",
+                        "surface-container-high": "#262a33",
+                        "tertiary-fixed-dim": "#edc157",
+                        "inverse-on-surface": "#2d303a",
+                        "panel-glass": "rgba(13, 20, 37, 0.7)",
+                        "on-secondary-container": "#b1b1ff",
+                        "on-surface-variant": "#b9cbbe",
+                        "on-error-container": "#ffdad6",
+                        "on-secondary-fixed-variant": "#2b20d2",
+                        "primary": "#f7fff8",
+                        "surface-bright": "#353943",
+                        "text-primary": "#E8F4FF",
+                        "surface-container": "#1c2028",
+                        "on-primary-container": "#00724d",
+                        "secondary-fixed": "#e1dfff",
+                        "surface-deep": "#090E1A",
+                        "on-background": "#e0e2ee",
+                        "on-primary": "#003824",
+                        "surface": "#10131c",
+                        "on-tertiary-fixed": "#251a00",
+                        "on-error": "#690005",
+                        "error-container": "#93000a",
+                        "cyber-red": "#FF4158",
+                        "outline-variant": "#3a4a41",
+                        "surface-dim": "#10131c",
+                        "error": "#ffb4ab",
+                        "surface-tint": "#00e29d",
+                        "inverse-primary": "#006c49",
+                        "tertiary": "#fffcff"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "gutter": "1.5rem",
+                        "margin-mobile": "1rem",
+                        "grid-unit": "60px",
+                        "margin-desktop": "4rem",
+                        "container-max": "1400px"
+                    },
+                    fontFamily: {
+                        "data-sm": ["Space Mono"],
+                        "label-caps": ["Space Mono"],
+                        "body-md": ["Syne"],
+                        "headline-xl": ["Syne"],
+                        "headline-lg": ["Syne"],
+                        "body-lg": ["Syne"],
+                        "headline-lg-mobile": ["Syne"],
+                        "data-lg": ["Space Mono"]
+                    },
+                    fontSize: {
+                        "data-sm": ["12px", { "lineHeight": "1.4", "letterSpacing": "0.1em", "fontWeight": "400" }],
+                        "label-caps": ["11px", { "lineHeight": "1.0", "letterSpacing": "0.2em", "fontWeight": "700" }],
+                        "body-md": ["15px", { "lineHeight": "1.5", "fontWeight": "400" }],
+                        "headline-xl": ["96px", { "lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "800" }],
+                        "headline-lg": ["64px", { "lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "headline-lg-mobile": ["40px", { "lineHeight": "1.2", "fontWeight": "700" }],
+                        "data-lg": ["24px", { "lineHeight": "1.2", "letterSpacing": "0.05em", "fontWeight": "700" }]
+                    },
+                    backgroundImage: {
+                        'grid-pattern': `linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                                         linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px)`,
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: #050810;
+            background-image: 
+                linear-gradient(to right, rgba(232, 244, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(232, 244, 255, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            color: #E8F4FF;
+        }
+    </style>
+</head>
+<body class="font-body-md text-body-md text-text-primary antialiased min-h-screen selection:bg-primary-fixed selection:text-background">
+<!-- TopNavBar -->
+<header class="bg-panel-glass backdrop-blur-xl fixed top-0 w-full h-[80px] z-50 border-b border-border-glow shadow-[0_0_20px_rgba(0,255,178,0.1)]">
+<div class="flex justify-between items-center px-margin-desktop w-full mx-auto h-full container-max">
+<!-- Brand -->
+<div class="flex items-center gap-4">
+<span class="font-headline-lg-mobile md:font-headline-lg tracking-tighter text-primary-fixed">NEURALQUANT</span>
+</div>
+<!-- Navigation Links (Web) -->
+<nav class="hidden md:flex items-center h-full gap-8">
+<a class="text-primary-fixed border-b-2 border-primary-fixed h-full flex items-center pt-[2px] font-label-caps text-label-caps cursor-pointer active:scale-95 hover:bg-border-glow/10 transition-all duration-300 px-4" href="#">MARKETS</a>
+<a class="text-text-muted hover:text-primary transition-colors h-full flex items-center font-label-caps text-label-caps cursor-pointer active:scale-95 hover:bg-border-glow/10 duration-300 px-4" href="#">INTELLIGENCE</a>
+<a class="text-text-muted hover:text-primary transition-colors h-full flex items-center font-label-caps text-label-caps cursor-pointer active:scale-95 hover:bg-border-glow/10 duration-300 px-4" href="#">SCREENER</a>
+<a class="text-text-muted hover:text-primary transition-colors h-full flex items-center font-label-caps text-label-caps cursor-pointer active:scale-95 hover:bg-border-glow/10 duration-300 px-4" href="#">TERMINAL</a>
+<a class="text-text-muted hover:text-primary transition-colors h-full flex items-center font-label-caps text-label-caps cursor-pointer active:scale-95 hover:bg-border-glow/10 duration-300 px-4" href="#">BACKTEST</a>
+</nav>
+<!-- Actions -->
+<div class="flex items-center gap-6">
+<button class="text-primary-fixed hover:bg-border-glow/10 transition-all duration-300 p-2 rounded cursor-pointer active:scale-95">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">notifications</span>
+</button>
+<button class="text-primary-fixed hover:bg-border-glow/10 transition-all duration-300 p-2 rounded cursor-pointer active:scale-95 hidden md:block">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">settings</span>
+</button>
+<!-- Primary Action -->
+<button class="bg-primary-fixed text-background font-data-sm text-data-sm px-6 py-2 uppercase hover:shadow-[0_0_20px_rgba(0,255,178,0.3)] transition-all duration-300 cursor-pointer active:scale-95">
+                    UPGRADE
+                </button>
+<!-- Profile Image -->
+<div class="w-8 h-8 rounded-full overflow-hidden border border-primary-fixed/30 ml-2 hidden md:block">
+<img alt="Institutional User Avatar" class="w-full h-full object-cover" data-alt="A close-up portrait of a professional individual representing an institutional user. The lighting is dramatic and moody, fitting a cyber-financial minimal style. The background is a dark obsidian color, reflecting a high-tech brutalist aesthetic. The person appears confident and focused, embodying elite financial analysis." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB3fHO5UxfoJBO2yMqH7_Y9ruFzk9Hefln8dwCFZCMHS4ldGbPAMopL2usPJZeYkpplo3s1dzrcZae0QS49yb9bxaOpatmhZgqevWFcptEyJl8daRBvWkDrF2o1ryqbggrBXXQuxpcF1luwCT-oE19wgZMk9Peb6_jz_1lrdMlJ6Ku-M3lv6mm-OSUX6DqXnjdo2EGoXmik3Gh57ExPY9H9_am4xqKp19R4PZT-76V8pKfKObjQ4w75I4o1sFaHssl9KYFB4VNhwjY"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content -->
+<main class="pt-[80px] pb-24">
+<!-- Live Market Signals Ticker -->
+<div class="w-full bg-surface border-b border-border-glow h-10 overflow-hidden flex items-center shadow-[0_0_10px_rgba(0,255,178,0.05)]">
+<div class="flex whitespace-nowrap animate-[scroll_30s_linear_infinite] items-center">
+<!-- Ticker Items -->
+<div class="flex items-center font-data-sm text-data-sm border-r border-border-glow px-6 text-text-muted">
+<span class="text-primary-fixed mr-2">AAPL</span> <span class="mr-2">173.50</span> <span class="text-primary-fixed">+1.2%</span>
+</div>
+<div class="flex items-center font-data-sm text-data-sm border-r border-border-glow px-6 text-text-muted">
+<span class="text-primary-fixed mr-2">MSFT</span> <span class="mr-2">405.12</span> <span class="text-error">-0.4%</span>
+</div>
+<div class="flex items-center font-data-sm text-data-sm border-r border-border-glow px-6 text-text-muted">
+<span class="text-primary-fixed mr-2">NVDA</span> <span class="mr-2">822.40</span> <span class="text-primary-fixed">+3.8%</span>
+</div>
+<div class="flex items-center font-data-sm text-data-sm border-r border-border-glow px-6 text-text-muted">
+<span class="text-primary-fixed mr-2">GOOGL</span> <span class="mr-2">142.65</span> <span class="text-primary-fixed">+0.5%</span>
+</div>
+<div class="flex items-center font-data-sm text-data-sm border-r border-border-glow px-6 text-text-muted">
+<span class="text-primary-fixed mr-2">AMZN</span> <span class="mr-2">174.42</span> <span class="text-error">-1.1%</span>
+</div>
+<div class="flex items-center font-data-sm text-data-sm border-r border-border-glow px-6 text-text-muted">
+<span class="text-primary-fixed mr-2">TSLA</span> <span class="mr-2">202.64</span> <span class="text-primary-fixed">+2.1%</span>
+</div>
+<div class="flex items-center font-data-sm text-data-sm border-r border-border-glow px-6 text-text-muted">
+<span class="text-primary-fixed mr-2">META</span> <span class="mr-2">484.03</span> <span class="text-primary-fixed">+0.8%</span>
+</div>
+</div>
+<style>
+                @keyframes scroll {
+                    0% { transform: translateX(0); }
+                    100% { transform: translateX(-50%); }
+                }
+            </style>
+</div>
+<!-- Hero Section -->
+<section class="container-max mx-auto px-margin-mobile md:px-margin-desktop py-24 md:py-32 flex flex-col items-center justify-center text-center relative overflow-hidden">
+<!-- Background Ambient Glow -->
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary-fixed/5 rounded-full blur-[120px] pointer-events-none"></div>
+<div class="relative z-10 max-w-4xl flex flex-col gap-8 items-center">
+<div class="inline-flex items-center gap-2 border border-primary-fixed/30 bg-surface-container-low px-4 py-2 rounded-full font-label-caps text-label-caps text-primary-fixed">
+<span class="w-2 h-2 rounded-full bg-primary-fixed animate-pulse"></span>
+                    QUANTALPHA ENGINE V2.0 LIVE
+                </div>
+<h1 class="font-headline-lg-mobile md:font-headline-xl text-text-primary uppercase">
+                    Institutional-grade equity research. <br/>
+<span class="text-transparent bg-clip-text bg-gradient-to-r from-primary-fixed to-secondary-fixed">Powered by multi-agent AI.</span>
+</h1>
+<p class="font-body-lg text-body-lg text-text-muted max-w-2xl">
+                    Deploy an army of specialized quantitative agents to analyze, debate, and forecast market movements with unprecedented precision.
+                </p>
+<div class="flex flex-col sm:flex-row gap-4 mt-8">
+<button class="bg-primary-fixed text-background font-data-sm text-data-sm px-8 py-4 uppercase hover:shadow-[0_0_30px_rgba(0,255,178,0.4)] transition-all duration-300">
+                        START FREE TRIAL
+                    </button>
+<button class="border border-outline-variant bg-surface/50 backdrop-blur-md text-text-primary font-data-sm text-data-sm px-8 py-4 uppercase hover:bg-surface-container hover:border-primary-fixed/50 transition-all duration-300">
+                        VIEW DOCUMENTATION
+                    </button>
+</div>
+</div>
+<!-- Hero Dashboard Mockup -->
+<div class="mt-20 w-full max-w-5xl h-[400px] md:h-[600px] bg-surface-container-lowest border border-border-glow rounded-xl relative overflow-hidden shadow-[0_0_50px_rgba(0,255,178,0.1)] group">
+<!-- Top bar of mockup -->
+<div class="w-full h-8 border-b border-border-glow bg-surface flex items-center px-4 gap-2">
+<div class="w-2 h-2 rounded-full bg-border-glow"></div>
+<div class="w-2 h-2 rounded-full bg-border-glow"></div>
+<div class="w-2 h-2 rounded-full bg-border-glow"></div>
+<div class="ml-4 font-label-caps text-label-caps text-text-muted">NQ_TERMINAL_SESSION</div>
+</div>
+<!-- Image for mockup content -->
+<div class="w-full h-calc(100%-2rem) relative">
+<img alt="Financial Dashboard Mockup" class="w-full h-full object-cover opacity-60 mix-blend-screen group-hover:opacity-80 transition-opacity duration-700" data-alt="A highly detailed and sophisticated financial dashboard interface displayed on a dark screen. The UI features complex data visualizations, including neon green and indigo line charts, scatter plots, and dense data tables filled with numerical values. The overall style is cyber-financial minimal, with sharp edges, a 60px grid overlay faintly visible, and luminous glassmorphic panels against an obsidian black background. The mood is analytical and high-tech." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCdb7SCgcXHkbj8PhPhQHwe9oCeWmCoF8FrHtoW_oJfXdbOR-ADPaFzOPLVqZvoC8DSrfv8oo_EWJpc1bDSCkjthuKQL5inL_2IDHO7Yq7X-sm6yhj2kcRjtN5lC0utOfpflfnaP-uGoPtMvt-0thJ5brE9La48sm0ooh0u8bteFzQ_3Mg4xeMN8lkVYua3HDrTYvjfDtEsanj0dyIradGm51kyCKtOLkHZS7KwRMccsmLxwbuFnkmqN33Itygg4fwVwYMQ9H355Ks"/>
+<!-- Overlay Grid -->
+<div class="absolute inset-0 pointer-events-none" style="background-image: linear-gradient(to right, rgba(0, 255, 178, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(0, 255, 178, 0.05) 1px, transparent 1px); background-size: 60px 60px;"></div>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-surface-container-lowest w-full py-12 px-margin-mobile md:px-margin-desktop border-t border-outline-variant/30 flex flex-col md:flex-row justify-between items-center gap-6">
+<div class="flex flex-col gap-2">
+<span class="font-label-caps text-label-caps text-on-surface-variant tracking-[0.2em]">NEURALQUANT</span>
+<p class="font-body-md text-body-md text-text-muted">
+                © 2026 NeuralQuant · Research tool, not investment advice.
+            </p>
+</div>
+<div class="flex flex-wrap gap-6 justify-center">
+<a class="font-label-caps text-label-caps text-text-muted hover:text-primary-fixed transition-colors" href="#">Terms of Service</a>
+<a class="font-label-caps text-label-caps text-text-muted hover:text-primary-fixed transition-colors" href="#">Privacy Policy</a>
+<a class="font-label-caps text-label-caps text-text-muted hover:text-primary-fixed transition-colors" href="#">System Status</a>
+<a class="font-label-caps text-label-caps text-text-muted hover:text-primary-fixed transition-colors" href="#">API Documentation</a>
+</div>
+</footer>
+</body></html>

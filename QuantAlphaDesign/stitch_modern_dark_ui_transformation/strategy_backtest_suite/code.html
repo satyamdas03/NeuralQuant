@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Strategy Backtest Suite - NeuralQuant</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&amp;family=Syne:wght@400;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-primary-fixed": "#002113",
+                    "border-glow": "rgba(0, 255, 178, 0.15)",
+                    "on-tertiary": "#3f2e00",
+                    "surface-container-highest": "#31353e",
+                    "secondary": "#c1c1ff",
+                    "on-surface": "#e0e2ee",
+                    "on-tertiary-container": "#7d5e00",
+                    "background": "#10131c",
+                    "primary-container": "#00ffb2",
+                    "on-tertiary-fixed-variant": "#5b4300",
+                    "outline": "#83958a",
+                    "surface-variant": "#31353e",
+                    "on-secondary-fixed": "#09006b",
+                    "primary-fixed": "#47ffb8",
+                    "inverse-surface": "#e0e2ee",
+                    "primary-fixed-dim": "#00e29d",
+                    "tertiary-container": "#ffdc91",
+                    "surface-container-lowest": "#0a0e16",
+                    "surface-container-low": "#181c24",
+                    "text-muted": "rgba(232, 244, 255, 0.45)",
+                    "on-primary-fixed-variant": "#005236",
+                    "on-secondary": "#1500a8",
+                    "tertiary-fixed": "#ffdf9b",
+                    "secondary-fixed-dim": "#c1c1ff",
+                    "secondary-container": "#2e25d4",
+                    "surface-container-high": "#262a33",
+                    "tertiary-fixed-dim": "#edc157",
+                    "inverse-on-surface": "#2d303a",
+                    "panel-glass": "rgba(13, 20, 37, 0.7)",
+                    "on-secondary-container": "#b1b1ff",
+                    "on-surface-variant": "#b9cbbe",
+                    "on-error-container": "#ffdad6",
+                    "on-secondary-fixed-variant": "#2b20d2",
+                    "primary": "#f7fff8",
+                    "surface-bright": "#353943",
+                    "text-primary": "#E8F4FF",
+                    "surface-container": "#1c2028",
+                    "on-primary-container": "#00724d",
+                    "secondary-fixed": "#e1dfff",
+                    "surface-deep": "#090E1A",
+                    "on-background": "#e0e2ee",
+                    "on-primary": "#003824",
+                    "surface": "#10131c",
+                    "on-tertiary-fixed": "#251a00",
+                    "on-error": "#690005",
+                    "error-container": "#93000a",
+                    "cyber-red": "#FF4158",
+                    "outline-variant": "#3a4a41",
+                    "surface-dim": "#10131c",
+                    "error": "#ffb4ab",
+                    "surface-tint": "#00e29d",
+                    "inverse-primary": "#006c49",
+                    "tertiary": "#fffcff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "gutter": "1.5rem",
+                    "margin-mobile": "1rem",
+                    "grid-unit": "60px",
+                    "margin-desktop": "4rem",
+                    "container-max": "1400px"
+            },
+            "fontFamily": {
+                    "data-sm": [
+                            "Space Mono"
+                    ],
+                    "label-caps": [
+                            "Space Mono"
+                    ],
+                    "body-md": [
+                            "Syne"
+                    ],
+                    "headline-xl": [
+                            "Syne"
+                    ],
+                    "headline-lg": [
+                            "Syne"
+                    ],
+                    "body-lg": [
+                            "Syne"
+                    ],
+                    "headline-lg-mobile": [
+                            "Syne"
+                    ],
+                    "data-lg": [
+                            "Space Mono"
+                    ]
+            },
+            "fontSize": {
+                    "data-sm": [
+                            "12px",
+                            {
+                                    "lineHeight": "1.4",
+                                    "letterSpacing": "0.1em",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "label-caps": [
+                            "11px",
+                            {
+                                    "lineHeight": "1.0",
+                                    "letterSpacing": "0.2em",
+                                    "fontWeight": "700"
+                            }
+                    ],
+                    "body-md": [
+                            "15px",
+                            {
+                                    "lineHeight": "1.5",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "headline-xl": [
+                            "96px",
+                            {
+                                    "lineHeight": "1.1",
+                                    "letterSpacing": "-0.04em",
+                                    "fontWeight": "800"
+                            }
+                    ],
+                    "headline-lg": [
+                            "64px",
+                            {
+                                    "lineHeight": "1.2",
+                                    "letterSpacing": "-0.02em",
+                                    "fontWeight": "700"
+                            }
+                    ],
+                    "body-lg": [
+                            "18px",
+                            {
+                                    "lineHeight": "1.6",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "headline-lg-mobile": [
+                            "40px",
+                            {
+                                    "lineHeight": "1.2",
+                                    "fontWeight": "700"
+                            }
+                    ],
+                    "data-lg": [
+                            "24px",
+                            {
+                                    "lineHeight": "1.2",
+                                    "letterSpacing": "0.05em",
+                                    "fontWeight": "700"
+                            }
+                    ]
+            }
+    },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #050810;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            color: #E8F4FF;
+        }
+        .glass-panel {
+            background-color: rgba(13, 20, 37, 0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(0, 255, 178, 0.15);
+            border-top: 2px solid #47ffb8;
+        }
+        .neon-glow {
+            box-shadow: 0 0 20px rgba(0, 255, 178, 0.3);
+        }
+    </style>
+</head>
+<body class="font-body-md text-body-md antialiased min-h-screen flex flex-col lg:flex-row">
+<!-- SideNavBar -->
+<nav class="fixed left-0 top-0 h-full w-[280px] hidden lg:flex flex-col bg-surface-container-lowest border-r border-border-glow py-8 gap-2 z-40">
+<div class="px-6 mb-8 flex flex-col gap-2">
+<span class="font-label-caps text-label-caps text-primary-fixed tracking-[0.2em] uppercase">NQ_INSTITUTIONAL</span>
+<span class="font-data-sm text-data-sm text-text-muted">V2.0.4-BETA</span>
+</div>
+<button class="mx-6 mb-6 bg-primary-fixed text-on-primary-fixed font-data-sm text-data-sm py-3 px-4 flex justify-center items-center gap-2 hover:brightness-110 transition-all duration-300">
+<span class="material-symbols-outlined text-[16px]">add</span>
+            NEW RESEARCH
+        </button>
+<div class="flex-1 flex flex-col">
+<a class="flex items-center gap-4 text-text-muted px-6 py-4 hover:bg-surface-container-low hover:text-primary transition-all duration-200 group relative overflow-hidden transition-all duration-700 ease-out" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">dashboard</span>
+<span class="font-label-caps text-label-caps">Workspace</span>
+</a>
+<a class="flex items-center gap-4 text-text-muted px-6 py-4 hover:bg-surface-container-low hover:text-primary transition-all duration-200 group relative overflow-hidden transition-all duration-700 ease-out" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">query_stats</span>
+<span class="font-label-caps text-label-caps">Signals</span>
+</a>
+<a class="flex items-center gap-4 text-text-muted px-6 py-4 hover:bg-surface-container-low hover:text-primary transition-all duration-200 group relative overflow-hidden transition-all duration-700 ease-out" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">filter_alt</span>
+<span class="font-label-caps text-label-caps">Screener</span>
+</a>
+<a class="flex items-center gap-4 flex items-center gap-4 bg-primary-fixed/10 text-primary-fixed border-l-4 border-primary-fixed px-6 py-4 group relative overflow-hidden transition-all duration-700 ease-out" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">forum</span>
+<span class="font-label-caps text-label-caps">Debate</span>
+</a>
+<a class="flex items-center gap-4 flex items-center gap-4 bg-primary-fixed/10 text-primary-fixed border-l-4 border-primary-fixed px-6 py-4 group relative overflow-hidden transition-all duration-700 ease-out" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">show_chart</span>
+<span class="font-label-caps text-label-caps">Strategy</span>
+</a>
+</div>
+<div class="mt-auto flex flex-col pt-4 border-t border-border-glow mx-6">
+<a class="flex items-center gap-4 text-text-muted py-3 hover:text-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[18px]">menu_book</span>
+<span class="font-label-caps text-label-caps">Documentation</span>
+</a>
+<a class="flex items-center gap-4 text-text-muted py-3 hover:text-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[18px]">contact_support</span>
+<span class="font-label-caps text-label-caps">Support</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<div class="flex-1 lg:ml-[280px] flex flex-col min-h-screen pt-[80px]">
+<!-- TopNavBar -->
+<header class="fixed top-0 lg:left-[280px] right-0 h-[80px] z-50 bg-panel-glass backdrop-blur-xl border-b border-border-glow shadow-[0_0_20px_rgba(0,255,178,0.1)] flex justify-between items-center px-margin-desktop">
+<div class="flex items-center gap-8 h-full">
+<span class="font-headline-lg-mobile md:font-headline-lg tracking-tighter text-primary-fixed">NEURALQUANT</span>
+<nav class="hidden md:flex h-full items-center gap-6">
+<a class="font-label-caps text-label-caps text-text-muted hover:text-primary transition-colors h-full flex items-center border-b-2 border-transparent" href="#">MARKETS</a>
+<a class="font-label-caps text-label-caps text-text-muted hover:text-primary transition-colors h-full flex items-center border-b-2 border-transparent" href="#">INTELLIGENCE</a>
+<a class="font-label-caps text-label-caps text-text-muted hover:text-primary transition-colors h-full flex items-center border-b-2 border-transparent" href="#">SCREENER</a>
+<a class="font-label-caps text-label-caps text-text-muted hover:text-primary transition-colors h-full flex items-center border-b-2 border-transparent" href="#">TERMINAL</a>
+<a class="font-label-caps text-label-caps text-primary-fixed border-b-2 border-primary-fixed h-full flex items-center pb-[2px]" href="#">BACKTEST</a>
+</nav>
+</div>
+<div class="flex items-center gap-6">
+<div class="hidden md:flex items-center gap-4 text-text-muted">
+<span class="material-symbols-outlined cursor-pointer hover:text-primary-fixed transition-colors">notifications</span>
+<span class="material-symbols-outlined cursor-pointer hover:text-primary-fixed transition-colors">settings</span>
+</div>
+<button class="bg-primary-fixed text-on-primary-fixed font-label-caps text-label-caps px-4 py-2 hover:bg-border-glow/10 transition-all duration-300 cursor-pointer active:scale-95 border border-primary-fixed">
+                    UPGRADE
+                </button>
+<img alt="Institutional User Avatar" class="w-8 h-8 border border-border-glow" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD1P-RYLp4hdA4PpBS3zG3BLq74H_8D0O3IV4wkQzFU_fJLtGTmrttRi-sCgoHDKewdsI5AzFq2hgCfZHrFroVHU8ifqTYbuXDV-2RTyoqJs1vFD5b_pp62t7ZHwp0D8nEGIQfw4IjprTpRHcLCLHGU1Ejp4OXyP81Z-UYuJf92BabTDGx2iPW2MeqYkuGajZN1XtqBfvUk2x6ZEdEmHv3N5HEBB0_3akBilNpfUkf5SVwgCjx38emN5V_sL1IkoqTU8WjS3GriI00"/>
+</div>
+</header>
+<!-- Page Content Canvas -->
+<main class="flex-1 p-margin-mobile md:p-margin-desktop grid grid-cols-1 xl:grid-cols-12 gap-gutter max-w-container-max mx-auto w-full">
+<!-- Controls Panel (Left Col) -->
+<section class="xl:col-span-3 flex flex-col gap-6">
+<div class="glass-panel p-6 flex flex-col gap-6">
+<h2 class="font-headline-lg-mobile md:font-headline-lg text-primary-fixed tracking-tighter">PARAMETERS</h2>
+<div class="flex flex-col gap-4">
+<!-- Ticker Input -->
+<div class="flex flex-col gap-2">
+<label class="font-label-caps text-label-caps text-text-muted">TICKER / SYMBOL</label>
+<input class="bg-surface-container-low border border-border-glow text-primary font-data-sm text-data-sm p-3 focus:outline-none focus:border-primary-fixed transition-colors w-full uppercase" type="text" value="AAPL"/>
+</div>
+<!-- Market Select -->
+<div class="flex flex-col gap-2">
+<label class="font-label-caps text-label-caps text-text-muted">MARKET</label>
+<select class="bg-surface-container-low border border-border-glow text-primary font-data-sm text-data-sm p-3 focus:outline-none focus:border-primary-fixed transition-colors w-full appearance-none">
+<option>US EQUITIES (NASDAQ/NYSE)</option>
+<option>INDIA (NSE/BSE)</option>
+<option>CRYPTO (BINANCE)</option>
+</select>
+</div>
+<!-- Grid for SMAs -->
+<div class="grid grid-cols-2 gap-4">
+<div class="flex flex-col gap-2">
+<label class="font-label-caps text-label-caps text-text-muted">FAST SMA</label>
+<input class="bg-surface-container-low border border-border-glow text-primary font-data-sm text-data-sm p-3 focus:outline-none focus:border-primary-fixed transition-colors w-full text-right" type="number" value="20"/>
+</div>
+<div class="flex flex-col gap-2">
+<label class="font-label-caps text-label-caps text-text-muted">SLOW SMA</label>
+<input class="bg-surface-container-low border border-border-glow text-primary font-data-sm text-data-sm p-3 focus:outline-none focus:border-primary-fixed transition-colors w-full text-right" type="number" value="50"/>
+</div>
+</div>
+<!-- Period Select -->
+<div class="flex flex-col gap-2">
+<label class="font-label-caps text-label-caps text-text-muted">LOOKBACK PERIOD</label>
+<div class="grid grid-cols-4 gap-2">
+<button class="border border-border-glow text-text-muted font-data-sm text-data-sm py-2 hover:text-primary-fixed hover:border-primary-fixed transition-colors">1M</button>
+<button class="border border-border-glow text-text-muted font-data-sm text-data-sm py-2 hover:text-primary-fixed hover:border-primary-fixed transition-colors">6M</button>
+<button class="border border-primary-fixed text-primary-fixed bg-primary-fixed/10 font-data-sm text-data-sm py-2">1Y</button>
+<button class="border border-border-glow text-text-muted font-data-sm text-data-sm py-2 hover:text-primary-fixed hover:border-primary-fixed transition-colors">5Y</button>
+</div>
+</div>
+</div>
+<!-- CTA -->
+<button class="mt-4 bg-primary-fixed text-on-primary-fixed font-label-caps text-label-caps py-4 flex justify-center items-center gap-2 neon-glow hover:brightness-110 transition-all duration-300 w-full active:scale-95">
+<span class="material-symbols-outlined text-[18px]">play_arrow</span>
+                        RUN BACKTEST
+                    </button>
+</div>
+</section>
+<!-- Main Canvas (Right Col) -->
+<section class="xl:col-span-9 flex flex-col gap-6">
+<!-- Chart Area -->
+<div class="glass-panel p-6 flex flex-col h-[500px]">
+<div class="flex justify-between items-center mb-6">
+<h3 class="font-label-caps text-label-caps text-text-muted tracking-widest">PERFORMANCE CHART (AAPL - 1Y)</h3>
+<div class="flex gap-4">
+<span class="flex items-center gap-2 font-data-sm text-data-sm text-text-muted"><span class="w-3 h-3 bg-primary-fixed block"></span> PRICE</span>
+<span class="flex items-center gap-2 font-data-sm text-data-sm text-text-muted"><span class="w-3 h-3 bg-[#c1c1ff] block"></span> FAST SMA</span>
+<span class="flex items-center gap-2 font-data-sm text-data-sm text-text-muted"><span class="w-3 h-3 bg-[#FF4158] block"></span> SLOW SMA</span>
+</div>
+</div>
+<!-- Placeholder for Chart Image -->
+<div class="flex-1 bg-surface-container-lowest border border-border-glow/50 relative overflow-hidden flex items-center justify-center">
+<!-- Simulated Chart Grid Lines -->
+<div class="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
+<!-- Simulated Chart Lines using SVG background pattern -->
+<div class="absolute inset-0 bg-no-repeat bg-center w-full h-full opacity-60" data-alt="A highly detailed financial chart visualization displayed on a dark, obsidian digital screen. The chart features a vibrant, glowing neon green line graph trending upwards, intersecting with subtle blue and red moving average lines. The background is a stark black with a faint, technical 60px grid overlay. The mood is high-tech, analytical, and professional, characteristic of an elite institutional trading terminal." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAnEY28Dabk1YrjAm33maVnzV_03JZP9pb8Cs-Y3fjKSdssPQ810gP4AG4FXTa0nlOTyNdi5Y8azFlhol2aXZ99hWfuutre6JcUJZw1H-9U65tnMyDAeEhRPL1Fjvf14KMALfvACMGtYMcatH6wf6eyRYJkh658ib1glzJ87mrEPL5pfyMinq64jS9GGmw2R97aSDCpv-PYOBg9sRk4D6EY52lgTiffHRusamfp4iU4rxcTz1tkLQ9r_dwCOEmWUorjxmQt0kfm6Yg'); background-size: cover; mix-blend-mode: luminosity;"></div>
+<div class="absolute inset-0 bg-surface-container-lowest/80 mix-blend-multiply"></div>
+<!-- Temporary text for context -->
+<span class="relative z-10 font-data-lg text-data-lg text-primary-fixed/50 border border-primary-fixed/20 p-4 backdrop-blur-sm">CHART_RENDER_REGION</span>
+</div>
+</div>
+<!-- Stats Grid -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+<div class="glass-panel p-6 flex flex-col gap-2 relative overflow-hidden group">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-primary-fixed group-hover:w-2 transition-all duration-300"></div>
+<span class="font-label-caps text-label-caps text-text-muted">CAGR</span>
+<span class="font-data-lg text-data-lg text-primary-fixed">24.5%</span>
+</div>
+<div class="glass-panel p-6 flex flex-col gap-2 relative overflow-hidden group">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-cyber-red group-hover:w-2 transition-all duration-300"></div>
+<span class="font-label-caps text-label-caps text-text-muted">MAX DRAWDOWN</span>
+<span class="font-data-lg text-data-lg text-cyber-red">-12.3%</span>
+</div>
+<div class="glass-panel p-6 flex flex-col gap-2 relative overflow-hidden group">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-secondary-fixed-dim group-hover:w-2 transition-all duration-300"></div>
+<span class="font-label-caps text-label-caps text-text-muted">SHARPE RATIO</span>
+<span class="font-data-lg text-data-lg text-secondary-fixed-dim">1.84</span>
+</div>
+<div class="glass-panel p-6 flex flex-col gap-2 relative overflow-hidden group">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-tertiary-fixed-dim group-hover:w-2 transition-all duration-300"></div>
+<span class="font-label-caps text-label-caps text-text-muted">WIN RATE</span>
+<span class="font-data-lg text-data-lg text-tertiary-fixed-dim">62.1%</span>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="w-full py-12 px-margin-desktop bg-surface-container-lowest border-t border-outline-variant/30 flex flex-col md:flex-row justify-between items-center gap-6 mt-auto">
+<span class="font-label-caps text-label-caps text-on-surface-variant text-center md:text-left">
+                © 2024 NEURALQUANT TECHNOLOGIES. ALL RIGHTS RESERVED. QUANTITATIVE ACCESS ONLY.
+            </span>
+<div class="flex flex-wrap justify-center gap-6">
+<a class="font-label-caps text-label-caps text-text-muted hover:text-primary transition-colors" href="#">Terms of Service</a>
+<a class="font-label-caps text-label-caps text-text-muted hover:text-primary transition-colors" href="#">Privacy Policy</a>
+<a class="font-label-caps text-label-caps text-text-muted hover:text-primary transition-colors" href="#">System Status</a>
+<a class="font-label-caps text-label-caps text-text-muted hover:text-primary transition-colors" href="#">API Documentation</a>
+</div>
+</footer>
+</div>
+</body></html>

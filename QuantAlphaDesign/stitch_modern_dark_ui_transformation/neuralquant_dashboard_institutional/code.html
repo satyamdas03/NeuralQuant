@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Main Intelligence Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&amp;family=Syne:wght@400..800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-primary-fixed": "#002113",
+                      "border-glow": "rgba(0, 255, 178, 0.15)",
+                      "on-tertiary": "#3f2e00",
+                      "surface-container-highest": "#31353e",
+                      "secondary": "#c1c1ff",
+                      "on-surface": "#e0e2ee",
+                      "on-tertiary-container": "#7d5e00",
+                      "background": "#10131c",
+                      "primary-container": "#00ffb2",
+                      "on-tertiary-fixed-variant": "#5b4300",
+                      "outline": "#83958a",
+                      "surface-variant": "#31353e",
+                      "on-secondary-fixed": "#09006b",
+                      "primary-fixed": "#47ffb8",
+                      "inverse-surface": "#e0e2ee",
+                      "primary-fixed-dim": "#00e29d",
+                      "tertiary-container": "#ffdc91",
+                      "surface-container-lowest": "#0a0e16",
+                      "surface-container-low": "#181c24",
+                      "text-muted": "rgba(232, 244, 255, 0.45)",
+                      "on-primary-fixed-variant": "#005236",
+                      "on-secondary": "#1500a8",
+                      "tertiary-fixed": "#ffdf9b",
+                      "secondary-fixed-dim": "#c1c1ff",
+                      "secondary-container": "#2e25d4",
+                      "surface-container-high": "#262a33",
+                      "tertiary-fixed-dim": "#edc157",
+                      "inverse-on-surface": "#2d303a",
+                      "panel-glass": "rgba(13, 20, 37, 0.7)",
+                      "on-secondary-container": "#b1b1ff",
+                      "on-surface-variant": "#b9cbbe",
+                      "on-error-container": "#ffdad6",
+                      "on-secondary-fixed-variant": "#2b20d2",
+                      "primary": "#f7fff8",
+                      "surface-bright": "#353943",
+                      "text-primary": "#E8F4FF",
+                      "surface-container": "#1c2028",
+                      "on-primary-container": "#00724d",
+                      "secondary-fixed": "#e1dfff",
+                      "surface-deep": "#090E1A",
+                      "on-background": "#e0e2ee",
+                      "on-primary": "#003824",
+                      "surface": "#10131c",
+                      "on-tertiary-fixed": "#251a00",
+                      "on-error": "#690005",
+                      "error-container": "#93000a",
+                      "cyber-red": "#FF4158",
+                      "outline-variant": "#3a4a41",
+                      "surface-dim": "#10131c",
+                      "error": "#ffb4ab",
+                      "surface-tint": "#00e29d",
+                      "inverse-primary": "#006c49",
+                      "tertiary": "#fffcff"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "gutter": "1.5rem",
+                      "margin-mobile": "1rem",
+                      "grid-unit": "60px",
+                      "margin-desktop": "4rem",
+                      "container-max": "1400px"
+              },
+              "fontFamily": {
+                      "data-sm": [
+                              "Space Mono"
+                      ],
+                      "label-caps": [
+                              "Space Mono"
+                      ],
+                      "body-md": [
+                              "Syne"
+                      ],
+                      "headline-xl": [
+                              "Syne"
+                      ],
+                      "headline-lg": [
+                              "Syne"
+                      ],
+                      "body-lg": [
+                              "Syne"
+                      ],
+                      "headline-lg-mobile": [
+                              "Syne"
+                      ],
+                      "data-lg": [
+                              "Space Mono"
+                      ]
+              },
+              "fontSize": {
+                      "data-sm": [
+                              "12px",
+                              {
+                                      "lineHeight": "1.4",
+                                      "letterSpacing": "0.1em",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "label-caps": [
+                              "11px",
+                              {
+                                      "lineHeight": "1.0",
+                                      "letterSpacing": "0.2em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "body-md": [
+                              "15px",
+                              {
+                                      "lineHeight": "1.5",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-xl": [
+                              "96px",
+                              {
+                                      "lineHeight": "1.1",
+                                      "letterSpacing": "-0.04em",
+                                      "fontWeight": "800"
+                              }
+                      ],
+                      "headline-lg": [
+                              "64px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "body-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "1.6",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-lg-mobile": [
+                              "40px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "data-lg": [
+                              "24px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "700"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+<style>
+        body {
+            background-color: #050810;
+            background-image: 
+                linear-gradient(rgba(0, 255, 178, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 178, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+        }
+        .glass-panel {
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(0, 255, 178, 0.15);
+            background-color: rgba(13, 20, 37, 0.7);
+        }
+        .neon-accent-top {
+            border-top: 2px solid #47ffb8;
+        }
+        .ambient-glow {
+            box-shadow: 0 0 20px rgba(0, 255, 178, 0.3);
+        }
+    </style>
+</head>
+<body class="text-text-primary antialiased min-h-screen flex selection:bg-primary-fixed selection:text-background">
+<!-- SideNavBar -->
+<nav class="fixed left-0 top-0 h-full w-[280px] hidden lg:flex flex-col bg-surface-container-lowest border-r border-border-glow py-8 gap-2 z-50">
+<div class="px-6 mb-8 flex flex-col gap-2">
+<span class="font-label-caps text-label-caps text-primary-fixed tracking-[0.2em]">NQ_INSTITUTIONAL</span>
+<span class="font-data-sm text-data-sm text-text-muted">V2.0.4-BETA</span>
+</div>
+<div class="flex-1 flex flex-col gap-1">
+<a class="flex items-center gap-4 bg-primary-fixed/10 text-primary-fixed border-l-4 border-primary-fixed px-6 py-4 group relative overflow-hidden transition-all duration-700 ease-out" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-caps text-label-caps">Workspace</span>
+</a>
+<a class="flex items-center gap-4 text-text-muted px-6 py-4 hover:bg-surface-container-low hover:text-primary transition-all duration-200 group relative overflow-hidden" href="#">
+<span class="material-symbols-outlined">query_stats</span>
+<span class="font-label-caps text-label-caps">Signals</span>
+</a>
+<a class="flex items-center gap-4 text-text-muted px-6 py-4 hover:bg-surface-container-low hover:text-primary transition-all duration-200 group relative overflow-hidden" href="#">
+<span class="material-symbols-outlined">filter_alt</span>
+<span class="font-label-caps text-label-caps">Screener</span>
+</a>
+<a class="flex items-center gap-4 text-text-muted px-6 py-4 hover:bg-surface-container-low hover:text-primary transition-all duration-200 group relative overflow-hidden" href="#">
+<span class="material-symbols-outlined">forum</span>
+<span class="font-label-caps text-label-caps">Debate</span>
+</a>
+<a class="flex items-center gap-4 text-text-muted px-6 py-4 hover:bg-surface-container-low hover:text-primary transition-all duration-200 group relative overflow-hidden" href="#">
+<span class="material-symbols-outlined">show_chart</span>
+<span class="font-label-caps text-label-caps">Strategy</span>
+</a>
+</div>
+<div class="px-6 mt-auto flex flex-col gap-4">
+<button class="bg-primary-fixed text-background font-data-sm text-data-sm px-4 py-3 hover:ambient-glow transition-all duration-300 w-full text-center">
+                NEW RESEARCH
+            </button>
+<div class="flex flex-col gap-1">
+<a class="flex items-center gap-4 text-text-muted px-6 py-4 hover:bg-surface-container-low hover:text-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined">menu_book</span>
+<span class="font-label-caps text-label-caps">Documentation</span>
+</a>
+<a class="flex items-center gap-4 text-text-muted px-6 py-4 hover:bg-surface-container-low hover:text-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined">contact_support</span>
+<span class="font-label-caps text-label-caps">Support</span>
+</a>
+</div>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="flex-1 lg:ml-[280px] p-margin-mobile lg:p-margin-desktop min-h-screen flex flex-col gap-8 max-w-container-max mx-auto w-full">
+<!-- Header Section -->
+<header class="flex flex-col gap-4">
+<h1 class="font-headline-lg-mobile lg:font-headline-lg text-headline-lg-mobile lg:text-headline-lg text-primary-fixed tracking-tight">Main Intelligence Dashboard</h1>
+<p class="font-body-lg text-body-lg text-text-muted max-w-3xl">Real-time quantitative analysis and AI-driven market signals across global equities.</p>
+</header>
+<!-- Market Index Cards -->
+<section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+<!-- S&P 500 -->
+<div class="glass-panel neon-accent-top p-6 flex flex-col gap-4 relative overflow-hidden group hover:ambient-glow transition-all duration-300 cursor-pointer">
+<div class="flex justify-between items-start">
+<span class="font-label-caps text-label-caps text-text-muted">S&amp;P 500</span>
+<span class="material-symbols-outlined text-primary-fixed">trending_up</span>
+</div>
+<div>
+<div class="font-data-lg text-data-lg text-primary">5,142.38</div>
+<div class="font-data-sm text-data-sm text-primary-fixed mt-1">+1.24% (+63.12)</div>
+</div>
+<div class="h-12 w-full mt-2 relative">
+<div class="absolute inset-0 bg-gradient-to-t from-primary-fixed/20 to-transparent"></div>
+<svg class="w-full h-full text-primary-fixed" preserveaspectratio="none" viewbox="0 0 100 30">
+<path d="M0,30 L10,25 L20,28 L30,20 L40,22 L50,15 L60,18 L70,10 L80,12 L90,5 L100,0" fill="none" stroke="currentColor" stroke-width="2"></path>
+</svg>
+</div>
+<div class="absolute inset-0 bg-gradient-to-r from-transparent via-primary-fixed/5 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></div>
+</div>
+<!-- NASDAQ -->
+<div class="glass-panel neon-accent-top p-6 flex flex-col gap-4 relative overflow-hidden group hover:ambient-glow transition-all duration-300 cursor-pointer">
+<div class="flex justify-between items-start">
+<span class="font-label-caps text-label-caps text-text-muted">NASDAQ</span>
+<span class="material-symbols-outlined text-primary-fixed">trending_up</span>
+</div>
+<div>
+<div class="font-data-lg text-data-lg text-primary">16,401.84</div>
+<div class="font-data-sm text-data-sm text-primary-fixed mt-1">+1.87% (+302.41)</div>
+</div>
+<div class="h-12 w-full mt-2 relative">
+<div class="absolute inset-0 bg-gradient-to-t from-primary-fixed/20 to-transparent"></div>
+<svg class="w-full h-full text-primary-fixed" preserveaspectratio="none" viewbox="0 0 100 30">
+<path d="M0,30 L10,28 L20,25 L30,26 L40,18 L50,20 L60,12 L70,15 L80,5 L90,8 L100,0" fill="none" stroke="currentColor" stroke-width="2"></path>
+</svg>
+</div>
+</div>
+<!-- DOW -->
+<div class="glass-panel neon-accent-top p-6 flex flex-col gap-4 relative overflow-hidden group hover:ambient-glow transition-all duration-300 cursor-pointer">
+<div class="flex justify-between items-start">
+<span class="font-label-caps text-label-caps text-text-muted">DOW JONES</span>
+<span class="material-symbols-outlined text-cyber-red">trending_down</span>
+</div>
+<div>
+<div class="font-data-lg text-data-lg text-primary">39,128.50</div>
+<div class="font-data-sm text-data-sm text-cyber-red mt-1">-0.15% (-58.32)</div>
+</div>
+<div class="h-12 w-full mt-2 relative">
+<div class="absolute inset-0 bg-gradient-to-t from-cyber-red/20 to-transparent"></div>
+<svg class="w-full h-full text-cyber-red" preserveaspectratio="none" viewbox="0 0 100 30">
+<path d="M0,0 L10,5 L20,2 L30,10 L40,8 L50,15 L60,12 L70,20 L80,18 L90,25 L100,30" fill="none" stroke="currentColor" stroke-width="2"></path>
+</svg>
+</div>
+</div>
+<!-- VIX -->
+<div class="glass-panel neon-accent-top p-6 flex flex-col gap-4 relative overflow-hidden group hover:ambient-glow transition-all duration-300 cursor-pointer">
+<div class="flex justify-between items-start">
+<span class="font-label-caps text-label-caps text-text-muted">VIX</span>
+<span class="material-symbols-outlined text-cyber-red">trending_down</span>
+</div>
+<div>
+<div class="font-data-lg text-data-lg text-primary">13.24</div>
+<div class="font-data-sm text-data-sm text-cyber-red mt-1">-4.21% (-0.58)</div>
+</div>
+<div class="h-12 w-full mt-2 relative">
+<div class="absolute inset-0 bg-gradient-to-t from-cyber-red/20 to-transparent"></div>
+<svg class="w-full h-full text-cyber-red" preserveaspectratio="none" viewbox="0 0 100 30">
+<path d="M0,10 L10,20 L20,15 L30,25 L40,20 L50,28 L60,22 L70,30 L80,25 L90,28 L100,20" fill="none" stroke="currentColor" stroke-width="2"></path>
+</svg>
+</div>
+</div>
+</section>
+<!-- Search / Research Input -->
+<section class="w-full max-w-4xl mx-auto my-8 relative group">
+<div class="absolute -inset-1 bg-gradient-to-r from-primary-fixed/20 via-primary-fixed/40 to-primary-fixed/20 rounded-lg blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+<div class="relative flex items-center bg-surface-deep border border-primary-fixed/30 p-2">
+<span class="material-symbols-outlined text-primary-fixed ml-4 mr-2">search</span>
+<input class="w-full bg-transparent border-none text-primary font-data-sm text-data-sm focus:ring-0 placeholder:text-text-muted/50 p-4 outline-none" placeholder="Ask Anything about Markets..." type="text"/>
+<button class="bg-primary-fixed/10 hover:bg-primary-fixed/20 text-primary-fixed font-label-caps text-label-caps px-6 py-3 border border-primary-fixed/50 transition-colors mr-2">
+                    ANALYZE
+                </button>
+</div>
+</section>
+<!-- Main Layout Grid (Heatmap + Right Sidebar) -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+<!-- Left Column: Equity Sectors Heatmap -->
+<section class="lg:col-span-2 flex flex-col gap-4">
+<div class="flex items-center justify-between border-b border-border-glow pb-4">
+<h2 class="font-label-caps text-label-caps text-primary-fixed">EQUITY SECTORS</h2>
+<div class="flex gap-2">
+<button class="font-data-sm text-data-sm text-text-muted hover:text-primary px-3 py-1 border border-border-glow bg-surface-container-lowest">1D</button>
+<button class="font-data-sm text-data-sm text-background bg-primary-fixed px-3 py-1 border border-primary-fixed">1W</button>
+<button class="font-data-sm text-data-sm text-text-muted hover:text-primary px-3 py-1 border border-border-glow bg-surface-container-lowest">1M</button>
+</div>
+</div>
+<div class="glass-panel p-6 h-[400px] flex flex-col">
+<!-- Placeholder for actual complex heatmap visualization -->
+<div class="flex-1 grid grid-cols-4 grid-rows-3 gap-2">
+<div class="col-span-2 row-span-2 bg-primary-fixed/20 border border-primary-fixed flex flex-col items-center justify-center p-4 hover:bg-primary-fixed/30 transition-colors cursor-pointer group">
+<span class="font-label-caps text-label-caps text-primary">TECHNOLOGY</span>
+<span class="font-data-lg text-data-lg text-primary-fixed">+4.2%</span>
+</div>
+<div class="col-span-1 row-span-2 bg-primary-fixed/10 border border-primary-fixed/50 flex flex-col items-center justify-center p-4 hover:bg-primary-fixed/20 transition-colors cursor-pointer">
+<span class="font-label-caps text-label-caps text-primary">COMM SVCS</span>
+<span class="font-data-sm text-data-sm text-primary-fixed">+1.8%</span>
+</div>
+<div class="col-span-1 row-span-1 bg-cyber-red/10 border border-cyber-red/50 flex flex-col items-center justify-center p-2 hover:bg-cyber-red/20 transition-colors cursor-pointer">
+<span class="font-label-caps text-label-caps text-primary text-[9px]">HEALTHCARE</span>
+<span class="font-data-sm text-data-sm text-cyber-red">-0.5%</span>
+</div>
+<div class="col-span-1 row-span-1 bg-cyber-red/20 border border-cyber-red flex flex-col items-center justify-center p-2 hover:bg-cyber-red/30 transition-colors cursor-pointer">
+<span class="font-label-caps text-label-caps text-primary text-[9px]">ENERGY</span>
+<span class="font-data-sm text-data-sm text-cyber-red">-1.2%</span>
+</div>
+<div class="col-span-2 row-span-1 bg-surface-container-high border border-border-glow flex flex-col items-center justify-center p-4 hover:bg-surface-container-highest transition-colors cursor-pointer">
+<span class="font-label-caps text-label-caps text-primary">FINANCIALS</span>
+<span class="font-data-sm text-data-sm text-text-muted">+0.1%</span>
+</div>
+<div class="col-span-1 row-span-1 bg-primary-fixed/10 border border-primary-fixed/50 flex flex-col items-center justify-center p-2 hover:bg-primary-fixed/20 transition-colors cursor-pointer">
+<span class="font-label-caps text-label-caps text-primary text-[9px]">C. DISCRETIONARY</span>
+<span class="font-data-sm text-data-sm text-primary-fixed">+0.8%</span>
+</div>
+<div class="col-span-1 row-span-1 bg-surface-container-high border border-border-glow flex flex-col items-center justify-center p-2 hover:bg-surface-container-highest transition-colors cursor-pointer">
+<span class="font-label-caps text-label-caps text-primary text-[9px]">INDUSTRIALS</span>
+<span class="font-data-sm text-data-sm text-text-muted">0.0%</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Right Column: Top AI Picks -->
+<aside class="flex flex-col gap-4">
+<div class="flex items-center justify-between border-b border-border-glow pb-4">
+<h2 class="font-label-caps text-label-caps text-primary-fixed flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px]">psychology</span>
+                        TOP AI PICKS
+                    </h2>
+</div>
+<div class="glass-panel p-4 flex flex-col gap-2">
+<!-- List Item 1 -->
+<div class="flex items-center justify-between p-3 border-l-2 border-primary-fixed hover:bg-primary-fixed/5 transition-colors cursor-pointer">
+<div class="flex flex-col">
+<span class="font-label-caps text-label-caps text-primary">NVDA</span>
+<span class="font-data-sm text-data-sm text-text-muted">NVIDIA Corp.</span>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-data-sm text-data-sm text-primary-fixed">Conviction: 98%</span>
+<span class="font-data-sm text-data-sm text-primary-fixed">+2.4%</span>
+</div>
+</div>
+<!-- List Item 2 -->
+<div class="flex items-center justify-between p-3 border-l-2 border-primary-fixed hover:bg-primary-fixed/5 transition-colors cursor-pointer">
+<div class="flex flex-col">
+<span class="font-label-caps text-label-caps text-primary">AMD</span>
+<span class="font-data-sm text-data-sm text-text-muted">Advanced Micro Devices</span>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-data-sm text-data-sm text-primary-fixed">Conviction: 85%</span>
+<span class="font-data-sm text-data-sm text-primary-fixed">+1.1%</span>
+</div>
+</div>
+<!-- List Item 3 -->
+<div class="flex items-center justify-between p-3 border-l-2 border-border-glow hover:bg-surface-container-high transition-colors cursor-pointer">
+<div class="flex flex-col">
+<span class="font-label-caps text-label-caps text-primary">MSFT</span>
+<span class="font-data-sm text-data-sm text-text-muted">Microsoft Corp.</span>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-data-sm text-data-sm text-text-muted">Conviction: 72%</span>
+<span class="font-data-sm text-data-sm text-text-muted">+0.5%</span>
+</div>
+</div>
+<!-- List Item 4 -->
+<div class="flex items-center justify-between p-3 border-l-2 border-border-glow hover:bg-surface-container-high transition-colors cursor-pointer">
+<div class="flex flex-col">
+<span class="font-label-caps text-label-caps text-primary">GOOGL</span>
+<span class="font-data-sm text-data-sm text-text-muted">Alphabet Inc.</span>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-data-sm text-data-sm text-text-muted">Conviction: 68%</span>
+<span class="font-data-sm text-data-sm text-text-muted">+0.2%</span>
+</div>
+</div>
+</div>
+</aside>
+</div>
+</main>
+</body></html>

@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NEURALQUANT - PARA-DEBATE Terminal</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&amp;family=Syne:wght@400..800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-primary-fixed": "#002113",
+                        "border-glow": "rgba(0, 255, 178, 0.15)",
+                        "on-tertiary": "#3f2e00",
+                        "surface-container-highest": "#31353e",
+                        "secondary": "#c1c1ff",
+                        "on-surface": "#e0e2ee",
+                        "on-tertiary-container": "#7d5e00",
+                        "background": "#10131c",
+                        "primary-container": "#00ffb2",
+                        "on-tertiary-fixed-variant": "#5b4300",
+                        "outline": "#83958a",
+                        "surface-variant": "#31353e",
+                        "on-secondary-fixed": "#09006b",
+                        "primary-fixed": "#47ffb8",
+                        "inverse-surface": "#e0e2ee",
+                        "primary-fixed-dim": "#00e29d",
+                        "tertiary-container": "#ffdc91",
+                        "surface-container-lowest": "#0a0e16",
+                        "surface-container-low": "#181c24",
+                        "text-muted": "rgba(232, 244, 255, 0.45)",
+                        "on-primary-fixed-variant": "#005236",
+                        "on-secondary": "#1500a8",
+                        "tertiary-fixed": "#ffdf9b",
+                        "secondary-fixed-dim": "#c1c1ff",
+                        "secondary-container": "#2e25d4",
+                        "surface-container-high": "#262a33",
+                        "tertiary-fixed-dim": "#edc157",
+                        "inverse-on-surface": "#2d303a",
+                        "panel-glass": "rgba(13, 20, 37, 0.7)",
+                        "on-secondary-container": "#b1b1ff",
+                        "on-surface-variant": "#b9cbbe",
+                        "on-error-container": "#ffdad6",
+                        "on-secondary-fixed-variant": "#2b20d2",
+                        "primary": "#f7fff8",
+                        "surface-bright": "#353943",
+                        "text-primary": "#E8F4FF",
+                        "surface-container": "#1c2028",
+                        "on-primary-container": "#00724d",
+                        "secondary-fixed": "#e1dfff",
+                        "surface-deep": "#090E1A",
+                        "on-background": "#e0e2ee",
+                        "on-primary": "#003824",
+                        "surface": "#10131c",
+                        "on-tertiary-fixed": "#251a00",
+                        "on-error": "#690005",
+                        "error-container": "#93000a",
+                        "cyber-red": "#FF4158",
+                        "outline-variant": "#3a4a41",
+                        "surface-dim": "#10131c",
+                        "error": "#ffb4ab",
+                        "surface-tint": "#00e29d",
+                        "inverse-primary": "#006c49",
+                        "tertiary": "#fffcff"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "gutter": "1.5rem",
+                        "margin-mobile": "1rem",
+                        "grid-unit": "60px",
+                        "margin-desktop": "4rem",
+                        "container-max": "1400px"
+                    },
+                    fontFamily: {
+                        "data-sm": ["Space Mono"],
+                        "label-caps": ["Space Mono"],
+                        "body-md": ["Syne"],
+                        "headline-xl": ["Syne"],
+                        "headline-lg": ["Syne"],
+                        "body-lg": ["Syne"],
+                        "headline-lg-mobile": ["Syne"],
+                        "data-lg": ["Space Mono"]
+                    },
+                    fontSize: {
+                        "data-sm": ["12px", { "lineHeight": "1.4", "letterSpacing": "0.1em", "fontWeight": "400" }],
+                        "label-caps": ["11px", { "lineHeight": "1.0", "letterSpacing": "0.2em", "fontWeight": "700" }],
+                        "body-md": ["15px", { "lineHeight": "1.5", "fontWeight": "400" }],
+                        "headline-xl": ["96px", { "lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "800" }],
+                        "headline-lg": ["64px", { "lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "headline-lg-mobile": ["40px", { "lineHeight": "1.2", "fontWeight": "700" }],
+                        "data-lg": ["24px", { "lineHeight": "1.2", "letterSpacing": "0.05em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .bg-grid-overlay {
+            background-image: 
+                linear-gradient(to right, rgba(0, 255, 178, 0.03) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(0, 255, 178, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+        }
+        .scanline-bg {
+            background: linear-gradient(
+                to bottom,
+                transparent 50%,
+                rgba(0, 255, 178, 0.02) 50%
+            );
+            background-size: 100% 4px;
+        }
+    
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(0, 255, 178, 0.1);
+            border-radius: 10px;
+        }
+        .custom-scrollbar:hover::-webkit-scrollbar-thumb {
+            background: rgba(0, 255, 178, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md min-h-screen overflow-x-hidden selection:bg-primary-fixed selection:text-background relative">
+<!-- 60px Grid System Overlay -->
+<div class="fixed inset-0 pointer-events-none z-[-1] bg-grid-overlay"></div>
+<!-- SideNavBar (from JSON) -->
+<nav class="fixed left-0 top-0 h-full w-[280px] hidden lg:flex flex-col bg-surface-container-lowest border-r border-border-glow z-40">
+<div class="flex flex-col py-8 gap-2 h-full">
+<div class="px-6 mb-8">
+<div class="font-label-caps text-primary-fixed tracking-[0.2em] mb-1">NQ_INSTITUTIONAL</div>
+<div class="font-data-sm text-text-muted">V2.0.4-BETA</div>
+</div>
+<div class="flex-1 flex flex-col gap-2">
+<!-- Workspace: Inactive -->
+<a class="flex items-center gap-4 text-text-muted px-6 py-4 hover:bg-surface-container-low hover:text-primary transition-all duration-200 group relative overflow-hidden" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">dashboard</span>
+<span class="font-label-caps text-label-caps">Workspace</span>
+</a>
+<!-- Signals: Inactive -->
+<a class="flex items-center gap-4 text-text-muted px-6 py-4 hover:bg-surface-container-low hover:text-primary transition-all duration-200 group relative overflow-hidden" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">query_stats</span>
+<span class="font-label-caps text-label-caps">Signals</span>
+</a>
+<!-- Screener: Inactive -->
+<a class="flex items-center gap-4 text-text-muted px-6 py-4 hover:bg-surface-container-low hover:text-primary transition-all duration-200 group relative overflow-hidden" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">filter_alt</span>
+<span class="font-label-caps text-label-caps">Screener</span>
+</a>
+<!-- Debate: ACTIVE -->
+<a class="flex items-center gap-4 bg-primary-fixed/10 text-primary-fixed border-l-4 border-primary-fixed px-6 py-4 group relative overflow-hidden" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">forum</span>
+<span class="font-label-caps text-label-caps">Debate</span>
+</a>
+<!-- Strategy: Inactive -->
+<a class="flex items-center gap-4 text-text-muted px-6 py-4 hover:bg-surface-container-low hover:text-primary transition-all duration-200 group relative overflow-hidden" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">show_chart</span>
+<span class="font-label-caps text-label-caps">Strategy</span>
+</a>
+</div>
+<div class="px-6 py-4">
+<button class="w-full bg-primary-fixed text-background font-label-caps text-label-caps py-3 hover:bg-primary-container transition-colors">NEW RESEARCH</button>
+</div>
+<div class="mt-auto border-t border-border-glow/50 pt-4 flex flex-col gap-1">
+<a class="flex items-center gap-4 text-text-muted px-6 py-3 hover:bg-surface-container-low hover:text-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[18px]">menu_book</span>
+<span class="font-label-caps text-label-caps">Documentation</span>
+</a>
+<a class="flex items-center gap-4 text-text-muted px-6 py-3 hover:bg-surface-container-low hover:text-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[18px]">contact_support</span>
+<span class="font-label-caps text-label-caps">Support</span>
+</a>
+</div>
+</div>
+</nav>
+<!-- TopNavBar (from JSON) -->
+<header class="fixed top-0 w-full h-[80px] z-50 bg-panel-glass backdrop-blur-xl border-b border-border-glow shadow-[0_0_20px_rgba(0,255,178,0.1)] lg:pl-[280px]">
+<div class="flex justify-between items-center px-margin-desktop w-full mx-auto h-full">
+<div class="font-headline-lg text-headline-lg-mobile tracking-tighter text-primary-fixed lg:hidden">
+                NEURALQUANT
+            </div>
+<nav class="hidden md:flex items-center gap-8 h-full">
+<a class="text-text-muted hover:text-primary transition-colors hover:bg-border-glow/10 transition-all duration-300 h-full flex items-center px-4" href="#">
+<span class="font-label-caps text-label-caps">MARKETS</span>
+</a>
+<a class="text-text-muted hover:text-primary transition-colors hover:bg-border-glow/10 transition-all duration-300 h-full flex items-center px-4" href="#">
+<span class="font-label-caps text-label-caps">INTELLIGENCE</span>
+</a>
+<a class="text-text-muted hover:text-primary transition-colors hover:bg-border-glow/10 transition-all duration-300 h-full flex items-center px-4" href="#">
+<span class="font-label-caps text-label-caps">SCREENER</span>
+</a>
+<!-- TERMINAL: ACTIVE Context -->
+<a class="text-primary-fixed border-b-2 border-primary-fixed h-full flex items-center px-4 bg-border-glow/5" href="#">
+<span class="font-label-caps text-label-caps">TERMINAL</span>
+</a>
+<a class="text-text-muted hover:text-primary transition-colors hover:bg-border-glow/10 transition-all duration-300 h-full flex items-center px-4" href="#">
+<span class="font-label-caps text-label-caps">BACKTEST</span>
+</a>
+</nav>
+<div class="flex items-center gap-6">
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-primary-fixed cursor-pointer active:scale-95 hover:bg-border-glow/10 transition-all duration-300 p-2 rounded-full">notifications</span>
+<span class="material-symbols-outlined text-primary-fixed cursor-pointer active:scale-95 hover:bg-border-glow/10 transition-all duration-300 p-2 rounded-full">settings</span>
+</div>
+<button class="hidden md:block bg-transparent border border-border-glow text-primary-fixed font-label-caps text-label-caps px-6 py-2 hover:bg-border-glow/10 transition-all duration-300">UPGRADE</button>
+<div class="w-8 h-8 rounded-full bg-surface-bright border border-primary-fixed overflow-hidden">
+<!-- Placeholder for Institutional User Avatar -->
+<div class="w-full h-full bg-primary-fixed/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px] text-primary-fixed">person</span>
+</div>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="pt-[100px] lg:pl-[280px] min-h-screen flex flex-col p-6 md:p-margin-desktop gap-6">
+<!-- Top Metadata Row -->
+<div class="flex justify-between items-end mb-4">
+<div>
+<h1 class="font-headline-lg text-headline-lg-mobile text-text-primary mb-2">NVDA</h1>
+<div class="flex gap-4 font-data-sm text-text-muted">
+<span>SECTOR: TECHNOLOGY</span>
+<span class="text-border-glow">|</span>
+<span>INDUSTRY: SEMICONDUCTORS</span>
+<span class="text-border-glow">|</span>
+<span>PRICE: $135.58</span>
+</div>
+</div>
+<div class="text-right">
+<div class="font-label-caps text-primary-fixed mb-1">SYSTEM STATUS</div>
+<div class="font-data-sm text-text-primary flex items-center gap-2 justify-end">
+<span class="w-2 h-2 rounded-full bg-primary-fixed shadow-[0_0_8px_#47ffb8]"></span>
+                    MODELS ALIGNED
+                </div>
+</div>
+</div>
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+<!-- Left Panel: Final Verdict & Debate (Span 8) -->
+<div class="xl:col-span-8 flex flex-col gap-6">
+<!-- Final Verdict Panel -->
+<div class="bg-panel-glass backdrop-blur-xl border border-border-glow shadow-[0_0_20px_rgba(0,255,178,0.1)] relative overflow-hidden p-8 flex flex-col md:flex-row justify-between items-center gap-8 scanline-bg">
+<div class="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-primary-fixed via-secondary-container to-transparent"></div>
+<div class="flex-1">
+<div class="font-label-caps text-text-muted mb-4 tracking-widest">SYNTHESIZED OUTPUT // AGENT CONSENSUS</div>
+<div class="font-headline-lg text-primary-fixed mb-2 drop-shadow-[0_0_12px_rgba(71,255,184,0.4)]">STRONG BUY</div>
+<p class="font-body-md text-on-surface-variant max-w-lg">
+                            Aggregated debate models indicate an overwhelming probability of continued outperformance. Hardware moat remains unbreached while software ecosystem (CUDA) enforces high switching costs. Macro headwinds are fully offset by hyperscaler capex commitments.
+                        </p>
+</div>
+<div class="flex flex-col items-center justify-center border border-border-glow bg-surface-container/50 p-6 relative">
+<!-- Decorative corners -->
+<div class="absolute top-0 left-0 w-2 h-2 border-t border-l border-primary-fixed"></div>
+<div class="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-primary-fixed"></div>
+<div class="font-data-lg text-primary-fixed mb-1 drop-shadow-[0_0_8px_rgba(71,255,184,0.6)]">92.4</div>
+<div class="font-label-caps text-text-muted">CONVICTION SCORE</div>
+<div class="mt-4 text-primary-fixed opacity-80">
+<span class="material-symbols-outlined text-[48px]" style="font-variation-settings: 'FILL' 1;">verified</span>
+</div>
+</div>
+</div>
+<!-- AI Debate Agents Grid -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1"><!-- BULL AGENT -->
+<div class="bg-surface-container-low border border-primary-fixed/30 relative flex flex-col hover:border-primary-fixed transition-colors duration-500 group h-[450px]">
+<div class="absolute top-0 left-0 w-full h-1 bg-primary-fixed opacity-50 group-hover:opacity-100 transition-opacity"></div>
+<div class="p-6 flex-1 flex flex-col overflow-hidden">
+<div class="flex justify-between items-start mb-6 border-b border-border-glow/20 pb-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 border border-primary-fixed bg-primary-fixed/10 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-primary-fixed">smart_toy</span>
+</div>
+<div class="overflow-hidden">
+<div class="font-label-caps text-primary-fixed truncate">AGENT: BULL</div>
+<div class="font-data-sm text-text-muted truncate">FUNDAMENTAL</div>
+</div>
+</div>
+<div class="font-data-lg text-primary-fixed ml-2 shrink-0">98</div>
+</div>
+<div class="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+<ul class="font-body-md text-on-surface text-sm space-y-5">
+<li class="flex gap-3">
+<span class="text-primary-fixed font-bold mt-0.5">▹</span>
+<span class="leading-relaxed">Blackwell architecture accelerating refresh cycle ahead of schedule.</span>
+</li>
+<li class="flex gap-3">
+<span class="text-primary-fixed font-bold mt-0.5">▹</span>
+<span class="leading-relaxed">Datacenter revenue projections continuously revised upwards by consensus.</span>
+</li>
+<li class="flex gap-3">
+<span class="text-primary-fixed font-bold mt-0.5">▹</span>
+<span class="leading-relaxed">Sovereign AI demand creating secondary, insulated revenue stream.</span>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<!-- BEAR AGENT -->
+<div class="bg-surface-container-low border border-cyber-red/30 relative flex flex-col hover:border-cyber-red transition-colors duration-500 group h-[450px]">
+<div class="absolute top-0 left-0 w-full h-1 bg-cyber-red opacity-50 group-hover:opacity-100 transition-opacity"></div>
+<div class="p-6 flex-1 flex flex-col overflow-hidden">
+<div class="flex justify-between items-start mb-6 border-b border-border-glow/20 pb-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 border border-cyber-red bg-cyber-red/10 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-cyber-red">warning</span>
+</div>
+<div class="overflow-hidden">
+<div class="font-label-caps text-cyber-red truncate">AGENT: BEAR</div>
+<div class="font-data-sm text-text-muted truncate">RISK/VALUATION</div>
+</div>
+</div>
+<div class="font-data-lg text-cyber-red ml-2 shrink-0">45</div>
+</div>
+<div class="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+<ul class="font-body-md text-on-surface text-sm space-y-5">
+<li class="flex gap-3">
+<span class="text-cyber-red font-bold mt-0.5">▹</span>
+<span class="leading-relaxed">Valuation stretched; priced for perfection leaving minimal margin of error.</span>
+</li>
+<li class="flex gap-3">
+<span class="text-cyber-red font-bold mt-0.5">▹</span>
+<span class="leading-relaxed">Custom silicon (ASICs) development by major hyperscalers presents long-term threat.</span>
+</li>
+<li class="flex gap-3">
+<span class="text-cyber-red font-bold mt-0.5">▹</span>
+<span class="leading-relaxed">Geopolitical export restrictions could impact Chinese market share further.</span>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<!-- MACRO AGENT -->
+<div class="bg-surface-container-low border border-secondary-container/50 relative flex flex-col hover:border-secondary-container transition-colors duration-500 group h-[450px]">
+<div class="absolute top-0 left-0 w-full h-1 bg-secondary-container opacity-50 group-hover:opacity-100 transition-opacity"></div>
+<div class="p-6 flex-1 flex flex-col overflow-hidden">
+<div class="flex justify-between items-start mb-6 border-b border-border-glow/20 pb-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 border border-secondary-container bg-secondary-container/10 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-secondary-fixed">language</span>
+</div>
+<div class="overflow-hidden">
+<div class="font-label-caps text-secondary-fixed truncate">AGENT: MACRO</div>
+<div class="font-data-sm text-text-muted truncate">ENVIRONMENT</div>
+</div>
+</div>
+<div class="font-data-lg text-secondary-fixed ml-2 shrink-0">76</div>
+</div>
+<div class="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+<ul class="font-body-md text-on-surface text-sm space-y-5">
+<li class="flex gap-3">
+<span class="text-secondary-fixed font-bold mt-0.5">▹</span>
+<span class="leading-relaxed">Interest rate stabilization providing favorable backdrop for growth equities.</span>
+</li>
+<li class="flex gap-3">
+<span class="text-secondary-fixed font-bold mt-0.5">▹</span>
+<span class="leading-relaxed">Supply chain resilience improved; TSMC capacity constraints easing gradually.</span>
+</li>
+<li class="flex gap-3">
+<span class="text-secondary-fixed font-bold mt-0.5">▹</span>
+<span class="leading-relaxed">Global energy infrastructure scaling required to support compute demands.</span>
+</li>
+</ul>
+</div>
+</div>
+</div></div>
+</div>
+<!-- Right Sidebar: Technical Indicators (Span 4) -->
+<div class="xl:col-span-4 flex flex-col h-full">
+<div class="bg-panel-glass backdrop-blur-xl border border-border-glow shadow-[0_0_20px_rgba(0,255,178,0.05)] relative overflow-hidden flex-1 p-6">
+<div class="absolute top-0 left-0 w-[2px] h-full bg-gradient-to-b from-primary-fixed to-transparent"></div>
+<div class="flex items-center gap-3 mb-8">
+<span class="material-symbols-outlined text-primary-fixed">monitoring</span>
+<h2 class="font-label-caps text-text-primary tracking-widest">TECHNICAL INDICATORS</h2>
+</div>
+<div class="space-y-8">
+<!-- Indicator: RSI -->
+<div class="group cursor-pointer">
+<div class="flex justify-between items-baseline mb-2">
+<div class="font-label-caps text-on-surface">RSI (14)</div>
+<div class="font-data-sm text-cyber-red">72.4 (OVERBOUGHT)</div>
+</div>
+<!-- Simulated Mini Chart -->
+<div class="h-12 w-full border-b border-l border-border-glow/50 relative flex items-end gap-[2px] pt-2 px-1">
+<!-- Baseline 70 -->
+<div class="absolute top-1/4 w-full h-[1px] border-t border-dashed border-cyber-red/40 z-0"></div>
+<!-- Bars -->
+<div class="w-full bg-primary-fixed/20 h-[40%] z-10 hover:bg-primary-fixed/40 transition-colors"></div>
+<div class="w-full bg-primary-fixed/20 h-[45%] z-10 hover:bg-primary-fixed/40 transition-colors"></div>
+<div class="w-full bg-primary-fixed/20 h-[55%] z-10 hover:bg-primary-fixed/40 transition-colors"></div>
+<div class="w-full bg-primary-fixed/20 h-[60%] z-10 hover:bg-primary-fixed/40 transition-colors"></div>
+<div class="w-full bg-cyber-red/40 h-[75%] z-10 hover:bg-cyber-red/60 transition-colors"></div>
+<div class="w-full bg-cyber-red/40 h-[80%] z-10 hover:bg-cyber-red/60 transition-colors"></div>
+<div class="w-full bg-cyber-red/50 h-[85%] z-10 hover:bg-cyber-red/70 transition-colors"></div>
+</div>
+</div>
+<!-- Indicator: MACD -->
+<div class="group cursor-pointer">
+<div class="flex justify-between items-baseline mb-2">
+<div class="font-label-caps text-on-surface">MACD (12, 26)</div>
+<div class="font-data-sm text-primary-fixed">BULLISH CROSSOVER</div>
+</div>
+<!-- Simulated Mini Chart (Histogram style) -->
+<div class="h-12 w-full border-b border-l border-border-glow/50 relative flex items-end gap-[2px] pt-2 px-1">
+<!-- Zero line -->
+<div class="absolute top-1/2 w-full h-[1px] bg-border-glow z-0"></div>
+<!-- Bars -->
+<div class="w-full bg-cyber-red/30 h-[20%] mb-6 z-10"></div>
+<div class="w-full bg-cyber-red/30 h-[10%] mb-6 z-10"></div>
+<div class="w-full bg-primary-fixed/30 h-[5%] z-10 self-start mt-6"></div>
+<div class="w-full bg-primary-fixed/40 h-[15%] z-10 self-start mt-6"></div>
+<div class="w-full bg-primary-fixed/60 h-[25%] z-10 self-start mt-6"></div>
+<div class="w-full bg-primary-fixed/80 h-[35%] z-10 self-start mt-6"></div>
+<div class="w-full bg-primary-fixed h-[40%] z-10 self-start mt-6 shadow-[0_0_8px_#47ffb8]"></div>
+</div>
+</div>
+<!-- Indicator: ATR -->
+<div class="group cursor-pointer">
+<div class="flex justify-between items-baseline mb-2">
+<div class="font-label-caps text-on-surface">ATR (14)</div>
+<div class="font-data-sm text-secondary-fixed">HIGH VOLATILITY</div>
+</div>
+<!-- Simulated Mini Chart (Line style via overlapping divs) -->
+<div class="h-12 w-full border-b border-l border-border-glow/50 relative px-1 overflow-hidden">
+<div class="absolute bottom-0 left-0 w-full h-full bg-gradient-to-t from-secondary-container/20 to-transparent z-0"></div>
+<!-- Approximated Line -->
+<div class="absolute bottom-[20%] left-[5%] w-2 h-2 rounded-full bg-secondary-fixed z-10 shadow-[0_0_5px_#e1dfff]"></div>
+<div class="absolute bottom-[30%] left-[20%] w-2 h-2 rounded-full bg-secondary-fixed z-10 shadow-[0_0_5px_#e1dfff]"></div>
+<div class="absolute bottom-[25%] left-[35%] w-2 h-2 rounded-full bg-secondary-fixed z-10 shadow-[0_0_5px_#e1dfff]"></div>
+<div class="absolute bottom-[50%] left-[50%] w-2 h-2 rounded-full bg-secondary-fixed z-10 shadow-[0_0_5px_#e1dfff]"></div>
+<div class="absolute bottom-[70%] left-[65%] w-2 h-2 rounded-full bg-secondary-fixed z-10 shadow-[0_0_5px_#e1dfff]"></div>
+<div class="absolute bottom-[60%] left-[80%] w-2 h-2 rounded-full bg-secondary-fixed z-10 shadow-[0_0_5px_#e1dfff]"></div>
+<div class="absolute bottom-[85%] left-[95%] w-2 h-2 rounded-full bg-secondary-fixed z-10 shadow-[0_0_5px_#e1dfff]"></div>
+<!-- Connecting "lines" (hacked via borders on rotated divs or just relying on the dots for brutalist feel. Let's use dots for simplicity and cleaner code) -->
+</div>
+</div>
+</div>
+<div class="mt-auto pt-8">
+<button class="w-full bg-transparent border border-primary-fixed/30 text-primary-fixed font-data-sm py-3 hover:bg-primary-fixed/10 transition-colors flex justify-center items-center gap-2">
+<span class="material-symbols-outlined text-[16px]">download</span>
+                            EXPORT RAW DATA
+                        </button>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

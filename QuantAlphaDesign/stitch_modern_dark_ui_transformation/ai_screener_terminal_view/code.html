@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AI Screener Desktop Terminal</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&amp;family=Syne:wght@400..800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style type="text/tailwindcss">
+        @layer utilities {
+            .bg-obsidian {
+                background-color: #050810;
+            }
+            .scanline-overlay {
+                background: linear-gradient(
+                    to bottom,
+                    rgba(255, 255, 255, 0),
+                    rgba(255, 255, 255, 0) 50%,
+                    rgba(0, 0, 0, 0.2) 50%,
+                    rgba(0, 0, 0, 0.2)
+                );
+                background-size: 100% 4px;
+            }
+            .grid-overlay {
+                background-size: 60px 60px;
+                background-image:
+                    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            }
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary-fixed": "#002113",
+                        "border-glow": "rgba(0, 255, 178, 0.15)",
+                        "on-tertiary": "#3f2e00",
+                        "surface-container-highest": "#31353e",
+                        "secondary": "#c1c1ff",
+                        "on-surface": "#e0e2ee",
+                        "on-tertiary-container": "#7d5e00",
+                        "background": "#10131c",
+                        "primary-container": "#00ffb2",
+                        "on-tertiary-fixed-variant": "#5b4300",
+                        "outline": "#83958a",
+                        "surface-variant": "#31353e",
+                        "on-secondary-fixed": "#09006b",
+                        "primary-fixed": "#47ffb8",
+                        "inverse-surface": "#e0e2ee",
+                        "primary-fixed-dim": "#00e29d",
+                        "tertiary-container": "#ffdc91",
+                        "surface-container-lowest": "#0a0e16",
+                        "surface-container-low": "#181c24",
+                        "text-muted": "rgba(232, 244, 255, 0.45)",
+                        "on-primary-fixed-variant": "#005236",
+                        "on-secondary": "#1500a8",
+                        "tertiary-fixed": "#ffdf9b",
+                        "secondary-fixed-dim": "#c1c1ff",
+                        "secondary-container": "#2e25d4",
+                        "surface-container-high": "#262a33",
+                        "tertiary-fixed-dim": "#edc157",
+                        "inverse-on-surface": "#2d303a",
+                        "panel-glass": "rgba(13, 20, 37, 0.7)",
+                        "on-secondary-container": "#b1b1ff",
+                        "on-surface-variant": "#b9cbbe",
+                        "on-error-container": "#ffdad6",
+                        "on-secondary-fixed-variant": "#2b20d2",
+                        "primary": "#f7fff8",
+                        "surface-bright": "#353943",
+                        "text-primary": "#E8F4FF",
+                        "surface-container": "#1c2028",
+                        "on-primary-container": "#00724d",
+                        "secondary-fixed": "#e1dfff",
+                        "surface-deep": "#090E1A",
+                        "on-background": "#e0e2ee",
+                        "on-primary": "#003824",
+                        "surface": "#10131c",
+                        "on-tertiary-fixed": "#251a00",
+                        "on-error": "#690005",
+                        "error-container": "#93000a",
+                        "cyber-red": "#FF4158",
+                        "outline-variant": "#3a4a41",
+                        "surface-dim": "#10131c",
+                        "error": "#ffb4ab",
+                        "surface-tint": "#00e29d",
+                        "inverse-primary": "#006c49",
+                        "tertiary": "#fffcff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "1.5rem",
+                        "margin-mobile": "1rem",
+                        "grid-unit": "60px",
+                        "margin-desktop": "4rem",
+                        "container-max": "1400px"
+                    },
+                    "fontFamily": {
+                        "data-sm": ["Space Mono"],
+                        "label-caps": ["Space Mono"],
+                        "body-md": ["Syne"],
+                        "headline-xl": ["Syne"],
+                        "headline-lg": ["Syne"],
+                        "body-lg": ["Syne"],
+                        "headline-lg-mobile": ["Syne"],
+                        "data-lg": ["Space Mono"]
+                    },
+                    "fontSize": {
+                        "data-sm": ["12px", { "lineHeight": "1.4", "letterSpacing": "0.1em", "fontWeight": "400" }],
+                        "label-caps": ["11px", { "lineHeight": "1.0", "letterSpacing": "0.2em", "fontWeight": "700" }],
+                        "body-md": ["15px", { "lineHeight": "1.5", "fontWeight": "400" }],
+                        "headline-xl": ["96px", { "lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "800" }],
+                        "headline-lg": ["64px", { "lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "headline-lg-mobile": ["40px", { "lineHeight": "1.2", "fontWeight": "700" }],
+                        "data-lg": ["24px", { "lineHeight": "1.2", "letterSpacing": "0.05em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-obsidian text-on-surface min-h-screen relative font-body-md overflow-x-hidden selection:bg-primary-fixed selection:text-background">
+<!-- Grid Overlay -->
+<div class="fixed inset-0 grid-overlay z-0 pointer-events-none mix-blend-screen opacity-30"></div>
+<!-- Scanline Overlay -->
+<div class="fixed inset-0 scanline-overlay z-0 pointer-events-none mix-blend-overlay opacity-20"></div>
+<!-- SideNavBar -->
+<nav class="fixed left-0 top-0 h-full w-[280px] hidden lg:flex flex-col bg-surface-container-lowest border-r border-border-glow z-40 group relative overflow-hidden transition-all duration-700 ease-out py-8 gap-2">
+<div class="px-6 mb-8">
+<h1 class="font-label-caps text-primary-fixed tracking-[0.2em]">NQ_INSTITUTIONAL</h1>
+<p class="font-data-sm text-data-sm text-text-muted mt-1">V2.0.4-BETA</p>
+</div>
+<div class="flex-1 flex flex-col gap-2">
+<a class="flex items-center gap-4 text-text-muted px-6 py-4 hover:bg-surface-container-low hover:text-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-caps text-label-caps">Workspace</span>
+</a>
+<a class="flex items-center gap-4 text-text-muted px-6 py-4 hover:bg-surface-container-low hover:text-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined">query_stats</span>
+<span class="font-label-caps text-label-caps">Signals</span>
+</a>
+<a class="flex items-center gap-4 bg-primary-fixed/10 text-primary-fixed border-l-4 border-primary-fixed px-6 py-4" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">filter_alt</span>
+<span class="font-label-caps text-label-caps">Screener</span>
+</a>
+<a class="flex items-center gap-4 text-text-muted px-6 py-4 hover:bg-surface-container-low hover:text-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined">forum</span>
+<span class="font-label-caps text-label-caps">Debate</span>
+</a>
+<a class="flex items-center gap-4 text-text-muted px-6 py-4 hover:bg-surface-container-low hover:text-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined">show_chart</span>
+<span class="font-label-caps text-label-caps">Strategy</span>
+</a>
+</div>
+<div class="px-6 mt-auto mb-8">
+<button class="w-full bg-primary-fixed text-on-primary-fixed font-data-sm text-data-sm py-3 px-4 hover:shadow-[0_0_20px_rgba(0,255,178,0.3)] transition-all duration-300">
+                NEW RESEARCH
+            </button>
+</div>
+<div class="flex flex-col gap-2 border-t border-border-glow pt-4">
+<a class="flex items-center gap-4 text-text-muted px-6 py-3 hover:bg-surface-container-low hover:text-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined">menu_book</span>
+<span class="font-label-caps text-label-caps">Documentation</span>
+</a>
+<a class="flex items-center gap-4 text-text-muted px-6 py-3 hover:bg-surface-container-low hover:text-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined">contact_support</span>
+<span class="font-label-caps text-label-caps">Support</span>
+</a>
+</div>
+</nav>
+<!-- TopNavBar -->
+<header class="fixed top-0 w-full h-[80px] z-50 bg-panel-glass backdrop-blur-xl border-b border-border-glow shadow-[0_0_20px_rgba(0,255,178,0.1)] lg:pl-[280px]">
+<div class="flex justify-between items-center px-margin-desktop w-full mx-auto h-full">
+<div class="flex items-center gap-8 h-full">
+<span class="font-headline-lg text-headline-lg-mobile tracking-tighter text-primary-fixed lg:hidden">NEURALQUANT</span>
+<nav class="hidden md:flex items-end h-full gap-8">
+<a class="font-label-caps text-label-caps text-text-muted hover:text-primary transition-colors pb-6" href="#">MARKETS</a>
+<a class="font-label-caps text-label-caps text-text-muted hover:text-primary transition-colors pb-6" href="#">INTELLIGENCE</a>
+<a class="font-label-caps text-label-caps text-primary-fixed border-b-2 border-primary-fixed pb-6" href="#">SCREENER</a>
+<a class="font-label-caps text-label-caps text-text-muted hover:text-primary transition-colors pb-6" href="#">TERMINAL</a>
+<a class="font-label-caps text-label-caps text-text-muted hover:text-primary transition-colors pb-6" href="#">BACKTEST</a>
+</nav>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-muted">search</span>
+<input class="bg-surface-container-highest border border-outline-variant/30 text-on-surface font-data-sm text-data-sm py-2 pl-10 pr-4 focus:outline-none focus:border-primary-fixed focus:ring-1 focus:ring-primary-fixed/50 w-64 transition-all" placeholder="Search..." type="text"/>
+</div>
+<button class="text-text-muted hover:text-primary transition-colors cursor-pointer active:scale-95">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-text-muted hover:text-primary transition-colors cursor-pointer active:scale-95">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<button class="hidden sm:block border border-border-glow text-primary-fixed font-label-caps text-label-caps px-6 py-2 hover:bg-border-glow/10 transition-all duration-300">
+                    UPGRADE
+                </button>
+<div class="w-8 h-8 bg-surface-container-highest rounded-full border border-border-glow overflow-hidden">
+<img alt="Institutional User Avatar" class="w-full h-full object-cover" data-alt="A futuristic, slightly blurred corporate headshot avatar inside a circular frame. The background is dark, and the lighting is harsh, reminiscent of a cyberpunk executive setting. Deep obsidian blacks and sharp emerald green neon accents." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDpYtGYYGpo9UVb4pHqIZEQVG0nluzMkP4sQg85FQmwlAjioCwlNx0wKmJhoReAFFuQJRrBgdXv2K3CvV1MUPgx1kH6pVvmBITZepwCzDSuvbmN_ijR7CdbiQFvWSMhjf60OJA1D-gRJ2ZUZz5dOazQbtm9LS8gik-KsfW5hbGYIOmDW75wjfREMf30sbdVwyGtWd6zdZcMCkwOMvzpuWtz0EuxuNVT-2etFY3M37mA_e6Ph64fhITQvPBI0oeIBpfGM0arAtxhlxI"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="pt-[100px] lg:pl-[280px] min-h-screen relative z-10 px-margin-mobile md:px-margin-desktop pb-24">
+<!-- Header Section -->
+<div class="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
+<div>
+<h2 class="font-headline-lg text-headline-lg-mobile md:font-headline-lg text-text-primary tracking-tighter mb-2">AI SCREENER</h2>
+<p class="font-data-sm text-data-sm text-text-muted">QUANTITATIVE MULTI-FACTOR ANALYSIS TERMINAL</p>
+</div>
+<div class="flex gap-4 border-b border-outline-variant/30 pb-2">
+<button class="font-label-caps text-label-caps text-primary-fixed border-b-2 border-primary-fixed pb-2 px-2 -mb-[10px]">US-STOCKS</button>
+<button class="font-label-caps text-label-caps text-text-muted hover:text-primary transition-colors pb-2 px-2 -mb-[10px]">INDIA (NSE)</button>
+</div>
+</div>
+<!-- Filters & Tools Bar -->
+<div class="bg-panel-glass backdrop-blur-xl border-t-2 border-t-primary-fixed border-l border-r border-b border-border-glow p-6 mb-8 flex flex-col lg:flex-row gap-6 justify-between items-start lg:items-center shadow-[0_0_20px_rgba(0,255,178,0.05)]">
+<div class="flex flex-wrap gap-4 items-center w-full lg:w-auto">
+<div class="flex flex-col gap-1">
+<label class="font-label-caps text-label-caps text-text-muted">SECTOR</label>
+<select class="bg-surface-container-highest border border-outline-variant/30 text-text-primary font-data-sm text-data-sm py-2 px-4 pr-10 focus:outline-none focus:border-primary-fixed focus:ring-1 focus:ring-primary-fixed/50 appearance-none min-w-[160px]">
+<option>ALL SECTORS</option>
+<option>TECHNOLOGY</option>
+<option>HEALTHCARE</option>
+<option>FINANCIALS</option>
+</select>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-caps text-label-caps text-text-muted">MARKET CAP</label>
+<select class="bg-surface-container-highest border border-outline-variant/30 text-text-primary font-data-sm text-data-sm py-2 px-4 pr-10 focus:outline-none focus:border-primary-fixed focus:ring-1 focus:ring-primary-fixed/50 appearance-none min-w-[160px]">
+<option>ALL CAPS</option>
+<option>MEGA (&gt;200B)</option>
+<option>LARGE (10B-200B)</option>
+<option>MID (2B-10B)</option>
+</select>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-caps text-label-caps text-text-muted">REGIME FILTER</label>
+<div class="flex gap-2">
+<button class="bg-primary-fixed/10 border border-primary-fixed text-primary-fixed font-data-sm text-data-sm py-2 px-4 hover:bg-primary-fixed/20 transition-colors">RISK-ON</button>
+<button class="border border-outline-variant/30 text-text-muted font-data-sm text-data-sm py-2 px-4 hover:border-text-primary transition-colors">RISK-OFF</button>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="flex items-center gap-2 text-text-muted hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-sm">refresh</span>
+<span class="font-label-caps text-label-caps">SYNC</span>
+</button>
+<button class="flex items-center gap-2 bg-surface-container-highest border border-outline-variant/30 text-text-primary font-label-caps text-label-caps py-2 px-4 hover:border-primary-fixed transition-all">
+<span class="material-symbols-outlined text-sm">download</span>
+                    EXPORT
+                </button>
+</div>
+</div>
+<!-- High-Density Data Grid -->
+<div class="bg-panel-glass backdrop-blur-xl border border-border-glow overflow-x-auto w-full">
+<table class="w-full text-left border-collapse min-w-[1000px]">
+<thead>
+<tr class="border-b border-outline-variant/30 bg-surface-container-low/50">
+<th class="font-label-caps text-label-caps text-text-muted p-4 whitespace-nowrap w-[150px]">TICKER</th>
+<th class="font-label-caps text-label-caps text-text-muted p-4 whitespace-nowrap">AI SCORE</th>
+<th class="font-label-caps text-label-caps text-text-muted p-4 whitespace-nowrap">QUALITY</th>
+<th class="font-label-caps text-label-caps text-text-muted p-4 whitespace-nowrap">MOMENTUM</th>
+<th class="font-label-caps text-label-caps text-text-muted p-4 whitespace-nowrap">REGIME</th>
+<th class="font-label-caps text-label-caps text-text-muted p-4 whitespace-nowrap">CONFIDENCE</th>
+<th class="font-label-caps text-label-caps text-text-muted p-4 whitespace-nowrap text-right">ACTION</th>
+</tr>
+</thead>
+<tbody class="font-data-sm text-data-sm">
+<!-- Row 1 -->
+<tr class="border-b border-outline-variant/10 hover:bg-border-glow/5 hover:border-l-2 hover:border-l-primary-fixed transition-all group">
+<td class="p-4">
+<div class="flex items-center gap-3">
+<span class="font-data-lg text-data-lg text-text-primary">NVDA</span>
+<span class="text-text-muted text-[10px]">NASDAQ</span>
+</div>
+</td>
+<td class="p-4">
+<div class="flex items-center gap-2">
+<span class="text-primary-fixed font-bold">9.8</span>
+<div class="w-24 h-1 bg-surface-container-highest rounded-full overflow-hidden shadow-[0_0_10px_rgba(0,255,178,0.2)]">
+<div class="h-full bg-primary-fixed w-[98%] shadow-[0_0_10px_rgba(0,255,178,0.8)]"></div>
+</div>
+</div>
+</td>
+<td class="p-4 text-primary-fixed">A+</td>
+<td class="p-4 text-primary-fixed">+14.2%</td>
+<td class="p-4"><span class="bg-primary-fixed/10 text-primary-fixed px-2 py-1 rounded border border-primary-fixed/30">RISK-ON</span></td>
+<td class="p-4">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-primary-fixed" style="font-variation-settings: 'FILL' 1;">signal_cellular_alt</span>
+<span>HIGH</span>
+</div>
+</td>
+<td class="p-4 text-right">
+<button class="material-symbols-outlined text-text-muted group-hover:text-primary-fixed transition-colors">more_vert</button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="border-b border-outline-variant/10 hover:bg-border-glow/5 hover:border-l-2 hover:border-l-primary-fixed transition-all group">
+<td class="p-4">
+<div class="flex items-center gap-3">
+<span class="font-data-lg text-data-lg text-text-primary">AAPL</span>
+<span class="text-text-muted text-[10px]">NASDAQ</span>
+</div>
+</td>
+<td class="p-4">
+<div class="flex items-center gap-2">
+<span class="text-primary-fixed-dim">8.4</span>
+<div class="w-24 h-1 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary-fixed-dim w-[84%]"></div>
+</div>
+</div>
+</td>
+<td class="p-4 text-text-primary">A</td>
+<td class="p-4 text-primary-fixed-dim">+5.1%</td>
+<td class="p-4"><span class="bg-primary-fixed/10 text-primary-fixed px-2 py-1 rounded border border-primary-fixed/30">RISK-ON</span></td>
+<td class="p-4">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-text-primary" style="font-variation-settings: 'FILL' 1;">signal_cellular_alt</span>
+<span>HIGH</span>
+</div>
+</td>
+<td class="p-4 text-right">
+<button class="material-symbols-outlined text-text-muted group-hover:text-primary-fixed transition-colors">more_vert</button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="border-b border-outline-variant/10 hover:bg-border-glow/5 hover:border-l-2 hover:border-l-primary-fixed transition-all group">
+<td class="p-4">
+<div class="flex items-center gap-3">
+<span class="font-data-lg text-data-lg text-text-primary">TSLA</span>
+<span class="text-text-muted text-[10px]">NASDAQ</span>
+</div>
+</td>
+<td class="p-4">
+<div class="flex items-center gap-2">
+<span class="text-tertiary-fixed-dim">6.2</span>
+<div class="w-24 h-1 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-tertiary-fixed-dim w-[62%]"></div>
+</div>
+</div>
+</td>
+<td class="p-4 text-text-muted">B-</td>
+<td class="p-4 text-cyber-red">-8.4%</td>
+<td class="p-4"><span class="bg-surface-container-highest text-text-muted px-2 py-1 rounded border border-outline-variant/30">NEUTRAL</span></td>
+<td class="p-4">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-tertiary-fixed-dim" style="font-variation-settings: 'FILL' 1;">signal_cellular_alt_2_bar</span>
+<span>MED</span>
+</div>
+</td>
+<td class="p-4 text-right">
+<button class="material-symbols-outlined text-text-muted group-hover:text-primary-fixed transition-colors">more_vert</button>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="border-b border-outline-variant/10 hover:bg-border-glow/5 hover:border-l-2 hover:border-l-primary-fixed transition-all group">
+<td class="p-4">
+<div class="flex items-center gap-3">
+<span class="font-data-lg text-data-lg text-text-primary">MSFT</span>
+<span class="text-text-muted text-[10px]">NASDAQ</span>
+</div>
+</td>
+<td class="p-4">
+<div class="flex items-center gap-2">
+<span class="text-primary-fixed">9.1</span>
+<div class="w-24 h-1 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary-fixed w-[91%] shadow-[0_0_10px_rgba(0,255,178,0.5)]"></div>
+</div>
+</div>
+</td>
+<td class="p-4 text-primary-fixed">A+</td>
+<td class="p-4 text-primary-fixed">+11.0%</td>
+<td class="p-4"><span class="bg-primary-fixed/10 text-primary-fixed px-2 py-1 rounded border border-primary-fixed/30">RISK-ON</span></td>
+<td class="p-4">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-primary-fixed" style="font-variation-settings: 'FILL' 1;">signal_cellular_alt</span>
+<span>HIGH</span>
+</div>
+</td>
+<td class="p-4 text-right">
+<button class="material-symbols-outlined text-text-muted group-hover:text-primary-fixed transition-colors">more_vert</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination/Footer of Table -->
+<div class="mt-4 flex justify-between items-center text-text-muted font-data-sm text-data-sm">
+<span>SHOWING 1-4 OF 2,451 RECORDS</span>
+<div class="flex gap-2">
+<button class="px-3 py-1 border border-outline-variant/30 hover:border-primary-fixed transition-colors">PREV</button>
+<button class="px-3 py-1 border border-primary-fixed text-primary-fixed bg-primary-fixed/10">1</button>
+<button class="px-3 py-1 border border-outline-variant/30 hover:border-primary-fixed transition-colors">2</button>
+<button class="px-3 py-1 border border-outline-variant/30 hover:border-primary-fixed transition-colors">3</button>
+<button class="px-3 py-1 border border-outline-variant/30 hover:border-primary-fixed transition-colors">NEXT</button>
+</div>
+</div>
+</main>
+</body></html>

@@ -1,0 +1,3030 @@
+[
+  {
+    "name": "health",
+    "status": 200,
+    "elapsed": 0.7,
+    "error": null,
+    "extracted": {
+      "status": "ok"
+    },
+    "data": {
+      "status": "ok",
+      "version": "4.0.0"
+    },
+    "resp_preview": ""
+  },
+  {
+    "name": "score_AAPL",
+    "status": 200,
+    "elapsed": 4.59,
+    "error": null,
+    "extracted": {
+      "score": null,
+      "price": null,
+      "pe": null,
+      "beta": null,
+      "verdict": null,
+      "name": null
+    },
+    "data": {
+      "ticker": "AAPL",
+      "market": "US",
+      "composite_score": 0.5519,
+      "score_1_10": 6,
+      "regime_id": 1,
+      "regime_label": "Risk-On",
+      "sub_scores": {
+        "quality": 0.2,
+        "momentum": 0.3,
+        "short_interest": 1.0,
+        "value": 0.45,
+        "low_vol": 1.0,
+        "insider": 0.5
+      },
+      "top_drivers": [
+        {
+          "name": "Low Volatility",
+          "contribution": 1.0,
+          "value": "100%",
+          "direction": "positive"
+        },
+        {
+          "name": "Low Short Interest",
+          "contribution": 1.0,
+          "value": "100%",
+          "direction": "positive"
+        },
+        {
+          "name": "Quality composite",
+          "contribution": -0.6,
+          "value": "20%",
+          "direction": "negative"
+        },
+        {
+          "name": "12-1 Momentum",
+          "contribution": -0.4,
+          "value": "30%",
+          "direction": "negative"
+        },
+        {
+          "name": "Value (P/E + P/B)",
+          "contribution": -0.1,
+          "value": "45%",
+          "direction": "neutral"
+        }
+      ],
+      "confidence": "low",
+      "last_updated": "2026-05-08T11:14:03.871238+00:00"
+    },
+    "resp_preview": ""
+  },
+  {
+    "name": "score_TCS_IN",
+    "status": 200,
+    "elapsed": 1.26,
+    "error": null,
+    "extracted": {
+      "score": null,
+      "price": null,
+      "pe": null,
+      "beta": null,
+      "verdict": null,
+      "name": null
+    },
+    "data": {
+      "ticker": "TCS",
+      "market": "IN",
+      "composite_score": 0.3763,
+      "score_1_10": 3,
+      "regime_id": 1,
+      "regime_label": "Risk-On",
+      "sub_scores": {
+        "quality": 0.138,
+        "momentum": 0.3,
+        "short_interest": 0.88,
+        "value": 0.79,
+        "low_vol": 0.32,
+        "insider": 0.5
+      },
+      "top_drivers": [
+        {
+          "name": "Low Short Interest",
+          "contribution": 0.76,
+          "value": "88%",
+          "direction": "positive"
+        },
+        {
+          "name": "Quality composite",
+          "contribution": -0.725,
+          "value": "14%",
+          "direction": "negative"
+        },
+        {
+          "name": "Value (P/E + P/B)",
+          "contribution": 0.58,
+          "value": "79%",
+          "direction": "positive"
+        },
+        {
+          "name": "12-1 Momentum",
+          "contribution": -0.4,
+          "value": "30%",
+          "direction": "negative"
+        },
+        {
+          "name": "Low Volatility",
+          "contribution": -0.36,
+          "value": "32%",
+          "direction": "negative"
+        }
+      ],
+      "confidence": "low",
+      "last_updated": "2026-05-08T11:14:05.155254+00:00"
+    },
+    "resp_preview": ""
+  },
+  {
+    "name": "score_NVDA",
+    "status": 200,
+    "elapsed": 0.94,
+    "error": null,
+    "extracted": {
+      "score": null,
+      "price": null,
+      "pe": null,
+      "beta": null,
+      "verdict": null,
+      "name": null
+    },
+    "data": {
+      "ticker": "NVDA",
+      "market": "US",
+      "composite_score": 0.5658,
+      "score_1_10": 6,
+      "regime_id": 1,
+      "regime_label": "Risk-On",
+      "sub_scores": {
+        "quality": 0.25,
+        "momentum": 0.75,
+        "short_interest": 0.875,
+        "value": 0.25,
+        "low_vol": 0.625,
+        "insider": 0.5
+      },
+      "top_drivers": [
+        {
+          "name": "Low Short Interest",
+          "contribution": 0.75,
+          "value": "88%",
+          "direction": "positive"
+        },
+        {
+          "name": "Quality composite",
+          "contribution": -0.5,
+          "value": "25%",
+          "direction": "negative"
+        },
+        {
+          "name": "12-1 Momentum",
+          "contribution": 0.5,
+          "value": "75%",
+          "direction": "positive"
+        },
+        {
+          "name": "Value (P/E + P/B)",
+          "contribution": -0.5,
+          "value": "25%",
+          "direction": "negative"
+        },
+        {
+          "name": "Low Volatility",
+          "contribution": 0.25,
+          "value": "62%",
+          "direction": "positive"
+        }
+      ],
+      "confidence": "low",
+      "last_updated": "2026-05-08T11:14:06.096462+00:00"
+    },
+    "resp_preview": ""
+  },
+  {
+    "name": "meta_AAPL",
+    "status": 200,
+    "elapsed": 2.07,
+    "error": null,
+    "extracted": {
+      "sector": "Technology",
+      "industry": "Consumer Electronics",
+      "market_cap": 4221733699584,
+      "dividend_yield": 0.38
+    },
+    "data": {
+      "ticker": "AAPL",
+      "name": "Apple Inc.",
+      "market_cap": 4221733699584,
+      "market_cap_fmt": "$4.22T",
+      "pe_ttm": 34.8,
+      "pb_ratio": 47.92,
+      "beta": 1.06,
+      "week_52_high": 292.13,
+      "week_52_low": 193.46,
+      "earnings_date": null,
+      "analyst_target": 303.3762,
+      "analyst_recommendation": "buy",
+      "sector": "Technology",
+      "industry": "Consumer Electronics",
+      "dividend_yield": 0.38,
+      "current_price": 287.44
+    },
+    "resp_preview": ""
+  },
+  {
+    "name": "meta_TCS_IN",
+    "status": 200,
+    "elapsed": 2.09,
+    "error": null,
+    "extracted": {
+      "sector": "Information Technology",
+      "industry": null,
+      "market_cap": 0.0,
+      "dividend_yield": null
+    },
+    "data": {
+      "ticker": "TCS",
+      "name": "TCS",
+      "market_cap": 0.0,
+      "market_cap_fmt": null,
+      "pe_ttm": 17.2,
+      "pb_ratio": null,
+      "beta": null,
+      "week_52_high": null,
+      "week_52_low": null,
+      "earnings_date": null,
+      "analyst_target": 0.0,
+      "analyst_recommendation": null,
+      "sector": "Information Technology",
+      "industry": null,
+      "dividend_yield": null,
+      "current_price": 0.0
+    },
+    "resp_preview": ""
+  },
+  {
+    "name": "market_overview",
+    "status": 200,
+    "elapsed": 1.09,
+    "error": null,
+    "extracted": {
+      "spy_change": null,
+      "vix": null,
+      "trend": null
+    },
+    "data": {
+      "indices": [
+        {
+          "symbol": "^GSPC",
+          "name": "S&P 500",
+          "price": 7337.11,
+          "change_pct": -0.38,
+          "change_abs": -28.01
+        },
+        {
+          "symbol": "^IXIC",
+          "name": "NASDAQ",
+          "price": 25806.2,
+          "change_pct": -0.13,
+          "change_abs": -32.74
+        },
+        {
+          "symbol": "^DJI",
+          "name": "Dow Jones",
+          "price": 49596.97,
+          "change_pct": -0.63,
+          "change_abs": -313.62
+        },
+        {
+          "symbol": "^VIX",
+          "name": "VIX",
+          "price": 17.12,
+          "change_pct": 0.23,
+          "change_abs": 0.04
+        }
+      ],
+      "futures": [
+        {
+          "symbol": "ES=F",
+          "name": "S&P Futures",
+          "price": 7398.0,
+          "change_pct": 0.48,
+          "change_abs": 35.0
+        },
+        {
+          "symbol": "NQ=F",
+          "name": "NASDAQ Futures",
+          "price": 28875.0,
+          "change_pct": 0.67,
+          "change_abs": 192.75
+        },
+        {
+          "symbol": "YM=F",
+          "name": "Dow Futures",
+          "price": 49857.0,
+          "change_pct": 0.32,
+          "change_abs": 157.0
+        }
+      ]
+    },
+    "resp_preview": ""
+  },
+  {
+    "name": "sectors",
+    "status": 200,
+    "elapsed": 2.44,
+    "error": null,
+    "extracted": {
+      "count": [
+        {
+          "symbol": "XLK",
+          "name": "Technology",
+          "change_pct": -0.2
+        },
+        {
+          "symbol": "XLE",
+          "name": "Energy",
+          "change_pct": -1.84
+        },
+        {
+          "symbol": "XLF",
+          "name": "Financial Services",
+          "change_pct": -0.56
+        },
+        {
+          "symbol": "XLV",
+          "name": "Healthcare",
+          "change_pct": -0.47
+        },
+        {
+          "symbol": "XLY",
+          "name": "Consumer Cyclical",
+          "change_pct": 0.01
+        },
+        {
+          "symbol": "XLP",
+          "name": "Consumer Defensive",
+          "change_pct": -0.31
+        },
+        {
+          "symbol": "XLI",
+          "name": "Industrials",
+          "change_pct": -1.62
+        },
+        {
+          "symbol": "XLB",
+          "name": "Basic Materials",
+          "change_pct": -1.93
+        },
+        {
+          "symbol": "XLRE",
+          "name": "Real Estate",
+          "change_pct": -0.76
+        },
+        {
+          "symbol": "XLU",
+          "name": "Utilities",
+          "change_pct": -1.29
+        },
+        {
+          "symbol": "XLC",
+          "name": "Communication Services",
+          "change_pct": 0.03
+        }
+      ],
+      "first_name": "Technology",
+      "first_change": null
+    },
+    "data": {
+      "sectors": [
+        {
+          "symbol": "XLK",
+          "name": "Technology",
+          "change_pct": -0.2
+        },
+        {
+          "symbol": "XLE",
+          "name": "Energy",
+          "change_pct": -1.84
+        },
+        {
+          "symbol": "XLF",
+          "name": "Financial Services",
+          "change_pct": -0.56
+        },
+        {
+          "symbol": "XLV",
+          "name": "Healthcare",
+          "change_pct": -0.47
+        },
+        {
+          "symbol": "XLY",
+          "name": "Consumer Cyclical",
+          "change_pct": 0.01
+        },
+        {
+          "symbol": "XLP",
+          "name": "Consumer Defensive",
+          "change_pct": -0.31
+        },
+        {
+          "symbol": "XLI",
+          "name": "Industrials",
+          "change_pct": -1.62
+        },
+        {
+          "symbol": "XLB",
+          "name": "Basic Materials",
+          "change_pct": -1.93
+        },
+        {
+          "symbol": "XLRE",
+          "name": "Real Estate",
+          "change_pct": -0.76
+        },
+        {
+          "symbol": "XLU",
+          "name": "Utilities",
+          "change_pct": -1.29
+        },
+        {
+          "symbol": "XLC",
+          "name": "Communication Services",
+          "change_pct": 0.03
+        }
+      ]
+    },
+    "resp_preview": ""
+  },
+  {
+    "name": "movers",
+    "status": 200,
+    "elapsed": 2.04,
+    "error": null,
+    "extracted": {
+      "gainers_count": [
+        {
+          "ticker": "TSLA",
+          "price": 411.79,
+          "change_pct": 3.28,
+          "change_abs": 13.06,
+          "volume": 63987200
+        },
+        {
+          "ticker": "CRM",
+          "price": 186.34,
+          "change_pct": 2.84,
+          "change_abs": 5.15,
+          "volume": 13911400
+        },
+        {
+          "ticker": "ADBE",
+          "price": 256.51,
+          "change_pct": 2.53,
+          "change_abs": 6.34,
+          "volume": 4475000
+        },
+        {
+          "ticker": "MA",
+          "price": 500.94,
+          "change_pct": 1.84,
+          "change_abs": 9.05,
+          "volume": 4963400
+        },
+        {
+          "ticker": "NVDA",
+          "price": 211.5,
+          "change_pct": 1.77,
+          "change_abs": 3.67,
+          "volume": 167649500
+        }
+      ],
+      "losers_count": [
+        {
+          "ticker": "AMD",
+          "price": 408.46,
+          "change_pct": -3.07,
+          "change_abs": -12.93,
+          "volume": 44769800
+        },
+        {
+          "ticker": "AVGO",
+          "price": 412.56,
+          "change_pct": -3.03,
+          "change_abs": -12.88,
+          "volume": 22751000
+        },
+        {
+          "ticker": "JPM",
+          "price": 306.27,
+          "change_pct": -2.74,
+          "change_abs": -8.63,
+          "volume": 8351700
+        },
+        {
+          "ticker": "BAC",
+          "price": 52.75,
+          "change_pct": -1.59,
+          "change_abs": -0.85,
+          "volume": 28677700
+        },
+        {
+          "ticker": "CVX",
+          "price": 182.5,
+          "change_pct": -1.44,
+          "change_abs": -2.66,
+          "volume": 12179900
+        }
+      ],
+      "first_gainer": null,
+      "first_gainer_change": null
+    },
+    "data": {
+      "gainers": [
+        {
+          "ticker": "TSLA",
+          "price": 411.79,
+          "change_pct": 3.28,
+          "change_abs": 13.06,
+          "volume": 63987200
+        },
+        {
+          "ticker": "CRM",
+          "price": 186.34,
+          "change_pct": 2.84,
+          "change_abs": 5.15,
+          "volume": 13911400
+        },
+        {
+          "ticker": "ADBE",
+          "price": 256.51,
+          "change_pct": 2.53,
+          "change_abs": 6.34,
+          "volume": 4475000
+        },
+        {
+          "ticker": "MA",
+          "price": 500.94,
+          "change_pct": 1.84,
+          "change_abs": 9.05,
+          "volume": 4963400
+        },
+        {
+          "ticker": "NVDA",
+          "price": 211.5,
+          "change_pct": 1.77,
+          "change_abs": 3.67,
+          "volume": 167649500
+        }
+      ],
+      "losers": [
+        {
+          "ticker": "AMD",
+          "price": 408.46,
+          "change_pct": -3.07,
+          "change_abs": -12.93,
+          "volume": 44769800
+        },
+        {
+          "ticker": "AVGO",
+          "price": 412.56,
+          "change_pct": -3.03,
+          "change_abs": -12.88,
+          "volume": 22751000
+        },
+        {
+          "ticker": "JPM",
+          "price": 306.27,
+          "change_pct": -2.74,
+          "change_abs": -8.63,
+          "volume": 8351700
+        },
+        {
+          "ticker": "BAC",
+          "price": 52.75,
+          "change_pct": -1.59,
+          "change_abs": -0.85,
+          "volume": 28677700
+        },
+        {
+          "ticker": "CVX",
+          "price": 182.5,
+          "change_pct": -1.44,
+          "change_abs": -2.66,
+          "volume": 12179900
+        }
+      ],
+      "active": [
+        {
+          "ticker": "NVDA",
+          "price": 211.5,
+          "change_pct": 1.77,
+          "change_abs": 3.67,
+          "volume": 167649500
+        },
+        {
+          "ticker": "TSLA",
+          "price": 411.79,
+          "change_pct": 3.28,
+          "change_abs": 13.06,
+          "volume": 63987200
+        },
+        {
+          "ticker": "PFE",
+          "price": 26.48,
+          "change_pct": -0.19,
+          "change_abs": -0.05,
+          "volume": 48250100
+        },
+        {
+          "ticker": "AAPL",
+          "price": 287.44,
+          "change_pct": -0.02,
+          "change_abs": -0.07,
+          "volume": 45145500
+        },
+        {
+          "ticker": "AMD",
+          "price": 408.46,
+          "change_pct": -3.07,
+          "change_abs": -12.93,
+          "volume": 44769800
+        }
+      ]
+    },
+    "resp_preview": ""
+  },
+  {
+    "name": "screener_value",
+    "status": 200,
+    "elapsed": 1.01,
+    "error": null,
+    "extracted": {
+      "count": [
+        {
+          "ticker": "GOOGL",
+          "market": "US",
+          "composite_score": 0.6465,
+          "score_1_10": 10,
+          "regime_id": 4,
+          "regime_label": "Recovery",
+          "sub_scores": {
+            "quality": 0.698,
+            "momentum": 0.92,
+            "short_interest": 0.86,
+            "value": 0.27,
+            "low_vol": 0.42,
+            "insider": 0.5
+          },
+          "top_drivers": [
+            {
+              "name": "12-1 Momentum",
+              "contribution": 0.84,
+              "value": "92%",
+              "direction": "positive"
+            },
+            {
+              "name": "Low Short Interest",
+              "contribution": 0.72,
+              "value": "86%",
+              "direction": "positive"
+            },
+            {
+              "name": "Value (P/E + P/B)",
+              "contribution": -0.46,
+              "value": "27%",
+              "direction": "negative"
+            },
+            {
+              "name": "Quality composite",
+              "contribution": 0.395,
+              "value": "70%",
+              "direction": "positive"
+            },
+            {
+              "name": "Low Volatility",
+              "contribution": -0.16,
+              "value": "42%",
+              "direction": "negative"
+            }
+          ],
+          "confidence": "medium",
+          "last_updated": "2026-05-08T11:14:16.820680+00:00"
+        },
+        {
+          "ticker": "XOM",
+          "market": "US",
+          "composite_score": 0.6382,
+          "score_1_10": 9,
+          "regime_id": 4,
+          "regime_label": "Recovery",
+          "sub_scores": {
+            "quality": 0.2,
+            "momentum": 1.0,
+            "short_interest": 1.0,
+            "value": 0.3,
+            "low_vol": 1.0,
+            "insider": 0.5
+          },
+          "top_drivers": [
+            {
+              "name": "12-1 Momentum",
+              "contribution": 1.0,
+              "value": "100%",
+              "direction": "positive"
+            },
+            {
+              "name": "Low Volatility",
+              "contribution": 1.0,
+              "value": "100%",
+              "direction": "positive"
+            },
+            {
+              "name": "Low Short Interest",
+              "contribution": 1.0,
+              "value": "100%",
+              "direction": "positive"
+            },
+            {
+              "name": "Quality composite",
+              "contribution": -0.6,
+              "value": "20%",
+              "direction": "negative"
+            },
+            {
+              "name": "Value (P/E + P/B)",
+              "contribution": -0.4,
+              "value": "30%",
+              "direction": "negative"
+            }
+          ],
+          "confidence": "low",
+          "last_updated": "2026-05-08T11:14:16.820901+00:00"
+        },
+        {
+          "ticker": "KEYS",
+          "market": "US",
+          "composite_score": 0.6374,
+          "score_1_10": 8,
+          "regime_id": 4,
+          "regime_label": "Recovery",
+          "sub_scores": {
+            "quality": 0.857,
+            "momentum": 0.429,
+            "short_interest": 1.0,
+            "value": 0.571,
+            "low_vol": 0.857,
+            "insider": 0.5
+          },
+          "top_drivers": [
+            {
+              "name": "Low Short Interest",
+              "contribution": 1.0,
+              "value": "100%",
+              "direction": "positive"
+            },
+            {
+              "name": "Quality composite",
+              "contribution": 0.714,
+              "value": "86%",
+              "direction": "positive"
+            },
+            {
+              "name": "Low Volatility",
+              "contribution": 0.714,
+              "value": "86%",
+              "direction": "positive"
+            },
+            {
+              "name": "12-1 Momentum",
+              "contribution": -0.143,
+              "value": "43%",
+              "direction": "negative"
+            },
+            {
+              "name": "Value (P/E + P/B)",
+              "contribution": 0.143,
+              "value": "57%",
+              "direction": "positive"
+            }
+          ],
+          "confidence": "low",
+          "last_updated": "2026-05-08T11:14:16.821077+00:00"
+        },
+        {
+          "ticker": "FDX",
+          "market": "US",
+          "composite_score": 0.6373,
+          "score_1_10": 7,
+          "regime_id": 4,
+          "regime_label": "Recovery",
+          "sub_scores": {
+            "quality": 0.25,
+            "momentum": 0.875,
+            "short_interest": 1.0,
+            "value": 1.0,
+            "low_vol": 0.75,
+            "insider": 0.5
+          },
+          "top_drivers": [
+            {
+              "name": "Value (P/E + P/B)",
+              "contribution": 1.0,
+              "value": "100%",
+              "direction": "positive"
+            },
+            {
+              "name": "Low Short Interest",
+              "contribution": 1.0,
+              "value": "100%",
+              "direction": "positive"
+            },
+            {
+              "name": "12-1 Momentum",
+              "contribution": 0.75,
+              "value": "88%",
+              "direction": "positive"
+            },
+            {
+              "name": "Quality composite",
+              "contribution": -0.5,
+              "value": "25%",
+              "direction": "negative"
+            },
+            {
+              "name": "Low Volatility",
+              "contribution": 0.5,
+              "value": "75%",
+              "direction": "positive"
+            }
+          ],
+          "confidence": "low",
+          "last_updated": "2026-05-08T11:14:16.824046+00:00"
+        },
+        {
+          "ticker": "OXY",
+          "market": "US",
+          "composite_score": 0.6363,
+          "score_1_10": 6,
+          "regime_id": 4,
+          "regime_label": "Recovery",
+          "sub_scores": {
+            "quality": 0.67,
+            "momentum": 0.86,
+            "short_interest": 0.94,
+            "value": 0.39,
+            "low_vol": 0.3,
+            "insider": 0.5
+          },
+          "top_drivers": [
+            {
+              "name": "Low Short Interest",
+              "contribution": 0.88,
+              "value": "94%",
+              "direction": "positive"
+            },
+            {
+              "name": "12-1 Momentum",
+              "contribution": 0.72,
+              "value": "86%",
+              "direction": "positive"
+            },
+            {
+              "name": "Low Volatility",
+              "contribution": -0.4,
+              "value": "30%",
+              "direction": "negative"
+            },
+            {
+              "name": "Quality composite",
+              "contribution": 0.341,
+              "value": "67%",
+              "direction": "positive"
+            },
+            {
+              "name": "Value (P/E + P/B)",
+              "contribution": -0.22,
+              "value": "39%",
+              "direction": "negative"
+            }
+          ],
+          "confidence": "medium",
+          "last_updated": "2026-05-08T11:14:16.824251+00:00"
+        },
+        {
+          "ticker": "AVGO",
+          "market": "US",
+          "composite_score": 0.6355,
+          "score_1_10": 4,
+          "regime_id": 4,
+          "regime_label": "Recovery",
+          "sub_scores": {
+            "quality": 0.778,
+            "momentum": 0.96,
+            "short_interest": 0.88,
+            "value": 0.06,
+            "low_vol": 0.16,
+            "insider": 0.5
+          },
+          "top_drivers": [
+            {
+              "name": "12-1 Momentum",
+              "contribution": 0.92,
+              "value": "96%",
+              "direction": "positive"
+            },
+            {
+              "name": "Value (P/E + P/B)",
+              "contribution": -0.88,
+              "value": "6%",
+              "direction": "negative"
+            },
+            {
+              "name": "Low Short Interest",
+              "contribution": 0.76,
+              "value": "88%",
+              "direction": "positive"
+            },
+            {
+              "name": "Low Volatility",
+              "contribution": -0.68,
+              "value": "16%",
+              "direction": "negative"
+            },
+            {
+              "name": "Quality composite",
+              "contribution": 0.555,
+              "value": "78%",
+              "direction": "positive"
+            }
+          ],
+          "confidence": "high",
+          "last_updated": "2026-05-08T11:14:16.824430+00:00"
+        },
+        {
+          "ticker": "CVX",
+          "market": "US",
+          "composite_score": 0.6332,
+          "score_1_10": 3,
+          "regime_id": 4,
+          "regime_label": "Recovery",
+          "sub_scores": {
+            "quality": 0.514,
+            "momentum": 0.8,
+            "short_interest": 0.9,
+            "value": 0.52,
+            "low_vol": 0.78,
+            "insider": 0.5
+          },
+          "top_drivers": [
+            {
+              "name": "Low Short Interest",
+              "contribution": 0.8,
+              "value": "90%",
+              "direction": "positive"
+            },
+            {
+              "name": "12-1 Momentum",
+              "contribution": 0.6,
+              "value": "80%",
+              "direction": "positive"
+            },
+            {
+              "name": "Low Volatility",
+              "contribution": 0.56,
+              "value": "78%",
+              "direction": "positive"
+            },
+            {
+              "name": "Value (P/E + P/B)",
+              "contribution": 0.04,
+              "value": "52%",
+              "direction": "neutral"
+            },
+            {
+              "name": "Quality composite",
+              "contribution": 0.028,
+              "value": "51%",
+              "direction": "neutral"
+            }
+          ],
+          "confidence": "medium",
+          "last_updated": "2026-05-08T11:14:16.824715+00:00"
+        },
+        {
+          "ticker": "NEM",
+          "market": "US",
+          "composite_score": 0.6312,
+          "score_1_10": 2,
+          "regime_id": 4,
+          "regime_label": "Recovery",
+          "sub_scores": {
+            "quality": 0.724,
+            "momentum": 0.92,
+            "short_interest": 0.67,
+            "value": 0.7,
+            "low_vol": 0.1,
+            "insider": 0.5
+          },
+          "top_drivers": [
+            {
+              "name": "12-1 Momentum",
+              "contribution": 0.84,
+              "value": "92%",
+              "direction": "positive"
+            },
+            {
+              "name": "Low Volatility",
+              "contribution": -0.8,
+              "value": "10%",
+              "direction": "negative"
+            },
+            {
+              "name": "Quality composite",
+              "contribution": 0.448,
+              "value": "72%",
+              "direction": "positive"
+            },
+            {
+              "name": "Value (P/E + P/B)",
+              "contribution": 0.4,
+              "value": "70%",
+              "direction": "positive"
+            },
+            {
+              "name": "Low Short Interest",
+              "contribution": 0.34,
+              "value": "67%",
+              "direction": "positive"
+            }
+          ],
+          "confidence": "medium",
+          "last_updated": "2026-05-08T11:14:16.824886+00:00"
+        }
+      ],
+      "first_symbol": null,
+      "first_score": null
+    },
+    "data": {
+      "regime_label": "Recovery",
+      "regime_id": 4,
+      "results": [
+        {
+          "ticker": "GOOGL",
+          "market": "US",
+          "composite_score": 0.6465,
+          "score_1_10": 10,
+          "regime_id": 4,
+          "regime_label": "Recovery",
+          "sub_scores": {
+            "quality": 0.698,
+            "momentum": 0.92,
+            "short_interest": 0.86,
+            "value": 0.27,
+            "low_vol": 0.42,
+            "insider": 0.5
+          },
+          "top_drivers": [
+            {
+              "name": "12-1 Momentum",
+              "contribution": 0.84,
+              "value": "92%",
+              "direction": "positive"
+            },
+            {
+              "name": "Low Short Interest",
+              "contribution": 0.72,
+              "value": "86%",
+              "direction": "positive"
+            },
+            {
+              "name": "Value (P/E + P/B)",
+              "contribution": -0.46,
+              "value": "27%",
+              "direction": "negative"
+            },
+            {
+              "name": "Quality composite",
+              "contribution": 0.395,
+              "value": "70%",
+              "direction": "positive"
+            },
+            {
+              "name": "Low Volatility",
+              "contribution": -0.16,
+              "value": "42%",
+              "direction": "negative"
+            }
+          ],
+          "confidence": "medium",
+          "last_updated": "2026-05-08T11:14:16.820680+00:00"
+        },
+        {
+          "ticker": "XOM",
+          "market": "US",
+          "composite_score": 0.6382,
+          "score_1_10": 9,
+          "regime_id": 4,
+          "regime_label": "Recovery",
+          "sub_scores": {
+            "quality": 0.2,
+            "momentum": 1.0,
+            "short_interest": 1.0,
+            "value": 0.3,
+            "low_vol": 1.0,
+            "insider": 0.5
+          },
+          "top_drivers": [
+            {
+              "name": "12-1 Momentum",
+              "contribution": 1.0,
+              "value": "100%",
+              "direction": "positive"
+            },
+            {
+              "name": "Low Volatility",
+              "contribution": 1.0,
+              "value": "100%",
+              "direction": "positive"
+            },
+            {
+              "name": "Low Short Interest",
+              "contribution": 1.0,
+              "value": "100%",
+              "direction": "positive"
+            },
+            {
+              "name": "Quality composite",
+              "contribution": -0.6,
+              "value": "20%",
+              "direction": "negative"
+            },
+            {
+              "name": "Value (P/E + P/B)",
+              "contribution": -0.4,
+              "value": "30%",
+              "direction": "negative"
+            }
+          ],
+          "confidence": "low",
+          "last_updated": "2026-05-08T11:14:16.820901+00:00"
+        },
+        {
+          "ticker": "KEYS",
+          "market": "US",
+          "composite_score": 0.6374,
+          "score_1_10": 8,
+          "regime_id": 4,
+          "regime_label": "Recovery",
+          "sub_scores": {
+            "quality": 0.857,
+            "momentum": 0.429,
+            "short_interest": 1.0,
+            "value": 0.571,
+            "low_vol": 0.857,
+            "insider": 0.5
+          },
+          "top_drivers": [
+            {
+              "name": "Low Short Interest",
+              "contribution": 1.0,
+              "value": "100%",
+              "direction": "positive"
+            },
+            {
+              "name": "Quality composite",
+              "contribution": 0.714,
+              "value": "86%",
+              "direction": "positive"
+            },
+            {
+              "name": "Low Volatility",
+              "contribution": 0.714,
+              "value": "86%",
+              "direction": "positive"
+            },
+            {
+              "name": "12-1 Momentum",
+              "contribution": -0.143,
+              "value": "43%",
+              "direction": "negative"
+            },
+            {
+              "name": "Value (P/E + P/B)",
+              "contribution": 0.143,
+              "value": "57%",
+              "direction": "positive"
+            }
+          ],
+          "confidence": "low",
+          "last_updated": "2026-05-08T11:14:16.821077+00:00"
+        },
+        {
+          "ticker": "FDX",
+          "market": "US",
+          "composite_score": 0.6373,
+          "score_1_10": 7,
+          "regime_id": 4,
+          "regime_label": "Recovery",
+          "sub_scores": {
+            "quality": 0.25,
+            "momentum": 0.875,
+            "short_interest": 1.0,
+            "value": 1.0,
+            "low_vol": 0.75,
+            "insider": 0.5
+          },
+          "top_drivers": [
+            {
+              "name": "Value (P/E + P/B)",
+              "contribution": 1.0,
+              "value": "100%",
+              "direction": "positive"
+            },
+            {
+              "name": "Low Short Interest",
+              "contribution": 1.0,
+              "value": "100%",
+              "direction": "positive"
+            },
+            {
+              "name": "12-1 Momentum",
+              "contribution": 0.75,
+              "value": "88%",
+              "direction": "positive"
+            },
+            {
+              "name": "Quality composite",
+              "contribution": -0.5,
+              "value": "25%",
+              "direction": "negative"
+            },
+            {
+              "name": "Low Volatility",
+              "contribution": 0.5,
+              "value": "75%",
+              "direction": "positive"
+            }
+          ],
+          "confidence": "low",
+          "last_updated": "2026-05-08T11:14:16.824046+00:00"
+        },
+        {
+          "ticker": "OXY",
+          "market": "US",
+          "composite_score": 0.6363,
+          "score_1_10": 6,
+          "regime_id": 4,
+          "regime_label": "Recovery",
+          "sub_scores": {
+            "quality": 0.67,
+            "momentum": 0.86,
+            "short_interest": 0.94,
+            "value": 0.39,
+            "low_vol": 0.3,
+            "insider": 0.5
+          },
+          "top_drivers": [
+            {
+              "name": "Low Short Interest",
+              "contribution": 0.88,
+              "value": "94%",
+              "direction": "positive"
+            },
+            {
+              "name": "12-1 Momentum",
+              "contribution": 0.72,
+              "value": "86%",
+              "direction": "positive"
+            },
+            {
+              "name": "Low Volatility",
+              "contribution": -0.4,
+              "value": "30%",
+              "direction": "negative"
+            },
+            {
+              "name": "Quality composite",
+              "contribution": 0.341,
+              "value": "67%",
+              "direction": "positive"
+            },
+            {
+              "name": "Value (P/E + P/B)",
+              "contribution": -0.22,
+              "value": "39%",
+              "direction": "negative"
+            }
+          ],
+          "confidence": "medium",
+          "last_updated": "2026-05-08T11:14:16.824251+00:00"
+        },
+        {
+          "ticker": "AVGO",
+          "market": "US",
+          "composite_score": 0.6355,
+          "score_1_10": 4,
+          "regime_id": 4,
+          "regime_label": "Recovery",
+          "sub_scores": {
+            "quality": 0.778,
+            "momentum": 0.96,
+            "short_interest": 0.88,
+            "value": 0.06,
+            "low_vol": 0.16,
+            "insider": 0.5
+          },
+          "top_drivers": [
+            {
+              "name": "12-1 Momentum",
+              "contribution": 0.92,
+              "value": "96%",
+              "direction": "positive"
+            },
+            {
+              "name": "Value (P/E + P/B)",
+              "contribution": -0.88,
+              "value": "6%",
+              "direction": "negative"
+            },
+            {
+              "name": "Low Short Interest",
+              "contribution": 0.76,
+              "value": "88%",
+              "direction": "positive"
+            },
+            {
+              "name": "Low Volatility",
+              "contribution": -0.68,
+              "value": "16%",
+              "direction": "negative"
+            },
+            {
+              "name": "Quality composite",
+              "contribution": 0.555,
+              "value": "78%",
+              "direction": "positive"
+            }
+          ],
+          "confidence": "high",
+          "last_updated": "2026-05-08T11:14:16.824430+00:00"
+        },
+        {
+          "ticker": "CVX",
+          "market": "US",
+          "composite_score": 0.6332,
+          "score_1_10": 3,
+          "regime_id": 4,
+          "regime_label": "Recovery",
+          "sub_scores": {
+            "quality": 0.514,
+            "momentum": 0.8,
+            "short_interest": 0.9,
+            "value": 0.52,
+            "low_vol": 0.78,
+            "insider": 0.5
+          },
+          "top_drivers": [
+            {
+              "name": "Low Short Interest",
+              "contribution": 0.8,
+              "value": "90%",
+              "direction": "positive"
+            },
+            {
+              "name": "12-1 Momentum",
+              "contribution": 0.6,
+              "value": "80%",
+              "direction": "positive"
+            },
+            {
+              "name": "Low Volatility",
+              "contribution": 0.56,
+              "value": "78%",
+              "direction": "positive"
+            },
+            {
+              "name": "Value (P/E + P/B)",
+              "contribution": 0.04,
+              "value": "52%",
+              "direction": "neutral"
+            },
+            {
+              "name": "Quality composite",
+              "contribution": 0.028,
+              "value": "51%",
+              "direction": "neutral"
+            }
+          ],
+          "confidence": "medium",
+          "last_updated": "2026-05-08T11:14:16.824715+00:00"
+        },
+        {
+          "ticker": "NEM",
+          "market": "US",
+          "composite_score": 0.6312,
+          "score_1_10": 2,
+          "regime_id": 4,
+          "regime_label": "Recovery",
+          "sub_scores": {
+            "quality": 0.724,
+            "momentum": 0.92,
+            "short_interest": 0.67,
+            "value": 0.7,
+            "low_vol": 0.1,
+            "insider": 0.5
+          },
+          "top_drivers": [
+            {
+              "name": "12-1 Momentum",
+              "contribution": 0.84,
+              "value": "92%",
+              "direction": "positive"
+            },
+            {
+              "name": "Low Volatility",
+              "contribution": -0.8,
+              "value": "10%",
+              "direction": "negative"
+            },
+            {
+              "name": "Quality composite",
+              "contribution": 0.448,
+              "value": "72%",
+              "direction": "positive"
+            },
+            {
+              "name": "Value (P/E + P/B)",
+              "contribution": 0.4,
+              "value": "70%",
+              "direction": "positive"
+            },
+            {
+              "name": "Low Short Interest",
+              "contribution": 0.34,
+              "value": "67%",
+              "direction": "positive"
+            }
+          ],
+          "confidence": "medium",
+          "last_updated": "2026-05-08T11:14:16.824886+00:00"
+        }
+      ],
+      "total": 8
+    },
+    "resp_preview": ""
+  },
+  {
+    "name": "sentiment_AAPL",
+    "status": 200,
+    "elapsed": 0.72,
+    "error": null,
+    "extracted": {
+      "sentiment": null,
+      "articles": null
+    },
+    "data": {
+      "ticker": "AAPL",
+      "market": "US",
+      "aggregate_score": 0.19,
+      "label": "Neutral",
+      "n_headlines": 10,
+      "headlines": [
+        {
+          "title": "Trump meets with Brazil's Lula to talk trade, extends EU tariff deadline",
+          "url": "https://finance.yahoo.com/video/trump-meets-with-brazils-lula-to-talk-trade-extends-eu-tariff-deadline-210415936.html",
+          "publisher": "Yahoo Finance Video",
+          "score": 0.128
+        },
+        {
+          "title": "Stocks take a breather after reaching record highs",
+          "url": "https://finance.yahoo.com/video/stocks-take-a-breather-after-reaching-record-highs-194454152.html",
+          "publisher": "Yahoo Finance Video",
+          "score": 0.202
+        },
+        {
+          "title": "TSMC Stock Rises. Revenue Climbs 18% Yearly on AI Chip Boom",
+          "url": "https://finance.yahoo.com/markets/stocks/articles/tsmc-stock-rises-revenue-climbs-110419091.html",
+          "publisher": "GuruFocus.com",
+          "score": 0.0
+        },
+        {
+          "title": "AI giant sets sights on joining Wall Street\u2019s trillion-dollar club",
+          "url": "https://uk.finance.yahoo.com/news/ai-giant-sets-sights-joining-110155569.html",
+          "publisher": "The Telegraph",
+          "score": 0.0
+        },
+        {
+          "title": "TSMC sees strong growth as AI demand holds up",
+          "url": "https://finance.yahoo.com/sectors/technology/articles/tsmc-sees-strong-growth-ai-105801966.html",
+          "publisher": "GuruFocus.com",
+          "score": 0.66
+        },
+        {
+          "title": "White House scales back CEO group for China trip",
+          "url": "https://finance.yahoo.com/economy/policy/articles/white-house-scales-back-ceo-105646017.html",
+          "publisher": "GuruFocus.com",
+          "score": 0.0
+        },
+        {
+          "title": "Apple, Meta Push Back Against Canada's Encryption Bill",
+          "url": "https://finance.yahoo.com/sectors/technology/articles/apple-meta-push-back-against-105126637.html",
+          "publisher": "GuruFocus.com",
+          "score": 0.0
+        },
+        {
+          "title": "This Tech Stock Is the Quiet Monopoly Nobody on Wall Street Talks About",
+          "url": "https://www.fool.com/investing/2026/05/08/this-tech-stock-is-the-quiet-monopoly-nobody-on-wa/",
+          "publisher": "Motley Fool",
+          "score": 0.0
+        },
+        {
+          "title": "TSMC posts strong April revenue growth driven by AI chip demand",
+          "url": "https://investorshub.advfn.com/market-news/article/28015/tsmc-posts-strong-april-revenue-growth-driven-by-ai-chip-demand",
+          "publisher": "InvestorsHub",
+          "score": 0.66
+        },
+        {
+          "title": "The Zacks Analyst Blog Highlights Apple, Advanced Micro Devices, Chevron, Jones Soda and Onfolio",
+          "url": "https://finance.yahoo.com/markets/stocks/articles/zacks-analyst-blog-highlights-apple-081100758.html",
+          "publisher": "Zacks",
+          "score": 0.25
+        }
+      ]
+    },
+    "resp_preview": ""
+  },
+  {
+    "name": "askai_nvda",
+    "status": 422,
+    "elapsed": 0.34,
+    "error": null,
+    "extracted": {
+      "has_response": null,
+      "has_data": null,
+      "verdict": null,
+      "score": null
+    },
+    "data": {
+      "detail": [
+        {
+          "type": "missing",
+          "loc": [
+            "body",
+            "question"
+          ],
+          "msg": "Field required",
+          "input": {
+            "query": "What is the outlook for NVDA?",
+            "ticker": "NVDA"
+          }
+        }
+      ]
+    },
+    "resp_preview": ""
+  },
+  {
+    "name": "askai_portfolio_inr",
+    "status": 422,
+    "elapsed": 0.37,
+    "error": null,
+    "extracted": {
+      "is_portfolio": null,
+      "has_response": null
+    },
+    "data": {
+      "detail": [
+        {
+          "type": "missing",
+          "loc": [
+            "body",
+            "question"
+          ],
+          "msg": "Field required",
+          "input": {
+            "query": "I have 10 lakh rupees, build my portfolio"
+          }
+        }
+      ]
+    },
+    "resp_preview": ""
+  },
+  {
+    "name": "askai_portfolio_usd",
+    "status": 422,
+    "elapsed": 0.41,
+    "error": null,
+    "extracted": {
+      "is_portfolio": null,
+      "has_response": null
+    },
+    "data": {
+      "detail": [
+        {
+          "type": "missing",
+          "loc": [
+            "body",
+            "question"
+          ],
+          "msg": "Field required",
+          "input": {
+            "query": "I have 50000 dollars, build my portfolio"
+          }
+        }
+      ]
+    },
+    "resp_preview": ""
+  },
+  {
+    "name": "paradebate_nvda",
+    "status": 200,
+    "elapsed": 82.04,
+    "error": null,
+    "extracted": {
+      "has_debate": null,
+      "has_verdict": null,
+      "bull_count": null,
+      "bear_count": null
+    },
+    "data": {
+      "ticker": "NVDA",
+      "head_analyst_verdict": "HOLD",
+      "investment_thesis": "NVDA presents a deeply conflicted risk/reward profile where a genuinely supportive macro regime (Risk-On, VIX 18.0, HY spreads 275bps, SPX 8.73% above 200-day MA) collides with serious fundamental and structural concerns that cannot be dismissed. The mandatory Red Flag trigger is unambiguous in the raw data: P/E of 40.7x paired with ROE of 8.1% directly breaches the P/E>25/ROE<10% threshold, and the quality percentile of 0.25 confirms this is a bottom-quartile business priced for flawless execution \u2014 the algorithmic EXTREME_P/E and OVERVALUED_LOW_RETURN flags both fire. The adversarial case is weighty: insider cluster score of 0 (maximum bearish, net buy ratio 0) means the best-informed parties are in pure distribution mode into a 14.64% extension above SMA-200 with only 1.10 volume ratio to sustain it, and the 12-1 momentum raw of 0.0 (change_pct: 0.0 in raw data) contradicts any \"strong momentum\" narrative \u2014 the TECHNICAL agent's BULL MEDIUM stance is partially undermined by flat tra",
+      "bull_case": "The macro backdrop is genuinely constructive \u2014 Risk-On HMM regime, HY spreads at 275bps (below the 300bps stress threshold), ISM PMI at 51.0, and SPX momentum all favor high-beta AI infrastructure positioning, and NVDA captures this theme with maximum directness. Technical structure is above both SMA-50 (188.04) and SMA-200 (184.49) with a strongly positive MACD histogram (+16.82), RSI at 63.4 leaving room before the 70 overbought threshold, and the negative accruals ratio (-0.129) confirming ca",
+      "bear_case": "The valuation/quality mismatch is the dominant structural risk: P/E of 40.7x against ROE of 8.1% means investors are paying an extreme growth premium for equity returns barely above risk-free rates, with the quality percentile of 0.25 providing no fundamental floor if earnings disappoint \u2014 any guidance cut or margin miss collapses this multiple with no quality cushion. Insider behavior is categorically bearish: cluster score of 0 (maximum bearish on the 0-1 scale) and net buy ratio of 0 signal u",
+      "risk_factors": [
+        "EXTREME VALUATION WITH WEAK RETURN QUALITY: P/E 40.7x (triggering the EXTREME_P/E flag above the 35x threshold) against ROE of only 1% (triggering OVERVALUED_LOW_RETURN) means the market is pricing perfection into a business generating equity returns of 1% \u2014 barely above risk-free alternatives. Quality percentile of 25 (bottom quartile) provides no valuation floor on a disappointing print; P/B of 0x offers modest book support but is overwhelmed by the earnings multiple risk.",
+        "INSIDER DISTRIBUTION AND NO SHORT-COVERING BUFFER: Insider cluster score of 0 (maximum bearish reading on the 0-1 scale) with net buy ratio of 0 represents unanimous net selling \u2014 $7 net over three months \u2014 by parties with non-public visibility into the business. Simultaneously, short interest of only 0% of float (rank 875) means there is virtually no forced buying to cushion any downside move; with beta 1.00, NVDA will track market declines without the short-squeeze support that has historically protected low-quality high-multiple names.",
+        "GEOPOLITICAL/REGULATORY CONCENTRATION RISK IN A RATE-SENSITIVE SETUP: NVDA's China/Asia revenue exposure places it in the direct line of fire for US export control escalation \u2014 the highest-probability tail risk for the stock \u2014 while the 10Y Yield 4.36% and real rate of +62% (Fed Funds 3.64% minus CPI 3.0%) sustain a discount rate environment uniquely punishing to a 7x multiple; a move toward 5%+ on the 10Y or a new export restriction tranche would simultaneously compress the multiple and impair forward revenue estimates, with the 64% extension above SMA-200 (49) providing significant technical mean-reversion downside before key structural support."
+      ],
+      "agent_outputs": [
+        {
+          "agent": "MACRO",
+          "stance": "BULL",
+          "conviction": "HIGH",
+          "thesis": "The macro environment is constructively positioned for NVDA. Risk-On regime, a VIX at 18.0 (within normal range but not elevated), and tightening HY spreads at 275bps \u2014 below the 300bps healthy threshold \u2014 collectively signal a credit-friendly, growth-supportive backdrop ideal for a high-beta AI infrastructure play like NVDA. With real rates turning positive (Fed funds at 3.64% vs. CPI at 3.02%, a real rate of +0.62%) the Fed is in restrictive territory, but the yield curve is steepening positiv",
+          "key_points": [
+            "**VIX at 18.0** sits in the normal 15-25 band \u2014 not complacent, not panicked. This level supports risk asset exposure without signaling imminent de-risking, and the HMM model confirming a **Risk-On regime** reinforces that institutional flows favor high-growth, high-beta names like NVDA.",
+            "**HY credit spreads at 275bps** are below the 300bps healthy threshold, indicating tight credit conditions and robust risk appetite. A stressed credit environment (>500bps) would choke off the enterprise capex spending that drives NVDA's data center revenue \u2014 current spreads suggest no such threat.",
+            "**SPX is 8.73% above its 200-day MA** with a 1-month return of 8.17%, signaling a strong uptrend regime (above the 5% threshold). Broad market momentum of this magnitude historically lifts high-beta semis disproportionately, amplifying NVDA's upside capture.",
+            "**ISM Manufacturing PMI at 51.0** confirms modest industrial expansion. While not a booming 55+, a return above 50 matters for semiconductor demand signals \u2014 it removes the contraction overhang and supports capex cycle continuity from cloud and enterprise customers.",
+            "**Real rate at +0.62%** (Fed funds 3.64% minus CPI 3.02%) is restrictive but narrow. The 10Y at 4.36% is manageable for NVDA's long-duration growth valuation \u2014 a spike toward 5%+ would be the key risk to monitor, but current levels do not yet constitute a valuation-compression catalyst severe enough to override the AI spending cycle tailwind."
+          ]
+        },
+        {
+          "agent": "FUNDAMENTAL",
+          "stance": "BEAR",
+          "conviction": "MEDIUM",
+          "thesis": "NVDA triggers an automatic BEAR signal under the mandatory Red Flag protocol: ROE of 8.1% combined with a trailing P/E of 40.7x breaches the P/E >25 with ROE <10% threshold, indicating the stock is significantly overvalued relative to the returns it is currently generating for shareholders. The quality composite percentile of 0.25 (bottom quartile of the universe) reinforces that this is not a high-quality business at a premium price \u2014 it is a middling-quality business at a very premium price. T",
+          "key_points": [
+            "**Automatic BEAR trigger activated**: ROE of 8.1% falls below the 10% threshold while P/E sits at 40.7x, directly meeting the Red Flag condition of \"P/E >25 with ROE <10%.\" This means investors are paying a substantial growth premium for a business currently generating sub-par returns on equity \u2014 a combination that historically implies significant downside risk if growth expectations disappoint.",
+            "**Quality composite of 0.25 places NVDA in the bottom quartile of the investment universe**, directly contradicting any premium valuation narrative. A P/B of 2.0x (in the \"fair\" range) may appear benign in isolation, but paired with a 0.25 quality percentile and a 40.7x P/E, the overall picture is of an expensive stock with weak underlying quality support. The AI composite score of 0.5658 is only marginally above neutral (0.5), offering no strong fundamental endorsement.",
+            "**The one genuine positive is earnings quality**: the accruals ratio of -0.129 is meaningfully negative, indicating that reported earnings are backed by cash \u2014 cash earnings are running *ahead* of accrual-based earnings, which is a positive signal for earnings quality. However, this single data point is insufficient to offset the valuation/ROE mismatch and the bottom-quartile quality composite. The Piotroski F-Score of 5/9 is moderate, neither confirming financial distress nor financial strength.",
+            "*MISSING DATA CAVEAT**: Gross profit margin, revenue growth YoY, Debt/Equity, market cap, and analyst targets are all unavailable. These are material omissions \u2014 gross margin and revenue growth in particular could shift the stance: if NVDA were demonstrating >20% revenue growth and >60% gross margins (consistent with its semiconductor franchise), the BEAR case would weaken toward NEUTRAL. As provided, the data on hand does not support paying 40.7x earnings for 8.1% ROE at a 0.25 quality percentile."
+          ]
+        },
+        {
+          "agent": "TECHNICAL",
+          "stance": "BULL",
+          "conviction": "MEDIUM",
+          "thesis": "NVDA presents a broadly constructive technical setup with price meaningfully above both key moving averages, a strongly bullish MACD configuration, and a risk-on market backdrop. However, conviction is capped at MEDIUM given the 12-1 momentum raw of 0.0 \u2014 indicating essentially flat trailing momentum \u2014 and an RSI approaching overbought territory, suggesting the recent rally may be a recovery move rather than a sustained breakout.",
+          "key_points": [
+            "**Price vs Moving Averages \u2014 Bullish Extended:** Price sits 12.47% above SMA-50 (188.04) and 14.64% above SMA-200 (184.49), both exceeding the \"strong trend\" and \"extended\" thresholds respectively. This confirms price is trading well above key structural support, though the >10% extension above SMA-200 warrants caution around mean-reversion risk.",
+            "**MACD \u2014 Strongly Bullish:** MACD line at +5.31 has crossed decisively above the signal line at -11.51, generating a histogram of +16.82 \u2014 a large positive reading signalling strong bullish momentum acceleration. This is one of the most constructive signals in the dataset and suggests the recent move has genuine momentum behind it.",
+            "**RSI & Volatility \u2014 Watch Closely:** RSI at 63.4 is neutral-to-elevated, approaching but not yet breaching the 70 overbought threshold \u2014 leaving room to run but flagging risk. ATR/Price at approximately 3.1% (6.66/~212) sits in the normal 2-4% band. Volume ratio of 1.10 is modest, failing to confirm the trend with high conviction. Momentum percentile at the 75th boundary is borderline strong \u2014 not yet a clear uptrend signal. No crash protection flags triggered, and SPX trading 8.73% above its 200-day MA confirms a healthy risk-on macro environment."
+          ]
+        },
+        {
+          "agent": "SENTIMENT",
+          "stance": "BULL",
+          "conviction": "MEDIUM",
+          "thesis": "NVDA presents a mixed-to-bullish sentiment picture. News sentiment is bullish (score 0.4) with extremely elevated buzz at 2.0, and short interest is negligible at 2.0% of float (low-short-interest rank 0.875), removing meaningful short-side pressure. However, insider signals are overtly bearish \u2014 cluster score of 0 and net buy ratio of 0 indicate pure net selling \u2014 which tempers conviction and prevents a HIGH rating.",
+          "key_points": [
+            "**Short interest is minimal and non-threatening**: Short interest % of float stands at just 2.0%, with a low-short-interest rank of 0.875 (where 1.0 = maximum bullishness). This places NVDA well below the elevated threshold of 10%+ and signals no meaningful short-side crowding or squeeze risk \u2014 a structurally supportive technical backdrop.",
+            "**News sentiment is bullish with exceptional buzz**: The news sentiment label is bullish with a score of 0.4 (on a -1 to 1 scale), supported by a buzz metric of 2.0 \u2014 double the elevated coverage threshold of 1.0. In a Risk-On market regime, this volume of positive media attention can amplify momentum and attract incremental buyers.",
+            "**Insider activity is a clear bearish counterweight**: The insider cluster score is 0 (maximum bearish reading) and the net buy ratio is 0, with insiders net selling $7 in the last 3 months. Per thresholds, a cluster score below 0.3 is a sell signal and a net buy ratio below 0.4 is bearish. This is the dominant risk factor suppressing conviction from HIGH to MEDIUM, and warrants close monitoring for escalating insider distribution."
+          ]
+        },
+        {
+          "agent": "GEOPOLITICAL",
+          "stance": "BEAR",
+          "conviction": "MEDIUM",
+          "thesis": "Despite a Risk-On macro regime with calm systemic indicators, NVDA faces structurally elevated geopolitical and regulatory risk as a semiconductor/AI hardware company \u2014 the single most contested sector in US-China strategic competition. Export control regimes targeting advanced GPU architectures directly threaten NVDA's China revenue, and antitrust/AI regulatory scrutiny in the US and EU is intensifying. The macro environment offers a benign backdrop, but sector-specific headwinds dominate the g",
+          "key_points": [
+            "**Export Control & Trade War Exposure (BEAR):** NVDA derives significant revenue from China/Asia, a region directly targeted by escalating US chip export restrictions. VIX at 18.0 sits in the moderate 15\u201325 band, meaning geopolitical volatility is not priced as calm \u2014 any new export control escalation (a high-probability event in US-China tech competition) would disproportionately impact NVDA given its high tariff/export exposure well above the 30% threshold for elevated concern. With Beta at 1.0, NVDA will move in lock-step with any geopolitical shock to broader markets.",
+            "**Regulatory Risk \u2014 Tech Sector Premium (BEAR):** As a dominant AI infrastructure provider, NVDA sits squarely in the highest regulatory risk tier (tech sector). Antitrust probes in the US, EU, and China, combined with emerging AI governance frameworks, create a persistent regulatory overhang. HY spreads at 275.0 bps are healthy (below the 300 bps stress threshold), meaning credit markets are not yet pricing systemic stress \u2014 but this complacency means regulatory risk is under-priced rather than managed, leaving room for negative repricing on regulatory events.",
+            "**Macro Tail Risk & Valuation Sensitivity (BEAR-LEANING):** The 10Y Treasury yield at 4.36% sustains a high discount rate environment that compresses long-duration growth multiples \u2014 NVDA's valuation is acutely sensitive to this. The 2Y-10Y yield spread at +0.49% signals a re-steepening curve, historically associated with Late-Cycle transitions, not sustained Risk-On expansion. With SPX trading 8.73% above its 200-day MA, markets are stretched, and CPI still elevated at 3.02% keeps the Fed restrictive \u2014 any geopolitical shock (export ban escalation, Taiwan tension) hitting a stretched, rate-sensitive market amplifies downside risk for a high-multiple name like NVDA."
+          ]
+        },
+        {
+          "agent": "ADVERSARIAL",
+          "stance": "BEAR",
+          "conviction": "HIGH",
+          "thesis": "NVDA is a bottom-quartile quality business (quality percentile 0.25) trading at 40.7x trailing P/E with an ROE of only 8.1% \u2014 a textbook \"perfection priced in\" setup where the fundamental agent's own Red Flag protocol triggers automatically. The AI composite score of 0.5658 is barely above neutral, offering no meaningful model endorsement for the bull case, while insiders are in pure distribution mode (cluster score 0, net buy ratio 0) \u2014 the people with the best information are walking out the d",
+          "key_points": [
+            "**Valuation/Quality Mismatch is the Core Bear Signal \u2014 and the Data is Damning:** P/E at 40.7x with ROE of only 8.1% directly triggers the mandatory Red Flag threshold (P/E >25, ROE <10%). This is not a marginal breach \u2014 ROE at 8.1% is barely above a risk-free rate of return, meaning NVDA is generating equity returns that scarcely exceed what investors could earn in Treasuries, yet the market prices it at 40.7x earnings. The quality percentile of 0.25 places NVDA in the **bottom quartile of the entire investment universe** \u2014 this is not a premium business commanding a premium multiple, it is a structurally average business priced for flawless execution. The AI composite of 0.5658 \u2014 only 0.0658 above the neutral 0.5 threshold \u2014 provides no quantitative justification for paying this premium. The FUNDAMENTAL agent calls this a \"middling-quality business at a very premium price,\" and the data fully supports that characterization. Any earnings miss, margin disappointment, or guidance cut collapses this multiple with no quality floor to catch it.",
+            "**Insider Distribution is a Categorical Sell Signal \u2014 and Bulls Are Ignoring It:** The insider cluster score of 0 is the **maximum bearish reading possible** on a 0-to-1 scale, and the net buy ratio of 0 means there is zero insider buying \u2014 only net selling of $7 (net) over the last 3 months. Per the established threshold, any cluster score below 0.3 is a sell signal; NVDA scores 0.0. The SENTIMENT agent correctly identifies this as \"the dominant risk factor\" but then still rates BULL (MEDIUM) \u2014 this is a contradiction that must be challenged. Insiders possess non-public information about demand pipelines, customer concentration, export control impacts, and margin trajectories. When the people with the best information are unanimously selling into a 40.7x multiple rally, the burden of proof for bulls is extremely high. The low short interest (2.0% of float, rank 0.875) is frequently cited as bullish, but it cuts both ways: **with virtually no shorts in the stock, there is no short-covering support on any downside move** \u2014 every seller is a long capitulating, and there is no built-in buying pressure to cushion a decline.",
+            "**Technical Setup Is More Fragile Than Bulls Admit \u2014 and the Macro Tailwinds Are Late-Cycle Traps:** The TECHNICAL agent calls the setup \"broadly constructive\" but buries three critical warnings: (1) the 12-1 momentum raw is **0.0** \u2014 literally flat trailing momentum, meaning the recent price move is a recovery, not a breakout; (2) price is already 14.64% above SMA-200 (184.49), exceeding the \"extended\" threshold where mean-reversion risk is explicitly flagged; (3) RSI at 63.4 is approaching the 70 overbought threshold with a volume ratio of only 1.10 \u2014 insufficient volume to confirm the move's sustainability. The MACD histogram of +16.82 sounds impressive but represents a whipsaw recovery from deeply negative signal-line levels (-11.51), not organic momentum accumulation. Meanwhile, the GEOPOLITICAL agent correctly identifies that the 10Y yield at 4.36% creates acute multiple compression risk for a 40.7x name \u2014 and the 2Y-10Y spread at +0.49% signals late-cycle re-steepening, historically a **precursor to risk-off rotation**, not sustained AI multiple expansion. The MACRO agent's bullish read on SPX being 8.73% above its 200-day MA is a double-edged sword: stretched markets with elevated real rates (Fed funds 3.64% vs. CPI 3.02% = real rate +0.62%) and a restrictive Fed are precisely the environment where a geopolitical shock \u2014 a new export control tranche, Taiwan escalation, or antitrust action \u2014 hits a fully-valued, low-momentum, insider-sold stock with no short-covering buffer and a 14.64% extension above its 200-day mean. **That is not a risk/reward profile \u2014 that is a trap.**"
+          ]
+        }
+      ],
+      "consensus_score": -0.094
+    },
+    "resp_preview": ""
+  },
+  {
+    "name": "backtest_aapl",
+    "status": 200,
+    "elapsed": 0.52,
+    "error": null,
+    "extracted": {
+      "ticker": "AAPL",
+      "sharpe": null,
+      "cagr": null,
+      "max_dd": null,
+      "trades": null
+    },
+    "data": {
+      "ticker": "AAPL",
+      "strategy": "sma_crossover",
+      "final_equity": 10379.19,
+      "total_return_pct": 3.79,
+      "buy_hold_return_pct": 58.73,
+      "sharpe": 0.195,
+      "max_drawdown_pct": -24.58,
+      "n_trades": 15,
+      "n_days": 501,
+      "equity_curve": [
+        {
+          "date": "2024-05-08",
+          "equity": 10000.0
+        },
+        {
+          "date": "2024-05-10",
+          "equity": 10000.0
+        },
+        {
+          "date": "2024-05-14",
+          "equity": 10000.0
+        },
+        {
+          "date": "2024-05-16",
+          "equity": 10000.0
+        },
+        {
+          "date": "2024-05-20",
+          "equity": 10000.0
+        },
+        {
+          "date": "2024-05-22",
+          "equity": 10000.0
+        },
+        {
+          "date": "2024-05-24",
+          "equity": 10000.0
+        },
+        {
+          "date": "2024-05-29",
+          "equity": 10000.0
+        },
+        {
+          "date": "2024-05-31",
+          "equity": 10000.0
+        },
+        {
+          "date": "2024-06-04",
+          "equity": 10000.0
+        },
+        {
+          "date": "2024-06-06",
+          "equity": 10000.0
+        },
+        {
+          "date": "2024-06-10",
+          "equity": 10000.0
+        },
+        {
+          "date": "2024-06-12",
+          "equity": 10000.0
+        },
+        {
+          "date": "2024-06-14",
+          "equity": 10000.0
+        },
+        {
+          "date": "2024-06-18",
+          "equity": 10000.0
+        },
+        {
+          "date": "2024-06-21",
+          "equity": 10000.0
+        },
+        {
+          "date": "2024-06-25",
+          "equity": 10000.0
+        },
+        {
+          "date": "2024-06-27",
+          "equity": 10000.0
+        },
+        {
+          "date": "2024-07-01",
+          "equity": 10000.0
+        },
+        {
+          "date": "2024-07-03",
+          "equity": 10000.0
+        },
+        {
+          "date": "2024-07-08",
+          "equity": 10000.0
+        },
+        {
+          "date": "2024-07-10",
+          "equity": 10000.0
+        },
+        {
+          "date": "2024-07-12",
+          "equity": 10000.0
+        },
+        {
+          "date": "2024-07-16",
+          "equity": 10000.0
+        },
+        {
+          "date": "2024-07-18",
+          "equity": 10000.0
+        },
+        {
+          "date": "2024-07-22",
+          "equity": 9984.4
+        },
+        {
+          "date": "2024-07-24",
+          "equity": 9742.77
+        },
+        {
+          "date": "2024-07-26",
+          "equity": 9716.91
+        },
+        {
+          "date": "2024-07-30",
+          "equity": 9754.36
+        },
+        {
+          "date": "2024-08-01",
+          "equity": 9734.74
+        },
+        {
+          "date": "2024-08-05",
+          "equity": 9329.5
+        },
+        {
+          "date": "2024-08-07",
+          "equity": 9354.02
+        },
+        {
+          "date": "2024-08-09",
+          "equity": 9640.23
+        },
+        {
+          "date": "2024-08-13",
+          "equity": 9875.89
+        },
+        {
+          "date": "2024-08-15",
+          "equity": 10029.87
+        },
+        {
+          "date": "2024-08-19",
+          "equity": 10082.1
+        },
+        {
+          "date": "2024-08-21",
+          "equity": 10109.77
+        },
+        {
+          "date": "2024-08-23",
+          "equity": 10109.77
+        },
+        {
+          "date": "2024-08-27",
+          "equity": 10109.77
+        },
+        {
+          "date": "2024-08-29",
+          "equity": 10187.8
+        },
+        {
+          "date": "2024-09-03",
+          "equity": 9876.56
+        },
+        {
+          "date": "2024-09-05",
+          "equity": 9859.27
+        },
+        {
+          "date": "2024-09-09",
+          "equity": 9794.1
+        },
+        {
+          "date": "2024-09-11",
+          "equity": 9871.69
+        },
+        {
+          "date": "2024-09-13",
+          "equity": 9864.59
+        },
+        {
+          "date": "2024-09-17",
+          "equity": 9611.44
+        },
+        {
+          "date": "2024-09-19",
+          "equity": 10147.01
+        },
+        {
+          "date": "2024-09-23",
+          "equity": 10040.61
+        },
+        {
+          "date": "2024-09-25",
+          "equity": 10036.17
+        },
+        {
+          "date": "2024-09-27",
+          "equity": 10099.13
+        },
+        {
+          "date": "2024-10-01",
+          "equity": 10029.08
+        },
+        {
+          "date": "2024-10-03",
+          "equity": 10005.14
+        },
+        {
+          "date": "2024-10-07",
+          "equity": 9828.68
+        },
+        {
+          "date": "2024-10-09",
+          "equity": 10176.71
+        },
+        {
+          "date": "2024-10-11",
+          "equity": 10088.49
+        },
+        {
+          "date": "2024-10-15",
+          "equity": 10367.8
+        },
+        {
+          "date": "2024-10-17",
+          "equity": 10292.43
+        },
+        {
+          "date": "2024-10-21",
+          "equity": 10484.4
+        },
+        {
+          "date": "2024-10-23",
+          "equity": 10230.8
+        },
+        {
+          "date": "2024-10-25",
+          "equity": 10259.62
+        },
+        {
+          "date": "2024-10-29",
+          "equity": 10359.82
+        },
+        {
+          "date": "2024-10-31",
+          "equity": 10015.78
+        },
+        {
+          "date": "2024-11-04",
+          "equity": 9842.87
+        },
+        {
+          "date": "2024-11-06",
+          "equity": 9874.35
+        },
+        {
+          "date": "2024-11-08",
+          "equity": 10073.4
+        },
+        {
+          "date": "2024-11-12",
+          "equity": 9952.23
+        },
+        {
+          "date": "2024-11-14",
+          "equity": 10129.32
+        },
+        {
+          "date": "2024-11-18",
+          "equity": 10120.45
+        },
+        {
+          "date": "2024-11-20",
+          "equity": 10131.99
+        },
+        {
+          "date": "2024-11-22",
+          "equity": 10131.99
+        },
+        {
+          "date": "2024-11-26",
+          "equity": 10131.99
+        },
+        {
+          "date": "2024-11-29",
+          "equity": 10131.99
+        },
+        {
+          "date": "2024-12-03",
+          "equity": 10131.99
+        },
+        {
+          "date": "2024-12-05",
+          "equity": 10148.27
+        },
+        {
+          "date": "2024-12-09",
+          "equity": 10303.18
+        },
+        {
+          "date": "2024-12-11",
+          "equity": 10292.33
+        },
+        {
+          "date": "2024-12-13",
+          "equity": 10360.81
+        },
+        {
+          "date": "2024-12-17",
+          "equity": 10584.2
+        },
+        {
+          "date": "2024-12-19",
+          "equity": 10430.12
+        },
+        {
+          "date": "2024-12-23",
+          "equity": 10658.94
+        },
+        {
+          "date": "2024-12-26",
+          "equity": 10815.52
+        },
+        {
+          "date": "2024-12-30",
+          "equity": 10530.75
+        },
+        {
+          "date": "2025-01-02",
+          "equity": 10182.09
+        },
+        {
+          "date": "2025-01-06",
+          "equity": 10230.11
+        },
+        {
+          "date": "2025-01-08",
+          "equity": 10134.07
+        },
+        {
+          "date": "2025-01-13",
+          "equity": 9787.5
+        },
+        {
+          "date": "2025-01-15",
+          "equity": 9932.39
+        },
+        {
+          "date": "2025-01-17",
+          "equity": 9602.94
+        },
+        {
+          "date": "2025-01-22",
+          "equity": 9346.15
+        },
+        {
+          "date": "2025-01-24",
+          "equity": 9302.3
+        },
+        {
+          "date": "2025-01-28",
+          "equity": 9597.93
+        },
+        {
+          "date": "2025-01-30",
+          "equity": 9597.93
+        },
+        {
+          "date": "2025-02-03",
+          "equity": 9597.93
+        },
+        {
+          "date": "2025-02-05",
+          "equity": 9597.93
+        },
+        {
+          "date": "2025-02-07",
+          "equity": 9597.93
+        },
+        {
+          "date": "2025-02-11",
+          "equity": 9597.93
+        },
+        {
+          "date": "2025-02-13",
+          "equity": 9597.93
+        },
+        {
+          "date": "2025-02-18",
+          "equity": 9597.93
+        },
+        {
+          "date": "2025-02-20",
+          "equity": 9597.93
+        },
+        {
+          "date": "2025-02-24",
+          "equity": 9597.93
+        },
+        {
+          "date": "2025-02-26",
+          "equity": 9597.93
+        },
+        {
+          "date": "2025-02-28",
+          "equity": 9597.93
+        },
+        {
+          "date": "2025-03-04",
+          "equity": 9597.93
+        },
+        {
+          "date": "2025-03-06",
+          "equity": 9597.93
+        },
+        {
+          "date": "2025-03-10",
+          "equity": 9277.77
+        },
+        {
+          "date": "2025-03-12",
+          "equity": 8849.53
+        },
+        {
+          "date": "2025-03-14",
+          "equity": 8707.19
+        },
+        {
+          "date": "2025-03-18",
+          "equity": 8727.99
+        },
+        {
+          "date": "2025-03-20",
+          "equity": 8727.99
+        },
+        {
+          "date": "2025-03-24",
+          "equity": 8727.99
+        },
+        {
+          "date": "2025-03-26",
+          "equity": 8727.99
+        },
+        {
+          "date": "2025-03-28",
+          "equity": 8727.99
+        },
+        {
+          "date": "2025-04-01",
+          "equity": 8727.99
+        },
+        {
+          "date": "2025-04-03",
+          "equity": 8727.99
+        },
+        {
+          "date": "2025-04-07",
+          "equity": 8727.99
+        },
+        {
+          "date": "2025-04-09",
+          "equity": 8727.99
+        },
+        {
+          "date": "2025-04-11",
+          "equity": 8727.99
+        },
+        {
+          "date": "2025-04-15",
+          "equity": 8727.99
+        },
+        {
+          "date": "2025-04-17",
+          "equity": 8727.99
+        },
+        {
+          "date": "2025-04-22",
+          "equity": 8727.99
+        },
+        {
+          "date": "2025-04-24",
+          "equity": 8727.99
+        },
+        {
+          "date": "2025-04-28",
+          "equity": 8727.99
+        },
+        {
+          "date": "2025-04-30",
+          "equity": 8727.99
+        },
+        {
+          "date": "2025-05-02",
+          "equity": 8727.99
+        },
+        {
+          "date": "2025-05-06",
+          "equity": 8727.99
+        },
+        {
+          "date": "2025-05-08",
+          "equity": 8727.99
+        },
+        {
+          "date": "2025-05-12",
+          "equity": 8727.99
+        },
+        {
+          "date": "2025-05-14",
+          "equity": 8727.99
+        },
+        {
+          "date": "2025-05-16",
+          "equity": 8727.99
+        },
+        {
+          "date": "2025-05-20",
+          "equity": 8727.99
+        },
+        {
+          "date": "2025-05-22",
+          "equity": 8727.99
+        },
+        {
+          "date": "2025-05-27",
+          "equity": 8727.99
+        },
+        {
+          "date": "2025-05-29",
+          "equity": 8727.99
+        },
+        {
+          "date": "2025-06-02",
+          "equity": 8727.99
+        },
+        {
+          "date": "2025-06-04",
+          "equity": 8727.99
+        },
+        {
+          "date": "2025-06-06",
+          "equity": 8871.11
+        },
+        {
+          "date": "2025-06-10",
+          "equity": 8816.73
+        },
+        {
+          "date": "2025-06-12",
+          "equity": 8665.78
+        },
+        {
+          "date": "2025-06-16",
+          "equity": 8631.85
+        },
+        {
+          "date": "2025-06-18",
+          "equity": 8510.91
+        },
+        {
+          "date": "2025-06-23",
+          "equity": 8510.91
+        },
+        {
+          "date": "2025-06-25",
+          "equity": 8510.91
+        },
+        {
+          "date": "2025-06-27",
+          "equity": 8510.91
+        },
+        {
+          "date": "2025-07-01",
+          "equity": 8510.91
+        },
+        {
+          "date": "2025-07-03",
+          "equity": 8510.91
+        },
+        {
+          "date": "2025-07-08",
+          "equity": 8510.91
+        },
+        {
+          "date": "2025-07-10",
+          "equity": 8510.91
+        },
+        {
+          "date": "2025-07-14",
+          "equity": 8408.53
+        },
+        {
+          "date": "2025-07-16",
+          "equity": 8470.6
+        },
+        {
+          "date": "2025-07-18",
+          "equity": 8511.72
+        },
+        {
+          "date": "2025-07-22",
+          "equity": 8641.5
+        },
+        {
+          "date": "2025-07-24",
+          "equity": 8615.7
+        },
+        {
+          "date": "2025-07-28",
+          "equity": 8627.39
+        },
+        {
+          "date": "2025-07-30",
+          "equity": 8425.86
+        },
+        {
+          "date": "2025-08-01",
+          "equity": 8157.03
+        },
+        {
+          "date": "2025-08-05",
+          "equity": 8178.79
+        },
+        {
+          "date": "2025-08-07",
+          "equity": 8868.42
+        },
+        {
+          "date": "2025-08-11",
+          "equity": 9166.99
+        },
+        {
+          "date": "2025-08-13",
+          "equity": 9415.16
+        },
+        {
+          "date": "2025-08-15",
+          "equity": 9344.94
+        },
+        {
+          "date": "2025-08-19",
+          "equity": 9303.38
+        },
+        {
+          "date": "2025-08-21",
+          "equity": 9074.99
+        },
+        {
+          "date": "2025-08-25",
+          "equity": 9166.19
+        },
+        {
+          "date": "2025-08-27",
+          "equity": 9300.56
+        },
+        {
+          "date": "2025-08-29",
+          "equity": 9367.14
+        },
+        {
+          "date": "2025-09-03",
+          "equity": 9622.56
+        },
+        {
+          "date": "2025-09-05",
+          "equity": 9671.79
+        },
+        {
+          "date": "2025-09-09",
+          "equity": 9456.31
+        },
+        {
+          "date": "2025-09-11",
+          "equity": 9282.0
+        },
+        {
+          "date": "2025-09-15",
+          "equity": 9551.14
+        },
+        {
+          "date": "2025-09-17",
+          "equity": 9643.54
+        },
+        {
+          "date": "2025-09-19",
+          "equity": 9906.23
+        },
+        {
+          "date": "2025-09-23",
+          "equity": 10266.57
+        },
+        {
+          "date": "2025-09-25",
+          "equity": 10365.02
+        },
+        {
+          "date": "2025-09-29",
+          "equity": 10266.57
+        },
+        {
+          "date": "2025-10-01",
+          "equity": 10307.72
+        },
+        {
+          "date": "2025-10-03",
+          "equity": 10411.43
+        },
+        {
+          "date": "2025-10-07",
+          "equity": 10349.29
+        },
+        {
+          "date": "2025-10-09",
+          "equity": 10250.83
+        },
+        {
+          "date": "2025-10-13",
+          "equity": 9993.39
+        },
+        {
+          "date": "2025-10-15",
+          "equity": 10061.18
+        },
+        {
+          "date": "2025-10-17",
+          "equity": 10180.21
+        },
+        {
+          "date": "2025-10-21",
+          "equity": 10603.09
+        },
+        {
+          "date": "2025-10-23",
+          "equity": 10474.37
+        },
+        {
+          "date": "2025-10-27",
+          "equity": 10846.82
+        },
+        {
+          "date": "2025-10-29",
+          "equity": 10882.73
+        },
+        {
+          "date": "2025-10-31",
+          "equity": 10909.77
+        },
+        {
+          "date": "2025-11-04",
+          "equity": 10896.45
+        },
+        {
+          "date": "2025-11-06",
+          "equity": 10885.55
+        },
+        {
+          "date": "2025-11-10",
+          "equity": 10882.37
+        },
+        {
+          "date": "2025-11-12",
+          "equity": 11045.55
+        },
+        {
+          "date": "2025-11-14",
+          "equity": 11002.74
+        },
+        {
+          "date": "2025-11-18",
+          "equity": 10802.0
+        },
+        {
+          "date": "2025-11-20",
+          "equity": 10753.93
+        },
+        {
+          "date": "2025-11-24",
+          "equity": 11144.51
+        },
+        {
+          "date": "2025-11-26",
+          "equity": 11210.34
+        },
+        {
+          "date": "2025-12-01",
+          "equity": 11434.51
+        },
+        {
+          "date": "2025-12-03",
+          "equity": 11476.92
+        },
+        {
+          "date": "2025-12-05",
+          "equity": 11260.02
+        },
+        {
+          "date": "2025-12-09",
+          "equity": 11195.4
+        },
+        {
+          "date": "2025-12-11",
+          "equity": 11229.73
+        },
+        {
+          "date": "2025-12-15",
+          "equity": 11071.4
+        },
+        {
+          "date": "2025-12-17",
+          "equity": 10979.72
+        },
+        {
+          "date": "2025-12-19",
+          "equity": 11053.63
+        },
+        {
+          "date": "2025-12-23",
+          "equity": 11000.72
+        },
+        {
+          "date": "2025-12-26",
+          "equity": 11042.72
+        },
+        {
+          "date": "2025-12-30",
+          "equity": 11029.8
+        },
+        {
+          "date": "2026-01-02",
+          "equity": 10946.19
+        },
+        {
+          "date": "2026-01-06",
+          "equity": 10596.81
+        },
+        {
+          "date": "2026-01-08",
+          "equity": 10514.82
+        },
+        {
+          "date": "2026-01-12",
+          "equity": 10514.82
+        },
+        {
+          "date": "2026-01-14",
+          "equity": 10514.82
+        },
+        {
+          "date": "2026-01-16",
+          "equity": 10514.82
+        },
+        {
+          "date": "2026-01-21",
+          "equity": 10514.82
+        },
+        {
+          "date": "2026-01-23",
+          "equity": 10514.82
+        },
+        {
+          "date": "2026-01-27",
+          "equity": 10514.82
+        },
+        {
+          "date": "2026-01-29",
+          "equity": 10514.82
+        },
+        {
+          "date": "2026-02-02",
+          "equity": 10514.82
+        },
+        {
+          "date": "2026-02-04",
+          "equity": 10514.82
+        },
+        {
+          "date": "2026-02-06",
+          "equity": 10514.82
+        },
+        {
+          "date": "2026-02-10",
+          "equity": 10514.82
+        },
+        {
+          "date": "2026-02-12",
+          "equity": 10514.82
+        },
+        {
+          "date": "2026-02-17",
+          "equity": 10514.82
+        },
+        {
+          "date": "2026-02-19",
+          "equity": 10514.82
+        },
+        {
+          "date": "2026-02-23",
+          "equity": 10514.82
+        },
+        {
+          "date": "2026-02-25",
+          "equity": 10832.82
+        },
+        {
+          "date": "2026-02-27",
+          "equity": 10435.82
+        },
+        {
+          "date": "2026-03-03",
+          "equity": 10418.83
+        },
+        {
+          "date": "2026-03-05",
+          "equity": 10282.15
+        },
+        {
+          "date": "2026-03-09",
+          "equity": 10265.95
+        },
+        {
+          "date": "2026-03-11",
+          "equity": 10302.69
+        },
+        {
+          "date": "2026-03-13",
+          "equity": 9880.41
+        },
+        {
+          "date": "2026-03-17",
+          "equity": 10042.76
+        },
+        {
+          "date": "2026-03-19",
+          "equity": 9873.3
+        },
+        {
+          "date": "2026-03-23",
+          "equity": 9873.3
+        },
+        {
+          "date": "2026-03-25",
+          "equity": 9873.3
+        },
+        {
+          "date": "2026-03-27",
+          "equity": 9873.3
+        },
+        {
+          "date": "2026-03-31",
+          "equity": 9873.3
+        },
+        {
+          "date": "2026-04-02",
+          "equity": 9873.3
+        },
+        {
+          "date": "2026-04-07",
+          "equity": 9873.3
+        },
+        {
+          "date": "2026-04-09",
+          "equity": 9873.3
+        },
+        {
+          "date": "2026-04-13",
+          "equity": 9873.3
+        },
+        {
+          "date": "2026-04-15",
+          "equity": 9873.3
+        },
+        {
+          "date": "2026-04-17",
+          "equity": 9873.3
+        },
+        {
+          "date": "2026-04-21",
+          "equity": 9873.3
+        },
+        {
+          "date": "2026-04-23",
+          "equity": 9873.3
+        },
+        {
+          "date": "2026-04-27",
+          "equity": 9663.14
+        },
+        {
+          "date": "2026-04-29",
+          "equity": 9755.58
+        },
+        {
+          "date": "2026-05-01",
+          "equity": 10115.59
+        },
+        {
+          "date": "2026-05-05",
+          "equity": 10261.47
+        },
+        {
+          "date": "2026-05-07",
+          "equity": 10379.19
+        }
+      ]
+    },
+    "resp_preview": ""
+  },
+  {
+    "name": "news",
+    "status": 200,
+    "elapsed": 0.91,
+    "error": null,
+    "extracted": {
+      "articles": null,
+      "first_headline": null
+    },
+    "data": {
+      "sentiment": "neutral",
+      "headlines": [
+        {
+          "title": "Tech-led stealth rally pushes markets to record highs",
+          "publisher": "Yahoo Finance Video",
+          "url": "https://finance.yahoo.com/video/tech-led-stealth-rally-pushes-markets-to-record-highs-143101320.html",
+          "time": "20h ago",
+          "category": "us_markets",
+          "tickers": [],
+          "sentiment": "bullish"
+        },
+        {
+          "title": "Is It Too Late to Buy Tesla Stock?",
+          "publisher": "Motley Fool",
+          "url": "https://www.fool.com/investing/2026/05/08/is-it-too-late-to-buy-tesla-stock/",
+          "time": "15m ago",
+          "category": "us_markets",
+          "tickers": [
+            "TSLA"
+          ],
+          "sentiment": "neutral"
+        },
+        {
+          "title": "Dow Jones Futures: Trump Says U.S.-Iran Ceasefire Holds; Akamai, Cloudflare, IREN Are Big Earnings Movers",
+          "publisher": "Investor's Business Daily",
+          "url": "https://www.investors.com/market-trend/stock-market-today/dow-jones-futures-trump-us-iran-ceasefire-akamai-cloudflare-iren-earnings/?src=A00220&yptr=yahoo",
+          "time": "20m ago",
+          "category": "earnings",
+          "tickers": [
+            "U",
+            "S",
+            "IREN"
+          ],
+          "sentiment": "neutral"
+        },
+        {
+          "title": "Should You Invest $1,000 In VOO Right Now?",
+          "publisher": "Motley Fool",
+          "url": "https://www.fool.com/investing/2026/05/08/should-you-invest-1000-in-voo-right-now/",
+          "time": "45m ago",
+          "category": "us_markets",
+          "tickers": [
+            "VOO"
+          ],
+          "sentiment": "neutral"
+        },
+        {
+          "title": "US Stock Market Today: S&P 500 Futures Climb As Traders Weigh Jobs And Inflation",
+          "publisher": "Simply Wall St.",
+          "url": "https://finance.yahoo.com/markets/stocks/articles/us-stock-market-today-p-101224592.html",
+          "time": "1h ago",
+          "category": "macro",
+          "tickers": [
+            "S",
+            "P"
+          ],
+          "sentiment": "neutral"
+        },
+        {
+          "title": "High Growth Tech Stocks To Watch In May 2026",
+          "publisher": "Simply Wall St.",
+          "url": "https://finance.yahoo.com/sectors/technology/articles/high-growth-tech-stocks-watch-093817868.html",
+          "time": "1h ago",
+          "category": "us_markets",
+          "tickers": [],
+          "sentiment": "bullish"
+        },
+        {
+          "title": "Unveiling 3 Global Growth Stocks With Insider Ownership Up To 31%",
+          "publisher": "Simply Wall St.",
+          "url": "https://finance.yahoo.com/markets/stocks/articles/unveiling-3-global-growth-stocks-093551965.html",
+          "time": "1h ago",
+          "category": "insider",
+          "tickers": [],
+          "sentiment": "bullish"
+        },
+        {
+          "title": "Stock Futures Pop as Market Looks Past U.S.-Iran Strikes to Crucial Jobs Report",
+          "publisher": "Barrons.com",
+          "url": "https://www.barrons.com/livecoverage/stock-market-news-today-050826/card/stock-futures-rise-as-market-looks-past-u-s-iran-strikes-to-jobs-report-eOno16oOsKKP0zK0ofq2?siteid=yhoof2&yptr=yahoo",
+          "time": "1h ago",
+          "category": "macro",
+          "tickers": [
+            "U",
+            "S"
+          ],
+          "sentiment": "neutral"
+        },
+        {
+          "title": "How The Evolving Story For Reliance Industries (NSEI:RELIANCE) Is Shaping Its Valuation Reset",
+          "publisher": "Simply Wall St.",
+          "url": "https://finance.yahoo.com/markets/stocks/articles/evolving-story-reliance-industries-nsei-200949068.html",
+          "time": "2d ago",
+          "category": "india",
+          "tickers": [
+            "RELIANCE.NS",
+            "NSEI"
+          ],
+          "sentiment": "neutral"
+        },
+        {
+          "title": "India's Reliance hands over documents in bribery probe, executive gets bail",
+          "publisher": "Reuters",
+          "url": "https://sg.finance.yahoo.com/news/indias-reliance-hands-over-documents-070041591.html",
+          "time": "3d ago",
+          "category": "india",
+          "tickers": [
+            "RELIANCE.NS",
+            "INDA"
+          ],
+          "sentiment": "bearish"
+        },
+        {
+          "title": "India's Reliance cuts exports of alkylates, boosts LPG output",
+          "publisher": "Reuters",
+          "url": "https://sg.finance.yahoo.com/news/indias-reliance-cuts-exports-alkylates-145426023.html",
+          "time": "3d ago",
+          "category": "india",
+          "tickers": [
+            "RELIANCE.NS",
+            "INDA",
+            "LPG"
+          ],
+          "sentiment": "bearish"
+        },
+        {
+          "title": "Reliance and Meta's joint venture signals India's shift from AI ambition to enterprise deployment",
+          "publisher": "Proactive",
+          "url": "https://www.proactiveinvestors.com/companies/news/1091321/reliance-and-meta-s-joint-venture-signals-india-s-shift-from-ai-ambition-to-enterprise-deployment-1091321.html",
+          "time": "Apr 28",
+          "category": "india",
+          "tickers": [
+            "META",
+            "RELIANCE.NS",
+            "INDA"
+          ],
+          "sentiment": "neutral"
+        },
+        {
+          "title": "Indian shares snap losing streak; Reliance, Axis Bank cap gains",
+          "publisher": "Reuters",
+          "url": "https://sg.finance.yahoo.com/news/indian-shares-set-open-higher-025023163.html",
+          "time": "Apr 27",
+          "category": "india",
+          "tickers": [
+            "RELIANCE.NS",
+            "INDA"
+          ],
+          "sentiment": "bullish"
+        },
+        {
+          "title": "Reliance Industries Ltd (WBO:RLI) Q4 2026 Earnings Call Highlights: Strong Digital Growth Amid ...",
+          "publisher": "GuruFocus.com",
+          "url": "https://finance.yahoo.com/markets/stocks/articles/reliance-industries-ltd-wbo-rli-010022179.html",
+          "time": "Apr 27",
+          "category": "india",
+          "tickers": [
+            "RELIANCE.NS",
+            "WBO",
+            "RLI"
+          ],
+          "sentiment": "bullish"
+        },
+        {
+          "title": "Ambani's Reliance posts quarterly profit drop, misses street view",
+          "publisher": "Reuters",
+          "url": "https://sg.finance.yahoo.com/news/ambanis-reliance-posts-quarterly-profit-140046673.html",
+          "time": "Apr 24",
+          "category": "india",
+          "tickers": [
+            "RELIANCE.NS"
+          ],
+          "sentiment": "bearish"
+        },
+        {
+          "title": "Indian court extends detention of aviation official, Reliance exec in bribery case",
+          "publisher": "Reuters",
+          "url": "https://sg.finance.yahoo.com/news/indian-court-extends-detention-aviation-090342675.html",
+          "time": "Apr 24",
+          "category": "india",
+          "tickers": [
+            "RELIANCE.NS",
+            "INDA"
+          ],
+          "sentiment": "neutral"
+        },
+        {
+          "title": "CrowdStrike Gartner Leader Status And QuiltWorks Expansion Deepen AI Security Role",
+          "publisher": "Simply Wall St.",
+          "url": "https://finance.yahoo.com/markets/stocks/articles/crowdstrike-gartner-leader-status-quiltworks-011007711.html",
+          "time": "2d ago",
+          "category": "us_markets",
+          "tickers": [],
+          "sentiment": "neutral"
+        },
+        {
+          "title": "India's Infosys slumps to lowest level in three years over weak growth",
+          "publisher": "Reuters",
+          "url": "https://sg.finance.yahoo.com/news/indias-infosys-slumps-lowest-level-044403994.html",
+          "time": "Apr 24",
+          "category": "india",
+          "tickers": [
+            "INFY.NS",
+            "INDA"
+          ],
+          "sentiment": "neutral"
+        },
+        {
+          "title": "Indian IT firms near\u2011term outlook muted as clients cut spending, AI risks mount",
+          "publisher": "Reuters",
+          "url": "https://finance.yahoo.com/markets/stocks/articles/indias-infosys-slips-weak-2027-035406840.html",
+          "time": "Apr 24",
+          "category": "india",
+          "tickers": [
+            "INDA",
+            "IT"
+          ],
+          "sentiment": "bearish"
+        },
+        {
+          "title": "India's Infosys forecasts weak revenue growth as AI-driven caution dents IT spending",
+          "publisher": "Reuters",
+          "url": "https://sg.finance.yahoo.com/news/indias-infosys-pegs-fiscal-2027-120300567.html",
+          "time": "Apr 23",
+          "category": "india",
+          "tickers": [
+            "INFY.NS",
+            "INDA",
+            "IT"
+          ],
+          "sentiment": "neutral"
+        }
+      ],
+      "trending": [
+        "reliance",
+        "growth",
+        "india",
+        "futures",
+        "indian",
+        "tech",
+        "iran",
+        "earnings"
+      ]
+    },
+    "resp_preview": ""
+  }
+]

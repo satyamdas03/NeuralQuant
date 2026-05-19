@@ -112,6 +112,100 @@ def _fetch_yf_info_cached(sym: str) -> dict:
     return info
 
 
+def _fetch_fmp_info(ticker: str) -> dict | None:
+    """Build complete info dict from FMP data (profile + key_metrics + quote + scores).
+
+    Returns None if FMP is disabled or returns insufficient data.
+    This is the FAST PATH for GHA/cloud IPs — bypasses yfinance entirely.
+    """
+    try:
+        from nq_data.fmp import get_fmp_client
+    except Exception:
+        return None
+    fmp = get_fmp_client()
+    if not fmp._enabled:
+        return None
+
+    info: dict = {"_cached_ok": False}
+    has_price = False
+
+    # Profile: name, sector, industry, market_cap, beta, price
+    profile = fmp.get_profile(ticker)
+    if profile:
+        if profile.get("name"):
+            info["longName"] = profile["name"]
+        if profile.get("sector"):
+            info["sector"] = profile["sector"]
+        if profile.get("industry"):
+            info["industry"] = profile["industry"]
+        if profile.get("market_cap"):
+            info["marketCap"] = profile["market_cap"]
+        if profile.get("beta") is not None and float(profile["beta"]) > 0:
+            info["beta"] = float(profile["beta"])
+        if profile.get("price") is not None and float(profile["price"]) > 0:
+            price = float(profile["price"])
+            info["currentPrice"] = price
+            info["regularMarketPrice"] = price
+            has_price = True
+
+    # Key metrics: P/E, P/B, margins, growth, debt, ROE, ROA, dividends
+    metrics = fmp.get_key_metrics(ticker)
+    if metrics:
+        _fmp_map = [
+            ("pe_ratio", "trailingPE"),
+            ("pb_ratio", "priceToBook"),
+            ("gross_profit_margin", "grossMargins"),
+            ("operating_profit_margin", "operatingMargins"),
+            ("net_profit_margin", "profitMargins"),
+            ("revenue_growth", "revenueGrowth"),
+            ("earnings_growth", "earningsGrowth"),
+            ("debt_to_equity", "debtToEquity"),
+            ("current_ratio", "currentRatio"),
+            ("roe", "returnOnEquity"),
+            ("roa", "returnOnAssets"),
+            ("dividend_yield", "dividendYield"),
+            ("market_cap", "marketCap"),
+        ]
+        for fmp_key, info_key in _fmp_map:
+            val = metrics.get(fmp_key)
+            if val is not None and val != 0 and info_key not in info:
+                info[info_key] = val
+
+    # Quote: price, 52-week, change%, EPS
+    quote = fmp.get_quote(ticker)
+    if quote:
+        if quote.get("price") and not has_price:
+            price = float(quote["price"])
+            info["currentPrice"] = price
+            info["regularMarketPrice"] = price
+            has_price = True
+        if quote.get("year_high") is not None:
+            info["fiftyTwoWeekHigh"] = quote["year_high"]
+        if quote.get("year_low") is not None:
+            info["fiftyTwoWeekLow"] = quote["year_low"]
+        if quote.get("change_pct") is not None:
+            info["regularMarketChangePercent"] = quote["change_pct"]
+        if quote.get("pe") is not None and "trailingPE" not in info:
+            info["trailingPE"] = quote["pe"]
+        if quote.get("eps") is not None:
+            info["trailingEps"] = quote["eps"]
+
+    # Financial scores: piotroski
+    try:
+        scores = fmp.get_financial_scores(ticker)
+        if scores and isinstance(scores, dict):
+            ps = scores.get("piotroski_score")
+            if ps is not None:
+                info["_fmp_piotroski"] = int(ps)
+    except Exception:
+        pass
+
+    if has_price:
+        info["_cached_ok"] = True
+        return info
+    return None
+
+
 def _overlay_fmp_info(info: dict, ticker: str) -> None:
     """Overlay FMP data onto yfinance .info dict in-place.
 
@@ -628,34 +722,43 @@ def _fetch_one(ticker: str, market: str, fast_pe: bool = True) -> dict:
 
     sym = _yf_symbol(ticker, market)
     info: dict = {}
-    raw_info = _fetch_yf_info_cached(sym)
-    if raw_info.get("_cached_ok"):
-        info = {k: v for k, v in raw_info.items() if not k.startswith("_")}
-    else:
-        # yfinance info + FMP both failed — try yf.download as last resort.
-        # yf.download uses different Yahoo endpoint, often works on cloud IPs
-        # when Ticker.info doesn't. If we can at least get a price, we
-        # continue with partial data instead of returning empty row.
-        dl_price = None
-        try:
-            dl_hist = yf.download(sym, period="5d", progress=False, auto_adjust=True,
-                                  threads=False, session=_get_yf_session())
-            if dl_hist is not None and not dl_hist.empty and "Close" in dl_hist.columns:
-                close_vals = dl_hist["Close"].dropna()
-                if len(close_vals) > 0:
-                    dl_price = float(close_vals.iloc[-1])
-        except Exception:
-            pass
-        if dl_price and dl_price > 0:
-            info = {"currentPrice": dl_price, "regularMarketPrice": dl_price}
-            log.info("yf.download rescued %s: price=%.2f (info+FMP both failed)", sym, dl_price)
+    raw_info: dict = {"_cached_ok": False}
+
+    # ── FMP fast path: skip yfinance entirely when FMP has data ──
+    fmp_info = _fetch_fmp_info(ticker)
+    if fmp_info is not None and fmp_info.get("_cached_ok"):
+        info = {k: v for k, v in fmp_info.items() if not k.startswith("_")}
+        raw_info = {"_cached_ok": True, "_fmp_piotroski": fmp_info.get("_fmp_piotroski")}
+
+    if not info:
+        raw_info = _fetch_yf_info_cached(sym)
+        if raw_info.get("_cached_ok"):
+            info = {k: v for k, v in raw_info.items() if not k.startswith("_")}
         else:
-            log.warning("yfinance + FMP + yf.download all failed for %s — returning empty row", sym)
-            result = _empty_row(ticker)
-            with _lock:
-                _fund_cache[cache_key] = result
-                _fund_ts[cache_key] = now
-            return result
+            # yfinance info + FMP both failed — try yf.download as last resort.
+            # yf.download uses different Yahoo endpoint, often works on cloud IPs
+            # when Ticker.info doesn't. If we can at least get a price, we
+            # continue with partial data instead of returning empty row.
+            dl_price = None
+            try:
+                dl_hist = yf.download(sym, period="5d", progress=False, auto_adjust=True,
+                                      threads=False, session=_get_yf_session())
+                if dl_hist is not None and not dl_hist.empty and "Close" in dl_hist.columns:
+                    close_vals = dl_hist["Close"].dropna()
+                    if len(close_vals) > 0:
+                        dl_price = float(close_vals.iloc[-1])
+            except Exception:
+                pass
+            if dl_price and dl_price > 0:
+                info = {"currentPrice": dl_price, "regularMarketPrice": dl_price}
+                log.info("yf.download rescued %s: price=%.2f (info+FMP both failed)", sym, dl_price)
+            else:
+                log.warning("yfinance + FMP + yf.download all failed for %s — returning empty row", sym)
+                result = _empty_row(ticker)
+                with _lock:
+                    _fund_cache[cache_key] = result
+                    _fund_ts[cache_key] = now
+                return result
 
     try:
         _missing: set[str] = set()

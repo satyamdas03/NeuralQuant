@@ -1,0 +1,31 @@
+email-validator not installed, email fields will be treated as str.
+To install, run: pip install email-validator
+
+
+To access this data from OpenBB Workspace, use the link displayed after the application startup completes.
+Chrome is the recommended browser. Other browsers may conflict or require additional configuration.
+Documentation is available at /docs.
+
+INFO:     Started server process [24724]
+INFO:     Waiting for application startup.
+INFO:     
+
+                   \u2588\u2588\u2588\u2557
+  \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557       OpenBB Platform v1.6.9core
+  \u2588\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2588\u2588\u2588\u2551  \u2588\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2588\u2588\u2588\u2551
+  \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2551  \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2551       Authentication: DISABLED
+  \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2588\u2588\u2588\u2551  \u2588\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d
+     \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2551  \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557
+     \u2588\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2588\u2588\u2588\u2551  \u2588\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2588\u2588\u2588\u2551
+     \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2551  \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2551
+     \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d  \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d
+Investment research for everyone, anywhere.
+
+    https://my.openbb.co/app/platform
+
+
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:6900 (Press CTRL+C to quit)
+INFO:     127.0.0.1:59222 - "GET /api/v1/equity/price/quote?symbol=AAPL&provider=yfinance HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60358 - "GET /api/v1/equity/price/quote?symbol=AAPL&provider=yfinance HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58142 - "GET /api/v1/equity/price/quote?symbol=AAPL&provider=yfinance HTTP/1.1" 200 OK
