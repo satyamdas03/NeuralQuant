@@ -857,8 +857,8 @@ def _fetch_one(ticker: str, market: str, fast_pe: bool = True) -> dict:
         except Exception:
             pass
 
-        # Fallback to yfinance price history
-        if len(hist_close) < 253:
+        # Fallback to yfinance price history (skip on GHA — cloud IPs are rate-limited)
+        if len(hist_close) < 253 and not os.environ.get("GITHUB_ACTIONS"):
             with _lock:
                 cached_prices = _price_cache.get(cache_key)
                 prices_fresh = time.time() - _price_ts.get(cache_key, 0) < PRICE_TTL
