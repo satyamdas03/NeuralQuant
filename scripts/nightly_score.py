@@ -117,93 +117,105 @@ def run_market(market: str) -> int:
     return written
 
 
-def warm_stock_meta(market: str = "US") -> int:
-    """Populate stock_meta table from yfinance for all tickers in the universe.
-    Runs after nightly_score so stock detail pages have P/B, Beta, etc."""
+def _warm_one_ticker(sym: str, market: str) -> dict | None:
+    """Fetch stock_meta row for a single ticker. Returns row dict or None on failure."""
     import json as _json
     from datetime import datetime, timezone
-    from nq_api.cache.score_cache import _supabase_rest
     import yfinance as yf
 
-    tickers = UNIVERSE_FULL.get(market, [])
-    print(f"[{market}] warming stock_meta for {len(tickers)} tickers")
-    written = 0
-    for i, entry in enumerate(tickers):
-        sym = entry["ticker"] if isinstance(entry, dict) else str(entry)
-        # Append .NS suffix for India tickers (yfinance requires it)
-        yf_sym = sym + ".NS" if market == "IN" and "." not in sym else sym
-        try:
-            t = yf.Ticker(yf_sym)
-            info = t.info or {}
-            if not info:
-                continue
+    yf_sym = sym + ".NS" if market == "IN" and "." not in sym else sym
+    t = yf.Ticker(yf_sym)
+    info = t.info or {}
+    if not info:
+        return None
 
-            # Earnings date
-            earnings_date = None
+    earnings_date = None
+    try:
+        cal = t.calendar
+        if isinstance(cal, dict):
+            ed = cal.get("Earnings Date")
+            if ed and len(ed) > 0:
+                earnings_date = str(ed[0].date())
+    except Exception:
+        pass
+
+    mc = info.get("marketCap")
+    price_now = info.get("currentPrice") or info.get("regularMarketPrice")
+
+    div_pct = None
+    div_rate = info.get("dividendRate")
+    if div_rate and price_now:
+        try:
+            v = float(div_rate) / float(price_now) * 100
+            if 0 < v < 20:
+                div_pct = round(v, 2)
+        except Exception:
+            pass
+    if div_pct is None:
+        div_raw = info.get("dividendYield")
+        if div_raw:
             try:
-                cal = t.calendar
-                if isinstance(cal, dict):
-                    ed = cal.get("Earnings Date")
-                    if ed and len(ed) > 0:
-                        earnings_date = str(ed[0].date())
+                v = float(div_raw)
+                v = v if v > 1 else v * 100
+                if 0 < v < 20:
+                    div_pct = round(v, 2)
             except Exception:
                 pass
 
-            mc = info.get("marketCap")
-            price_now = info.get("currentPrice") or info.get("regularMarketPrice")
+    return {
+        "ticker": sym,
+        "market": market,
+        "data": _json.dumps({
+            "ticker": sym,
+            "name": info.get("longName") or info.get("shortName") or sym,
+            "market_cap": mc,
+            "market_cap_fmt": _fmt_mcap(float(mc), market) if mc else None,
+            "pe_ttm": round(float(info["trailingPE"]), 1) if info.get("trailingPE") else None,
+            "pb_ratio": round(float(info["priceToBook"]), 2) if info.get("priceToBook") else None,
+            "beta": round(float(info["beta"]), 2) if info.get("beta") else None,
+            "week_52_high": info.get("fiftyTwoWeekHigh"),
+            "week_52_low": info.get("fiftyTwoWeekLow"),
+            "earnings_date": earnings_date,
+            "analyst_target": info.get("targetMeanPrice"),
+            "analyst_recommendation": info.get("recommendationKey"),
+            "sector": info.get("sector"),
+            "industry": info.get("industry"),
+            "dividend_yield": div_pct,
+            "current_price": price_now,
+        }),
+        "fetched_at": datetime.now(timezone.utc).isoformat(),
+    }
 
-            # Dividend yield
-            div_pct = None
-            div_rate = info.get("dividendRate")
-            if div_rate and price_now:
+
+def warm_stock_meta(market: str = "US") -> int:
+    """Populate stock_meta table in parallel (8 workers, 15s timeout per ticker)."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as FutureTimeout
+    from nq_api.cache.score_cache import _supabase_rest
+
+    tickers = UNIVERSE_FULL.get(market, [])
+    ticker_syms = [r["ticker"] if isinstance(r, dict) else str(r) for r in tickers]
+    print(f"[{market}] warming stock_meta for {len(ticker_syms)} tickers (parallel 8 workers)")
+
+    written = 0
+    for i in range(0, len(ticker_syms), 50):
+        batch = ticker_syms[i : i + 50]
+        with ThreadPoolExecutor(max_workers=8) as ex:
+            futures = {ex.submit(_warm_one_ticker, sym, market): sym for sym in batch}
+            for future in as_completed(futures):
+                sym = futures[future]
                 try:
-                    v = float(div_rate) / float(price_now) * 100
-                    if 0 < v < 20:
-                        div_pct = round(v, 2)
-                except Exception:
-                    pass
-            if div_pct is None:
-                div_raw = info.get("dividendYield")
-                if div_raw:
-                    try:
-                        v = float(div_raw)
-                        v = v if v > 1 else v * 100
-                        if 0 < v < 20:
-                            div_pct = round(v, 2)
-                    except Exception:
-                        pass
+                    row = future.result(timeout=15)
+                    if row:
+                        _supabase_rest("stock_meta", method="PATCH", body=[row],
+                                       query={"ticker": f"eq.{sym}", "market": f"eq.{market}"})
+                        written += 1
+                except FutureTimeout:
+                    print(f"[{market}] stock_meta timeout for {sym}", file=sys.stderr)
+                except Exception as exc:
+                    print(f"[{market}] stock_meta failed for {sym}: {exc}", file=sys.stderr)
 
-            row = {
-                "ticker": sym,
-                "market": market,
-                "data": _json.dumps({
-                    "ticker": sym,
-                    "name": info.get("longName") or info.get("shortName") or sym,
-                    "market_cap": mc,
-                    "market_cap_fmt": _fmt_mcap(float(mc), market) if mc else None,
-                    "pe_ttm": round(float(info["trailingPE"]), 1) if info.get("trailingPE") else None,
-                    "pb_ratio": round(float(info["priceToBook"]), 2) if info.get("priceToBook") else None,
-                    "beta": round(float(info["beta"]), 2) if info.get("beta") else None,
-                    "week_52_high": info.get("fiftyTwoWeekHigh"),
-                    "week_52_low": info.get("fiftyTwoWeekLow"),
-                    "earnings_date": earnings_date,
-                    "analyst_target": info.get("targetMeanPrice"),
-                    "analyst_recommendation": info.get("recommendationKey"),
-                    "sector": info.get("sector"),
-                    "industry": info.get("industry"),
-                    "dividend_yield": div_pct,
-                    "current_price": price_now,
-                }),
-                "fetched_at": datetime.now(timezone.utc).isoformat(),
-            }
-            _supabase_rest("stock_meta", method="PATCH", body=[row],
-                           query={"ticker": f"eq.{sym}", "market": f"eq.{market}"})
-            written += 1
-            if written % 20 == 0:
-                print(f"[{market}] warmed {written}/{len(tickers)} stock_meta rows")
-        except Exception as exc:
-            print(f"[{market}] stock_meta failed for {sym}: {exc}", file=sys.stderr)
-        time.sleep(0.3)
+        done = min(i + 50, len(ticker_syms))
+        print(f"[{market}] warmed {written}/{done} stock_meta rows")
 
     print(f"[{market}] stock_meta warm complete: {written} tickers")
     return written
