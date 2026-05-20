@@ -16,7 +16,7 @@ export default function QuantAstraModal({ onClose }: QuantAstraModalProps) {
   const [error, setError] = useState<string | null>(null);
 
   const livekitUrl =
-    process.env.NEXT_PUBLIC_LIVEKIT_URL || "wss://quantalpha-nxna99ts.livekit.cloud";
+    process.env.NEXT_PUBLIC_LIVEKIT_URL || "wss://friday-1-few4r3qf.livekit.cloud";
 
   const fetchToken = useCallback(async () => {
     setState("connecting");
