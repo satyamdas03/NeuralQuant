@@ -7,7 +7,13 @@ import os
 import uuid
 
 from fastapi import APIRouter, Depends
-from livekit.api import AccessToken, VideoGrants
+from livekit.api import (
+    AccessToken,
+    CreateAgentDispatchRequest,
+    LiveKitAPI,
+    RoomAgentDispatch,
+    VideoGrants,
+)
 
 from nq_api.auth.deps import get_current_user_optional
 
@@ -19,6 +25,9 @@ LIVEKIT_URL = os.environ.get("LIVEKIT_URL", "")
 LIVEKIT_KEY = os.environ.get("LIVEKIT_API_KEY", "")
 LIVEKIT_SECRET = os.environ.get("LIVEKIT_API_SECRET", "")
 
+# Use https:// URL for REST API calls (wss:// is WebSocket only)
+LIVEKIT_API_URL = LIVEKIT_URL.replace("wss://", "https://") if LIVEKIT_URL else ""
+
 
 @router.post("/livekit/token")
 async def generate_token(user=Depends(get_current_user_optional)):
@@ -26,6 +35,9 @@ async def generate_token(user=Depends(get_current_user_optional)):
 
     Authenticated users get a room scoped to their user ID.
     Guests get an anonymous room with a random UUID.
+
+    Also dispatches the quantastra agent worker to the room via
+    LiveKit AgentDispatch API so the agent joins automatically.
     """
     user_id = user.id if user else f"anonymous-{uuid.uuid4().hex[:8]}"
     room = f"quantastra-{user_id}"
@@ -43,6 +55,32 @@ async def generate_token(user=Depends(get_current_user_optional)):
         .with_grants(VideoGrants(room_join=True, room=room))
         .to_jwt()
     )
+
+    # Dispatch the quantastra agent worker to the room.
+    # Without this, the worker registers but never receives room events.
+    try:
+        lk_api = LiveKitAPI(
+            url=LIVEKIT_API_URL,
+            api_key=LIVEKIT_KEY,
+            api_secret=LIVEKIT_SECRET,
+        )
+        dispatch_req = CreateAgentDispatchRequest(
+            agent_name="quantastra",
+            room=room,
+            metadata="",
+        )
+        dispatch = await lk_api.agent_dispatch.create_dispatch(dispatch_req)
+        log.info(
+            "Agent dispatch created: room=%s dispatch_id=%s state=%s",
+            room,
+            dispatch.id if hasattr(dispatch, "id") else "unknown",
+            dispatch.state if hasattr(dispatch, "state") else "unknown",
+        )
+        await lk_api.aclose()
+    except Exception:
+        log.exception("Failed to create agent dispatch for room=%s", room)
+        # Don't fail the request — user can still connect, agent may join
+        # via retry or the 15s frontend timeout will show a message
 
     return {
         "token": token,
