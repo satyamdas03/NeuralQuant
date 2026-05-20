@@ -13,10 +13,8 @@ interface QuantAstraModalProps {
 export default function QuantAstraModal({ onClose }: QuantAstraModalProps) {
   const [state, setState] = useState<ModalState>("intro");
   const [token, setToken] = useState("");
+  const [livekitUrl, setLivekitUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
-
-  const livekitUrl =
-    process.env.NEXT_PUBLIC_LIVEKIT_URL || "wss://friday-1-few4r3qf.livekit.cloud";
 
   const fetchToken = useCallback(async () => {
     setState("connecting");
@@ -35,6 +33,7 @@ export default function QuantAstraModal({ onClose }: QuantAstraModalProps) {
         throw new Error(data.message || "LiveKit is not configured");
       }
       setToken(data.token);
+      setLivekitUrl(data.url || "");
       setState("in-call");
     } catch (err) {
       setError(

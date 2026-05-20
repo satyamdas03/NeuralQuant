@@ -56,7 +56,7 @@ function QuantAstraCallInner({ onDisconnected }: { onDisconnected?: () => void }
     { onlySubscribed: true }
   );
   const agentAudioTrack = tracks.find(
-    (t) => t.participant.identity !== localParticipant.localParticipant.identity
+    (t) => t.participant.identity !== localParticipant.localParticipant?.identity
   );
 
   // Listen for data channel messages from agent

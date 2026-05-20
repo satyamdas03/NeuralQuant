@@ -43,6 +43,7 @@ load_dotenv()
 log = logging.getLogger("quantastra")
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 logging.basicConfig(level=getattr(logging, LOG_LEVEL, logging.INFO))
+log.info("quantastra-agent worker starting — LiveKit URL: %s", os.getenv("LIVEKIT_URL", "not set"))
 
 
 async def _publish(participant: LocalParticipant | None, msg: dict) -> None:
