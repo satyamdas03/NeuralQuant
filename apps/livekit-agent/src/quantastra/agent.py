@@ -3,11 +3,15 @@
 Long-running worker that connects to LiveKit Cloud over WebSocket,
 joins rooms matching quantastra-*, and runs the cascaded
 STT→LLM→TTS pipeline: Deepgram → Claude Sonnet 4.6 → ElevenLabs.
+
+Publishes agent state, transcripts, and tool results to frontend
+via LiveKit data channel (topic: "quantastra").
 """
 
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 
@@ -20,9 +24,11 @@ from livekit.agents import (
     WorkerOptions,
     cli,
 )
+from livekit.agents.llm import ModelSettings
 from livekit.plugins import anthropic as lk_anthropic
 from livekit.plugins import deepgram
 from livekit.plugins import elevenlabs
+from livekit.rtc import LocalParticipant
 
 from quantastra.context import build_greeting_context
 from quantastra.persona import INITIAL_GREETING, SYSTEM_PROMPT
@@ -39,6 +45,17 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 logging.basicConfig(level=getattr(logging, LOG_LEVEL, logging.INFO))
 
 
+async def _publish(participant: LocalParticipant | None, msg: dict) -> None:
+    """Publish a JSON message to the frontend via LiveKit data channel."""
+    if participant is None:
+        return
+    try:
+        payload = json.dumps(msg)
+        await participant.publish_data(payload, reliable=True, topic="quantastra")
+    except Exception:
+        log.debug("Failed to publish data to frontend", exc_info=True)
+
+
 class QuantAstraAgent(
     MarketToolsMixin,
     PortfolioToolsMixin,
@@ -47,7 +64,11 @@ class QuantAstraAgent(
     MacroToolsMixin,
     Agent,
 ):
-    """QuantAstra — AI Portfolio Manager with 15 function-calling tools."""
+    """QuantAstra — AI Portfolio Manager with 15 function-calling tools.
+
+    Overrides transcription_node() to stream agent speech text to the
+    frontend in real-time alongside TTS audio playback.
+    """
 
     def __init__(self, user_id: str, context: str):
         full_instructions = SYSTEM_PROMPT
@@ -72,7 +93,30 @@ class QuantAstraAgent(
             ),
             allow_interruptions=True,
         )
-        self.user_id = user_id
+        self._user_id = user_id
+        self._participant: LocalParticipant | None = None
+
+    async def transcription_node(
+        self, text, model_settings: ModelSettings
+    ):
+        """Override: pass text through to TTS unchanged while publishing
+        each chunk to the frontend as a live transcript."""
+        async for chunk in text:
+            chunk_str = chunk if isinstance(chunk, str) else chunk.text
+            if chunk_str.strip():
+                await _publish(self._participant, {
+                    "type": "agent_transcript",
+                    "text": chunk_str,
+                    "final": False,
+                })
+            yield chunk
+
+        # Signal end of this speech segment
+        await _publish(self._participant, {
+            "type": "agent_transcript",
+            "text": "",
+            "final": True,
+        })
 
 
 async def entrypoint(ctx: JobContext):
@@ -98,6 +142,46 @@ async def entrypoint(ctx: JobContext):
 
     session = AgentSession()
     await session.start(agent=agent, room=ctx.room)
+
+    # ── Wire up data channel publishing ──────────────────────────────────
+    participant = ctx.room.local_participant
+    agent._participant = participant
+
+    # Publish agent state changes to frontend
+    @session.on("agent_state_changed")
+    def _on_agent_state_changed(ev):
+        asyncio.ensure_future(_publish(participant, {
+            "type": "agent_state",
+            "state": ev.new_state if hasattr(ev, "new_state") else str(ev),
+        }))
+
+    # Publish user transcriptions to frontend
+    @session.on("user_input_transcribed")
+    def _on_user_transcribed(ev):
+        asyncio.ensure_future(_publish(participant, {
+            "type": "user_transcript",
+            "text": ev.transcript if hasattr(ev, "transcript") else str(ev),
+            "is_final": ev.is_final if hasattr(ev, "is_final") else True,
+        }))
+
+    # Publish tool call results to frontend
+    @session.on("function_tools_executed")
+    def _on_tools_executed(ev):
+        calls = ev.function_calls if hasattr(ev, "function_calls") else []
+        outputs = ev.function_call_outputs if hasattr(ev, "function_call_outputs") else []
+        tool_results = []
+        for call, output in zip(calls, outputs):
+            name = call.name if hasattr(call, "name") else str(call)
+            try:
+                parsed = json.loads(output) if isinstance(output, str) else output
+            except (json.JSONDecodeError, TypeError):
+                parsed = str(output)[:500]
+            tool_results.append({"tool": name, "result": parsed})
+        if tool_results:
+            asyncio.ensure_future(_publish(participant, {
+                "type": "tool_results",
+                "data": tool_results,
+            }))
 
     session.say(INITIAL_GREETING)
 

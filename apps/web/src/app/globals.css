@@ -344,3 +344,9 @@
   --lk-grid-gap: 8px;
   border-radius: 0 !important;
 }
+.quantastra-call .lk-control-bar,
+.quantastra-call .lk-participant-tile,
+.quantastra-call .lk-grid-layout,
+.quantastra-call .lk-focus-layout {
+  display: none !important;
+}
