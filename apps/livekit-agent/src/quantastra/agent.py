@@ -21,10 +21,10 @@ from livekit.agents import (
     AgentSession,
     AutoSubscribe,
     JobContext,
+    ModelSettings,
     WorkerOptions,
     cli,
 )
-from livekit.agents.llm import ModelSettings
 from livekit.plugins import anthropic as lk_anthropic
 from livekit.plugins import deepgram
 from livekit.plugins import elevenlabs
