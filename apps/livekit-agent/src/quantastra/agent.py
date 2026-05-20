@@ -54,15 +54,20 @@ class QuantAstraAgent(
             full_instructions += f"\n\n=== LIVE MARKET DATA ===\n{context}"
         super().__init__(
             instructions=full_instructions,
-            stt=deepgram.STT(model="nova-2-general"),
+            stt=deepgram.STT(
+                model="nova-2-general",
+                api_key=os.getenv("DEEPGRAM_API_KEY"),
+            ),
             llm=lk_anthropic.LLM(
                 model="claude-sonnet-4-6",
                 temperature=0.7,
                 max_tokens=2048,
+                api_key=os.getenv("ANTHROPIC_API_KEY"),
             ),
             tts=elevenlabs.TTS(
                 model="eleven_turbo_v2_5",
                 voice_id="EXAVITQu4vr4xnSDxMaL",
+                api_key=os.getenv("ELEVENLABS_API_KEY"),
             ),
             allow_interruptions=True,
         )
@@ -80,7 +85,12 @@ async def entrypoint(ctx: JobContext):
         if extracted:
             user_id = extracted
 
-    greeting_text = await build_greeting_context(user_id)
+    try:
+        greeting_text = await build_greeting_context(user_id)
+    except Exception:
+        log.exception("Failed to build greeting context")
+        greeting_text = ""
+
     agent = QuantAstraAgent(user_id, greeting_text)
 
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
