@@ -103,6 +103,7 @@
   --font-heading: var(--font-syne);
   --font-mono: var(--font-space-mono);
   --font-headline: var(--font-syne);
+  --font-serif: var(--font-serif);
 
   /* ─── Brutalist Sharp Corners (0px radius) ─── */
   --radius-sm: 0;
@@ -243,6 +244,13 @@
   }
   .font-headline {
     font-family: var(--font-syne), sans-serif;
+    letter-spacing: -0.02em;
+  }
+  .font-serif {
+    font-family: var(--font-serif), serif;
+  }
+  .hero-title {
+    line-height: 0.95;
     letter-spacing: -0.02em;
   }
   .font-data {
