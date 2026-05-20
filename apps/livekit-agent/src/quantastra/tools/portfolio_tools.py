@@ -1,35 +1,29 @@
-"""LiveKit function-calling tools for portfolio management."""
+"""Portfolio management tools mixin — holdings lookup, analysis."""
 
 from __future__ import annotations
 
 import json
 import logging
-from typing import Annotated
 
-from livekit.agents import llm
+from livekit.agents import function_tool
 
 log = logging.getLogger(__name__)
 
 
-class PortfolioTools(llm.FunctionContext):
+class PortfolioToolsMixin:
     """Portfolio management tools — holdings lookup, analysis, price validation."""
 
-    @llm.ai_callable(
-        description=(
-            "Look up the client's current portfolio holdings. Returns every position with "
-            "ticker, allocation percentage, entry price, target price, and stop loss. "
-            "ALWAYS call this first when a client asks about their portfolio, holdings, "
-            "performance, or asks 'how am I doing?'."
-        ),
-    )
-    async def lookup_portfolio(
-        self,
-        user_id: Annotated[
-            str,
-            llm.TypeInfo(description="The client's Supabase user ID (provided at session start)"),
-        ],
-    ) -> str:
-        """Look up the user's portfolio from Supabase."""
+    @function_tool
+    async def lookup_portfolio(self, user_id: str) -> str:
+        """Look up the client's current portfolio holdings. Returns every position with
+        ticker, allocation percentage, entry price, target price, and stop loss.
+
+        ALWAYS call this first when a client asks about their portfolio, holdings,
+        performance, or asks 'how am I doing?'
+
+        Parameters:
+            user_id: The client's Supabase user ID (provided at session start)
+        """
         if not user_id or user_id == "anonymous":
             return json.dumps({
                 "status": "no_portfolio",
@@ -54,12 +48,10 @@ class PortfolioTools(llm.FunctionContext):
                     ),
                 })
 
-            # Auto-detect market and fill live prices
             from nq_api.services.portfolio import _infer_portfolio_market
             market = _infer_portfolio_market(stocks, None)
             filled, notes = _validate_and_fill_portfolio_prices(stocks, market)
 
-            total_allocation = sum(float(s.get("allocation_pct", 0)) for s in filled)
             position_details = []
             for s in filled:
                 position_details.append({
@@ -76,7 +68,7 @@ class PortfolioTools(llm.FunctionContext):
                 "status": "ok",
                 "market": market,
                 "total_positions": len(filled),
-                "total_allocation_pct": round(total_allocation, 1),
+                "total_allocation_pct": round(sum(float(s.get("allocation_pct", 0)) for s in filled), 1),
                 "stocks": position_details,
                 "fill_notes": notes if notes else [],
             }, default=str)
@@ -84,26 +76,23 @@ class PortfolioTools(llm.FunctionContext):
             log.error("lookup_portfolio failed for user %s: %s", user_id, exc)
             return json.dumps({"status": "error", "reason": str(exc)})
 
-    @llm.ai_callable(
-        description=(
-            "Analyze a list of portfolio holdings with live prices and AI scores. "
-            "Returns current price, score, percentiles, and a summary of which positions "
-            "are strong vs weak. Use after lookup_portfolio to get deeper analysis, or "
-            "when a client lists their holdings manually in conversation."
-        ),
-    )
+    @function_tool
     async def analyze_holdings(
         self,
-        tickers: Annotated[
-            list[str],
-            llm.TypeInfo(description="List of stock ticker symbols, e.g. ['NVDA', 'AAPL', 'RELIANCE']"),
-        ],
-        market: Annotated[
-            str,
-            llm.TypeInfo(description="Market: 'US' or 'IN'"),
-        ] = "US",
+        tickers: list[str],
+        market: str = "US",
     ) -> str:
-        """Analyze a list of holdings with scores and prices."""
+        """Analyze a list of portfolio holdings with live prices and AI scores.
+        Returns current price, score, percentiles, and a summary of which positions
+        are strong vs weak.
+
+        Use after lookup_portfolio to get deeper analysis, or when a client lists
+        their holdings manually in conversation.
+
+        Parameters:
+            tickers: List of stock ticker symbols, e.g. ['NVDA', 'AAPL', 'RELIANCE']
+            market: Market — 'US' or 'IN'
+        """
         try:
             import asyncio
             from nq_api.data_builder import _fetch_one

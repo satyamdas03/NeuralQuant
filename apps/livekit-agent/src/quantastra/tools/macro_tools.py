@@ -1,28 +1,26 @@
-"""LiveKit function-calling tools for macroeconomic context."""
+"""Macroeconomic tools mixin — regime, VIX, yield curve, market regime."""
 
 from __future__ import annotations
 
 import json
 import logging
 
-from livekit.agents import llm
+from livekit.agents import function_tool
 
 log = logging.getLogger(__name__)
 
 
-class MacroTools(llm.FunctionContext):
+class MacroToolsMixin:
     """Macroeconomic data tools — regime, VIX, yield curve, market regime."""
 
-    @llm.ai_callable(
-        description=(
-            "Get comprehensive macroeconomic context including VIX, yield curve, Fed funds rate, "
-            "CPI, HY spreads, currency rates, and market regime label. Use when client asks about "
-            "the macro environment, interest rates, inflation, or wants to understand the broader "
-            "economic backdrop for investment decisions."
-        ),
-    )
+    @function_tool
     async def get_macro_context(self) -> str:
-        """Fetch full macro context."""
+        """Get comprehensive macroeconomic context including VIX, yield curve,
+        Fed funds rate, CPI, HY spreads, currency rates, and market regime label.
+
+        Use when client asks about the macro environment, interest rates,
+        inflation, or wants to understand the broader economic backdrop.
+        """
         try:
             from nq_api.data_builder import fetch_real_macro
 
@@ -54,16 +52,14 @@ class MacroTools(llm.FunctionContext):
             log.error("get_macro_context failed: %s", exc)
             return json.dumps({"status": "error", "reason": str(exc)})
 
-    @llm.ai_callable(
-        description=(
-            "Get the current market regime label (e.g., RISK_ON, RISK_OFF, NEUTRAL) based on "
-            "NeuralQuant's HMM model. The regime helps determine appropriate strategy — "
-            "aggressive in RISK_ON, defensive in RISK_OFF. Use when client asks about "
-            "market conditions or what strategy to use."
-        ),
-    )
+    @function_tool
     async def get_regime_label(self) -> str:
-        """Get market regime from score_cache."""
+        """Get the current market regime label (e.g. RISK_ON, RISK_OFF, NEUTRAL)
+        based on NeuralQuant's HMM model. The regime helps determine appropriate
+        strategy — aggressive in RISK_ON, defensive in RISK_OFF.
+
+        Use when client asks about market conditions or what strategy to use.
+        """
         try:
             from nq_api.cache.score_cache import read_top
 
@@ -80,15 +76,13 @@ class MacroTools(llm.FunctionContext):
             log.error("get_regime_label failed: %s", exc)
             return json.dumps({"status": "error", "reason": str(exc)})
 
-    @llm.ai_callable(
-        description=(
-            "Get the current VIX (Volatility Index) level with interpretation. "
-            "Returns VIX value and classification (complacent/low/moderate/elevated/high/extreme). "
-            "Use when client asks about market volatility or fear levels."
-        ),
-    )
+    @function_tool
     async def get_vix_level(self) -> str:
-        """Fetch VIX level from yfinance."""
+        """Get the current VIX (Volatility Index) level with interpretation.
+        Returns VIX value and classification (complacent/low/moderate/elevated/high/extreme).
+
+        Use when client asks about market volatility or fear levels.
+        """
         try:
             import asyncio
             import yfinance as yf

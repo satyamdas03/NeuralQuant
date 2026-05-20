@@ -1,4 +1,4 @@
-"""QuantAstra — LiveKit VoicePipelineAgent entry point.
+"""QuantAstra — LiveKit Voice Agent entry point.
 
 Long-running worker that connects to LiveKit Cloud over WebSocket,
 joins rooms matching quantastra-*, and runs the cascaded
@@ -11,17 +11,25 @@ import logging
 import os
 
 from dotenv import load_dotenv
-from livekit.agents import AutoSubscribe, JobContext, WorkerOptions, cli, WorkerType
-from livekit.agents.llm import FunctionContext
-from livekit.agents.pipeline import VoicePipelineAgent
+from livekit.agents import (
+    Agent,
+    AgentSession,
+    AutoSubscribe,
+    JobContext,
+    WorkerOptions,
+    cli,
+)
 from livekit.plugins import anthropic as lk_anthropic
 from livekit.plugins import deepgram
 from livekit.plugins import elevenlabs
 
 from quantastra.context import build_greeting_context
-from quantastra.dispatcher import dispatch
-from quantastra.persona import SYSTEM_PROMPT
-from quantastra.tools import register_all_tools
+from quantastra.persona import INITIAL_GREETING, SYSTEM_PROMPT
+from quantastra.tools.macro_tools import MacroToolsMixin
+from quantastra.tools.market_tools import MarketToolsMixin
+from quantastra.tools.portfolio_tools import PortfolioToolsMixin
+from quantastra.tools.research_tools import ResearchToolsMixin
+from quantastra.tools.screener_tools import ScreenerToolsMixin
 
 load_dotenv()
 
@@ -30,58 +38,60 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 logging.basicConfig(level=getattr(logging, LOG_LEVEL, logging.INFO))
 
 
+class QuantAstraAgent(
+    MarketToolsMixin,
+    PortfolioToolsMixin,
+    ScreenerToolsMixin,
+    ResearchToolsMixin,
+    MacroToolsMixin,
+    Agent,
+):
+    """QuantAstra — AI Portfolio Manager with 15 function-calling tools."""
+
+    def __init__(self, user_id: str, context: str):
+        full_instructions = SYSTEM_PROMPT
+        if context:
+            full_instructions += f"\n\n=== LIVE MARKET DATA ===\n{context}"
+        super().__init__(
+            instructions=full_instructions,
+            stt=deepgram.STT(model="nova-2-general"),
+            llm=lk_anthropic.LLM(
+                model="claude-sonnet-4-6",
+                temperature=0.7,
+                max_tokens=2048,
+            ),
+            tts=elevenlabs.TTS(
+                model="eleven_turbo_v2_5",
+                voice_id="EXAVITQu4vr4xnSDxMaL",
+            ),
+            allow_interruptions=True,
+        )
+        self.user_id = user_id
+
+
 async def entrypoint(ctx: JobContext):
     """LiveKit worker entrypoint — called when agent joins a room."""
     log.info("QuantAstra agent joining room: %s", ctx.room.name)
 
-    # Extract user_id from room name: quantastra-{user_id}
-    user_id = None
+    user_id = "anonymous"
     room_name = ctx.room.name or ""
     if room_name.startswith("quantastra-"):
-        user_id = room_name[len("quantastra-"):] or None
-    if not user_id:
-        user_id = "anonymous"
+        extracted = room_name[len("quantastra-"):]
+        if extracted:
+            user_id = extracted
 
-    # Build live market + portfolio context
     greeting_text = await build_greeting_context(user_id)
+    agent = QuantAstraAgent(user_id, greeting_text)
 
-    # Build the initial chat context
-    full_context = SYSTEM_PROMPT
-    if greeting_text:
-        full_context += f"\n\n=== LIVE MARKET DATA ===\n{greeting_text}"
+    await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
 
-    # Assemble the agent pipeline
-    agent = VoicePipelineAgent(
-        stt=deepgram.STT(model="nova-2-general"),
-        llm=lk_anthropic.LLM(
-            model="claude-sonnet-4-6",
-            temperature=0.7,
-            max_tokens=2048,
-        ),
-        tts=elevenlabs.TTS(
-            model_id="eleven_turbo_v2_5",
-            voice_id="EXAVITQu4vr4xnSDxMaL",
-        ),
-        chat_ctx=llm.ChatContext().append(
-            text=full_context,
-            role="system",
-        ),
-        fnc_ctx=register_all_tools(),
-        allow_interruptions=True,
-    )
+    session = AgentSession()
+    await session.start(agent=agent, room=ctx.room)
 
-    # Run the agent until the room disconnects
-    agent.start(ctx.room)
+    session.say(INITIAL_GREETING)
 
-    # Greet the user — dispatcher handles participant join/leave
-    await dispatch(ctx, agent, user_id)
+    log.info("QuantAstra agent ready in room: %s", ctx.room.name)
 
 
 if __name__ == "__main__":
-    cli.run_app(
-        WorkerOptions(
-            entrypoint_fnc=entrypoint,
-            worker_type=WorkerType.ROOM,
-            auto_subscribe=AutoSubscribe.AUDIO_ONLY,
-        )
-    )
+    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))

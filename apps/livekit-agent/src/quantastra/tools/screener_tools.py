@@ -1,56 +1,44 @@
-"""LiveKit function-calling tools for stock screening."""
+"""Stock screening tools mixin — find stocks by criteria, peer comparison."""
 
 from __future__ import annotations
 
 import json
 import logging
-from typing import Annotated
 
-from livekit.agents import llm
+from livekit.agents import function_tool
 
 log = logging.getLogger(__name__)
 
 
-class ScreenerTools(llm.FunctionContext):
+class ScreenerToolsMixin:
     """Stock screening tools — find stocks by criteria, peer comparison."""
 
-    @llm.ai_callable(
-        description=(
-            "Screen for stocks matching specific criteria using NeuralQuant's AI scores. "
-            "Filter by minimum momentum percentile, minimum quality percentile, value percentile, "
-            "and market. Returns ranked results with scores and key metrics. "
-            "Use when client asks 'find me stocks with strong momentum and quality' or "
-            "'what are the best value stocks right now?'"
-        ),
-    )
+    @function_tool
     async def run_screener(
         self,
-        market: Annotated[
-            str,
-            llm.TypeInfo(description="Market: 'US' or 'IN'"),
-        ] = "US",
-        min_momentum_percentile: Annotated[
-            float,
-            llm.TypeInfo(description="Minimum momentum percentile 0.0-1.0. Default 0.7 (top 30%)"),
-        ] = 0.7,
-        min_quality_percentile: Annotated[
-            float,
-            llm.TypeInfo(description="Minimum quality percentile 0.0-1.0. Default 0.5"),
-        ] = 0.5,
-        min_value_percentile: Annotated[
-            float,
-            llm.TypeInfo(description="Minimum value percentile 0.0-1.0. Default 0.0 (no filter)"),
-        ] = 0.0,
-        n: Annotated[
-            int,
-            llm.TypeInfo(description="Maximum number of results (max 20)"),
-        ] = 10,
+        market: str = "US",
+        min_momentum_percentile: float = 0.7,
+        min_quality_percentile: float = 0.5,
+        min_value_percentile: float = 0.0,
+        n: int = 10,
     ) -> str:
-        """Run a screener query against score_cache."""
+        """Screen for stocks matching specific criteria using NeuralQuant's AI scores.
+        Filter by minimum momentum percentile, minimum quality percentile, value percentile,
+        and market. Returns ranked results with scores and key metrics.
+
+        Use when client asks 'find me stocks with strong momentum and quality' or
+        'what are the best value stocks right now?'
+
+        Parameters:
+            market: Market — 'US' or 'IN'
+            min_momentum_percentile: Minimum momentum percentile 0.0-1.0. Default 0.7 (top 30%)
+            min_quality_percentile: Minimum quality percentile 0.0-1.0. Default 0.5
+            min_value_percentile: Minimum value percentile 0.0-1.0. Default 0.0 (no filter)
+            n: Maximum number of results (max 20)
+        """
         try:
             from nq_api.cache.score_cache import read_top
 
-            # Fetch top 100 and filter locally
             all_results = read_top(market, 100)
             if not all_results:
                 return json.dumps({"status": "unavailable", "reason": "Score data temporarily unavailable — scores are refreshed nightly"})
@@ -90,30 +78,25 @@ class ScreenerTools(llm.FunctionContext):
             log.error("run_screener failed: %s", exc)
             return json.dumps({"status": "error", "reason": str(exc)})
 
-    @llm.ai_callable(
-        description=(
-            "Find peer/similar stocks to a given ticker. Returns stocks in the same sector "
-            "with similar scores for comparison. Use when client asks 'what are NVDA's competitors?' "
-            "or 'how does X compare to its peers?'"
-        ),
-    )
+    @function_tool
     async def find_similar(
         self,
-        ticker: Annotated[
-            str,
-            llm.TypeInfo(description="Reference stock ticker, e.g. 'AAPL' or 'TCS'"),
-        ],
-        market: Annotated[
-            str,
-            llm.TypeInfo(description="Market: 'US' or 'IN'"),
-        ] = "US",
+        ticker: str,
+        market: str = "US",
     ) -> str:
-        """Find similar stocks by sector and score proximity."""
+        """Find peer/similar stocks to a given ticker. Returns stocks in the same sector
+        with similar scores for comparison.
+
+        Use when client asks 'what are NVDA's competitors?' or 'how does X compare to its peers?'
+
+        Parameters:
+            ticker: Reference stock ticker, e.g. 'AAPL' or 'TCS'
+            market: Market — 'US' or 'IN'
+        """
         try:
             from nq_api.data_builder import _fetch_one
             from nq_api.cache.score_cache import read_top
 
-            # Get target stock info
             target = _fetch_one(ticker, market, fast_pe=True)
             if target is None:
                 return json.dumps({"status": "unavailable", "ticker": ticker, "reason": "Could not fetch data for this stock"})
@@ -121,7 +104,6 @@ class ScreenerTools(llm.FunctionContext):
             target_sector = target.get("sector", "")
             target_score = float(target.get("composite_score", 0) or 0)
 
-            # Get top 50 in the market and filter by sector
             all_results = read_top(market, 50)
             peers = []
             for r in all_results:
@@ -139,7 +121,6 @@ class ScreenerTools(llm.FunctionContext):
                         "quality_percentile": r.get("quality_percentile"),
                     })
 
-            # Sort by score proximity
             peers.sort(key=lambda p: p["score_diff"])
             peers = peers[:8]
 

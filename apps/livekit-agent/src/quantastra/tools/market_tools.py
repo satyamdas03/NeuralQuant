@@ -1,39 +1,35 @@
-"""LiveKit function-calling tools for market data — prices, indices, scores, movers."""
+"""Market data tools mixin — prices, indices, scores, movers, sectors."""
 
 from __future__ import annotations
 
 import json
 import logging
-from typing import Annotated
 
-from livekit.agents import llm
+from livekit.agents import function_tool
 
 log = logging.getLogger(__name__)
 
 
-class MarketTools(llm.FunctionContext):
+class MarketToolsMixin:
     """Market intelligence tools — live prices, indices, scores, movers."""
 
-    @llm.ai_callable(
-        description=(
-            "Get the current price, key fundamentals, and AI score for a specific stock. "
-            "Returns live price, P/E ratio, beta, market cap, sector, composite score (1-10), "
-            "momentum/quality/value percentiles, and 52-week range. Use this whenever a client "
-            "asks about a specific stock — ALWAYS call this before giving any analysis."
-        ),
-    )
+    @function_tool
     async def get_stock_price(
         self,
-        ticker: Annotated[
-            str,
-            llm.TypeInfo(description="Stock ticker symbol, e.g. 'AAPL', 'NVDA', 'RELIANCE', 'TCS'"),
-        ],
-        market: Annotated[
-            str,
-            llm.TypeInfo(description="Market: 'US' for US stocks, 'IN' for Indian stocks"),
-        ] = "US",
+        ticker: str,
+        market: str = "US",
     ) -> str:
-        """Fetch live stock price and key fundamentals."""
+        """Get the current price, key fundamentals, and AI score for a specific stock.
+
+        Returns live price, P/E ratio, beta, market cap, sector, composite score (1-10),
+        momentum/quality/value percentiles, and 52-week range.
+
+        ALWAYS call this before giving any analysis about a stock.
+
+        Parameters:
+            ticker: Stock ticker symbol, e.g. 'AAPL', 'NVDA', 'RELIANCE', 'TCS'
+            market: Market — 'US' for US stocks, 'IN' for Indian stocks
+        """
         try:
             from nq_api.data_builder import _fetch_one
             from nq_api.cache.score_cache import read_top
@@ -64,22 +60,20 @@ class MarketTools(llm.FunctionContext):
                 "week52_high": row.get("week52_high"),
                 "week52_low": row.get("week52_low"),
             }
-            # Filter None values for cleaner output
             result = {k: v for k, v in result.items() if v is not None}
             return json.dumps(result, default=str)
         except Exception as exc:
             log.error("get_stock_price failed for %s/%s: %s", ticker, market, exc)
             return json.dumps({"status": "error", "ticker": ticker, "reason": str(exc)})
 
-    @llm.ai_callable(
-        description=(
-            "Get the current market overview including major indices (S&P 500, Nifty 50, VIX), "
-            "top-gaining sectors, and broad market sentiment. Use this when the client asks "
-            "'how's the market doing?' or wants market context before making decisions."
-        ),
-    )
+    @function_tool
     async def get_market_overview(self) -> str:
-        """Fetch live market overview."""
+        """Get the current market overview including major indices (S&P 500, Nifty 50, VIX),
+        top-gaining sectors, and broad market sentiment.
+
+        Use when the client asks 'how's the market doing?' or wants market context before
+        making decisions.
+        """
         try:
             from nq_api.data_builder import fetch_real_macro
             from nq_api.cache.score_cache import read_top
@@ -110,32 +104,27 @@ class MarketTools(llm.FunctionContext):
                     for s in in_top
                 ] if in_top else [],
             }
-            # Filter None macro values
             result["macro"] = {k: v for k, v in result["macro"].items() if v is not None}
             return json.dumps(result, default=str)
         except Exception as exc:
             log.error("get_market_overview failed: %s", exc)
             return json.dumps({"status": "error", "reason": str(exc)})
 
-    @llm.ai_callable(
-        description=(
-            "Get the top AI-ranked stocks for a market. Returns tickers with their composite scores "
-            "(1-10), momentum/quality/value percentiles, P/E, and sector. Use this when the client "
-            "asks 'what stocks should I buy?' or 'what's hot right now?'"
-        ),
-    )
+    @function_tool
     async def get_top_scores(
         self,
-        market: Annotated[
-            str,
-            llm.TypeInfo(description="Market: 'US' or 'IN'"),
-        ] = "US",
-        n: Annotated[
-            int,
-            llm.TypeInfo(description="Number of top stocks to return (max 20)"),
-        ] = 10,
+        market: str = "US",
+        n: int = 10,
     ) -> str:
-        """Fetch top-ranked stocks from score_cache."""
+        """Get the top AI-ranked stocks for a market. Returns tickers with their
+        composite scores (1-10), momentum/quality/value percentiles, P/E, and sector.
+
+        Use when the client asks 'what stocks should I buy?' or 'what's hot right now?'
+
+        Parameters:
+            market: Market — 'US' or 'IN'
+            n: Number of top stocks to return (max 20)
+        """
         try:
             from nq_api.cache.score_cache import read_top
 
@@ -161,20 +150,15 @@ class MarketTools(llm.FunctionContext):
             log.error("get_top_scores failed for %s: %s", market, exc)
             return json.dumps({"status": "error", "reason": str(exc)})
 
-    @llm.ai_callable(
-        description=(
-            "Get today's biggest market movers — top gainers and losers by percentage change. "
-            "Use when the client wants to know what's moving dramatically in the market."
-        ),
-    )
+    @function_tool
     async def get_market_movers(self) -> str:
-        """Fetch market movers (gainers/losers)."""
+        """Get today's biggest market movers — top gainers and losers by percentage change.
+        Use when the client wants to know what's moving dramatically in the market.
+        """
         try:
             import asyncio
             import yfinance as yf
-            from nq_api.universe import US_DEFAULT
 
-            # Fetch gainers from yfinance
             gainers_raw = await asyncio.to_thread(
                 lambda: yf.Screener(body={"operator": "gt", "field": "percent_change", "value": 3}).response
             )
@@ -213,15 +197,13 @@ class MarketTools(llm.FunctionContext):
             log.error("get_market_movers failed: %s", exc)
             return json.dumps({"status": "error", "reason": str(exc)})
 
-    @llm.ai_callable(
-        description=(
-            "Get live index values for major indices. Returns S&P 500, Nifty 50, VIX, "
-            "and other key index levels with daily changes. Use when client asks about "
-            "specific index levels or market benchmarks."
-        ),
-    )
+    @function_tool
     async def get_indices(self) -> str:
-        """Fetch live index data."""
+        """Get live index values for major indices. Returns S&P 500, Nifty 50, VIX,
+        and other key index levels with daily changes.
+
+        Use when client asks about specific index levels or market benchmarks.
+        """
         try:
             import asyncio
             import yfinance as yf
@@ -257,15 +239,13 @@ class MarketTools(llm.FunctionContext):
             log.error("get_indices failed: %s", exc)
             return json.dumps({"status": "error", "reason": str(exc)})
 
-    @llm.ai_callable(
-        description=(
-            "Get sector performance data showing which sectors are leading or lagging. "
-            "Returns percentage changes for all 11 GICS sectors. Use when client asks "
-            "about sector rotation or which sectors to overweight/underweight."
-        ),
-    )
+    @function_tool
     async def get_sector_performance(self) -> str:
-        """Fetch sector performance data."""
+        """Get sector performance data showing which sectors are leading or lagging.
+        Returns percentage changes for all 11 GICS sectors.
+
+        Use when client asks about sector rotation or which sectors to overweight/underweight.
+        """
         try:
             import asyncio
             import yfinance as yf
