@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { Component, useState, useEffect, useCallback, useRef } from "react";
 import {
   LiveKitRoom,
   RoomAudioRenderer,
@@ -16,6 +16,37 @@ import QuantAstraStatusBar from "./QuantAstraStatusBar";
 import QuantAstraTranscriptPanel from "./QuantAstraTranscriptPanel";
 import QuantAstraFace from "./QuantAstraFace";
 import QuantAstraDataPanel from "./QuantAstraDataPanel";
+
+class CallErrorBoundary extends Component<
+  { children: React.ReactNode; onRetry: () => void },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode; onRetry: () => void }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex h-full flex-col items-center justify-center gap-4 p-8">
+          <p className="text-sm text-on-surface-variant text-center">
+            Connection interrupted. The agent may be restarting.
+          </p>
+          <button
+            onClick={this.props.onRetry}
+            className="rounded-full bg-primary-fixed px-4 py-2 text-sm font-semibold text-background"
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 type AgentState = "initializing" | "idle" | "listening" | "thinking" | "speaking";
 
@@ -42,7 +73,9 @@ function QuantAstraCallInner({ onDisconnected }: { onDisconnected?: () => void }
   const [transcriptLines, setTranscriptLines] = useState<TranscriptLine[]>([]);
   const [toolResults, setToolResults] = useState<ToolResult[]>([]);
   const [agentSpeaking, setAgentSpeaking] = useState(false);
+  const [agentTimeout, setAgentTimeout] = useState(false);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Detect agent speaking from audio tracks
   const remoteParticipants = useRemoteParticipants();
@@ -50,7 +83,26 @@ function QuantAstraCallInner({ onDisconnected }: { onDisconnected?: () => void }
   const agentParticipant = remoteParticipants[0];
   const isSpeaking = useIsSpeaking(agentParticipant);
 
-  // Get agent audio track for visualization
+  // Clear agent timeout when remote participant appears
+  useEffect(() => {
+    if (agentParticipant && timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, [agentParticipant]);
+
+  // Set agent join timeout — 15s
+  useEffect(() => {
+    timerRef.current = setTimeout(() => {
+      if (!agentParticipant) {
+        setAgentTimeout(true);
+      }
+    }, 15000);
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const tracks = useTracks(
     [Track.Source.Microphone],
     { onlySubscribed: true }
@@ -140,8 +192,13 @@ function QuantAstraCallInner({ onDisconnected }: { onDisconnected?: () => void }
           audioTrack={agentAudioTrack}
         />
         <div className="mt-4">
-          <QuantAstraStatusBar state={agentState} />
+          <QuantAstraStatusBar state={agentTimeout && !agentParticipant ? "initializing" : agentState} />
         </div>
+        {agentTimeout && !agentParticipant && (
+          <p className="mt-3 max-w-xs text-center text-xs text-amber-400">
+            Agent is taking longer than expected to join. The worker may be deploying — try again in a minute.
+          </p>
+        )}
       </div>
 
       {/* Transcript + Data side-by-side */}
@@ -183,29 +240,31 @@ export default function QuantAstraCallView({
 
   return (
     <div className="overflow-hidden rounded-lg" style={{ height: 560 }}>
-      <LiveKitRoom
-        token={token}
-        serverUrl={serverUrl}
-        connect={true}
-        video={false}
-        audio={true}
-        onDisconnected={handleDisconnected}
-        className="h-full w-full quantastra-call"
-        style={
-          {
-            "--lk-control-bg": "rgba(13,20,37,0.85)",
-            "--lk-control-fg": "#47ffb8",
-            "--lk-control-hover-bg": "rgba(71,255,184,0.15)",
-            "--lk-fg": "#e0e0e0",
-            "--lk-bg": "rgba(13,20,37,0.95)",
-            "--lk-border-color": "rgba(71,255,184,0.15)",
-            "--lk-accent": "#47ffb8",
-          } as React.CSSProperties
-        }
-      >
-        <QuantAstraCallInner onDisconnected={onDisconnected} />
-        <RoomAudioRenderer />
-      </LiveKitRoom>
+      <CallErrorBoundary onRetry={handleDisconnected}>
+        <LiveKitRoom
+          token={token}
+          serverUrl={serverUrl}
+          connect={true}
+          video={false}
+          audio={true}
+          onDisconnected={handleDisconnected}
+          className="h-full w-full quantastra-call"
+          style={
+            {
+              "--lk-control-bg": "rgba(13,20,37,0.85)",
+              "--lk-control-fg": "#47ffb8",
+              "--lk-control-hover-bg": "rgba(71,255,184,0.15)",
+              "--lk-fg": "#e0e0e0",
+              "--lk-bg": "rgba(13,20,37,0.95)",
+              "--lk-border-color": "rgba(71,255,184,0.15)",
+              "--lk-accent": "#47ffb8",
+            } as React.CSSProperties
+          }
+        >
+          <QuantAstraCallInner onDisconnected={onDisconnected} />
+          <RoomAudioRenderer />
+        </LiveKitRoom>
+      </CallErrorBoundary>
     </div>
   );
 }
