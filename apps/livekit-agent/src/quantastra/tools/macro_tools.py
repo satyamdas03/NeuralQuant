@@ -30,21 +30,20 @@ class MacroToolsMixin:
 
             result = {
                 "status": "ok",
-                "vix": macro.get("vix"),
-                "vix_level": _vix_label(macro.get("vix", 0) or 0),
-                "spx_price": macro.get("spx_price"),
-                "spx_return_1m": macro.get("spx_return_1m"),
-                "spx_return_3m": macro.get("spx_return_3m"),
-                "yield_10y": macro.get("yield_10y"),
-                "yield_2y": macro.get("yield_2y"),
-                "yield_curve": "inverted" if (macro.get("yield_2y", 0) or 0) > (macro.get("yield_10y", 0) or 0) else "normal",
-                "fed_funds_rate": macro.get("fed_funds_rate"),
-                "hy_spread": macro.get("hy_spread"),
-                "hy_spread_level": _hy_label(macro.get("hy_spread", 0) or 0),
-                "cpi_yoy": macro.get("cpi_yoy"),
-                "nifty_price": macro.get("nifty_price"),
-                "inr_usd": macro.get("inr_usd"),
-                "regime_label": macro.get("regime_label", "UNKNOWN"),
+                "vix": getattr(macro, "vix", None),
+                "vix_level": _vix_label(getattr(macro, "vix", 0) or 0),
+                "spx_return_1m": getattr(macro, "spx_return_1m", None),
+                "spx_vs_200ma": getattr(macro, "spx_vs_200ma", None),
+                "yield_10y": getattr(macro, "yield_10y", None),
+                "yield_2y": getattr(macro, "yield_2y", None),
+                "yield_curve": "inverted" if (getattr(macro, "yield_2y", 0) or 0) > (getattr(macro, "yield_10y", 0) or 0) else "normal",
+                "yield_spread_2y10y": getattr(macro, "yield_spread_2y10y", None),
+                "fed_funds_rate": getattr(macro, "fed_funds_rate", None),
+                "hy_spread_oas": getattr(macro, "hy_spread_oas", None),
+                "hy_spread_level": _hy_label(getattr(macro, "hy_spread_oas", 0) or 0),
+                "cpi_yoy": getattr(macro, "cpi_yoy", None),
+                "ism_pmi": getattr(macro, "ism_pmi", None),
+                "fred_sourced": getattr(macro, "fred_sourced", False),
             }
             result = {k: v for k, v in result.items() if v is not None}
             return json.dumps(result, default=str)
@@ -69,7 +68,7 @@ class MacroToolsMixin:
             else:
                 from nq_api.data_builder import fetch_real_macro
                 macro = fetch_real_macro()
-                regime = macro.get("regime_label", "UNKNOWN") if macro else "UNKNOWN"
+                regime = getattr(macro, "regime_label", None) or "UNKNOWN"
 
             return json.dumps({"status": "ok", "regime": regime})
         except Exception as exc:

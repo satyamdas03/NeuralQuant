@@ -85,15 +85,15 @@ class MarketToolsMixin:
             result = {
                 "status": "ok",
                 "macro": {
-                    "vix": macro.get("vix"),
-                    "spx_price": macro.get("spx_price"),
-                    "spx_return_1m": macro.get("spx_return_1m"),
-                    "yield_10y": macro.get("yield_10y"),
-                    "fed_funds_rate": macro.get("fed_funds_rate"),
-                    "hy_spread": macro.get("hy_spread"),
-                    "cpi_yoy": macro.get("cpi_yoy"),
-                    "nifty_price": macro.get("nifty_price"),
-                    "inr_usd": macro.get("inr_usd"),
+                    "vix": getattr(macro, "vix", None),
+                    "spx_return_1m": getattr(macro, "spx_return_1m", None),
+                    "spx_vs_200ma": getattr(macro, "spx_vs_200ma", None),
+                    "yield_10y": getattr(macro, "yield_10y", None),
+                    "fed_funds_rate": getattr(macro, "fed_funds_rate", None),
+                    "hy_spread_oas": getattr(macro, "hy_spread_oas", None),
+                    "cpi_yoy": getattr(macro, "cpi_yoy", None),
+                    "ism_pmi": getattr(macro, "ism_pmi", None),
+                    "yield_spread_2y10y": getattr(macro, "yield_spread_2y10y", None),
                 },
                 "top_us_scores": [
                     {"ticker": s["ticker"], "score_1_10": s["score_1_10"], "sector": s.get("sector", "")}

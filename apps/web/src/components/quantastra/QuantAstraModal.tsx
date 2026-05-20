@@ -98,10 +98,9 @@ export default function QuantAstraModal({ onClose }: QuantAstraModalProps) {
                   Talk to your Portfolio Manager
                 </h3>
                 <p className="mt-2 max-w-md text-sm text-on-surface-variant">
-                  QuantAstra has 20 years of hedge fund experience and access to
-                  NeuralQuant&apos;s full research platform. Ask anything about
-                  your portfolio, specific stocks, market conditions, or
-                  investment ideas.
+                  Your AI portfolio manager with live market data, stock scores,
+                  and deep research tools. Ask about your portfolio, specific
+                  stocks, or investment ideas.
                 </p>
               </div>
 
