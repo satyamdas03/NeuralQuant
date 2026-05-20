@@ -26,6 +26,45 @@ def _build_profile_prompt(profile: UserProfile) -> str:
     )
 
 
+async def _load_portfolio_from_supabase(user_id: str) -> list[dict]:
+    """Load watchlist holdings for a user from Supabase.
+
+    Uses service_role key to bypass RLS — caller must validate user_id.
+    Returns list of {ticker, market, note, created_at} dicts.
+    """
+    import os
+    import httpx
+
+    url = os.environ.get("SUPABASE_URL", "")
+    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+    if not url or not key:
+        log.warning("Supabase not configured for portfolio load")
+        return []
+
+    endpoint = f"{url}/rest/v1/watchlists"
+    headers = {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=15) as c:
+            r = await c.get(
+                endpoint,
+                params={
+                    "select": "*",
+                    "user_id": f"eq.{user_id}",
+                    "order": "created_at.desc",
+                },
+                headers=headers,
+            )
+            r.raise_for_status()
+            rows = r.json() or []
+            return [{"ticker": r["ticker"], "market": r.get("market", "US")} for r in rows]
+    except Exception as exc:
+        log.warning("_load_portfolio_from_supabase failed for %s: %s", user_id, exc)
+        return []
+
+
 def _infer_portfolio_market(portfolio_stocks: list[dict], explicit_market: str | None) -> str:
     """Auto-detect market from portfolio tickers. If explicit_market is None or 'US',
     checks if majority of stocks are IN — overrides to 'IN' when stocks are Indian."""

@@ -7,6 +7,7 @@ STT→LLM→TTS pipeline: Deepgram → Claude Sonnet 4.6 → ElevenLabs.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 
@@ -101,6 +102,14 @@ async def entrypoint(ctx: JobContext):
     session.say(INITIAL_GREETING)
 
     log.info("QuantAstra agent ready in room: %s", ctx.room.name)
+
+    async def _on_shutdown(reason: str = "") -> None:
+        log.info("Agent shutting down: %s", reason)
+        shutdown_event.set()
+
+    shutdown_event = asyncio.Event()
+    ctx.add_shutdown_callback(_on_shutdown)
+    await shutdown_event.wait()
 
 
 if __name__ == "__main__":
