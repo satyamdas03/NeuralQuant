@@ -1,5 +1,5 @@
 [tool.uv.workspace]
-members = ["packages/*", "apps/api"]
+members = ["packages/*", "apps/api", "apps/livekit-agent"]
 
 [tool.uv]
 dev-dependencies = [

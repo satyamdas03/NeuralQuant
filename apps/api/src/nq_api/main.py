@@ -21,6 +21,7 @@ from nq_api.routes import stocks, screener, analyst, query, market, auth, watchl
 from nq_api.routes.terminal import router as terminal_router
 from nq_api.routes.auth_webhook import router as auth_webhook_router
 from nq_api.routes.market_wrap import router as market_wrap_router
+from nq_api.routes.livekit_token import router as livekit_token_router
 from nq_api.slack.router import router as slack_router
 from nq_api.routes.checkout import router as checkout_router
 from nq_api.routes.webhooks_paypal import router as paypal_webhook_router
@@ -444,6 +445,7 @@ app.include_router(broker.router)
 app.include_router(auth_webhook_router)
 app.include_router(market_wrap_router)
 app.include_router(terminal_router, prefix="/terminal", tags=["terminal"])
+app.include_router(livekit_token_router)
 
 
 @app.get("/health")

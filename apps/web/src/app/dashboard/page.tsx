@@ -11,6 +11,7 @@ import GhostBorderCard from "@/components/ui/GhostBorderCard";
 import RegimeBadge from "@/components/ui/RegimeBadge";
 import { ArrowUpRight, ArrowDownRight, TrendingUp, Newspaper } from "lucide-react";
 import SocialBuzzCard from "@/components/ui/SocialBuzzCard";
+import QuantAstraFAB from "@/components/quantastra/QuantAstraFAB";
 
 // ─── Index Bar ────────────────────────────────────────────────────────────────
 
@@ -328,6 +329,7 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+      <QuantAstraFAB />
     </div>
   );
 }

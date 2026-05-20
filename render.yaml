@@ -69,6 +69,10 @@ services:
         sync: false
       - key: ALPACA_PAPER
         value: "true"
+      - key: LIVEKIT_API_KEY
+        sync: false
+      - key: LIVEKIT_API_SECRET
+        sync: false
     plan: pro
     healthCheckPath: /health
 
@@ -132,3 +136,35 @@ services:
       - key: TRADE_DAEMON_MAX_SIGNALS_PER_DAY
         value: "20"
     plan: starter
+
+  - type: worker
+    name: quantastra-agent
+    runtime: python
+    pythonVersion: 3.12
+    rootDir: .
+    buildCommand: pip install uv && uv sync --frozen --no-dev
+    startCommand: uv run python -m quantastra.agent start
+    envVars:
+      - key: LIVEKIT_URL
+        sync: false
+      - key: LIVEKIT_API_KEY
+        sync: false
+      - key: LIVEKIT_API_SECRET
+        sync: false
+      - key: DEEPGRAM_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: FMP_API_KEY
+        sync: false
+      - key: FINNHUB_API_KEY
+        sync: false
+      - key: LOG_LEVEL
+        value: "INFO"
+    plan: standard

@@ -314,3 +314,33 @@
 .animate-fade-up {
   animation: fade-up 0.7s ease-out both;
 }
+
+/* ─── LiveKit Theme Overrides — QuantAlpha Obsidian Quantum V2 ─── */
+.lk-room-container {
+  --lk-control-bg: rgba(13, 20, 37, 0.85);
+  --lk-control-fg: #47ffb8;
+  --lk-control-hover-bg: rgba(13, 20, 37, 0.95);
+  --lk-control-active-bg: rgba(0, 255, 178, 0.15);
+  --lk-control-border: rgba(0, 255, 178, 0.15);
+  --lk-focus-color: #47ffb8;
+  --lk-accent-color: #47ffb8;
+  --lk-danger-color: #FF4158;
+  --lk-bg: #050810;
+  --lk-fg: #47ffb8;
+  --lk-connection-bar-bg: rgba(13, 20, 37, 0.85);
+  --lk-connection-bar-fg: #47ffb8;
+  --lk-participant-tile-bg: rgba(13, 20, 37, 0.7);
+  --lk-participant-tile-hover-bg: rgba(13, 20, 37, 0.85);
+  --lk-chat-bg: rgba(13, 20, 37, 0.85);
+  --lk-chat-fg: #e0e2ee;
+  --lk-prejoin-bg: rgba(13, 20, 37, 0.85);
+  --lk-prejoin-fg: #e0e2ee;
+  --lk-button-bg: rgba(0, 255, 178, 0.12);
+  --lk-button-fg: #47ffb8;
+  --lk-button-hover-bg: rgba(0, 255, 178, 0.2);
+  --lk-border-color: rgba(0, 255, 178, 0.15);
+  --lk-box-shadow: 0 0 20px rgba(0, 255, 178, 0.15);
+  --lk-dropdown-bg: rgba(13, 20, 37, 0.95);
+  --lk-grid-gap: 8px;
+  border-radius: 0 !important;
+}
