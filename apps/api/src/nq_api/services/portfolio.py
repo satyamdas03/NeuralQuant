@@ -81,6 +81,22 @@ def _infer_portfolio_market(portfolio_stocks: list[dict], explicit_market: str |
     return explicit_market or "US"
 
 
+def _detect_stock_market(ticker: str) -> str:
+    """Detect market (US or IN) for a single ticker."""
+    if not ticker:
+        return "US"
+    t = ticker.upper()
+    if t.endswith(".NS") or t.endswith(".BO"):
+        return "IN"
+    try:
+        from nq_api.universe import IN_DEFAULT
+        if t in frozenset(IN_DEFAULT):
+            return "IN"
+    except Exception:
+        pass
+    return "US"
+
+
 def _validate_and_fill_portfolio_prices(
     portfolio_stocks: list[dict], market: str
 ) -> tuple[list[dict], list[str]]:
@@ -88,18 +104,17 @@ def _validate_and_fill_portfolio_prices(
     Replaces 'Live N/A' placeholders with real prices and computes
     target/stop_loss deterministically from the live entry price.
 
-    Price source priority (US): FMP quote -> yfinance -> FMP profile -> score_cache (7d)
-    Price source priority (IN): yfinance (.NS) -> FMP profile -> score_cache (7d)
+    Each stock is resolved with its own market (US/IN) — mixed-market portfolios
+    (e.g. "invest ₹10L in India + $5K in US") work correctly.
 
     Returns (corrected_stocks, fill_notes).
     """
-    from nq_api.data_builder import _yf_symbol, _get_yf_session, _fetch_yf_info_cached
+    from nq_api.data_builder import _get_yf_session, _fetch_yf_info_cached
 
     if not portfolio_stocks:
         return portfolio_stocks, []
 
     fill_notes = []
-    cur = "Rs." if market == "IN" else "$"
     _CACHED_PATTERN = re.compile(
         r"(?:cached|enter near|enter at|market price|current price"
         r"|stale|estimated|not available|price not found|n/a"
@@ -113,16 +128,16 @@ def _validate_and_fill_portfolio_prices(
         from nq_data.fmp import get_fmp_client
         fmp_client = get_fmp_client()
         if fmp_client._enabled:
-            all_tickers = [
-                s.get("ticker", "")
-                for s in portfolio_stocks
-                if s.get("ticker")
-            ]
-            if market == "IN":
-                # Add .NS and .BO suffix variants — some stocks are NSE, some BSE
-                ns_tickers = [t if "." in t else f"{t}.NS" for t in all_tickers]
-                bo_tickers = [t.replace(".NS", ".BO") for t in ns_tickers]
-                all_tickers = ns_tickers + bo_tickers
+            all_tickers: list[str] = []
+            for s in portfolio_stocks:
+                t = s.get("ticker", "")
+                if not t:
+                    continue
+                all_tickers.append(t)  # bare ticker for US stocks
+                sm = _detect_stock_market(t)
+                if sm == "IN" and "." not in t:
+                    all_tickers.append(f"{t}.NS")
+                    all_tickers.append(f"{t}.BO")
             if all_tickers:
                 fmp_prices = fmp_client.get_batch_quotes(all_tickers) or {}
                 log.debug("FMP batch_quotes: requested %d tickers, got %d prices",
@@ -135,22 +150,24 @@ def _validate_and_fill_portfolio_prices(
         if not ticker:
             continue
 
-        sym = ticker + ".NS" if market == "IN" and "." not in ticker else ticker
+        stock_market = _detect_stock_market(ticker)
+        cur = "Rs." if stock_market == "IN" else "$"
+        sym = ticker + ".NS" if stock_market == "IN" and "." not in ticker else ticker
         live_price = None
         price_source = None
 
         # -- Tier 1: FMP batch_quotes result (from Phase 0 pre-fetch) --
-        for lookup_key in (sym, ticker, f"{ticker}.NS", f"{ticker}.BO"):
+        for lookup_key in (ticker, sym, f"{ticker}.NS", f"{ticker}.BO"):
             batch = fmp_prices.get(lookup_key, {})
             if batch and batch.get("price"):
                 live_price = float(batch["price"])
                 price_source = "fmp_batch"
                 break
 
-        # -- Tier 2: FMP profile fallback (individual call, works for IN stocks) --
-        if not live_price or live_price <= 0:
+        # -- Tier 2: FMP profile fallback (individual call) --
+        if (not live_price or live_price <= 0) and fmp_client and fmp_client._enabled:
             try:
-                profile = fmp_client.get_profile(sym) if (fmp_client and fmp_client._enabled) else None
+                profile = fmp_client.get_profile(sym)
                 if profile and profile.get("price"):
                     live_price = float(profile["price"])
                     price_source = "fmp_profile"
@@ -191,11 +208,11 @@ def _validate_and_fill_portfolio_prices(
             except Exception as exc:
                 log.debug("yf.download failed for %s: %s", sym, exc)
 
-        # -- Price Tier 2: score_cache (up to 7 days stale) --
+        # -- Tier 5: score_cache (up to 7 days stale) --
         if not live_price or live_price <= 0:
             try:
                 from nq_api.cache.score_cache import read_one as _sc_read_one
-                sc = _sc_read_one(ticker.upper(), market, max_age_seconds=604800)  # 7 days
+                sc = _sc_read_one(ticker.upper(), stock_market, max_age_seconds=604800)  # 7 days
                 if sc and sc.get("current_price"):
                     live_price = float(sc["current_price"])
                     price_source = "score_cache_7d"
@@ -203,16 +220,16 @@ def _validate_and_fill_portfolio_prices(
             except Exception:
                 pass
 
-        # -- Price Tier 3: _fetch_one (proven pipeline for IN stocks, FMP+yfinance) --
+        # -- Tier 6: _fetch_one with correct market --
         if not live_price or live_price <= 0:
             try:
                 from nq_api.data_builder import _fetch_one as _fo
-                fund = _fo(ticker, market, fast_pe=True)
+                fund = _fo(ticker, stock_market, fast_pe=True)
                 if fund.get("current_price"):
                     live_price = float(fund["current_price"])
                     price_source = "fetch_one"
             except Exception as exc:
-                log.debug("_fetch_one fallback failed for %s: %s", ticker, exc)
+                log.debug("_fetch_one fallback failed for %s/%s: %s", ticker, stock_market, exc)
 
         if not live_price or live_price <= 0:
             # All sources failed
@@ -221,11 +238,11 @@ def _validate_and_fill_portfolio_prices(
             stock["target_price"] = "N/A"
             stock["stop_loss"] = "N/A"
             fill_notes.append(f"{ticker}: price unavailable from all sources (tried FMP_batch+FMP_profile+yf_cached+yf_direct+yf_download+score_cache+fetch_one)")
-            log.warning("Portfolio price unavailable for %s/%s (market=%s)", ticker, sym, market)
+            log.warning("Portfolio price unavailable for %s/%s (market=%s)", ticker, sym, stock_market)
             continue
 
         if price_source:
-            log.debug("Portfolio price for %s/%s: %.2f via %s", ticker, sym, live_price, price_source)
+            log.debug("Portfolio price for %s/%s: %.2f via %s (market=%s)", ticker, sym, live_price, price_source, stock_market)
 
         entry_str = stock.get("entry_price", "")
         needs_fill = (
@@ -263,7 +280,7 @@ def _validate_and_fill_portfolio_prices(
             # Compute entry range: live price +/-2%
             entry_low = live_price * 0.98
             entry_high = live_price * 1.02
-            if market == "IN":
+            if stock_market == "IN":
                 stock["entry_price"] = f"Rs.{live_price:,.0f} (Rs.{entry_low:,.0f}-Rs.{entry_high:,.0f})"
             else:
                 stock["entry_price"] = f"${live_price:,.2f} (${entry_low:,.2f}-${entry_high:,.2f})"
@@ -273,7 +290,7 @@ def _validate_and_fill_portfolio_prices(
         target_str = stock.get("target_price", "")
         if not target_str or "N/A" in target_str or "unavailable" in target_str.lower():
             target_price = live_price * 1.15
-            if market == "IN":
+            if stock_market == "IN":
                 stock["target_price"] = f"Rs.{target_price:,.0f} (+15%)"
             else:
                 stock["target_price"] = f"${target_price:,.2f} (+15%)"
@@ -282,7 +299,7 @@ def _validate_and_fill_portfolio_prices(
         stop_str = stock.get("stop_loss", "")
         if not stop_str or "N/A" in stop_str or "unavailable" in stop_str.lower():
             stop_price = live_price * 0.90
-            if market == "IN":
+            if stock_market == "IN":
                 stock["stop_loss"] = f"Rs.{stop_price:,.0f} (-10%)"
             else:
                 stock["stop_loss"] = f"${stop_price:,.2f} (-10%)"
