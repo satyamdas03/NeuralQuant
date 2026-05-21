@@ -485,11 +485,11 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                             if not price:
                                 fund = _fetch_one(t, target_market, fast_pe=True)
                                 price = fund.get("current_price")
-                                chg = fund.get("change_pct", 0)
+                                chg = fund.get("change_pct") or 0
                         else:
                             fund = _fetch_one(t, target_market, fast_pe=False)
                             price = fund.get("current_price")
-                            chg = fund.get("change_pct", 0)
+                            chg = fund.get("change_pct") or 0
                             # FMP batch-quote fallback
                             if not price:
                                 fmp_fb = (fmp_prices.get(t) or {})
@@ -519,7 +519,7 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                     fund = _fetch_one(t, target_market, fast_pe=False)
                     if fund.get("_is_real"):
                         price = fund.get("current_price")
-                        chg = fund.get("change_pct", 0)
+                        chg = fund.get("change_pct") or 0
                         # FMP batch-quote fallback
                         if not price:
                             fmp_fb = (fmp_prices.get(t)
@@ -553,7 +553,7 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                 cached_row = cache_map.get(t, {})
                 sc = int(cached_row.get("composite_score", 0.5) * 10) if cached_row else "N/A"
                 price = fund.get("current_price")
-                chg = fund.get("change_pct", 0)
+                chg = fund.get("change_pct") or 0
                 # FMP batch-quote fallback -- critical for IN stocks where yfinance fails on cloud IPs
                 if not price:
                     fmp_fb = (fmp_prices.get(t)
@@ -582,7 +582,7 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                     return "[VERIFIED]" if field_name not in missing_fields else "[UNAVAILABLE]"
                 detail_parts = [f"ForeCast={sc}/10"]
                 if price: detail_parts.append(f"CURRENT_PRICE={cur}{price:,.2f} {_marker('current_price')}")
-                if chg: detail_parts.append(f"CHANGE={chg:+.1f}%")
+                if chg is not None: detail_parts.append(f"CHANGE={chg:+.1f}%")
                 if pe: detail_parts.append(f"P/E_TTM={pe:.1f} {_marker('pe_ttm')}")
                 if eps: detail_parts.append(f"EPS={eps:.2f} {_marker('eps_ttm')}")
                 if pb: detail_parts.append(f"P/B={pb:.2f} {_marker('pb_ratio')}")
