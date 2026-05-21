@@ -69,6 +69,8 @@ services:
         sync: false
       - key: ALPACA_PAPER
         value: "true"
+      - key: LIVEKIT_URL
+        sync: false
       - key: LIVEKIT_API_KEY
         sync: false
       - key: LIVEKIT_API_SECRET
