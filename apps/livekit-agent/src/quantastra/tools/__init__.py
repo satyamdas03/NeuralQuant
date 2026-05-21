@@ -5,6 +5,8 @@ from quantastra.tools.portfolio_tools import PortfolioToolsMixin
 from quantastra.tools.screener_tools import ScreenerToolsMixin
 from quantastra.tools.research_tools import ResearchToolsMixin
 from quantastra.tools.macro_tools import MacroToolsMixin
+from quantastra.tools.whiteboard_tools import WhiteboardToolsMixin
+from quantastra.tools.vision_tools import VisionToolsMixin
 
 __all__ = [
     "MarketToolsMixin",
@@ -12,4 +14,6 @@ __all__ = [
     "ScreenerToolsMixin",
     "ResearchToolsMixin",
     "MacroToolsMixin",
+    "WhiteboardToolsMixin",
+    "VisionToolsMixin",
 ]

@@ -28,7 +28,7 @@ from livekit.agents import (
 from livekit.plugins import anthropic as lk_anthropic
 from livekit.plugins import deepgram
 from livekit.plugins import elevenlabs
-from livekit.rtc import LocalParticipant
+from livekit.rtc import LocalParticipant, VideoStream
 
 from quantastra.context import build_greeting_context
 from quantastra.persona import INITIAL_GREETING, SYSTEM_PROMPT
@@ -37,6 +37,8 @@ from quantastra.tools.market_tools import MarketToolsMixin
 from quantastra.tools.portfolio_tools import PortfolioToolsMixin
 from quantastra.tools.research_tools import ResearchToolsMixin
 from quantastra.tools.screener_tools import ScreenerToolsMixin
+from quantastra.tools.vision_tools import VisionToolsMixin
+from quantastra.tools.whiteboard_tools import WhiteboardToolsMixin
 
 load_dotenv()
 
@@ -63,6 +65,8 @@ class QuantAstraAgent(
     ScreenerToolsMixin,
     ResearchToolsMixin,
     MacroToolsMixin,
+    WhiteboardToolsMixin,
+    VisionToolsMixin,
     Agent,
 ):
     """QuantAstra — AI Portfolio Manager with 15 function-calling tools.
@@ -139,7 +143,7 @@ async def entrypoint(ctx: JobContext):
 
     agent = QuantAstraAgent(user_id, greeting_text)
 
-    await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
+    await ctx.connect(auto_subscribe=AutoSubscribe.SUBSCRIBE_ALL)
 
     session = AgentSession()
     await session.start(agent=agent, room=ctx.room)
@@ -147,6 +151,43 @@ async def entrypoint(ctx: JobContext):
     # ── Wire up data channel publishing ──────────────────────────────────
     participant = ctx.room.local_participant
     agent._participant = participant
+
+    # ── Screen share / video track handling ──────────────────────────────
+    @ctx.room.on("track_subscribed")
+    def _on_track_subscribed(
+        track, publication, participant
+    ):
+        if track.kind != "video":
+            return
+        log.info("Video track subscribed from %s", participant.identity)
+        agent._screen_sharing = True
+        stream = VideoStream(track)
+
+        async def _capture_frames():
+            try:
+                from livekit.agents.utils.images import encode, EncodeOptions, ResizeOptions
+                async for ev in stream:
+                    if ev.frame:
+                        agent._latest_frame = encode(ev.frame, EncodeOptions(
+                            format="JPEG",
+                            resize_options=ResizeOptions(
+                                width=1280, height=720,
+                                strategy="scale_aspect_fit",
+                            ),
+                        ))
+            except Exception:
+                log.debug("Video stream ended or errored", exc_info=True)
+                agent._screen_sharing = False
+                agent._latest_frame = None
+
+        asyncio.ensure_future(_capture_frames())
+
+    @ctx.room.on("track_unsubscribed")
+    def _on_track_unsubscribed(track, publication, participant):
+        if track.kind == "video":
+            log.info("Video track unsubscribed — screen share ended")
+            agent._screen_sharing = False
+            agent._latest_frame = None
 
     # Publish agent state changes to frontend
     @session.on("agent_state_changed")

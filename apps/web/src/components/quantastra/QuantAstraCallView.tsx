@@ -10,12 +10,13 @@ import {
   useRemoteParticipants,
   useTracks,
 } from "@livekit/components-react";
-import { Track } from "livekit-client";
+import { Track, createLocalScreenTracks, type LocalTrack } from "livekit-client";
 import "@livekit/components-styles";
 import QuantAstraStatusBar from "./QuantAstraStatusBar";
 import QuantAstraTranscriptPanel from "./QuantAstraTranscriptPanel";
 import QuantAstraFace from "./QuantAstraFace";
 import QuantAstraDataPanel from "./QuantAstraDataPanel";
+import QuantAstraWhiteboard from "./QuantAstraWhiteboard";
 
 class CallErrorBoundary extends Component<
   { children: React.ReactNode; onRetry: () => void },
@@ -71,6 +72,21 @@ interface ToolResult {
   result: Record<string, unknown>;
 }
 
+interface CalcStep {
+  label: string;
+  formula?: string;
+  value?: string;
+}
+
+interface WhiteboardContent {
+  title: string;
+  description?: string;
+  steps: CalcStep[];
+  result: string;
+  currency?: string;
+  disclaimer?: string;
+}
+
 type QuantAstraCallViewProps = {
   token: string;
   serverUrl: string;
@@ -83,6 +99,11 @@ function QuantAstraCallInner() {
   const [toolResults, setToolResults] = useState<ToolResult[]>([]);
   const [agentSpeaking, setAgentSpeaking] = useState(false);
   const [agentTimeout, setAgentTimeout] = useState(false);
+  const [whiteboardOpen, setWhiteboardOpen] = useState(false);
+  const [whiteboardContent, setWhiteboardContent] = useState<WhiteboardContent | null>(null);
+  const [screenSharing, setScreenSharing] = useState(false);
+  const [screenShareError, setScreenShareError] = useState("");
+  const screenTrackRef = useRef<Array<LocalTrack> | null>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -176,6 +197,15 @@ function QuantAstraCallInner() {
               setToolResults((prev) => [...prev, ...data.data]);
             }
             break;
+          case "whiteboard_update":
+            if (data.action === "show") {
+              setWhiteboardContent(data.content as WhiteboardContent);
+              setWhiteboardOpen(true);
+            } else if (data.action === "close") {
+              setWhiteboardOpen(false);
+              setWhiteboardContent(null);
+            }
+            break;
         }
       } catch {
         // Ignore malformed messages
@@ -192,6 +222,44 @@ function QuantAstraCallInner() {
   useEffect(() => {
     if (isSpeaking) setAgentSpeaking(true);
   }, [isSpeaking]);
+
+  // Screen share toggle
+  const handleScreenShare = useCallback(async () => {
+    if (screenSharing) {
+      // Stop sharing
+      if (screenTrackRef.current) {
+        screenTrackRef.current.forEach((track) => track.stop());
+        screenTrackRef.current = null;
+      }
+      setScreenSharing(false);
+      setScreenShareError("");
+      return;
+    }
+    try {
+      setScreenShareError("");
+      const tracks = await createLocalScreenTracks({ audio: false, video: {} });
+      screenTrackRef.current = tracks;
+      if (localParticipant.localParticipant) {
+        await localParticipant.localParticipant.publishTrack(tracks[0]);
+      }
+      setScreenSharing(true);
+    } catch (err: unknown) {
+      const error = err as { name?: string; message?: string } | undefined;
+      if (error?.name !== "AbortError") {
+        setScreenShareError(error?.message || "Screen share failed");
+      }
+      setScreenSharing(false);
+    }
+  }, [screenSharing, localParticipant.localParticipant]);
+
+  // Cleanup screen share on unmount
+  useEffect(() => {
+    return () => {
+      if (screenTrackRef.current) {
+        screenTrackRef.current.forEach((track) => track.stop());
+      }
+    };
+  }, []);
 
   return (
     <div className="flex h-full flex-col">
@@ -210,22 +278,63 @@ function QuantAstraCallInner() {
             Agent is taking longer than expected to join. The worker may be deploying — try again in a minute.
           </p>
         )}
-      </div>
-
-      {/* Transcript + Data side-by-side */}
-      <div className="flex flex-1 gap-0 overflow-hidden border-t border-ghost-border">
-        <div className="flex-1 overflow-hidden">
-          <QuantAstraTranscriptPanel
-            lines={transcriptLines}
-            endRef={transcriptEndRef}
-          />
+        {/* Whiteboard + Screen Share toggles */}
+        <div className="mt-3 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setWhiteboardOpen(!whiteboardOpen)}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              whiteboardOpen
+                ? "bg-primary-fixed/20 text-primary-fixed"
+                : "bg-ghost-border/30 text-on-surface-variant hover:text-on-surface"
+            }`}
+            title="Toggle whiteboard for calculations"
+          >
+            {whiteboardOpen ? "Hide Whiteboard" : "Whiteboard"}
+          </button>
+          <button
+            type="button"
+            onClick={handleScreenShare}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              screenSharing
+                ? "bg-primary-fixed/20 text-primary-fixed"
+                : "bg-ghost-border/30 text-on-surface-variant hover:text-on-surface"
+            }`}
+            title="Share your screen for QuantAstra to analyze"
+          >
+            {screenSharing ? "Stop Sharing" : "Share Screen"}
+          </button>
         </div>
-        {toolResults.length > 0 && (
-          <div className="w-72 shrink-0 border-l border-ghost-border">
-            <QuantAstraDataPanel results={toolResults} />
-          </div>
+        {screenShareError && (
+          <p className="mt-1 text-xs text-error">{screenShareError}</p>
         )}
       </div>
+
+      {/* Whiteboard panel (when open, replaces transcript+data split) */}
+      {whiteboardOpen ? (
+        <div className="flex-1 overflow-hidden border-t border-ghost-border">
+          <QuantAstraWhiteboard
+            content={whiteboardContent}
+            isOpen={whiteboardOpen}
+            onToggle={setWhiteboardOpen}
+          />
+        </div>
+      ) : (
+        /* Transcript + Data side-by-side */
+        <div className="flex flex-1 gap-0 overflow-hidden border-t border-ghost-border">
+          <div className="flex-1 overflow-hidden">
+            <QuantAstraTranscriptPanel
+              lines={transcriptLines}
+              endRef={transcriptEndRef}
+            />
+          </div>
+          {toolResults.length > 0 && (
+            <div className="w-72 shrink-0 border-l border-ghost-border">
+              <QuantAstraDataPanel results={toolResults} />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -272,8 +381,9 @@ export default function QuantAstraCallView({
           token={token}
           serverUrl={serverUrl}
           connect={true}
-          video={false}
+          video={true}
           audio={true}
+          screen={true}
           onDisconnected={handleDisconnected}
           className="h-full w-full quantastra-call"
           style={
