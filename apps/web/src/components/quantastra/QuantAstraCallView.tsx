@@ -19,14 +19,18 @@ import QuantAstraDataPanel from "./QuantAstraDataPanel";
 
 class CallErrorBoundary extends Component<
   { children: React.ReactNode; onRetry: () => void },
-  { hasError: boolean }
+  { hasError: boolean; errorMessage: string }
 > {
   constructor(props: { children: React.ReactNode; onRetry: () => void }) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, errorMessage: "" };
   }
   static getDerivedStateFromError() {
     return { hasError: true };
+  }
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("QuantAstra CallErrorBoundary caught:", error.message, error.stack, errorInfo.componentStack);
+    this.setState({ errorMessage: error.message });
   }
   render() {
     if (this.state.hasError) {
@@ -35,6 +39,11 @@ class CallErrorBoundary extends Component<
           <p className="text-sm text-on-surface-variant text-center">
             Connection interrupted. The agent may be restarting.
           </p>
+          {this.state.errorMessage && (
+            <p className="max-w-xs text-xs text-error/70 text-center font-mono break-all">
+              {this.state.errorMessage}
+            </p>
+          )}
           <button
             onClick={this.props.onRetry}
             className="rounded-full bg-primary-fixed px-4 py-2 text-sm font-semibold text-background"
@@ -224,9 +233,15 @@ export default function QuantAstraCallView({
   serverUrl,
   onDisconnected,
 }: QuantAstraCallViewProps) {
+  const [retryKey, setRetryKey] = useState(0);
+
   const handleDisconnected = useCallback(() => {
     onDisconnected?.();
   }, [onDisconnected]);
+
+  const handleRetry = useCallback(() => {
+    setRetryKey((k) => k + 1);
+  }, []);
 
   if (!token) {
     return (
@@ -238,9 +253,19 @@ export default function QuantAstraCallView({
     );
   }
 
+  if (!serverUrl) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <p className="text-sm text-on-surface-variant">
+          Unable to connect — LiveKit server URL is missing. Please try again.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="overflow-hidden rounded-lg" style={{ height: 560 }}>
-      <CallErrorBoundary onRetry={handleDisconnected}>
+      <CallErrorBoundary key={retryKey} onRetry={handleRetry}>
         <LiveKitRoom
           token={token}
           serverUrl={serverUrl}
