@@ -27,13 +27,10 @@ export default function QuantAstraFace({
     const target = isSpeaking && trackVolume > 0.01 ? trackVolume : 0;
     const current = volume;
     const diff = target - current;
+
+    if (Math.abs(diff) < 0.001) return;
+
     const step = diff * 0.3; // Smooth easing
-
-    if (Math.abs(diff) < 0.001) {
-      setVolume(target);
-      return;
-    }
-
     animationRef.current = requestAnimationFrame(() => {
       setVolume(current + step);
     });

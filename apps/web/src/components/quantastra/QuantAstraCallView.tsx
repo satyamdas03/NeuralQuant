@@ -68,7 +68,7 @@ type QuantAstraCallViewProps = {
   onDisconnected?: () => void;
 };
 
-function QuantAstraCallInner(_props: { onDisconnected?: () => void }) {
+function QuantAstraCallInner() {
   const [agentState, setAgentState] = useState<AgentState>("initializing");
   const [transcriptLines, setTranscriptLines] = useState<TranscriptLine[]>([]);
   const [toolResults, setToolResults] = useState<ToolResult[]>([]);
@@ -261,7 +261,7 @@ export default function QuantAstraCallView({
             } as React.CSSProperties
           }
         >
-          <QuantAstraCallInner onDisconnected={onDisconnected} />
+          <QuantAstraCallInner />
           <RoomAudioRenderer />
         </LiveKitRoom>
       </CallErrorBoundary>
