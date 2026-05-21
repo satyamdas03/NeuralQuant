@@ -193,7 +193,15 @@ def _fetch_portfolio_real_data(
         ticker = stock.get("ticker", "")
         if not ticker:
             continue
-        sym = ticker + ".NS" if market == "IN" and "." not in ticker else ticker
+        # Per-stock IN detection — avoids CME.NS / AAPL.NS 404s in mixed portfolios
+        is_in = ticker.upper().endswith((".NS", ".BO"))
+        if not is_in and market == "IN":
+            try:
+                from nq_api.universe import IN_DEFAULT
+                is_in = ticker.upper() in frozenset(IN_DEFAULT)
+            except Exception:
+                pass
+        sym = ticker + ".NS" if is_in and "." not in ticker else ticker
         info = _fetch_yf_info_cached(sym)
         if not info.get("_cached_ok"):
             continue
