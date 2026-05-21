@@ -163,43 +163,81 @@ class MarketToolsMixin:
     async def get_market_movers(self) -> str:
         """Get today's biggest market movers — top gainers and losers by percentage change.
         Use when the client wants to know what's moving dramatically in the market.
+        Also use as fallback when score_cache is unavailable to identify strong candidates.
         """
         try:
             import asyncio
-            import yfinance as yf
-
-            gainers_raw = await asyncio.to_thread(
-                lambda: yf.Screener(body={"operator": "gt", "field": "percent_change", "value": 3}).response
-            )
-            losers_raw = await asyncio.to_thread(
-                lambda: yf.Screener(body={"operator": "lt", "field": "percent_change", "value": -3}).response
-            )
 
             gainers = []
             losers = []
-            quotes = gainers_raw.get("quotes", []) if isinstance(gainers_raw, dict) else []
-            for q in quotes[:10]:
-                price = q.get("regularMarketPrice", 0) or 0
-                if price < 5:
-                    continue
-                gainers.append({
-                    "ticker": q.get("symbol", ""),
-                    "name": q.get("shortName") or q.get("longName", ""),
-                    "price": price,
-                    "change_pct": q.get("regularMarketChangePercent", 0),
-                })
 
-            loser_quotes = losers_raw.get("quotes", []) if isinstance(losers_raw, dict) else []
-            for q in loser_quotes[:10]:
-                price = q.get("regularMarketPrice", 0) or 0
-                if price < 5:
-                    continue
-                losers.append({
-                    "ticker": q.get("symbol", ""),
-                    "name": q.get("shortName") or q.get("longName", ""),
-                    "price": price,
-                    "change_pct": q.get("regularMarketChangePercent", 0),
-                })
+            fmp = None
+            # Tier 1: FMP market movers (primary, most reliable)
+            try:
+                from nq_data.fmp import get_fmp_client
+
+                fmp = get_fmp_client()
+                if fmp._enabled:
+                    fmp_gainers = await asyncio.to_thread(fmp.get_market_movers, "gainers")
+                    fmp_losers = await asyncio.to_thread(fmp.get_market_movers, "losers")
+
+                    for m in (fmp_gainers or [])[:10]:
+                        price = float(m.get("price", 0) or 0)
+                        if price < 5:
+                            continue
+                        gainers.append({
+                            "ticker": m.get("ticker", ""),
+                            "name": m.get("name", ""),
+                            "price": price,
+                            "change_pct": m.get("change_pct"),
+                        })
+
+                    for m in (fmp_losers or [])[:10]:
+                        price = float(m.get("price", 0) or 0)
+                        if price < 5:
+                            continue
+                        losers.append({
+                            "ticker": m.get("ticker", ""),
+                            "name": m.get("name", ""),
+                            "price": price,
+                            "change_pct": m.get("change_pct"),
+                        })
+            except Exception as exc:
+                log.debug("FMP movers failed: %s", exc)
+
+            # Tier 2: FMP batch quotes on well-known tickers (fallback)
+            if not gainers and not losers:
+                try:
+                    _MOVERS_UNIVERSE = [
+                        "AAPL", "MSFT", "NVDA", "GOOGL", "AMZN", "META", "TSLA", "AVGO",
+                        "LLY", "JPM", "V", "UNH", "XOM", "COST", "MA", "WMT", "NFLX",
+                        "ORCL", "ADBE", "CRM", "AMD", "BAC", "HD", "JNJ", "ABBV", "CVX",
+                        "PFE", "MCD", "ISRG", "DIS", "CAT", "IBM", "GE", "PLTR", "UBER",
+                    ]
+                    if fmp and fmp._enabled:
+                        batch = await asyncio.to_thread(fmp.get_batch_quotes, _MOVERS_UNIVERSE)
+                        rows = []
+                        for sym, q in (batch or {}).items():
+                            if not q or not q.get("price"):
+                                continue
+                            price = float(q["price"])
+                            if price < 5:
+                                continue
+                            chg = q.get("change_pct")
+                            if chg is None:
+                                chg = q.get("changesPercentage")
+                            rows.append({
+                                "ticker": sym,
+                                "name": q.get("name", sym),
+                                "price": price,
+                                "change_pct": chg,
+                            })
+                        if rows:
+                            rows.sort(key=lambda x: float(x["change_pct"] or 0), reverse=True)
+                            gainers = rows[:5]
+                            losers = list(reversed(rows[-5:]))
+                except Exception as exc:
+                    log.debug("FMP batch quotes movers fallback failed: %s", exc)
 
             return json.dumps({"status": "ok", "gainers": gainers, "losers": losers}, default=str)
         except Exception as exc:
