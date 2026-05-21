@@ -320,13 +320,27 @@ def read_enrichment_stale(ticker: str, market: str) -> dict[str, Any] | None:
     return None
 
 
+# Columns that exist in the enrichment_cache table (migration 009).
+# Any key not in this set causes PostgREST 400 — filter before upsert.
+_ENRICHMENT_COLUMNS = frozenset({
+    "rsi_14", "macd_line", "macd_signal", "macd_hist", "atr_14",
+    "sma_50", "sma_200", "price_vs_sma50", "price_vs_sma200",
+    "volume_today", "volume_20d_avg", "volume_ratio", "finnhub_price",
+    "insider_cluster_score", "insider_net_buy_ratio", "insider_summary",
+    "news_sentiment_label", "news_sentiment_score", "news_buzz",
+    "news_bullish_pct", "news_bearish_pct",
+})
+
+
 def write_enrichment(ticker: str, market: str, data: dict[str, Any]) -> bool:
     """Store enrichment data in Supabase. Returns True on success."""
     if not data:
         return False
     row = {"ticker": ticker.upper(), "market": market, "cached_at": datetime.now(timezone.utc).isoformat()}
-    # Only store JSON-serializable values (float, int, str, bool, None)
+    # Only store values for columns that exist in the table
     for k, v in data.items():
+        if k not in _ENRICHMENT_COLUMNS:
+            continue
         if isinstance(v, (int, float, str, bool)) or v is None:
             row[k] = v
         elif isinstance(v, dict):

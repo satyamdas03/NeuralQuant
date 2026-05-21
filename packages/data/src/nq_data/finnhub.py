@@ -461,6 +461,10 @@ class FinnhubClient:
             with broker.acquire("finnhub"):
                 resp = self._client.get(url, params=params)
 
+            if resp.status_code in (401, 403):
+                log.warning("Finnhub API key invalid/expired — disabling all Finnhub calls")
+                self._enabled = False
+                return None
             if resp.status_code == 429:
                 log.warning("Finnhub rate limited for %s/%s", endpoint, ticker)
                 return None
