@@ -264,7 +264,7 @@ async def run_nl_query(
         )
     except Exception as exc:
         return QueryResponse(
-            answer=f"Query failed: {str(exc)[:200]}",
+            answer="An error occurred while processing your query. Please try again.",
             data_sources=[],
             follow_up_questions=[],
             route="REACT",

@@ -12,7 +12,10 @@ import logging
 from datetime import datetime, timezone, timedelta
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+
+from nq_api.auth.deps import get_current_user
+from nq_api.auth.models import User
 
 log = logging.getLogger(__name__)
 
@@ -20,7 +23,11 @@ router = APIRouter(prefix="/live", tags=["live dashboard"])
 
 
 @router.get("/dashboard")
-def get_dashboard(market: str = "US", lookback_days: int = 30) -> dict:
+def get_dashboard(
+    market: str = "US",
+    lookback_days: int = 30,
+    user: User = Depends(get_current_user),
+) -> dict:
     """Aggregated dashboard data for live trading monitor."""
     from nq_api.cache.score_cache import _supabase_rest
 

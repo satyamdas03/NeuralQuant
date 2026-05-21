@@ -17,7 +17,10 @@ import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException, status
+
+from nq_api.auth.deps import get_current_user
+from nq_api.auth.models import User
 
 from nq_api.cache import score_cache
 from nq_api.universe import UNIVERSE_BY_MARKET
@@ -510,26 +513,47 @@ def get_risk_profile(profile: str = "balanced") -> dict:
     }
 
 
-@router.post("/log-signal")
-def log_signal(body: dict) -> dict:
-    """Log a signal for calibration tracking.
+from pydantic import BaseModel, Field
 
-    Body: {ticker, market, composite_score, edge, direction, entry_price, bet, strategy}
-    """
+
+class SignalLogRequest(BaseModel):
+    ticker: str = Field(..., min_length=1, max_length=10, pattern=r"^[A-Za-z0-9.-]+$")
+    market: str = Field(default="US", pattern=r"^(US|IN)$")
+    signal_date: str | None = None
+    composite_score: float = Field(..., ge=-100, le=100)
+    edge: float = Field(..., ge=-100, le=100)
+    direction: str = Field(default="bullish", pattern=r"^(bullish|bearish|neutral)$")
+    entry_price: float = Field(..., ge=0)
+    bet: float = Field(..., ge=0)
+    strategy: str = Field(default="default", max_length=50)
+
+
+class SignalResolveRequest(BaseModel):
+    signal_id: str = Field(..., min_length=1)
+    exit_price: float = Field(..., ge=0)
+    pnl: float = Field(...)
+
+
+@router.post("/log-signal")
+def log_signal(
+    body: SignalLogRequest,
+    user: User = Depends(get_current_user),
+) -> dict:
+    """Log a signal for calibration tracking. Requires authentication."""
     from nq_signals.calibration import CalibrationTracker, SignalRecord
     from datetime import datetime, timezone
 
     tracker = CalibrationTracker()
     record = SignalRecord(
-        ticker=body.get("ticker", ""),
-        market=body.get("market", "US"),
-        signal_date=body.get("signal_date", datetime.now(timezone.utc).isoformat()),
-        composite_score=float(body.get("composite_score", 0)),
-        edge=float(body.get("edge", 0)),
-        direction=body.get("direction", "bullish"),
-        entry_price=float(body.get("entry_price", 0)),
-        bet=float(body.get("bet", 0)),
-        strategy=body.get("strategy", "default"),
+        ticker=body.ticker,
+        market=body.market,
+        signal_date=body.signal_date or datetime.now(timezone.utc).isoformat(),
+        composite_score=body.composite_score,
+        edge=body.edge,
+        direction=body.direction,
+        entry_price=body.entry_price,
+        bet=body.bet,
+        strategy=body.strategy,
     )
     result = tracker.log_signal(record)
     if result:
@@ -538,18 +562,18 @@ def log_signal(body: dict) -> dict:
 
 
 @router.post("/resolve")
-def resolve_signal(body: dict) -> dict:
-    """Resolve a logged signal with exit price and PnL.
-
-    Body: {signal_id, exit_price, pnl}
-    """
+def resolve_signal(
+    body: SignalResolveRequest,
+    user: User = Depends(get_current_user),
+) -> dict:
+    """Resolve a logged signal with exit price and PnL. Requires authentication."""
     from nq_signals.calibration import CalibrationTracker
 
     tracker = CalibrationTracker()
     ok = tracker.resolve_signal(
-        signal_id=body.get("signal_id", ""),
-        exit_price=float(body.get("exit_price", 0)),
-        pnl=float(body.get("pnl", 0)),
+        signal_id=body.signal_id,
+        exit_price=body.exit_price,
+        pnl=body.pnl,
     )
     if ok:
         return {"status": "resolved"}

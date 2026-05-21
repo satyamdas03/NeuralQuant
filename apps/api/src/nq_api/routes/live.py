@@ -14,7 +14,10 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+
+from nq_api.auth.deps import get_current_user
+from nq_api.auth.models import User
 
 from nq_api.cache import score_cache
 from nq_api.universe import UNIVERSE_BY_MARKET
@@ -104,6 +107,7 @@ async def execute_pipeline(
     bankroll: float = 10000.0,
     n: int = 5,
     live: bool = False,
+    user: User = Depends(get_current_user),
 ) -> dict:
     """Run full signal-to-order pipeline.
 

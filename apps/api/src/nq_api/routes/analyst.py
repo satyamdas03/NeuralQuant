@@ -10,7 +10,7 @@ import json
 import logging
 import os
 import time
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 import yfinance as yf
 from nq_api.schemas import AnalystRequest, AnalystResponse, AgentOutput
@@ -932,8 +932,10 @@ async def run_analyst_stream(
 
 
 @router.get("/envcheck")
-async def envcheck():
-    """Runtime check: confirms model availability and config at request time."""
+async def envcheck(user: User = Depends(get_current_user_optional)):
+    """Runtime check: confirms model availability and config at request time. Auth required."""
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
     from nq_api.agents.base import FAST_MODEL, MODEL, _is_ollama as _base_is_ollama, _resolve_model, _validated_models
     from nq_api.agents.orchestrator import _is_ollama as _orch_is_ollama
     resolved_fast = _resolve_model(FAST_MODEL, MODEL)

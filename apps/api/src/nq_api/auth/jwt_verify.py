@@ -1,11 +1,14 @@
-"""Verify Supabase-issued JWTs (HS256 shared-secret or ES256 via JWKS)."""
+"""Verify Supabase-issued JWTs (ES256/RS256 via JWKS, HS256 fallback)."""
 from __future__ import annotations
+import logging
 import os
 from functools import lru_cache
 from typing import Any
 
 import jwt  # PyJWT
 from jwt import PyJWKClient
+
+log = logging.getLogger(__name__)
 
 
 class JWTVerificationError(Exception):
@@ -24,32 +27,16 @@ def _jwks_client() -> PyJWKClient | None:
 
 def verify_supabase_jwt(token: str) -> dict[str, Any]:
     """
-    Verify JWT from Supabase. Tries HS256 (legacy shared secret) first,
-    falls back to ES256 via JWKS for modern asymmetric-key projects.
+    Verify JWT from Supabase. Tries JWKS (ES256/RS256) first for modern
+    asymmetric-key projects, falls back to HS256 shared secret for legacy.
     Returns decoded claims on success, raises JWTVerificationError on failure.
     """
     if not token:
         raise JWTVerificationError("empty token")
 
     audience = os.environ.get("SUPABASE_JWT_AUDIENCE", "authenticated")
-    secret = os.environ.get("SUPABASE_JWT_SECRET", "").strip()
 
-    # HS256 path (legacy — still the default for most Supabase projects)
-    if secret:
-        try:
-            return jwt.decode(
-                token,
-                secret,
-                algorithms=["HS256"],
-                audience=audience,
-                options={"require": ["exp", "sub"]},
-            )
-        except jwt.PyJWTError as exc:
-            hs_err = exc
-    else:
-        hs_err = None
-
-    # ES256 path (asymmetric — modern Supabase JWT signing keys)
+    # ES256/RS256 path (asymmetric — modern Supabase JWT signing keys)
     client = _jwks_client()
     if client is not None:
         try:
@@ -61,9 +48,21 @@ def verify_supabase_jwt(token: str) -> dict[str, Any]:
                 audience=audience,
                 options={"require": ["exp", "sub"]},
             )
-        except jwt.PyJWTError as exc:
-            raise JWTVerificationError(f"jwks verify failed: {exc}") from exc
+        except jwt.PyJWTError:
+            pass  # fall through to HS256
 
-    if hs_err is not None:
-        raise JWTVerificationError(f"hs256 verify failed: {hs_err}") from hs_err
-    raise JWTVerificationError("no SUPABASE_JWT_SECRET and no JWKS available")
+    # HS256 path (legacy shared secret)
+    secret = os.environ.get("SUPABASE_JWT_SECRET", "").strip()
+    if secret:
+        try:
+            return jwt.decode(
+                token,
+                secret,
+                algorithms=["HS256"],
+                audience=audience,
+                options={"require": ["exp", "sub"]},
+            )
+        except jwt.PyJWTError as exc:
+            raise JWTVerificationError("token verification failed") from exc
+
+    raise JWTVerificationError("no JWKS available and no SUPABASE_JWT_SECRET configured")

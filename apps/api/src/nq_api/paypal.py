@@ -107,9 +107,11 @@ def verify_webhook_signature(
     """
     webhook_id = os.environ.get("PAYPAL_WEBHOOK_ID", "")
     if not webhook_id:
-        log.warning("PAYPAL_WEBHOOK_ID not set — skipping webhook signature verification")
-        # In development, allow through. Production MUST set this.
-        return True
+        if os.environ.get("ENVIRONMENT") == "development":
+            log.warning("PAYPAL_WEBHOOK_ID not set — allowing webhook in development")
+            return True
+        log.error("PAYPAL_WEBHOOK_ID not set in production — rejecting webhook")
+        return False
 
     token = _get_access_token()
 

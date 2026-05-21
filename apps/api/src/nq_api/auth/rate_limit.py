@@ -112,9 +112,6 @@ def enforce_tier_quota(endpoint: str):
         # Launch window: skip all quota checks until 2026-05-30
         if _quota_free():
             return user
-        # Dev-mode bypass: skip tier gates entirely in development
-        if os.environ.get("ENVIRONMENT") == "development":
-            return user
         cap = _cap_for(user.tier, endpoint) + user.referral_bonus_queries
         if cap == 0:
             raise HTTPException(
@@ -160,8 +157,6 @@ def enforce_guest_quota(endpoint: str):
     ) -> User | None:
         # Launch window: skip all quota checks until 2026-05-30
         if _quota_free():
-            return user
-        if os.environ.get("ENVIRONMENT") == "development":
             return user
         # Authed users: normal tier limits
         if user is not None:

@@ -7,7 +7,7 @@ CORS_ORIGINS = os.environ.get(
     "http://localhost:3000,http://127.0.0.1:3000,https://neuralquant.vercel.app,https://neuralquant.co,https://www.neuralquant.co",
 ).split(",")
 
-CORS_ORIGIN_REGEX = os.environ.get("CORS_ORIGIN_REGEX", r"https://(.*\.vercel\.app|neuralquant\.co|www\.neuralquant\.co)")
+CORS_ORIGIN_REGEX = os.environ.get("CORS_ORIGIN_REGEX", r"https://(neuralquant(-[a-z0-9]+)?\.vercel\.app|neuralquant\.co|www\.neuralquant\.co)")
 
 # ── External URLs ────────────────────────────────────────────────────────────
 YAHOO_CHART_URL = os.environ.get(
