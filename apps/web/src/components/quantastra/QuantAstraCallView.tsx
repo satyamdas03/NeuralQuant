@@ -90,7 +90,9 @@ function QuantAstraCallInner() {
   const remoteParticipants = useRemoteParticipants();
   const localParticipant = useLocalParticipant();
   const agentParticipant = remoteParticipants[0];
-  const isSpeaking = useIsSpeaking(agentParticipant);
+  // useIsSpeaking throws if passed undefined — fall back to local participant
+  // (local won't report agent audio, so isSpeaking stays false until agent joins)
+  const isSpeaking = useIsSpeaking(agentParticipant ?? localParticipant.localParticipant);
 
   // Clear agent timeout when remote participant appears
   useEffect(() => {
