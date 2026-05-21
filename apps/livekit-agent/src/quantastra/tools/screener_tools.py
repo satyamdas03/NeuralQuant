@@ -22,12 +22,16 @@ class ScreenerToolsMixin:
         min_value_percentile: float = 0.0,
         n: int = 10,
     ) -> str:
-        """Screen for stocks matching specific criteria using NeuralQuant's AI scores.
-        Filter by minimum momentum percentile, minimum quality percentile, value percentile,
-        and market. Returns ranked results with scores and key metrics.
+        """Screen for stocks matching specific criteria using AI factor scores.
+        Filter by minimum momentum, quality, and value percentiles.
 
-        Use when client asks 'find me stocks with strong momentum and quality' or
-        'what are the best value stocks right now?'
+        FALLBACK: If score cache is unavailable, DO NOT retry. Pivot to
+        get_market_movers() to find strong gainers, then call get_stock_price()
+        on each candidate to build your own filtered list.
+
+        VOICE: Present results as a story. "Here's what the screen found —
+        three names stand out. First, NVDA with exceptional momentum and quality.
+        Second..." Never read results as a table or numbered list.
 
         Parameters:
             market: Market — 'US' or 'IN'

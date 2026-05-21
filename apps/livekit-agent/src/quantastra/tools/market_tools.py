@@ -19,16 +19,20 @@ class MarketToolsMixin:
         ticker: str,
         market: str = "US",
     ) -> str:
-        """Get the current price, key fundamentals, and AI score for a specific stock.
+        """Get live price and fundamentals for a stock: current price, P/E, beta,
+        market cap, sector, ROE, revenue growth, analyst target, 52-week range,
+        and AI composite score with factor percentiles.
 
-        Returns live price, P/E ratio, beta, market cap, sector, composite score (1-10),
-        momentum/quality/value percentiles, and 52-week range.
+        ALWAYS call this before giving any stock analysis.
 
-        ALWAYS call this before giving any analysis about a stock.
+        VOICE: Describe metrics naturally as a story. "NVDA trades at $223 with
+        a P/E of 42 — that's expensive, but justified by seventy-six percent ROE
+        and dominant AI positioning. Our models score it 8.7 out of 10."
+        Never recite field names or format as a table.
 
         Parameters:
             ticker: Stock ticker symbol, e.g. 'AAPL', 'NVDA', 'RELIANCE', 'TCS'
-            market: Market — 'US' for US stocks, 'IN' for Indian stocks
+            market: Market — 'US' or 'IN'
         """
         try:
             from nq_api.data_builder import _fetch_one
@@ -68,11 +72,13 @@ class MarketToolsMixin:
 
     @function_tool
     async def get_market_overview(self) -> str:
-        """Get the current market overview including major indices (S&P 500, Nifty 50, VIX),
-        top-gaining sectors, and broad market sentiment.
+        """Get current market overview: VIX, S&P 500 return, 10-year yield,
+        Fed funds rate, high-yield spreads, CPI, ISM PMI, plus top 5 US and
+        India AI-ranked stocks. Use when client asks how markets are doing.
 
-        Use when the client asks 'how's the market doing?' or wants market context before
-        making decisions.
+        VOICE: Narrate macro naturally. "Markets are calm — VIX at eighteen,
+        S&P up over five percent this month, ten-year yield steady at four
+        point two." Don't recite field names like "VIX: 18, SPX return: 5.2%."
         """
         try:
             from nq_api.data_builder import fetch_real_macro
@@ -116,10 +122,13 @@ class MarketToolsMixin:
         market: str = "US",
         n: int = 10,
     ) -> str:
-        """Get the top AI-ranked stocks for a market. Returns tickers with their
-        composite scores (1-10), momentum/quality/value percentiles, P/E, and sector.
+        """Get the top AI-ranked stocks with composite scores (1-10) and factor
+        percentiles. Use when client asks for best picks or what's hot.
 
-        Use when the client asks 'what stocks should I buy?' or 'what's hot right now?'
+        FALLBACK: If score data is unavailable (nightly refresh), DO NOT retry
+        this tool. Instead call get_market_movers() to find strong gainers, then
+        call get_stock_price() on the top candidates. Combine with
+        get_sector_performance() and get_macro_context() to build your own ranking.
 
         Parameters:
             market: Market — 'US' or 'IN'

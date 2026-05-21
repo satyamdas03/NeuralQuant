@@ -15,11 +15,15 @@ class MacroToolsMixin:
 
     @function_tool
     async def get_macro_context(self) -> str:
-        """Get comprehensive macroeconomic context including VIX, yield curve,
-        Fed funds rate, CPI, HY spreads, currency rates, and market regime label.
+        """Get comprehensive macro context: VIX, yield curve (normal/inverted),
+        10Y and 2Y yields, Fed funds rate, CPI inflation, HY credit spreads,
+        ISM manufacturing PMI, S&P 500 returns. Use for macro backdrop.
 
-        Use when client asks about the macro environment, interest rates,
-        inflation, or wants to understand the broader economic backdrop.
+        VOICE: Tell the macro story conversationally. "The macro picture is
+        constructive — VIX is calm at eighteen, the Fed is on hold at four
+        and a quarter percent, inflation has cooled to under three percent,
+        and credit markets are healthy with tight spreads."
+        Don't recite field names like a dashboard readout.
         """
         try:
             from nq_api.data_builder import fetch_real_macro
