@@ -449,6 +449,14 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
             if not cached:
                 cached = score_cache.read_top(target_market, 20, max_age_seconds=999999999)
             if cached:
+                # Pre-fetch FMP batch quotes for top 5 screener stocks (bypasses _fetch_one cache)
+                if not fmp_prices and fmp_client._enabled:
+                    try:
+                        top_tickers = [row.get("ticker", "") for row in cached[:5] if row.get("ticker")]
+                        if top_tickers:
+                            fmp_prices = fmp_client.get_batch_quotes(top_tickers) or {}
+                    except Exception:
+                        pass
                 lines = [f"NeuralQuant {target_market} Screener -- Top 20 (cached scores). LIVE PRICES for top 5 -- USE THESE, NOT training data:"]
                 for i, row in enumerate(cached[:20]):
                     t = row.get("ticker", "")

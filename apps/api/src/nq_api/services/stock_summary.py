@@ -121,6 +121,21 @@ def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, plat
         except Exception:
             pass
 
+    # Fallback tier 2: yf.download direct — bypasses _fetch_one cache, different Yahoo endpoint
+    if not price and effective_ticker:
+        try:
+            import yfinance as yf
+            from nq_api.data_builder import _get_yf_session, _yf_symbol
+            sym = _yf_symbol(effective_ticker, detected_market)
+            hist = yf.download(sym, period="5d", progress=False, auto_adjust=True,
+                               threads=False, session=_get_yf_session())
+            if hist is not None and not hist.empty and "Close" in hist.columns:
+                close_vals = hist["Close"].dropna()
+                if len(close_vals) > 0:
+                    price = float(close_vals.iloc[-1])
+        except Exception:
+            pass
+
     # Fallback: try score_cache for fundamentals if _fetch_one failed or returned incomplete data
     # (Finnhub may provide price but miss P/E, Beta, etc. -- score_cache often has them.)
     needs_cache = (price is None or pe is None or beta is None or mcap is None) and effective_ticker
@@ -149,12 +164,22 @@ def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, plat
             pass
 
     # FMP supplement: DCF valuation, analyst target, insider trading, estimates, earnings
+    # Also: direct FMP profile/quote fallback for price (bypasses _fetch_one cache)
     if effective_ticker:
         try:
             from nq_data.fmp import get_fmp_client
             fmp = get_fmp_client()
             if fmp._enabled:
                 fmp_sym = _yf_symbol(effective_ticker, detected_market)
+                # Direct FMP profile/quote fallback for price (bypasses _fetch_one cache)
+                if not price:
+                    fmp_prof = fmp.get_profile(fmp_sym)
+                    if fmp_prof and fmp_prof.get("price"):
+                        price = float(fmp_prof["price"])
+                if not price:
+                    fmp_quote = fmp.get_quote(fmp_sym)
+                    if fmp_quote and fmp_quote.get("price"):
+                        price = float(fmp_quote["price"])
                 # DCF valuation
                 if not target:
                     fmp_target = fmp.get_price_target(fmp_sym)

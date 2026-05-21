@@ -732,7 +732,7 @@ def _fetch_one(ticker: str, market: str, fast_pe: bool = True) -> dict:
         if cache_key in _fund_cache:
             age = now - _fund_ts.get(cache_key, 0)
             cached = _fund_cache[cache_key]
-            max_age = FUND_TTL if cached.get("_is_real") else 30
+            max_age = FUND_TTL if cached.get("_is_real") else 5
             if age < max_age:
                 return _fund_cache[cache_key]
 
@@ -741,7 +741,7 @@ def _fetch_one(ticker: str, market: str, fast_pe: bool = True) -> dict:
     raw_info: dict = {"_cached_ok": False}
 
     # ── FMP fast path: skip yfinance entirely when FMP has data ──
-    fmp_info = _fetch_fmp_info(ticker)
+    fmp_info = _fetch_fmp_info(sym)
     if fmp_info is not None and fmp_info.get("_cached_ok"):
         info = {k: v for k, v in fmp_info.items() if not k.startswith("_")}
         raw_info = {"_cached_ok": True, "_fmp_piotroski": fmp_info.get("_fmp_piotroski")}

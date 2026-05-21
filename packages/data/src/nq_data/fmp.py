@@ -585,26 +585,34 @@ class FMPClient:
         url = f"{self.BASE_URL}/{endpoint_path}"
         params["apikey"] = self._api_key
 
-        try:
-            with broker.acquire("fmp"):
-                resp = self._client.get(url, params=params)
+        for attempt in range(3):
+            try:
+                with broker.acquire("fmp"):
+                    resp = self._client.get(url, params=params)
 
-            if resp.status_code == 429:
-                log.warning("FMP rate limited for %s/%s", endpoint, ticker)
-                return None
-            if resp.status_code != 200:
-                log.debug("FMP %s/%s returned %d", endpoint, ticker, resp.status_code)
-                return None
+                if resp.status_code == 429:
+                    if attempt < 2:
+                        time.sleep(1.5 * (attempt + 1))
+                        continue
+                    log.warning("FMP rate limited for %s/%s after 3 attempts", endpoint, ticker)
+                    return None
+                if resp.status_code != 200:
+                    log.debug("FMP %s/%s returned %d", endpoint, ticker, resp.status_code)
+                    return None
 
-            data = resp.json()
-            self._cache_set(cat, ticker, data)
-            return data
-        except httpx.TimeoutException:
-            log.warning("FMP timeout for %s/%s", endpoint, ticker)
-            return None
-        except Exception as exc:
-            log.warning("FMP error %s/%s: %s", endpoint, ticker, exc)
-            return None
+                data = resp.json()
+                self._cache_set(cat, ticker, data)
+                return data
+            except httpx.TimeoutException:
+                if attempt < 2:
+                    time.sleep(0.5 * (attempt + 1))
+                    continue
+                log.warning("FMP timeout for %s/%s after 3 attempts", endpoint, ticker)
+                return None
+            except Exception as exc:
+                log.warning("FMP error %s/%s: %s", endpoint, ticker, exc)
+                return None
+        return None
 
     def _endpoint_path(self, category: str) -> str:
         """Map cache category to FMP /stable/ endpoint path."""
