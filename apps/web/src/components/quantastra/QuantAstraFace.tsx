@@ -15,7 +15,9 @@ export default function QuantAstraFace({
   audioTrack?: TrackReference;
 }) {
   const [volume, setVolume] = useState(0);
+  const [barHeights, setBarHeights] = useState([4, 4, 4, 4, 4]);
   const animationRef = useRef<number>(0);
+  const barAnimRef = useRef<number>(0);
 
   // Use LiveKit's track volume hook for real audio levels during speaking
   const trackVolume = useTrackVolume(audioTrack);
@@ -47,6 +49,31 @@ export default function QuantAstraFace({
     }, 400);
     return () => clearInterval(interval);
   }, [agentState]);
+
+  // Audio bar animation — computed in rAF, not render
+  useEffect(() => {
+    let running = true;
+    const animate = () => {
+      if (!running) return;
+      const now = Date.now();
+      const v = volume;
+      setBarHeights(
+        [0, 1, 2, 3, 4].map((i) => {
+          if (isSpeaking) {
+            const h = 4 + Math.sin(now / 100 + i * 0.7) * v * 24 + Math.random() * v * 8;
+            return Math.max(h, 3);
+          }
+          if (agentState === "thinking") {
+            return Math.max(4 + Math.sin(now / 300 + i) * 8, 3);
+          }
+          return 4;
+        })
+      );
+      barAnimRef.current = requestAnimationFrame(animate);
+    };
+    barAnimRef.current = requestAnimationFrame(animate);
+    return () => { running = false; cancelAnimationFrame(barAnimRef.current); };
+  }, [isSpeaking, agentState, volume]);
 
   const mouthScale = 0.3 + Math.min(volume * 12, 0.7);
   const eyeScale = 0.95 + Math.min(volume * 1.5, 0.05);
@@ -133,20 +160,13 @@ export default function QuantAstraFace({
 
       {/* Audio bars */}
       <div className="absolute -bottom-1 left-1/2 flex -translate-x-1/2 gap-0.5">
-        {[0, 1, 2, 3, 4].map((i) => {
-          const barHeight = isSpeaking
-            ? 4 + Math.sin(Date.now() / 100 + i * 0.7) * volume * 24 + Math.random() * volume * 8
-            : agentState === "thinking"
-              ? 4 + Math.sin(Date.now() / 300 + i) * 8
-              : 4;
-          return (
-            <div
-              key={i}
-              className="w-1 rounded-full bg-primary-fixed/60 transition-all duration-100"
-              style={{ height: `${Math.max(barHeight, 3)}px` }}
-            />
-          );
-        })}
+        {barHeights.map((h, i) => (
+          <div
+            key={i}
+            className="w-1 rounded-full bg-primary-fixed/60 transition-all duration-100"
+            style={{ height: `${h}px` }}
+          />
+        ))}
       </div>
     </div>
   );

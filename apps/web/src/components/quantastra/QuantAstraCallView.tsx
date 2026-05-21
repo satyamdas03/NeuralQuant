@@ -68,7 +68,7 @@ type QuantAstraCallViewProps = {
   onDisconnected?: () => void;
 };
 
-function QuantAstraCallInner({ onDisconnected }: { onDisconnected?: () => void }) {
+function QuantAstraCallInner(_props: { onDisconnected?: () => void }) {
   const [agentState, setAgentState] = useState<AgentState>("initializing");
   const [transcriptLines, setTranscriptLines] = useState<TranscriptLine[]>([]);
   const [toolResults, setToolResults] = useState<ToolResult[]>([]);
