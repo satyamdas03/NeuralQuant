@@ -59,21 +59,71 @@ export default function QuantAstraWhiteboard({
     if (!ctx) return;
 
     const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
+    const parent = canvas.parentElement;
+    if (!parent) return;
 
-    const W = rect.width;
-    const H = rect.height;
+    const containerW = parent.clientWidth;
+    const containerH = parent.clientHeight;
     const pad = 32;
 
+    // Measure content height first so canvas is sized to fit all content
+    const measureCtx = ctx;
+    measureCtx.font = "700 22px 'Inter', system-ui, sans-serif";
+    let contentY = pad + 10 + 36; // title
+
+    if (content.description) {
+      measureCtx.font = "14px 'Inter', system-ui, sans-serif";
+      const words = content.description.split(" ");
+      let line = "";
+      let lineCount = 0;
+      for (const word of words) {
+        const test = line + word + " ";
+        if (measureCtx.measureText(test).width > containerW - pad * 2) {
+          lineCount++;
+          line = word + " ";
+        } else {
+          line = test;
+        }
+      }
+      if (line) lineCount++;
+      contentY += lineCount * 22 + 16;
+    }
+
+    contentY += 1 + 26; // divider
+
+    for (let i = 0; i < content.steps.length; i++) {
+      contentY += 56;
+    }
+    contentY += 8;
+
+    // result box
+    if (content.steps.length > 0) {
+      contentY += 56;
+    }
+
+    // disclaimer
+    if (content.disclaimer) {
+      contentY += 74;
+    }
+
+    const totalH = Math.max(containerH, contentY + pad);
+
+    // Size canvas buffer + CSS to fit all content
+    canvas.width = containerW * dpr;
+    canvas.height = totalH * dpr;
+    canvas.style.width = containerW + "px";
+    canvas.style.height = totalH + "px";
+    ctx.scale(dpr, dpr);
+
+    const W = containerW;
+    const H = totalH;
+
     const draw = () => {
-      // Whiteboard background — opaque off-white like a real whiteboard
+      // Whiteboard background
       ctx.fillStyle = "#fafbfc";
       ctx.fillRect(0, 0, W, H);
 
-      // Subtle dot grid — light gray, barely visible
+      // Dot grid
       ctx.fillStyle = "rgba(209, 213, 219, 0.5)";
       const gridSize = 28;
       for (let x = pad; x < W - pad; x += gridSize) {
@@ -86,7 +136,7 @@ export default function QuantAstraWhiteboard({
 
       let y = pad + 10;
 
-      // Title — dark bold
+      // Title
       ctx.fillStyle = "#111827";
       ctx.font = "700 22px 'Inter', system-ui, sans-serif";
       ctx.fillText(content.title, pad, y);
@@ -115,7 +165,7 @@ export default function QuantAstraWhiteboard({
         y += 16;
       }
 
-      // Divider — light gray
+      // Divider
       ctx.strokeStyle = "rgba(209, 213, 219, 0.8)";
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -124,14 +174,13 @@ export default function QuantAstraWhiteboard({
       ctx.stroke();
       y += 26;
 
-      // Steps — revealed one by one
+      // Steps
       const visibleSteps = stepIndexRef.current;
       for (let i = 0; i < content.steps.length; i++) {
         const step = content.steps[i];
         const isVisible = i < visibleSteps;
         const alpha = isVisible ? 1 : 0.12;
 
-        // Step background highlight — light gray
         if (isVisible) {
           ctx.fillStyle = "rgba(243, 244, 246, 0.9)";
           const stepH = 52;
@@ -140,24 +189,20 @@ export default function QuantAstraWhiteboard({
           ctx.fill();
         }
 
-        // Step number — emerald accent
         ctx.fillStyle = `rgba(5, 150, 105, ${alpha * 0.8})`;
         ctx.font = "600 13px 'Inter', system-ui, sans-serif";
         ctx.fillText(`${i + 1}.`, pad, y + 4);
 
-        // Step label — dark bold for visible, gray for hidden
         ctx.fillStyle = `rgba(17, 24, 39, ${alpha})`;
         ctx.font = `${isVisible ? "700" : "400"} 14px 'Inter', system-ui, sans-serif`;
         ctx.fillText(step.label, pad + 28, y + 4);
 
-        // Formula — dark mono
         if (step.formula) {
           ctx.fillStyle = `rgba(55, 65, 81, ${alpha * 0.9})`;
           ctx.font = "13px 'JetBrains Mono', 'Fira Code', monospace";
           ctx.fillText(step.formula, pad + 28, y + 22);
         }
 
-        // Value (right-aligned) — dark emerald bold
         if (step.value && isVisible) {
           ctx.fillStyle = "#059669";
           ctx.font = "700 15px 'JetBrains Mono', 'Fira Code', monospace";
@@ -170,7 +215,7 @@ export default function QuantAstraWhiteboard({
 
       y += 8;
 
-      // Result highlight box — light emerald background with dark text
+      // Result box
       if (stepIndexRef.current >= content.steps.length) {
         ctx.fillStyle = "rgba(209, 250, 229, 0.7)";
         ctx.strokeStyle = "rgba(5, 150, 105, 0.4)";
@@ -191,7 +236,7 @@ export default function QuantAstraWhiteboard({
         ctx.fillText(content.result, W - pad - resW - 8, y + 38);
       }
 
-      // Disclaimer — medium gray
+      // Disclaimer
       if (content.disclaimer && stepIndexRef.current >= content.steps.length) {
         y += 70;
         ctx.fillStyle = "rgba(107, 114, 128, 0.7)";
@@ -212,7 +257,7 @@ export default function QuantAstraWhiteboard({
     <div
       className={
         fullscreen
-          ? "fixed inset-0 z-50 bg-background flex flex-col"
+          ? "fixed inset-0 z-[70] bg-white flex flex-col"
           : "flex flex-col h-full border-l border-gray-200 bg-white"
       }
     >
@@ -240,10 +285,10 @@ export default function QuantAstraWhiteboard({
       </div>
 
       {/* Canvas */}
-      <div className="flex-1 relative">
+      <div className="flex-1 overflow-auto">
         <canvas
           ref={canvasRef}
-          className="absolute inset-0 w-full h-full"
+          className="w-full block"
           style={{ imageRendering: "auto" }}
         />
         {!content && (
