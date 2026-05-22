@@ -69,38 +69,32 @@ export default function QuantAstraWhiteboard({
     const pad = 32;
 
     const draw = () => {
-      // Whiteboard background
-      ctx.fillStyle = "#1a1f2e";
+      // Whiteboard background — opaque off-white like a real whiteboard
+      ctx.fillStyle = "#fafbfc";
       ctx.fillRect(0, 0, W, H);
 
-      // Subtle grid
-      ctx.strokeStyle = "rgba(71, 255, 184, 0.06)";
-      ctx.lineWidth = 0.5;
+      // Subtle dot grid — light gray, barely visible
+      ctx.fillStyle = "rgba(209, 213, 219, 0.5)";
       const gridSize = 28;
       for (let x = pad; x < W - pad; x += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, H);
-        ctx.stroke();
-      }
-      for (let y = pad; y < H - pad; y += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(W, y);
-        ctx.stroke();
+        for (let y = pad; y < H - pad; y += gridSize) {
+          ctx.beginPath();
+          ctx.arc(x, y, 1, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
 
       let y = pad + 10;
 
-      // Title
-      ctx.fillStyle = "#47ffb8";
-      ctx.font = "600 22px 'Inter', system-ui, sans-serif";
+      // Title — dark bold
+      ctx.fillStyle = "#111827";
+      ctx.font = "700 22px 'Inter', system-ui, sans-serif";
       ctx.fillText(content.title, pad, y);
       y += 36;
 
       // Description
       if (content.description) {
-        ctx.fillStyle = "#94a3b8";
+        ctx.fillStyle = "#4b5563";
         ctx.font = "14px 'Inter', system-ui, sans-serif";
         const words = content.description.split(" ");
         let line = "";
@@ -121,8 +115,8 @@ export default function QuantAstraWhiteboard({
         y += 16;
       }
 
-      // Divider
-      ctx.strokeStyle = "rgba(71, 255, 184, 0.2)";
+      // Divider — light gray
+      ctx.strokeStyle = "rgba(209, 213, 219, 0.8)";
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(pad, y);
@@ -135,38 +129,38 @@ export default function QuantAstraWhiteboard({
       for (let i = 0; i < content.steps.length; i++) {
         const step = content.steps[i];
         const isVisible = i < visibleSteps;
-        const alpha = isVisible ? 1 : 0.15;
+        const alpha = isVisible ? 1 : 0.12;
 
-        // Step background highlight
+        // Step background highlight — light gray
         if (isVisible) {
-          ctx.fillStyle = "rgba(71, 255, 184, 0.05)";
+          ctx.fillStyle = "rgba(243, 244, 246, 0.9)";
           const stepH = 52;
           ctx.beginPath();
           ctx.roundRect(pad - 8, y - 8, W - pad * 2 + 16, stepH + 8, 8);
           ctx.fill();
         }
 
-        // Step number
-        ctx.fillStyle = `rgba(71, 255, 184, ${alpha * 0.7})`;
+        // Step number — emerald accent
+        ctx.fillStyle = `rgba(5, 150, 105, ${alpha * 0.8})`;
         ctx.font = "600 13px 'Inter', system-ui, sans-serif";
         ctx.fillText(`${i + 1}.`, pad, y + 4);
 
-        // Step label
-        ctx.fillStyle = `rgba(226, 232, 240, ${alpha})`;
-        ctx.font = `${isVisible ? "600" : "400"} 14px 'Inter', system-ui, sans-serif`;
+        // Step label — dark bold for visible, gray for hidden
+        ctx.fillStyle = `rgba(17, 24, 39, ${alpha})`;
+        ctx.font = `${isVisible ? "700" : "400"} 14px 'Inter', system-ui, sans-serif`;
         ctx.fillText(step.label, pad + 28, y + 4);
 
-        // Formula
+        // Formula — dark mono
         if (step.formula) {
-          ctx.fillStyle = `rgba(148, 163, 184, ${alpha * 0.9})`;
+          ctx.fillStyle = `rgba(55, 65, 81, ${alpha * 0.9})`;
           ctx.font = "13px 'JetBrains Mono', 'Fira Code', monospace";
           ctx.fillText(step.formula, pad + 28, y + 22);
         }
 
-        // Value (right-aligned)
+        // Value (right-aligned) — dark emerald bold
         if (step.value && isVisible) {
-          ctx.fillStyle = "#47ffb8";
-          ctx.font = "600 15px 'JetBrains Mono', 'Fira Code', monospace";
+          ctx.fillStyle = "#059669";
+          ctx.font = "700 15px 'JetBrains Mono', 'Fira Code', monospace";
           const valW = ctx.measureText(step.value).width;
           ctx.fillText(step.value, W - pad - valW, y + 12);
         }
@@ -176,10 +170,10 @@ export default function QuantAstraWhiteboard({
 
       y += 8;
 
-      // Result highlight box
+      // Result highlight box — light emerald background with dark text
       if (stepIndexRef.current >= content.steps.length) {
-        ctx.fillStyle = "rgba(71, 255, 184, 0.1)";
-        ctx.strokeStyle = "rgba(71, 255, 184, 0.35)";
+        ctx.fillStyle = "rgba(209, 250, 229, 0.7)";
+        ctx.strokeStyle = "rgba(5, 150, 105, 0.4)";
         ctx.lineWidth = 1.5;
         const boxH = 52;
         ctx.beginPath();
@@ -187,20 +181,20 @@ export default function QuantAstraWhiteboard({
         ctx.fill();
         ctx.stroke();
 
-        ctx.fillStyle = "#47ffb8";
-        ctx.font = "600 16px 'Inter', system-ui, sans-serif";
+        ctx.fillStyle = "#047857";
+        ctx.font = "700 16px 'Inter', system-ui, sans-serif";
         ctx.fillText("Result", pad + 8, y + 18);
 
-        ctx.fillStyle = "#e2e8f0";
-        ctx.font = "700 18px 'JetBrains Mono', 'Fira Code', monospace";
+        ctx.fillStyle = "#111827";
+        ctx.font = "800 18px 'JetBrains Mono', 'Fira Code', monospace";
         const resW = ctx.measureText(content.result).width;
         ctx.fillText(content.result, W - pad - resW - 8, y + 38);
       }
 
-      // Disclaimer
+      // Disclaimer — medium gray
       if (content.disclaimer && stepIndexRef.current >= content.steps.length) {
         y += 70;
-        ctx.fillStyle = "rgba(148, 163, 184, 0.6)";
+        ctx.fillStyle = "rgba(107, 114, 128, 0.7)";
         ctx.font = "11px 'Inter', system-ui, sans-serif";
         ctx.fillText(content.disclaimer, pad, y);
       }
@@ -219,25 +213,25 @@ export default function QuantAstraWhiteboard({
       className={
         fullscreen
           ? "fixed inset-0 z-50 bg-background flex flex-col"
-          : "flex flex-col h-full border-l border-ghost-border bg-[#0d1425]"
+          : "flex flex-col h-full border-l border-gray-200 bg-white"
       }
     >
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-ghost-border">
-        <span className="text-xs font-semibold text-primary-fixed tracking-wide">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200">
+        <span className="text-xs font-semibold text-gray-700 tracking-wide">
           QUANTASTRA WHITEBOARD
         </span>
         <div className="flex items-center gap-1">
           <button
             onClick={() => setFullscreen(!fullscreen)}
-            className="rounded p-1 text-on-surface-variant hover:bg-ghost-border hover:text-on-surface transition-colors"
+            className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
             title={fullscreen ? "Exit fullscreen" : "Fullscreen"}
           >
             {fullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
           </button>
           <button
             onClick={() => onToggle(false)}
-            className="rounded p-1 text-on-surface-variant hover:bg-ghost-border hover:text-on-surface transition-colors"
+            className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
             title="Close whiteboard"
           >
             <X size={16} />
@@ -254,7 +248,7 @@ export default function QuantAstraWhiteboard({
         />
         {!content && (
           <div className="absolute inset-0 flex items-center justify-center">
-            <p className="text-sm text-on-surface-variant/60">
+            <p className="text-sm text-gray-400">
               Whiteboard ready — ask me to calculate something
             </p>
           </div>

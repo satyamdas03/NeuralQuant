@@ -383,7 +383,6 @@ export default function QuantAstraCallView({
           connect={true}
           video={true}
           audio={true}
-          screen={true}
           onDisconnected={handleDisconnected}
           className="h-full w-full quantastra-call"
           style={

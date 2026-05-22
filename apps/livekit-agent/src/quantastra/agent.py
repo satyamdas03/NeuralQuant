@@ -100,6 +100,8 @@ class QuantAstraAgent(
         )
         self._user_id = user_id
         self._participant: LocalParticipant | None = None
+        self._screen_sharing: bool = False
+        self._latest_frame: bytes | None = None
 
     async def transcription_node(
         self, text, model_settings: ModelSettings
@@ -146,13 +148,10 @@ async def entrypoint(ctx: JobContext):
     await ctx.connect(auto_subscribe=AutoSubscribe.SUBSCRIBE_ALL)
 
     session = AgentSession()
-    await session.start(agent=agent, room=ctx.room)
-
-    # ── Wire up data channel publishing ──────────────────────────────────
-    participant = ctx.room.local_participant
-    agent._participant = participant
 
     # ── Screen share / video track handling ──────────────────────────────
+    # MUST be registered before session.start() so we don't miss tracks
+    # that arrive during agent initialization.
     @ctx.room.on("track_subscribed")
     def _on_track_subscribed(
         track, publication, participant
@@ -188,6 +187,12 @@ async def entrypoint(ctx: JobContext):
             log.info("Video track unsubscribed — screen share ended")
             agent._screen_sharing = False
             agent._latest_frame = None
+
+    await session.start(agent=agent, room=ctx.room)
+
+    # ── Wire up data channel publishing ──────────────────────────────────
+    participant = ctx.room.local_participant
+    agent._participant = participant
 
     # Publish agent state changes to frontend
     @session.on("agent_state_changed")
