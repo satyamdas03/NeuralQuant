@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS public.user_sessions (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id         UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    user_id         UUID NOT NULL,
     started_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     ended_at        TIMESTAMPTZ,
     duration_seconds INT,
@@ -19,7 +19,7 @@ CREATE INDEX IF NOT EXISTS idx_user_sessions_started_at ON public.user_sessions(
 CREATE TABLE IF NOT EXISTS public.session_activities (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     session_id      UUID NOT NULL REFERENCES public.user_sessions(id) ON DELETE CASCADE,
-    user_id         UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    user_id         UUID NOT NULL,
     activity_type   TEXT NOT NULL,
     category        TEXT NOT NULL,
     label           TEXT,
@@ -34,7 +34,7 @@ CREATE INDEX IF NOT EXISTS idx_session_activities_created_at ON public.session_a
 CREATE TABLE IF NOT EXISTS public.session_reports (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     session_id      UUID NOT NULL REFERENCES public.user_sessions(id) ON DELETE CASCADE,
-    user_id         UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    user_id         UUID NOT NULL,
     report_text     TEXT,
     summary         TEXT,
     email_sent      BOOLEAN DEFAULT false,
