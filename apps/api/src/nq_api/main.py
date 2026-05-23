@@ -26,6 +26,7 @@ from nq_api.slack.router import router as slack_router
 from nq_api.routes.checkout import router as checkout_router
 from nq_api.routes.webhooks_paypal import router as paypal_webhook_router
 from nq_api.routes.referrals import router as referral_router
+from nq_api.routes.session import router as session_router
 
 
 def _run_pending_migrations():
@@ -446,6 +447,7 @@ app.include_router(auth_webhook_router)
 app.include_router(market_wrap_router)
 app.include_router(terminal_router, prefix="/terminal", tags=["terminal"])
 app.include_router(livekit_token_router)
+app.include_router(session_router)
 
 
 @app.get("/health")

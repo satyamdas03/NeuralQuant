@@ -10,6 +10,7 @@ import ChatInputArea from "@/components/ui/ChatInputArea";
 import GlassPanel from "@/components/ui/GlassPanel";
 import type { UserProfile } from "@/lib/types";
 import { authedApi } from "@/lib/api";
+import { useSessionTracker } from "@/lib/session-tracker";
 
 const EXAMPLES = [
   "What is the effect of Iran-US tensions on oil stocks?",
@@ -31,6 +32,7 @@ interface ChatMessage {
 }
 
 export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
+  const { logActivity } = useSessionTracker();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [slowLoad, setSlowLoad] = useState(false);
@@ -87,6 +89,7 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
   const ask = async (question: string, overrideProfile?: UserProfile, overrideClarification?: string[]) => {
     const q = question.trim();
     if (!q || loading) return;
+    logActivity("ask_ai_question", "conversation", q, { question: q, ticker: defaultTicker });
     setLastUserQuestion(q);
     setClarificationAnswers(undefined);
     setSlowLoad(false);
@@ -143,6 +146,13 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
         },
       );
       // Mark final phase as completed on result
+      logActivity("ask_ai_response", "conversation", `AI: ${res.summary?.slice(0, 100) || ""}`, {
+        ticker: defaultTicker,
+        question: q,
+        summary: res.summary?.slice(0, 500),
+        data_sources: res.data_sources,
+        is_portfolio: res.is_portfolio_response,
+      });
       const completionTs = Date.now();
       setMessages((prev) =>
         prev.map((m) => {

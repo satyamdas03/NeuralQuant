@@ -17,6 +17,7 @@ import QuantAstraTranscriptPanel from "./QuantAstraTranscriptPanel";
 import QuantAstraFace from "./QuantAstraFace";
 import QuantAstraDataPanel from "./QuantAstraDataPanel";
 import QuantAstraWhiteboard from "./QuantAstraWhiteboard";
+import { useSessionTracker } from "@/lib/session-tracker";
 
 class CallErrorBoundary extends Component<
   { children: React.ReactNode; onRetry: () => void },
@@ -94,6 +95,7 @@ type QuantAstraCallViewProps = {
 };
 
 function QuantAstraCallInner() {
+  const { logActivity } = useSessionTracker();
   const [agentState, setAgentState] = useState<AgentState>("initializing");
   const [transcriptLines, setTranscriptLines] = useState<TranscriptLine[]>([]);
   const [toolResults, setToolResults] = useState<ToolResult[]>([]);
@@ -182,6 +184,10 @@ function QuantAstraCallInner() {
             }
             break;
           case "user_transcript":
+            logActivity("quantastra_user_speech", "conversation", data.text?.slice(0, 200), {
+              text: data.text,
+              is_final: data.is_final,
+            });
             setTranscriptLines((prev) => [
               ...prev,
               {
@@ -194,11 +200,20 @@ function QuantAstraCallInner() {
             break;
           case "tool_results":
             if (Array.isArray(data.data)) {
+              for (const tr of data.data) {
+                logActivity("quantastra_tool_used", "analysis", `Agent used: ${tr.tool}`, {
+                  tool: tr.tool,
+                });
+              }
               setToolResults((prev) => [...prev, ...data.data]);
             }
             break;
           case "whiteboard_update":
             if (data.action === "show") {
+              logActivity("quantastra_whiteboard", "feature", data.content?.title || "Calculation shown", {
+                title: data.content?.title,
+                result: data.content?.result,
+              });
               setWhiteboardContent(data.content as WhiteboardContent);
               setWhiteboardOpen(true);
             } else if (data.action === "close") {

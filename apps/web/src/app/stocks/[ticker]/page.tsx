@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { api, authedApi } from "@/lib/api";
+import { useSessionTracker } from "@/lib/session-tracker";
 import Link from "next/link";
 import type { AIScore, AnalystResponse, StockMeta, Market, SentimentResponse } from "@/lib/types";
 import { AIScoreCard } from "@/components/AIScoreCard";
@@ -22,6 +23,7 @@ export default function StockPage() {
   const searchParams = useSearchParams();
   const ticker = (params.ticker as string) ?? "";
   const market = (searchParams.get("market") ?? "US") as Market;
+  const { logActivity } = useSessionTracker();
 
   const [score, setScore] = useState<AIScore | null>(null);
   const [meta, setMeta] = useState<StockMeta | null>(null);
@@ -33,6 +35,7 @@ export default function StockPage() {
   const [watchlisted, setWatchlisted] = useState(false);
 
   useEffect(() => {
+    logActivity("stock_view", "analysis", `Viewed ${ticker}`, { ticker, market });
     api.getStock(ticker, market)
       .then(setScore)
       .catch((e) => {
@@ -50,6 +53,7 @@ export default function StockPage() {
   }, [ticker, market]);
 
   const runDebate = async () => {
+    logActivity("para_debate_start", "analysis", `PARA-DEBATE: ${ticker}`, { ticker, market });
     setAnalysing(true);
     try {
       // Use SSE streaming variant so Render's 30 s idle-connection timeout

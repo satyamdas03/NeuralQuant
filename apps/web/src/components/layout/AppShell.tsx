@@ -1,12 +1,25 @@
 "use client";
 
+import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import SideNavBar from "./SideNavBar";
 import BottomMobileNav from "./BottomMobileNav";
+import { useSessionTracker } from "@/lib/session-tracker";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isLanding = pathname === "/";
+  const { logActivity } = useSessionTracker();
+
+  // Log page views on navigation
+  useEffect(() => {
+    if (!isLanding) {
+      logActivity("page_view", "navigation", `Visited ${pathname}`, {
+        path: pathname,
+        title: typeof document !== "undefined" ? document.title : "",
+      });
+    }
+  }, [pathname, isLanding, logActivity]);
 
   if (isLanding) {
     return <>{children}</>;
