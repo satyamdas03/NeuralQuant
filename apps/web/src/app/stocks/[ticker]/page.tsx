@@ -50,7 +50,7 @@ export default function StockPage() {
     authedApi.listWatchlist().then(r => {
       setWatchlisted(r.items.some(i => i.ticker === ticker.toUpperCase()));
     }).catch(() => {}); // Not logged in — non-critical
-  }, [ticker, market]);
+  }, [ticker, market, logActivity]);
 
   const runDebate = async () => {
     logActivity("para_debate_start", "analysis", `PARA-DEBATE: ${ticker}`, { ticker, market });

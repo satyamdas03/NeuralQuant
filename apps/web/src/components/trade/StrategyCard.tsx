@@ -1,7 +1,6 @@
 "use client";
 
 import type { TradeStrategy } from "@/lib/types";
-import GlassPanel from "@/components/ui/GlassPanel";
 import {
   TrendingUp,
   DollarSign,

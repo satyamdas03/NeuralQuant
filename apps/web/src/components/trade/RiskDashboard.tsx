@@ -2,7 +2,7 @@
 
 import type { CalibrationReport } from "@/lib/types";
 import GlassPanel from "@/components/ui/GlassPanel";
-import { Target, TrendingUp, TrendingDown, BarChart3, Shield } from "lucide-react";
+import { Target, TrendingUp, BarChart3, Shield } from "lucide-react";
 
 export default function RiskDashboard({
   calibration,

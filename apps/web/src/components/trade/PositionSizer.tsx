@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import GlassPanel from "@/components/ui/GlassPanel";
 import { Calculator, DollarSign, Percent, TrendingUp } from "lucide-react";
 

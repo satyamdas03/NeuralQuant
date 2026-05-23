@@ -2,7 +2,7 @@
 
 import type { CalibrationReport } from "@/lib/types";
 import GlassPanel from "@/components/ui/GlassPanel";
-import { History, TrendingUp } from "lucide-react";
+import { History } from "lucide-react";
 
 export default function CalibrationPanel({
   report,

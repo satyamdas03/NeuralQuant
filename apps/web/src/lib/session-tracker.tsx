@@ -127,11 +127,11 @@ async function endSessionOnServer(sessionId: string): Promise<void> {
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [sessionId, setSessionId] = useState<string | null>(getStorageSessionId);
+  const [sessionStarted, setSessionStarted] = useState(!!sessionId);
   const sessionRef = useRef<string | null>(sessionId);
   const queueRef = useRef<ActivityEntry[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const idleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const hasStartedRef = useRef(!!sessionId);
 
   // Keep ref in sync
   useEffect(() => {
@@ -229,7 +229,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         sessionRef.current = sid;
         setSessionId(sid);
         setStorageSessionId(sid);
-        hasStartedRef.current = true;
+        setSessionStarted(true);
       }
 
       const entry: ActivityEntry = {
@@ -269,7 +269,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     <SessionContext.Provider
       value={{
         sessionId,
-        sessionStarted: hasStartedRef.current,
+        sessionStarted,
         logActivity,
         endSession,
       }}

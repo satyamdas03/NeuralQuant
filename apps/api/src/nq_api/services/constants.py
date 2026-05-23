@@ -225,12 +225,12 @@ _TICKER_STOP_WORDS = {
 _PHASE_LABELS = {
     "classify":  "Understanding your question",
     "news":      "Scanning latest market headlines",
-    "macro":     "Loading macro context (VIX, SPX, yields, CPI)",
-    "platform":  "Reading NeuralQuant ForeCast scores + factor data",
+    "macro":     "Loading real-time market indicators",
+    "platform":  "Reading QuantAlpha ForeCast scores + factor data",
     "context":   "Assembling reasoning context",
-    "prompt":    "Sending data to AI (Claude Sonnet 4.6)",
+    "prompt":    "Preparing AI analysis",
     "thinking":  "AI is reasoning over the data",
     "generate":  "AI is generating structured response",
-    "parse":     "Parsing AI output into rich cards",
-    "render":    "Building NeuralQuant ForeCast",
+    "parse":     "Processing results",
+    "render":    "Building QuantAlpha ForeCast",
 }

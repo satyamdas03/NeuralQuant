@@ -2,7 +2,7 @@
 
 import type { TradeSignal } from "@/lib/types";
 import GlassPanel from "@/components/ui/GlassPanel";
-import { TrendingUp, TrendingDown, DollarSign, Target, AlertTriangle } from "lucide-react";
+import { TrendingUp, DollarSign, Target, AlertTriangle } from "lucide-react";
 
 function formatMarketCap(mcap: number | null): string {
   if (!mcap) return "—";

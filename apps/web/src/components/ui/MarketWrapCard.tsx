@@ -34,7 +34,6 @@ export default function MarketWrapCard() {
   useEffect(() => {
     if (data[tab]) return;
     let cancelled = false;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     apiFetch<WrapData>(`/market-wrap/today?market=${tab}`)
       .then((d) => { if (!cancelled) setData((p) => ({ ...p, [tab]: d })); })

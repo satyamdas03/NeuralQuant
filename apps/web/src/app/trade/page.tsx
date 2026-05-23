@@ -15,8 +15,6 @@ import {
   TrendingUp,
   RefreshCw,
   DollarSign,
-  Globe,
-  Loader2,
   Play,
 } from "lucide-react";
 

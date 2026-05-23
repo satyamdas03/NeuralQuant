@@ -225,7 +225,7 @@ function QuantAstraCallInner() {
       } catch {
         // Ignore malformed messages
       }
-    }, []),
+    }, [logActivity]),
   );
 
   // Auto-scroll transcript
