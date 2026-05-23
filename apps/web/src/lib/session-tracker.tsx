@@ -44,6 +44,21 @@ const MAX_QUEUE_SIZE = 50;
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  try {
+    const { createClient } = await import("./supabase/client");
+    const supabase = createClient();
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.access_token) {
+      headers["Authorization"] = `Bearer ${data.session.access_token}`;
+    }
+  } catch {
+    // Best effort — guest or beforeunload won't have auth
+  }
+  return headers;
+}
+
 function getStorageSessionId(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("nq_tracked_session_id");
@@ -61,9 +76,10 @@ function clearStorageSessionId() {
 
 async function createSession(): Promise<string | null> {
   try {
+    const headers = await getAuthHeaders();
     const res = await fetch(`${API_BASE}/session/start`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({
         user_agent: navigator.userAgent,
         metadata: { url: window.location.href },
@@ -82,9 +98,10 @@ async function flushActivities(
   activities: ActivityEntry[],
 ): Promise<boolean> {
   try {
+    const headers = await getAuthHeaders();
     const res = await fetch(`${API_BASE}/session/activity`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ session_id: sessionId, activities }),
     });
     return res.ok;
@@ -95,9 +112,10 @@ async function flushActivities(
 
 async function endSessionOnServer(sessionId: string): Promise<void> {
   try {
+    const headers = await getAuthHeaders();
     await fetch(`${API_BASE}/session/end`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ session_id: sessionId }),
     });
   } catch {

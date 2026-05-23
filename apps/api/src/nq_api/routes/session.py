@@ -94,13 +94,17 @@ def start_session(
         request.client.host if request.client else None
     )
 
+    metadata = body.metadata or {}
+    if user and user.email:
+        metadata["email"] = user.email
+
     payload = {
         "user_id": str(user_id),
         "started_at": _now_iso(),
         "user_agent": body.user_agent,
         "ip_address": ip,
         "is_guest": user is None,
-        "metadata": body.metadata or {},
+        "metadata": metadata,
     }
 
     try:
@@ -167,12 +171,11 @@ def end_session(
     user: Optional[User] = Depends(get_current_user_optional),
 ):
     """Close a session and trigger analysis + email generation."""
-    user_id = user.id if user else _guest_id(request)
-
-    # Fetch session to get started_at
+    # Fetch session by ID alone — beforeunload sendBeacon has no auth header,
+    # so we can't filter by user_id. Session IDs are unguessable UUIDs.
     try:
         sessions = _supabase_rest(
-            f"user_sessions?id=eq.{body.session_id}&user_id=eq.{str(user_id)}&select=*",
+            f"user_sessions?id=eq.{body.session_id}&select=*",
             method="GET",
         )
     except Exception:
@@ -181,6 +184,12 @@ def end_session(
     session_row = sessions[0] if isinstance(sessions, list) and sessions else None
     if not session_row:
         raise HTTPException(404, "Session not found")
+
+    # If caller is authenticated, verify they own this session
+    if user:
+        stored_user_id = session_row.get("user_id")
+        if stored_user_id and str(stored_user_id) != str(user.id):
+            raise HTTPException(403, "Session does not belong to this user")
 
     started_at = session_row.get("started_at")
     ended_at = _now_iso()
@@ -209,8 +218,14 @@ def end_session(
         log.exception("Failed to end session")
         raise HTTPException(500, f"Failed to end session: {str(e)}")
 
-    # Trigger analysis + email in background
-    email = user.email if user else None
+    # Resolve email: current auth user first, then session metadata (for beforeunload)
+    email = None
+    if user and user.email:
+        email = user.email
+    if not email:
+        email = session_row.get("metadata", {}).get("email")
+
+    stored_uid = session_row.get("user_id")
     name = email.split("@")[0] if email else None
 
     if email and duration_seconds and duration_seconds > 30:
@@ -218,7 +233,7 @@ def end_session(
         background_tasks.add_task(
             analyze_and_email,
             session_id=body.session_id,
-            user_id=str(user_id),
+            user_id=str(stored_uid),
             user_email=email,
             user_name=name,
             duration_seconds=duration_seconds,
