@@ -69,6 +69,9 @@ class MultilingualSarvamTTS:
         self._temperature = temperature
         self._extra_kwargs = kwargs
         self._cache: dict[str, object] = {}
+        # Eager default TTS — needed before first synthesize() because LiveKit
+        # calls .on(), .prewarm() at setup time before any text arrives.
+        self._default = self._get_tts("en-IN")
 
     def _get_tts(self, lang_code: str):
         """Return (or create + cache) a Sarvam TTS for *lang_code*."""
@@ -93,9 +96,43 @@ class MultilingualSarvamTTS:
         tts = self._get_tts(lang)
         return tts.synthesize(text)
 
+    def prewarm(self) -> None:
+        """Pre-warm all cached TTS connections."""
+        for tts in self._cache.values():
+            tts.prewarm()
+
+    def on(self, event: str, handler):
+        """Register event handler on all cached TTS instances."""
+        for tts in self._cache.values():
+            tts.on(event, handler)
+
+    def off(self, event: str, handler):
+        """Remove event handler from all cached TTS instances."""
+        for tts in self._cache.values():
+            tts.off(event, handler)
+
+    async def aclose(self) -> None:
+        """Close all cached TTS connections."""
+        for tts in self._cache.values():
+            await tts.aclose()
+
+    @property
+    def label(self) -> str:
+        return f"{type(self).__module__}.{type(self).__name__}"
+
     @property
     def model(self) -> str:
         return self._model
+
+    @property
+    def provider(self) -> str:
+        return "sarvam"
+
+    @property
+    def capabilities(self):
+        from livekit.agents.tts.tts import TTSCapabilities
+
+        return TTSCapabilities(streaming=True)
 
     @property
     def sample_rate(self) -> int:
@@ -104,7 +141,3 @@ class MultilingualSarvamTTS:
     @property
     def num_channels(self) -> int:
         return 1
-
-    @property
-    def streaming(self) -> bool:
-        return True
