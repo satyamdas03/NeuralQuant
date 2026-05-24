@@ -132,7 +132,7 @@ class MultilingualSarvamTTS:
     def capabilities(self):
         from livekit.agents.tts.tts import TTSCapabilities
 
-        return TTSCapabilities(streaming=True)
+        return TTSCapabilities(streaming=False)
 
     @property
     def sample_rate(self) -> int:
