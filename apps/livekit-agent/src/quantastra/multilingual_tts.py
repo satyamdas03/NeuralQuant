@@ -89,7 +89,7 @@ class MultilingualSarvamTTS:
             log.info("MultilingualSarvamTTS: created TTS for %s", lang_code)
         return self._cache[lang_code]
 
-    def synthesize(self, *, text: str, conn_options=None):
+    def synthesize(self, text: str, *, conn_options=None):
         """Auto-detect language and delegate to the matching Sarvam TTS."""
         lang = detect_indian_language(text)
         log.debug("TTS language: %s (text len=%d)", lang, len(text))
