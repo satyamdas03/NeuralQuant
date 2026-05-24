@@ -28,7 +28,7 @@ from livekit.agents import (
 from livekit.plugins import anthropic as lk_anthropic
 from livekit.plugins import deepgram
 from livekit.plugins import elevenlabs
-from livekit.rtc import LocalParticipant, VideoStream
+from livekit.rtc import LocalParticipant
 
 from quantastra.context import build_greeting_context
 from quantastra.persona import INITIAL_GREETING, SYSTEM_PROMPT
@@ -37,7 +37,7 @@ from quantastra.tools.market_tools import MarketToolsMixin
 from quantastra.tools.portfolio_tools import PortfolioToolsMixin
 from quantastra.tools.research_tools import ResearchToolsMixin
 from quantastra.tools.screener_tools import ScreenerToolsMixin
-from quantastra.tools.vision_tools import VisionToolsMixin
+from quantastra.tools.upload_tools import UploadToolsMixin
 from quantastra.tools.whiteboard_tools import WhiteboardToolsMixin
 
 load_dotenv()
@@ -66,7 +66,7 @@ class QuantAstraAgent(
     ResearchToolsMixin,
     MacroToolsMixin,
     WhiteboardToolsMixin,
-    VisionToolsMixin,
+    UploadToolsMixin,
     Agent,
 ):
     """QuantAstra — AI Portfolio Manager with 15 function-calling tools.
@@ -100,8 +100,6 @@ class QuantAstraAgent(
         )
         self._user_id = user_id
         self._participant: LocalParticipant | None = None
-        self._screen_sharing: bool = False
-        self._latest_frame: bytes | None = None
 
     async def transcription_node(
         self, text, model_settings: ModelSettings
@@ -145,48 +143,26 @@ async def entrypoint(ctx: JobContext):
 
     agent = QuantAstraAgent(user_id, greeting_text)
 
-    await ctx.connect(auto_subscribe=AutoSubscribe.SUBSCRIBE_ALL)
+    await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
 
     session = AgentSession()
 
-    # ── Screen share / video track handling ──────────────────────────────
-    # MUST be registered before session.start() so we don't miss tracks
-    # that arrive during agent initialization.
-    @ctx.room.on("track_subscribed")
-    def _on_track_subscribed(
-        track, publication, participant
-    ):
-        if track.kind != "video":
+    # ── File upload data channel listener ────────────────────────────────
+    @ctx.room.on("data_received")
+    def _on_data_received(payload, participant=None):
+        try:
+            msg = json.loads(payload) if isinstance(payload, (str, bytes)) else {}
+            if isinstance(payload, bytes):
+                msg = json.loads(payload.decode("utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError):
             return
-        log.info("Video track subscribed from %s", participant.identity)
-        agent._screen_sharing = True
-        stream = VideoStream(track)
-
-        async def _capture_frames():
-            try:
-                from livekit.agents.utils.images import encode, EncodeOptions, ResizeOptions
-                async for ev in stream:
-                    if ev.frame:
-                        agent._latest_frame = encode(ev.frame, EncodeOptions(
-                            format="JPEG",
-                            resize_options=ResizeOptions(
-                                width=1280, height=720,
-                                strategy="scale_aspect_fit",
-                            ),
-                        ))
-            except Exception:
-                log.debug("Video stream ended or errored", exc_info=True)
-                agent._screen_sharing = False
-                agent._latest_frame = None
-
-        asyncio.ensure_future(_capture_frames())
-
-    @ctx.room.on("track_unsubscribed")
-    def _on_track_unsubscribed(track, publication, participant):
-        if track.kind == "video":
-            log.info("Video track unsubscribed — screen share ended")
-            agent._screen_sharing = False
-            agent._latest_frame = None
+        if msg.get("type") == "file_upload":
+            file_name = msg.get("file_name", "unknown")
+            mime_type = msg.get("mime_type", "application/octet-stream")
+            data_b64 = msg.get("data_b64", "")
+            size = msg.get("size", 0)
+            agent._add_upload(file_name, mime_type, data_b64, size)
+            log.info("Received file upload: %s (%s, %d bytes)", file_name, mime_type, size)
 
     await session.start(agent=agent, room=ctx.room)
 

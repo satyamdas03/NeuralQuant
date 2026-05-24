@@ -10,7 +10,7 @@ import {
   useRemoteParticipants,
   useTracks,
 } from "@livekit/components-react";
-import { Track, createLocalScreenTracks, type LocalTrack } from "livekit-client";
+import { Track } from "livekit-client";
 import "@livekit/components-styles";
 import QuantAstraStatusBar from "./QuantAstraStatusBar";
 import QuantAstraTranscriptPanel from "./QuantAstraTranscriptPanel";
@@ -103,9 +103,8 @@ function QuantAstraCallInner() {
   const [agentTimeout, setAgentTimeout] = useState(false);
   const [whiteboardOpen, setWhiteboardOpen] = useState(false);
   const [whiteboardContent, setWhiteboardContent] = useState<WhiteboardContent | null>(null);
-  const [screenSharing, setScreenSharing] = useState(false);
-  const [screenShareError, setScreenShareError] = useState("");
-  const screenTrackRef = useRef<Array<LocalTrack> | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -238,43 +237,44 @@ function QuantAstraCallInner() {
     if (isSpeaking) setAgentSpeaking(true);
   }, [isSpeaking]);
 
-  // Screen share toggle
-  const handleScreenShare = useCallback(async () => {
-    if (screenSharing) {
-      // Stop sharing
-      if (screenTrackRef.current) {
-        screenTrackRef.current.forEach((track) => track.stop());
-        screenTrackRef.current = null;
-      }
-      setScreenSharing(false);
-      setScreenShareError("");
-      return;
-    }
+  // File upload handler — read file as base64 and send via data channel
+  const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !localParticipant.localParticipant) return;
+    setUploading(true);
     try {
-      setScreenShareError("");
-      const tracks = await createLocalScreenTracks({ audio: false, video: {} });
-      screenTrackRef.current = tracks;
-      if (localParticipant.localParticipant) {
-        await localParticipant.localParticipant.publishTrack(tracks[0]);
+      const bytes = await file.arrayBuffer();
+      const chunkSize = 0x8000; // 32KB chunks to avoid stack overflow
+      const uint8 = new Uint8Array(bytes);
+      let base64 = "";
+      for (let i = 0; i < uint8.length; i += chunkSize) {
+        const chunk = uint8.subarray(i, i + chunkSize);
+        base64 += String.fromCharCode.apply(null, Array.from(chunk));
       }
-      setScreenSharing(true);
-    } catch (err: unknown) {
-      const error = err as { name?: string; message?: string } | undefined;
-      if (error?.name !== "AbortError") {
-        setScreenShareError(error?.message || "Screen share failed");
-      }
-      setScreenSharing(false);
+      base64 = btoa(base64);
+      const payload = new TextEncoder().encode(JSON.stringify({
+        type: "file_upload",
+        file_name: file.name,
+        mime_type: file.type || "application/octet-stream",
+        data_b64: base64,
+        size: file.size,
+      }));
+      await localParticipant.localParticipant.publishData(payload, {
+        reliable: true,
+        topic: "quantastra",
+      });
+      logActivity("quantastra_file_upload", "feature", `Uploaded: ${file.name}`, {
+        file_name: file.name,
+        mime_type: file.type,
+        size: file.size,
+      });
+    } catch (err) {
+      console.error("File upload failed:", err);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
-  }, [screenSharing, localParticipant.localParticipant]);
-
-  // Cleanup screen share on unmount
-  useEffect(() => {
-    return () => {
-      if (screenTrackRef.current) {
-        screenTrackRef.current.forEach((track) => track.stop());
-      }
-    };
-  }, []);
+  }, [localParticipant.localParticipant, logActivity]);
 
   return (
     <div className="flex h-full flex-col">
@@ -293,7 +293,7 @@ function QuantAstraCallInner() {
             Agent is taking longer than expected to join. The worker may be deploying — try again in a minute.
           </p>
         )}
-        {/* Whiteboard + Screen Share toggles */}
+        {/* Whiteboard + Upload toggles */}
         <div className="mt-3 flex items-center gap-2">
           <button
             type="button"
@@ -309,20 +309,21 @@ function QuantAstraCallInner() {
           </button>
           <button
             type="button"
-            onClick={handleScreenShare}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-              screenSharing
-                ? "bg-primary-fixed/20 text-primary-fixed"
-                : "bg-ghost-border/30 text-on-surface-variant hover:text-on-surface"
-            }`}
-            title="Share your screen for QuantAstra to analyze"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="rounded-full bg-ghost-border/30 px-3 py-1 text-xs font-medium text-on-surface-variant transition-colors hover:text-on-surface disabled:opacity-50"
+            title="Upload a file for QuantAstra to analyze"
           >
-            {screenSharing ? "Stop Sharing" : "Share Screen"}
+            {uploading ? "Uploading..." : "Upload File"}
           </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            onChange={handleFileUpload}
+            className="hidden"
+            accept="image/*,.pdf,.csv,.txt,.json,.html,.xml,.md"
+          />
         </div>
-        {screenShareError && (
-          <p className="mt-1 text-xs text-error">{screenShareError}</p>
-        )}
       </div>
 
       {/* Whiteboard panel (when open, replaces transcript+data split) */}
@@ -396,9 +397,7 @@ export default function QuantAstraCallView({
           token={token}
           serverUrl={serverUrl}
           connect={true}
-          video={true}
           audio={true}
-          screen={true}
           onDisconnected={handleDisconnected}
           className="h-full w-full quantastra-call"
           style={

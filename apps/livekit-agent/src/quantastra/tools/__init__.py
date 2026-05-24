@@ -6,7 +6,7 @@ from quantastra.tools.screener_tools import ScreenerToolsMixin
 from quantastra.tools.research_tools import ResearchToolsMixin
 from quantastra.tools.macro_tools import MacroToolsMixin
 from quantastra.tools.whiteboard_tools import WhiteboardToolsMixin
-from quantastra.tools.vision_tools import VisionToolsMixin
+from quantastra.tools.upload_tools import UploadToolsMixin
 
 __all__ = [
     "MarketToolsMixin",
@@ -15,5 +15,5 @@ __all__ = [
     "ResearchToolsMixin",
     "MacroToolsMixin",
     "WhiteboardToolsMixin",
-    "VisionToolsMixin",
+    "UploadToolsMixin",
 ]
