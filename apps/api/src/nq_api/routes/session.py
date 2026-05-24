@@ -175,8 +175,9 @@ def end_session(
     # so we can't filter by user_id. Session IDs are unguessable UUIDs.
     try:
         sessions = _supabase_rest(
-            f"user_sessions?id=eq.{body.session_id}&select=*",
+            "user_sessions",
             method="GET",
+            query={"id": f"eq.{body.session_id}", "select": "*"},
         )
     except Exception:
         sessions = []
@@ -207,8 +208,9 @@ def end_session(
     # Mark session ended
     try:
         _supabase_rest(
-            f"user_sessions?id=eq.{body.session_id}",
+            "user_sessions",
             method="PATCH",
+            query={"id": f"eq.{body.session_id}"},
             body=[{
                 "ended_at": ended_at,
                 "duration_seconds": duration_seconds,
@@ -255,8 +257,14 @@ def list_reports(user: Optional[User] = Depends(get_current_user_optional)):
 
     try:
         reports = _supabase_rest(
-            f"session_reports?user_id=eq.{user.id}&select=id,session_id,summary,email_sent,generated_at&order=generated_at.desc&limit=20",
+            "session_reports",
             method="GET",
+            query={
+                "user_id": f"eq.{user.id}",
+                "select": "id,session_id,summary,email_sent,generated_at",
+                "order": "generated_at.desc",
+                "limit": "20",
+            },
         )
         if not isinstance(reports, list):
             return []
@@ -274,8 +282,12 @@ def list_reports(user: Optional[User] = Depends(get_current_user_optional)):
             # Try to get session started_at
             try:
                 sessions = _supabase_rest(
-                    f"user_sessions?id=eq.{r['session_id']}&select=started_at,duration_seconds",
+                    "user_sessions",
                     method="GET",
+                    query={
+                        "id": f"eq.{r['session_id']}",
+                        "select": "started_at,duration_seconds",
+                    },
                 )
                 if isinstance(sessions, list) and sessions:
                     entry.started_at = sessions[0].get("started_at")
@@ -301,8 +313,13 @@ def get_report(report_id: str, user: Optional[User] = Depends(get_current_user_o
 
     try:
         reports = _supabase_rest(
-            f"session_reports?id=eq.{report_id}&user_id=eq.{user.id}&select=*",
+            "session_reports",
             method="GET",
+            query={
+                "id": f"eq.{report_id}",
+                "user_id": f"eq.{user.id}",
+                "select": "*",
+            },
         )
         if not isinstance(reports, list) or not reports:
             raise HTTPException(404, "Report not found")
