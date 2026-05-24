@@ -89,12 +89,12 @@ class MultilingualSarvamTTS:
             log.info("MultilingualSarvamTTS: created TTS for %s", lang_code)
         return self._cache[lang_code]
 
-    def synthesize(self, text: str):
+    def synthesize(self, *, text: str, conn_options=None):
         """Auto-detect language and delegate to the matching Sarvam TTS."""
         lang = detect_indian_language(text)
         log.debug("TTS language: %s (text len=%d)", lang, len(text))
         tts = self._get_tts(lang)
-        return tts.synthesize(text)
+        return tts.synthesize(text=text, conn_options=conn_options)
 
     def prewarm(self) -> None:
         """Pre-warm all cached TTS connections."""
