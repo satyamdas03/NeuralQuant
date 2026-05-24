@@ -94,6 +94,10 @@ class MultilingualSarvamTTS:
         return tts.synthesize(text)
 
     @property
+    def model(self) -> str:
+        return self._model
+
+    @property
     def sample_rate(self) -> int:
         return 22050
 
