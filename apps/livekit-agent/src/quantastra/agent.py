@@ -26,8 +26,7 @@ from livekit.agents import (
     cli,
 )
 from livekit.plugins import anthropic as lk_anthropic
-from livekit.plugins import deepgram
-from livekit.plugins import elevenlabs
+from livekit.plugins import sarvam
 from livekit.rtc import LocalParticipant
 
 from quantastra.context import build_greeting_context
@@ -37,6 +36,7 @@ from quantastra.tools.market_tools import MarketToolsMixin
 from quantastra.tools.portfolio_tools import PortfolioToolsMixin
 from quantastra.tools.research_tools import ResearchToolsMixin
 from quantastra.tools.screener_tools import ScreenerToolsMixin
+from quantastra.multilingual_tts import MultilingualSarvamTTS
 from quantastra.tools.upload_tools import UploadToolsMixin
 from quantastra.tools.whiteboard_tools import WhiteboardToolsMixin
 
@@ -81,9 +81,9 @@ class QuantAstraAgent(
             full_instructions += f"\n\n=== LIVE MARKET DATA ===\n{context}"
         super().__init__(
             instructions=full_instructions,
-            stt=deepgram.STT(
-                model="nova-2-general",
-                api_key=os.getenv("DEEPGRAM_API_KEY"),
+            stt=sarvam.STT(
+                model="saaras:v3",
+                mode="codemix",
             ),
             llm=lk_anthropic.LLM(
                 model="claude-sonnet-4-6",
@@ -91,10 +91,11 @@ class QuantAstraAgent(
                 max_tokens=2048,
                 api_key=os.getenv("ANTHROPIC_API_KEY"),
             ),
-            tts=elevenlabs.TTS(
-                model="eleven_turbo_v2_5",
-                voice_id="EXAVITQu4vr4xnSDxMaL",
-                api_key=os.getenv("ELEVENLABS_API_KEY"),
+            tts=MultilingualSarvamTTS(
+                model="bulbul:v3",
+                speaker="shubh",
+                pace=1.0,
+                temperature=0.6,
             ),
             allow_interruptions=True,
         )
