@@ -93,7 +93,7 @@ class QuantAstraAgent(
             ),
             tts=MultilingualSarvamTTS(
                 model="bulbul:v3",
-                speaker="shubh",
+                speaker="priya",
                 pace=1.0,
                 temperature=0.6,
             ),
@@ -150,11 +150,13 @@ async def entrypoint(ctx: JobContext):
 
     # ── File upload data channel listener ────────────────────────────────
     @ctx.room.on("data_received")
-    def _on_data_received(payload, participant=None):
+    def _on_data_received(data_packet):
+        # LiveKit passes a DataPacket object with .data (bytes), .topic, .participant
+        raw = data_packet.data if hasattr(data_packet, "data") else data_packet
         try:
-            msg = json.loads(payload) if isinstance(payload, (str, bytes)) else {}
-            if isinstance(payload, bytes):
-                msg = json.loads(payload.decode("utf-8"))
+            if isinstance(raw, bytes):
+                raw = raw.decode("utf-8")
+            msg = json.loads(raw) if isinstance(raw, str) else {}
         except (json.JSONDecodeError, UnicodeDecodeError):
             return
         if msg.get("type") == "file_upload":
