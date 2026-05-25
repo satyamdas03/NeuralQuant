@@ -184,7 +184,7 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply text-text-primary;
+    @apply text-text-primary overflow-x-hidden;
     background-color: #050810;
     background-image:
       linear-gradient(rgba(0, 255, 178, 0.03) 1px, transparent 1px),
@@ -194,7 +194,7 @@
     -moz-osx-font-smoothing: grayscale;
   }
   html {
-    @apply font-sans;
+    @apply font-sans overflow-x-hidden;
   }
 }
 
@@ -267,6 +267,20 @@
     display: none;
   }
 
+  /* iOS safe-area insets */
+  .safe-area-pb {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .safe-area-pt {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .safe-area-pl {
+    padding-left: env(safe-area-inset-left, 0px);
+  }
+  .safe-area-pr {
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
   /* Grid overlay for institutional shell */
   .grid-overlay {
     background-size: 60px 60px;
@@ -307,12 +321,21 @@
   100% { transform: translateX(-50%); }
 }
 
+@keyframes slide-in-left {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
 .animate-pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
 }
 
 .animate-fade-up {
   animation: fade-up 0.7s ease-out both;
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left 0.25s ease-out both;
 }
 
 /* ─── LiveKit Theme Overrides — QuantAlpha Obsidian Quantum V2 ─── */

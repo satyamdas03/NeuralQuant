@@ -8,6 +8,7 @@ import {
   MessageSquareText,
   Newspaper,
   TrendingUp,
+  Menu,
 } from "lucide-react";
 
 const NAV = [
@@ -18,7 +19,7 @@ const NAV = [
   { href: "/trade", label: "Trade", icon: TrendingUp, beta: true },
 ];
 
-export default function BottomMobileNav() {
+export default function BottomMobileNav({ onOpenDrawer }: { onOpenDrawer: () => void }) {
   const pathname = usePathname();
 
   return (
@@ -64,6 +65,18 @@ export default function BottomMobileNav() {
             </Link>
           );
         })}
+
+        {/* More — opens mobile drawer */}
+        <button
+          onClick={onOpenDrawer}
+          className="flex flex-col items-center gap-0.5"
+          aria-label="More navigation options"
+        >
+          <Menu size={18} className="text-text-muted" />
+          <span className="font-mono text-[10px] uppercase tracking-wider text-text-muted">
+            More
+          </span>
+        </button>
       </div>
     </nav>
   );

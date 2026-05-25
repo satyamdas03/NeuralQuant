@@ -337,7 +337,7 @@ function QuantAstraCallInner() {
         </div>
       ) : (
         /* Transcript + Data side-by-side */
-        <div className="flex flex-1 gap-0 overflow-hidden border-t border-ghost-border">
+        <div className="flex flex-1 flex-col sm:flex-row gap-0 overflow-hidden border-t border-ghost-border">
           <div className="flex-1 overflow-hidden">
             <QuantAstraTranscriptPanel
               lines={transcriptLines}
@@ -345,7 +345,7 @@ function QuantAstraCallInner() {
             />
           </div>
           {toolResults.length > 0 && (
-            <div className="w-72 shrink-0 border-l border-ghost-border">
+            <div className="w-full sm:w-64 lg:w-72 shrink-0 border-t sm:border-t-0 sm:border-l border-ghost-border">
               <QuantAstraDataPanel results={toolResults} />
             </div>
           )}
@@ -391,7 +391,7 @@ export default function QuantAstraCallView({
   }
 
   return (
-    <div className="overflow-hidden rounded-lg" style={{ height: 560 }}>
+    <div className="overflow-hidden rounded-lg h-[70vh] sm:h-[500px] lg:h-[560px]">
       <CallErrorBoundary key={retryKey} onRetry={handleRetry}>
         <LiveKitRoom
           token={token}
