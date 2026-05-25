@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import type { IndexData, NewsItem, SectorData, AIScore, Mover } from "@/lib/types";
-import WelcomeModal from "@/components/onboarding/WelcomeModal";
+
 import MarketIndexCard from "@/components/ui/MarketIndexCard";
 import SectorHeatmapBlock from "@/components/ui/SectorHeatmapBlock";
 import GhostBorderCard from "@/components/ui/GhostBorderCard";
@@ -231,14 +231,6 @@ function TopAIPicks({ stocks, regime, loading }: { stocks: AIScore[]; regime: st
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const [showOnboarding, setShowOnboarding] = useState(false);
-
-  useEffect(() => {
-    // Always show welcome modal — user can skip if they want
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setShowOnboarding(true);
-  }, []);
-
   const [indices, setIndices] = useState<IndexData[]>([]);
   const [news, setNews] = useState<NewsItem[]>([]);
   const [sectors, setSectors] = useState<SectorData[]>([]);
@@ -282,7 +274,6 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-5 p-4 lg:p-6">
-      {showOnboarding && <WelcomeModal onClose={() => setShowOnboarding(false)} />}
       {/* Market Indices */}
       <div id="dashboard-market-indices">
         <IndexBar indices={indices} loading={indicesLoading} />
