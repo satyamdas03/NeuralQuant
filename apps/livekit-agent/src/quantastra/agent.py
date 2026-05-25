@@ -25,6 +25,8 @@ from livekit.agents import (
     WorkerOptions,
     cli,
 )
+from livekit.agents.types import APIConnectOptions
+from livekit.agents.voice.agent_session import SessionConnectOptions
 from livekit.plugins import anthropic as lk_anthropic
 from livekit.plugins import deepgram
 from livekit.plugins import elevenlabs
@@ -145,7 +147,11 @@ async def entrypoint(ctx: JobContext):
 
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
 
-    session = AgentSession()
+    session = AgentSession(
+        conn_options=SessionConnectOptions(
+            llm_conn_options=APIConnectOptions(timeout=60.0),
+        )
+    )
 
     # ── File upload data channel listener ────────────────────────────────
     @ctx.room.on("data_received")
