@@ -223,14 +223,25 @@ async def entrypoint(ctx: JobContext):
                 parsed = json.loads(output) if isinstance(output, str) else output
             except (json.JSONDecodeError, TypeError):
                 parsed = str(output)[:500]
+            # If output wasn't a string and isn't dict/list/primitive, stringify it
+            if not isinstance(parsed, (str, int, float, bool, dict, list)):
+                parsed = str(parsed)[:500]
             tool_results.append({"tool": name, "result": parsed})
-            # Collect for session memory — record tool call with a brief label
-            result_preview = str(parsed)[:200] if isinstance(parsed, (str, int, float)) else json.dumps(parsed)[:200]
-            agent._conversation_turns.append({
-                "role": "agent",
-                "tool": name,
-                "text": result_preview,
-            })
+            # Collect for session memory — best-effort, never crash the pipeline
+            try:
+                if isinstance(parsed, (str, int, float, bool)):
+                    preview = str(parsed)[:200]
+                elif isinstance(parsed, (dict, list)):
+                    preview = json.dumps(parsed)[:200]
+                else:
+                    preview = str(type(parsed).__name__)
+                agent._conversation_turns.append({
+                    "role": "agent",
+                    "tool": name,
+                    "text": preview,
+                })
+            except Exception:
+                pass  # session memory is non-critical
         if tool_results:
             asyncio.ensure_future(_publish(participant, {
                 "type": "tool_results",
