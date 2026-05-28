@@ -15,7 +15,7 @@ import "@livekit/components-styles";
 import QuantAstraStatusBar from "./QuantAstraStatusBar";
 import QuantAstraTranscriptPanel from "./QuantAstraTranscriptPanel";
 import QuantAstraFace from "./QuantAstraFace";
-import QuantAstraDataPanel from "./QuantAstraDataPanel";
+
 import QuantAstraWhiteboard from "./QuantAstraWhiteboard";
 import { useSessionTracker } from "@/lib/session-tracker";
 
@@ -336,19 +336,14 @@ function QuantAstraCallInner() {
           />
         </div>
       ) : (
-        /* Transcript + Data side-by-side */
-        <div className="flex flex-1 flex-col sm:flex-row gap-0 overflow-hidden border-t border-ghost-border">
+        /* Transcript only — data panel disabled per user request */
+        <div className="flex flex-1 flex-col overflow-hidden border-t border-ghost-border">
           <div className="flex-1 overflow-hidden">
             <QuantAstraTranscriptPanel
               lines={transcriptLines}
               endRef={transcriptEndRef}
             />
           </div>
-          {toolResults.length > 0 && (
-            <div className="w-full sm:w-64 lg:w-72 shrink-0 border-t sm:border-t-0 sm:border-l border-ghost-border">
-              <QuantAstraDataPanel results={toolResults} />
-            </div>
-          )}
         </div>
       )}
     </div>
