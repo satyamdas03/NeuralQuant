@@ -32,7 +32,7 @@ from livekit.plugins import deepgram
 from livekit.plugins import elevenlabs
 from livekit.rtc import LocalParticipant
 
-from quantastra.context import build_greeting_context
+from quantastra.context import build_greeting_context, summarize_and_store_session
 from quantastra.persona import INITIAL_GREETING, SYSTEM_PROMPT
 from quantastra.tools.macro_tools import MacroToolsMixin
 from quantastra.tools.market_tools import MarketToolsMixin
@@ -102,21 +102,33 @@ class QuantAstraAgent(
         )
         self._user_id = user_id
         self._participant: LocalParticipant | None = None
+        self._conversation_turns: list[dict] = []
+        self._current_agent_text: str = ""
 
     async def transcription_node(
         self, text, model_settings: ModelSettings
     ):
         """Override: pass text through to TTS unchanged while publishing
         each chunk to the frontend as a live transcript."""
+        self._current_agent_text = ""
         async for chunk in text:
             chunk_str = chunk if isinstance(chunk, str) else chunk.text
             if chunk_str.strip():
+                self._current_agent_text += chunk_str
                 await _publish(self._participant, {
                     "type": "agent_transcript",
                     "text": chunk_str,
                     "final": False,
                 })
             yield chunk
+
+        # Flush complete agent utterance
+        if self._current_agent_text.strip():
+            self._conversation_turns.append({
+                "role": "agent",
+                "text": self._current_agent_text.strip(),
+            })
+            self._current_agent_text = ""
 
         # Signal end of this speech segment
         await _publish(self._participant, {
@@ -189,10 +201,14 @@ async def entrypoint(ctx: JobContext):
     # Publish user transcriptions to frontend
     @session.on("user_input_transcribed")
     def _on_user_transcribed(ev):
+        text = ev.transcript if hasattr(ev, "transcript") else str(ev)
+        is_final = ev.is_final if hasattr(ev, "is_final") else True
+        if is_final and text.strip():
+            agent._conversation_turns.append({"role": "user", "text": text.strip()})
         asyncio.ensure_future(_publish(participant, {
             "type": "user_transcript",
-            "text": ev.transcript if hasattr(ev, "transcript") else str(ev),
-            "is_final": ev.is_final if hasattr(ev, "is_final") else True,
+            "text": text,
+            "is_final": is_final,
         }))
 
     # Publish tool call results to frontend
@@ -208,6 +224,13 @@ async def entrypoint(ctx: JobContext):
             except (json.JSONDecodeError, TypeError):
                 parsed = str(output)[:500]
             tool_results.append({"tool": name, "result": parsed})
+            # Collect for session memory — record tool call with a brief label
+            result_preview = str(parsed)[:200] if isinstance(parsed, (str, int, float)) else json.dumps(parsed)[:200]
+            agent._conversation_turns.append({
+                "role": "agent",
+                "tool": name,
+                "text": result_preview,
+            })
         if tool_results:
             asyncio.ensure_future(_publish(participant, {
                 "type": "tool_results",
@@ -220,6 +243,11 @@ async def entrypoint(ctx: JobContext):
 
     async def _on_shutdown(reason: str = "") -> None:
         log.info("Agent shutting down: %s", reason)
+        if user_id != "anonymous" and agent._conversation_turns:
+            try:
+                await summarize_and_store_session(user_id, agent._conversation_turns)
+            except Exception:
+                log.exception("Failed to store session memory")
         shutdown_event.set()
 
     shutdown_event = asyncio.Event()

@@ -1337,6 +1337,31 @@ wheels = [
 ]
 
 [[package]]
+name = "livekit-plugins-deepgram"
+version = "1.5.11"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "livekit-agents", extra = ["codecs"] },
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b3/96/be3f1dba56fb88137f1907749e5bfad82b203dac4c8f056b4c8c4fae1bc0/livekit_plugins_deepgram-1.5.11.tar.gz", hash = "sha256:194e44525b4f82044a7c73b0da0f360e8918795103d8da35cbea02412ca5c8ca", size = 18334, upload-time = "2026-05-19T17:56:05.655Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4c/7b/bb93dd7782f8a2a03117d14d69912a249be49f30bfaa1fe78a6075ec9f4c/livekit_plugins_deepgram-1.5.11-py3-none-any.whl", hash = "sha256:3530d13e2c497960287fdf75430937c07a3ffe913c626aa85aa03ced76845639", size = 23060, upload-time = "2026-05-19T17:56:04.235Z" },
+]
+
+[[package]]
+name = "livekit-plugins-elevenlabs"
+version = "1.5.11"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "livekit-agents", extra = ["codecs"] },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d9/b7/3c1d562217cb161ceef500aebd18e70fb82a95735619b34333a0ac984cdf/livekit_plugins_elevenlabs-1.5.11.tar.gz", hash = "sha256:73740a3b9f29c41c18c82f5fd68111227891f9a13486f812a4c630d87f99947f", size = 17752, upload-time = "2026-05-19T17:56:16.553Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/93/bb/8098013ed4906f23f282330ff3bc684ef647121e7a8aaf59b50cc660f9c7/livekit_plugins_elevenlabs-1.5.11-py3-none-any.whl", hash = "sha256:6c8dc202fafb07babd714c1f7a26e92898b45d97324516127ec56de00d712e6b", size = 20377, upload-time = "2026-05-19T17:56:15.402Z" },
+]
+
+[[package]]
 name = "livekit-plugins-openai"
 version = "1.5.11"
 source = { registry = "https://pypi.org/simple" }
@@ -2957,6 +2982,8 @@ dependencies = [
     { name = "livekit" },
     { name = "livekit-agents" },
     { name = "livekit-plugins-anthropic" },
+    { name = "livekit-plugins-deepgram" },
+    { name = "livekit-plugins-elevenlabs" },
     { name = "livekit-plugins-sarvam" },
     { name = "nq-data" },
     { name = "nq-signals" },
@@ -2972,6 +2999,8 @@ requires-dist = [
     { name = "livekit", specifier = ">=1.0" },
     { name = "livekit-agents", specifier = ">=1.4.0" },
     { name = "livekit-plugins-anthropic", specifier = ">=1.4" },
+    { name = "livekit-plugins-deepgram", specifier = ">=1.4" },
+    { name = "livekit-plugins-elevenlabs", specifier = ">=1.4" },
     { name = "livekit-plugins-sarvam", specifier = ">=1.4" },
     { name = "nq-data", editable = "packages/data" },
     { name = "nq-signals", editable = "packages/signals" },

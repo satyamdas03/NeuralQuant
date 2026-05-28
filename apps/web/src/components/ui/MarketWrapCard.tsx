@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import GhostBorderCard from "./GhostBorderCard";
-import { TrendingUp, ArrowUpRight, ArrowDownRight, Sun } from "lucide-react";
+import { TrendingUp, ArrowUpRight, ArrowDownRight, Sun, Star } from "lucide-react";
 
 interface WrapIndex {
   name: string;
@@ -24,6 +24,7 @@ interface WrapData {
   market_label: string;
   indices: WrapIndex[];
   top_picks: WrapPick[];
+  watchlist_picks?: WrapPick[];
 }
 
 export default function MarketWrapCard() {
@@ -112,6 +113,29 @@ export default function MarketWrapCard() {
             ))}
           </div>
 
+          {wrap.watchlist_picks && wrap.watchlist_picks.length > 0 && (
+            <div className="mt-2 px-4 pb-2">
+              <div className="flex items-center gap-1 pb-2 text-[10px] text-on-surface-variant">
+                <Star size={10} className="text-amber-400"/>
+                Your Watchlist
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {wrap.watchlist_picks.map((p) => (
+                  <Link
+                    key={p.ticker}
+                    href={`/stocks/${p.ticker}?market=${tab}`}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/10 border border-amber-400/30 px-3 py-1 text-xs font-medium text-on-surface hover:border-amber-400/60 transition-colors"
+                  >
+                    {p.ticker}
+                    <span className="font-bold text-amber-400">
+                      {p.score_1_10 || (p.composite_score ? (p.composite_score * 10).toFixed(0) : "?")}/10
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
           {wrap.top_picks.length > 0 && (
             <div className="mt-2 px-4 pb-4">
               <div className="flex items-center gap-1 pb-2 text-[10px] text-on-surface-variant">
@@ -141,7 +165,18 @@ export default function MarketWrapCard() {
 }
 
 async function apiFetch<T>(path: string): Promise<T> {
-  const response = await fetch(`/api${path}`);
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  try {
+    const { createClient } = await import("@/lib/supabase/client");
+    const supabase = createClient();
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.access_token) {
+      headers["Authorization"] = `Bearer ${data.session.access_token}`;
+    }
+  } catch {
+    // Guest — no auth header
+  }
+  const response = await fetch(`/api${path}`, { headers });
   if (!response.ok) throw new Error(`API ${response.status}`);
   return response.json();
 }

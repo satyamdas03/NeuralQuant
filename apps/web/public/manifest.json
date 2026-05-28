@@ -1,21 +1,44 @@
 {
-  "name": "NeuralQuant",
-  "short_name": "NQ",
-  "description": "AI stock intelligence for US + India markets",
+  "name": "QuantAlpha AI — Portfolio Intelligence",
+  "short_name": "QuantAlpha",
+  "description": "Institutional-grade equity research powered by multi-agent AI. Deploy specialized quantitative agents to analyze, debate, and forecast market movements.",
   "start_url": "/dashboard",
+  "scope": "/",
+  "id": "/?source=pwa",
   "display": "standalone",
   "background_color": "#0a0a0f",
-  "theme_color": "#6366f1",
+  "theme_color": "#00ffb2",
+  "categories": ["finance", "business", "productivity"],
+  "lang": "en",
+  "dir": "ltr",
   "icons": [
     {
       "src": "/icons/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "/icons/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/dashboard.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Dashboard with portfolio overview"
+    },
+    {
+      "src": "/screenshots/dashboard-mobile.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Mobile dashboard"
     }
   ]
 }

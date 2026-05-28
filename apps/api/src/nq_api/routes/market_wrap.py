@@ -19,6 +19,7 @@ from pydantic import BaseModel
 from nq_api.config import FRONTEND_URL
 from nq_api.auth.models import User
 from nq_api.auth.rate_limit import get_current_user
+from nq_api.auth.deps import get_current_user_optional
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/market-wrap", tags=["market-wrap"])
@@ -41,8 +42,7 @@ def _get_watchlist_scores(user_id: str, market: str, limit: int = 5) -> list[dic
 
     try:
         watchlist = _supabase_rest(
-            "GET",
-            f"/rest/v1/watchlists?user_id=eq.{user_id}&market=eq.{market}&select=ticker"
+            f"watchlists?user_id=eq.{user_id}&market=eq.{market}&select=ticker"
         )
     except Exception:
         logger.debug("Failed to fetch watchlist for user %s", user_id)
@@ -59,8 +59,7 @@ def _get_watchlist_scores(user_id: str, market: str, limit: int = 5) -> list[dic
     ticker_filter = ",".join(f"ticker.eq.{t}" for t in tickers)
     try:
         scores = _supabase_rest(
-            "GET",
-            f"/rest/v1/score_cache?{ticker_filter}&market=eq.{market}"
+            f"score_cache?{ticker_filter}&market=eq.{market}"
             f"&select=ticker,composite_score,sector,current_price,long_name"
             f"&order=composite_score.desc&limit={limit}"
         )
@@ -252,8 +251,14 @@ def market_label(market: str) -> str:
 
 
 @router.get("/today")
-async def get_today_market_wrap(market: str = "US"):
-    """Return the daily market wrap data as JSON (for frontend display)."""
+async def get_today_market_wrap(
+    market: str = "US",
+    user: User | None = Depends(get_current_user_optional),
+):
+    """Return the daily market wrap data as JSON (for frontend display).
+
+    When user is authenticated, includes personalized watchlist highlights.
+    """
     from nq_api.routes.market import _market_overview_sync
     from nq_api.cache.score_cache import read_top_picks
 
@@ -269,12 +274,21 @@ async def get_today_market_wrap(market: str = "US"):
         logger.exception("Market wrap today: failed to fetch top picks")
         top_picks = []
 
+    # Personalized watchlist highlights for authenticated users
+    watchlist_picks: list[dict] = []
+    if user is not None:
+        try:
+            watchlist_picks = _get_watchlist_scores(user.id, market, limit=5)
+        except Exception:
+            logger.debug("Market wrap today: failed to fetch watchlist for %s", user.id)
+
     return {
         "date": datetime.now(timezone.utc).strftime("%A, %B %d, %Y"),
         "market": market,
         "market_label": market_label(market),
         "indices": market_data.get("indices", []),
         "top_picks": top_picks,
+        "watchlist_picks": watchlist_picks,
     }
 
 
@@ -308,7 +322,7 @@ async def broadcast_market_wrap(
 
     # Fetch subscribed users from Supabase
     try:
-        users = _supabase_rest("GET", f"/rest/v1/users?select=email,name,tier,id&tier=gte.{req.tier}")
+        users = _supabase_rest(f"users?select=email,name,tier,id&tier=gte.{req.tier}")
     except Exception as e:
         raise HTTPException(500, f"Failed to fetch users: {e}")
 
@@ -319,8 +333,7 @@ async def broadcast_market_wrap(
     skip_ids: set[str] = set()
     try:
         profiles = _supabase_rest(
-            "GET",
-            "/rest/v1/user_profiles?email_market_wrap=eq.false&select=user_id"
+            "user_profiles?email_market_wrap=eq.false&select=user_id"
         )
         if profiles:
             skip_ids = {p["user_id"] for p in profiles if p.get("user_id")}
