@@ -41,7 +41,7 @@ class ResearchToolsMixin:
                 return json.dumps({"status": "unavailable", "ticker": ticker, "reason": "Could not fetch fundamental data — FMP/yfinance may be unavailable"})
 
             macro = fetch_real_macro()
-            context = {**fund, **macro}
+            context = {**fund, **vars(macro)}
 
             orch = ParaDebateOrchestrator()
             result = await orch.analyse(ticker, market, context)
