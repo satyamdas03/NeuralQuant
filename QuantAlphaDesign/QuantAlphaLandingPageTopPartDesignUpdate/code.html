@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NeuralQuant - Institutional-Grade Equity Research</title>
+<!-- Tailwind CSS CDN with plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts for Serif and Sans-Serif styles -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Inter:wght@300;400;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              emerald: '#00ffb2',
+              obsidian: '#050a0f', // Deep dark blue-black
+              gold: '#c5a059',    // Muted bronze/gold for subtitle
+            }
+          },
+          fontFamily: {
+            serif: ['Instrument Serif', 'serif'],
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+<style data-purpose="background-grid">
+    /* Subtle green grid pattern overlay */
+    .grid-bg {
+      background-image: 
+        linear-gradient(to right, rgba(0, 255, 178, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(0, 255, 178, 0.05) 1px, transparent 1px);
+      background-size: 60px 60px;
+    }
+    
+    /* Subtle radial gradient to darken corners */
+    .vignette {
+      background: radial-gradient(circle at center, transparent 0%, rgba(5, 10, 15, 0.8) 100%);
+    }
+
+    /* Pulsing animation for the status dot */
+    @keyframes pulse-dot {
+      0% { transform: scale(0.95); opacity: 0.7; }
+      50% { transform: scale(1.1); opacity: 1; }
+      100% { transform: scale(0.95); opacity: 0.7; }
+    }
+    .animate-pulse-dot {
+      animation: pulse-dot 2s infinite ease-in-out;
+    }
+  </style>
+<style data-purpose="typography-refinements">
+    .hero-title {
+      line-height: 0.95;
+      letter-spacing: -0.02em;
+    }
+    .italic-accent {
+      font-style: italic;
+    }
+  </style>
+</head>
+<body class="bg-brand-obsidian text-white font-sans antialiased overflow-x-hidden">
+<!-- BEGIN: HeroSection -->
+<main class="relative min-h-screen w-full flex flex-col items-start justify-center px-8 md:px-16 lg:px-24 py-20">
+<!-- Background layers -->
+<div aria-hidden="true" class="absolute inset-0 grid-bg pointer-events-none"></div>
+<div aria-hidden="true" class="absolute inset-0 vignette pointer-events-none"></div>
+<!-- BEGIN: HeaderStatusPill -->
+<div class="absolute top-10 left-8 md:left-16 lg:left-24" data-purpose="status-indicator">
+<div class="flex items-center gap-3 px-4 py-2 border border-brand-emerald/30 bg-brand-emerald/5 rounded-sm">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-emerald opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-brand-emerald animate-pulse-dot"></span>
+</span>
+<span class="font-mono text-xs tracking-widest text-brand-emerald font-medium">
+          QUANTALPHA ENGINE V2.0 — LIVE
+        </span>
+</div>
+</div>
+<!-- END: HeaderStatusPill -->
+<!-- BEGIN: MainContent -->
+<div class="relative z-10 max-w-6xl mt-12">
+<!-- Heading -->
+<h1 class="font-serif hero-title text-7xl md:text-8xl lg:text-[10rem] mb-6">
+<span class="block">Institutional-Grade</span>
+<span class="block text-brand-emerald italic-accent">Equity Research.</span>
+<span class="block text-brand-gold italic-accent text-5xl md:text-7xl lg:text-8xl mt-4">
+          Powered by Multi-Agent AI.
+        </span>
+</h1>
+<!-- Subheading -->
+<p class="max-w-2xl text-lg md:text-xl text-gray-400 leading-relaxed font-light mb-12" data-purpose="description-text">
+        Deploy an army of <span class="text-white font-semibold">specialised quantitative agents</span> that analyze, debate, and forecast market movements with unprecedented precision — across the <span class="text-white">S&amp;P 500</span> and <span class="text-white">NIFTY 500</span>.
+      </p>
+<!-- BEGIN: CallToAction -->
+<div class="flex flex-wrap gap-6" data-purpose="button-group">
+<!-- Primary Action -->
+<a class="bg-brand-emerald text-brand-obsidian px-10 py-4 font-mono font-bold text-sm tracking-widest hover:bg-white transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-brand-emerald focus:ring-offset-2 focus:ring-offset-brand-obsidian" data-purpose="cta-primary" href="#">
+          START FREE TRIAL
+        </a>
+<!-- Secondary Action -->
+<a class="group border border-white/20 bg-white/5 backdrop-blur-sm px-10 py-4 font-mono font-medium text-sm tracking-widest text-white hover:bg-white hover:text-brand-obsidian transition-all duration-300 flex items-center gap-3" data-purpose="cta-secondary" href="#">
+          VIEW DEMO 
+          <span class="transition-transform group-hover:translate-x-1">→</span>
+</a>
+</div>
+<!-- END: CallToAction -->
+</div>
+<!-- END: MainContent -->
+<!-- Floating Background Details (Dots) -->
+<div aria-hidden="true" class="absolute inset-0 pointer-events-none opacity-30">
+<div class="absolute top-1/4 left-1/3 w-1 h-1 bg-brand-emerald rounded-full"></div>
+<div class="absolute top-1/2 left-2/3 w-1 h-1 bg-brand-emerald rounded-full"></div>
+<div class="absolute bottom-1/4 left-1/4 w-1.5 h-1.5 bg-brand-emerald rounded-full blur-[1px]"></div>
+<div class="absolute top-1/3 right-1/4 w-1 h-1 bg-brand-emerald rounded-full"></div>
+<div class="absolute bottom-1/3 right-1/2 w-1 h-1 bg-brand-emerald rounded-full"></div>
+</div>
+</main>
+<!-- END: HeroSection -->
+</body></html>

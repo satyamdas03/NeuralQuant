@@ -74,7 +74,7 @@ for label in features:
     draw.text((fx + (tag_w - lw)//2, 700), label, font=f_small, fill=WHITE)
     fx += tag_w + pad
 
-center_x(draw, 'Free until May 30, 2026', f_body, 820, GREEN)
+center_x(draw, 'Free during development', f_body, 820, GREEN)
 center_x(draw, 'neuralquant.co', f_label, H-60, ACCENT)
 
 img.save('LOGOnq/slide_01.png', quality=95)
@@ -459,7 +459,7 @@ for label in features:
     draw.text((fx + (tag_w - lw)//2, 675), label, font=f_small, fill=WHITE)
     fx += tag_w + pad
 
-center_x(draw, 'Free access until May 30, 2026', f_body, 810, GOLD)
+center_x(draw, 'Free during development', f_body, 810, GOLD)
 center_x(draw, 'NeuralQuant', f_label, H-60, ACCENT)
 img.save('LOGOnq/slide_08.png', quality=95)
 print('Slide 8 done')

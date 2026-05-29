@@ -185,7 +185,7 @@ async def run_screener(
     if not custom_tickers:
         # Tiered cache: fresh → stale → live
         tier_age = TIER_LIMITS[user.tier if user else "free"].screener_refresh_seconds or 86400
-        # Quota-free until 2026-05-30: use aggressive cache (60s) for all tiers
+        # Development phase: use aggressive cache (60s) for all tiers
         if tier_age > 60:
             tier_age = 60
         cached = await asyncio.to_thread(score_cache.read_top, req.market, n=max(100, req.max_results * 3), max_age_seconds=tier_age)

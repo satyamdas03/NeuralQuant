@@ -1,0 +1,80 @@
+============================================================
+VIDEO SCRIPT — Karim Zuhri
+Target: 90 seconds | Camera ON | No screen share
+============================================================
+
+BEFORE RECORDING:
+- QuantAlpha link + GitHub + resume go in the LinkedIn message.
+- This video = YOU. Not your code. Not your product.
+- Keep it tight. Under 2 minutes speaking time.
+
+
+THE SCRIPT (~90 seconds)
+============================================================
+
+"Hey Karim, I'm Satyam. I'm doing my Masters of AI at UTS in
+Ultimo, and your post about interns who use AI before they're
+told to — that's exactly how I work."
+
+---
+
+"I built QuantAlpha from scratch. It's a live stock intelligence
+platform — seven AI agents running concurrently, each a specialist,
+debating every stock in real time. Fundamental, technical, macro,
+sentiment, adversarial — they argue, a head analyst synthesizes.
+Hundreds of stocks scored in seconds. Full production SaaS on
+Render and Vercel."
+
+"On top of that, I built QuantAstra — a voice agent you can
+literally talk to. 'Analyze NVIDIA.' 'Show me compounding math.'
+It speaks back in real time. Deepgram, Claude Sonnet, ElevenLabs,
+all connected through LiveKit."
+
+---
+
+"I've also shipped three autonomous AI trading agents — one runs
+24/7 on Railway, beats the S&P 500, Claude analyzes every trade.
+Built CyberDojo, adversarial AI war games. FireSat, Edge AI
+wildfire detection on CubeSats with NASA data. And I've published
+four papers — GPT-2 on IoT devices, LLM-based smart assistants,
+multi-agent financial analysis, voice-based cryptography."
+
+---
+
+"Your post asked: who asks 'why are we doing this manually?' I
+automated an entire SEBI-registered equity research firm's
+workflows and cut their system latency by ninety percent. Claude
+Code is my pair programmer — I architect, it executes, I refine.
+That velocity lets me build what would take a team weeks."
+
+---
+
+"I don't wait for permission to ship. Rough version day one,
+iterate fast. Let's chat — I'll drop the links below."
+
+
+============================================================
+RECORDING & COMPRESSION
+============================================================
+
+RECORDING SETTINGS (to get under 20 MB):
+  - Resolution: 720p (1280x720), NOT 1080p or 4K
+  - Frame rate: 24 or 30 fps
+  - Use your phone's front camera, NOT screen recording software
+  - Most phones: Settings > Camera > Record Video > 720p HD
+
+AFTER RECORDING — COMPRESS:
+  Option A (easiest): Upload to https://www.freeconvert.com/video-compressor
+      Target: under 20 MB, resolution 720p
+  Option B: Use HandBrake (free, desktop)
+      Preset: "Very Fast 720p30", quality RF 28-30
+  Option C: Send via WhatsApp to yourself first
+      WhatsApp auto-compresses — then save the compressed version
+
+RECORDING TIPS:
+  - Phone at eye level, stable (lean against something)
+  - Window/natural light facing you, not behind you
+  - Quiet room
+  - Don't read word-for-word — know the flow, speak naturally
+  - Energy > perfection
+  - If you stumble, pause and restart that section

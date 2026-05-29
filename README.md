@@ -187,7 +187,7 @@ Regime weights shift automatically. US uses 4-state HMM; India uses India VIX he
 | **Pro** | $29.99 | ~₹2,499 | + Watchlists, backtest, sector deep dives |
 | **API** | $99.99 | ~₹8,499 | Full API access, 1000 calls/day |
 
-INR prices are approximate references. All charges in USD via PayPal. Free access ends May 30, 2026.
+INR prices are approximate references. All charges in USD via PayPal. Free during development phase.
 
 ---
 

@@ -92,7 +92,7 @@ def list_subscriptions(user: User = Depends(get_current_user)) -> AlertSubscript
 def create_subscription(
     req: AlertSubscriptionCreate, user: User = Depends(get_current_user)
 ) -> AlertSubscription:
-    # Quota-free until 2026-05-30 — no alert limit enforcement
+    # Development phase — no alert limit enforcement
     ticker = req.ticker.upper().strip()
     insert_body = [{
         "user_id": user.id,

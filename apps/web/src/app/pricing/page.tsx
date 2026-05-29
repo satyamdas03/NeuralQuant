@@ -69,14 +69,7 @@ export default function PricingPage() {
 
   return (
     <div className="min-h-screen bg-surface text-on-surface">
-      {/* Urgency Banner */}
-      <div className="bg-gradient-to-r from-[#c1c1ff]/20 to-[#bdf4ff]/20 border-b border-[#c1c1ff]/30">
-        <div className="max-w-6xl mx-auto px-6 py-3 text-center">
-          <p className="text-sm font-medium text-on-surface">
-            Free access ends <span className="text-[#bdf4ff] font-bold">May 30, 2026</span>. Lock in your free tier now — upgrade anytime.
-          </p>
-        </div>
-      </div>
+      {/* Quota banner removed — free indefinitely during development phase */}
       <div className="max-w-6xl mx-auto px-6 py-20">
         <h1 className="font-headline text-4xl md:text-5xl font-bold tracking-tight text-center">
           Simple, transparent pricing

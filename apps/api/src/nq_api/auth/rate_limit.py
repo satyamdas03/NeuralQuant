@@ -1,7 +1,7 @@
 """Per-tier daily rate limiting via public.usage_log.
 
-QUOTA_FREE_UNTIL: 2026-05-30 — all limits bypassed for launch period.
-After this date, full quota enforcement resumes.
+QUOTA_FREE_UNTIL: 2099-12-31 — all limits bypassed during development phase.
+Change the date when ready to monetize.
 
 enforce_tier_quota(endpoint) -> FastAPI dep that:
   1. Requires authed user (get_current_user).
@@ -33,11 +33,14 @@ from .models import User, TIER_LIMITS
 
 log = logging.getLogger(__name__)
 
-QUOTA_FREE_UNTIL = date(2026, 5, 30)
+QUOTA_FREE_UNTIL = date(2099, 12, 31)  # Development phase — free indefinitely
 
 
 def _quota_free() -> bool:
-    """Return True during the quota-free launch window (until 2026-05-30)."""
+    """Return True — app is free indefinitely during development phase.
+
+    When ready to monetize, change QUOTA_FREE_UNTIL to the desired cutoff date.
+    """
     return date.today() <= QUOTA_FREE_UNTIL
 
 
@@ -109,7 +112,7 @@ def enforce_tier_quota(endpoint: str):
     """Return a dep that enforces the daily cap on `endpoint` for the user."""
 
     def _dep(user: User = Depends(get_current_user)) -> User:
-        # Launch window: skip all quota checks until 2026-05-30
+        # Development phase: skip all quota checks indefinitely
         if _quota_free():
             return user
         cap = _cap_for(user.tier, endpoint) + user.referral_bonus_queries
@@ -155,7 +158,7 @@ def enforce_guest_quota(endpoint: str):
         request: Request,
         user: User | None = Depends(get_current_user_optional),
     ) -> User | None:
-        # Launch window: skip all quota checks until 2026-05-30
+        # Development phase: skip all quota checks indefinitely
         if _quota_free():
             return user
         # Authed users: normal tier limits

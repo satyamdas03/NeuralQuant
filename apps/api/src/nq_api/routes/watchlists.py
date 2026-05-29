@@ -89,7 +89,7 @@ def list_watchlist(user: User = Depends(get_current_user)) -> WatchlistListRespo
 def add_watchlist(
     req: WatchlistAddRequest, user: User = Depends(get_current_user)
 ) -> WatchlistItem:
-    # Quota-free until 2026-05-30 — no watchlist limit enforcement
+    # Development phase — no watchlist limit enforcement
     ticker = req.ticker.upper().strip()
     insert_body = [{
         "user_id": user.id,
