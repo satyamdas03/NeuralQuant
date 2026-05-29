@@ -102,6 +102,7 @@ def _try_financials_row(fin, row_names: list[str], col_name: str):
 def _fetch_sp500_tickers() -> list[str]:
     """Fetch current S&P 500 constituents from Wikipedia."""
     import requests
+    from io import StringIO
     logger.info("Fetching S&P 500 tickers from Wikipedia")
     try:
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
@@ -110,13 +111,60 @@ def _fetch_sp500_tickers() -> list[str]:
             headers=headers, timeout=15,
         )
         resp.raise_for_status()
-        tables = pd.read_html(resp.text)
+        tables = pd.read_html(StringIO(resp.text))
         df = tables[0]
         tickers = df["Symbol"].str.replace(".", "-", regex=False).tolist()
         logger.info(f"Fetched {len(tickers)} S&P 500 tickers from Wikipedia")
         return tickers
     except Exception as e:
         logger.warning(f"Wikipedia fetch failed: {e}, using fallback")
+        return SP500_FALLBACK
+
+
+def _fetch_sp400_tickers() -> list[str]:
+    """Fetch current S&P MidCap 400 constituents from Wikipedia."""
+    import requests
+    from io import StringIO
+    logger.info("Fetching S&P 400 tickers from Wikipedia")
+    try:
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        resp = requests.get(
+            "https://en.wikipedia.org/wiki/List_of_S%26P_400_companies",
+            headers=headers, timeout=15,
+        )
+        resp.raise_for_status()
+        tables = pd.read_html(StringIO(resp.text))
+        df = tables[0]
+        # Column may be "Symbol" or "Ticker" depending on page structure
+        col = "Symbol" if "Symbol" in df.columns else "Ticker"
+        tickers = df[col].str.replace(".", "-", regex=False).tolist()
+        logger.info(f"Fetched {len(tickers)} S&P 400 tickers from Wikipedia")
+        return tickers
+    except Exception as e:
+        logger.warning(f"SP400 Wikipedia fetch failed: {e}, using SP500 fallback")
+        return SP500_FALLBACK
+
+
+def _fetch_sp600_tickers() -> list[str]:
+    """Fetch current S&P SmallCap 600 constituents from Wikipedia."""
+    import requests
+    from io import StringIO
+    logger.info("Fetching S&P 600 tickers from Wikipedia")
+    try:
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        resp = requests.get(
+            "https://en.wikipedia.org/wiki/List_of_S%26P_600_companies",
+            headers=headers, timeout=15,
+        )
+        resp.raise_for_status()
+        tables = pd.read_html(StringIO(resp.text))
+        df = tables[0]
+        col = "Symbol" if "Symbol" in df.columns else "Ticker"
+        tickers = df[col].str.replace(".", "-", regex=False).tolist()
+        logger.info(f"Fetched {len(tickers)} S&P 600 tickers from Wikipedia")
+        return tickers
+    except Exception as e:
+        logger.warning(f"SP600 Wikipedia fetch failed: {e}, using SP500 fallback")
         return SP500_FALLBACK
 
 
@@ -156,12 +204,15 @@ def collect_stocks(
     if tickers is None:
         if universe == "SP500":
             tickers_list = _fetch_sp500_tickers()
+        elif universe == "SP400":
+            tickers_list = _fetch_sp400_tickers()
+        elif universe == "SP600":
+            tickers_list = _fetch_sp600_tickers()
         elif universe == "NIFTY200":
             tickers_list = NIFTY200_TICKERS
         else:
-            # SP400/SP600 — will be populated from Wikipedia or config later
             tickers_list = SP500_FALLBACK
-            logger.warning(f"Universe {universe} not yet implemented, using SP500 fallback")
+            logger.warning(f"Unknown universe {universe}, using SP500 fallback")
     else:
         tickers_list = tickers
 
