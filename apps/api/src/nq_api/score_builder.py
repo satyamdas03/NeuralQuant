@@ -1,8 +1,17 @@
 # apps/api/src/nq_api/score_builder.py
-"""Maps raw SignalEngine output to AIScore schema with explainability."""
+"""Maps raw SignalEngine output to AIScore schema with explainability.
+
+Since v4.1: Anjali enrichment blend — 60% existing 5-factor composite,
+40% Anjali quintile composite (normalized -16..+16 → 0..10).
+"""
 from datetime import datetime, timezone
+import logging
+import os
+
 import pandas as pd
 from nq_api.schemas import AIScore, SubScores, FeatureDriver
+
+logger = logging.getLogger(__name__)
 
 REGIME_LABELS = {1: "Risk-On", 2: "Late-Cycle", 3: "Bear", 4: "Recovery"}
 
@@ -79,9 +88,118 @@ def rank_scores_in_universe(result_df: pd.DataFrame) -> pd.Series:
     return (pct * 9 + 1).round().clip(1, 10).astype(int)
 
 
+# ---------------------------------------------------------------------------
+# Anjali enrichment blend
+# ---------------------------------------------------------------------------
+
+_ANJALI_BLEND_WEIGHT = 0.4  # 60% existing 5-factor, 40% Anjali composite
+_ANJALI_CACHE: dict[str, dict] = {}  # Simple in-memory cache
+_ANJALI_CACHE_MAX_AGE = 3600  # 1 hour in seconds
+_ANJALI_CACHE_LOADED_AT: float = 0
+
+
+def _supabase_rest(table: str, method: str = "GET", query: dict | None = None):
+    """Minimal Supabase REST call for Anjali data lookup."""
+    import requests
+    url = os.environ.get("SUPABASE_URL", "")
+    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+    if not url or not key:
+        return None
+    endpoint = f"{url}/rest/v1/{table}"
+    headers = {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json",
+    }
+    try:
+        resp = requests.request(method, endpoint, headers=headers, params=query, timeout=10)
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:
+        logger.debug(f"Anjali Supabase lookup failed: {e}")
+        return None
+
+
+def _load_anjali_cache():
+    """Load all Anjali enrichment data into memory cache."""
+    global _ANJALI_CACHE, _ANJALI_CACHE_LOADED_AT
+    import time
+
+    now = time.time()
+    if now - _ANJALI_CACHE_LOADED_AT < _ANJALI_CACHE_MAX_AGE and _ANJALI_CACHE:
+        return
+
+    data = _supabase_rest(
+        "anjali_enrichment",
+        method="GET",
+        query={"select": "ticker,market,composite_anjali_score,growth_score,return_score,valuation_score,risk_score,future_pe,future_peg,loss_profit_yoy,loss_profit_ttm,loss_profit_qoq"},
+    )
+    if data and isinstance(data, list):
+        _ANJALI_CACHE = {}
+        for row in data:
+            key = f"{row.get('ticker', '')}:{row.get('market', 'US')}"
+            _ANJALI_CACHE[key] = row
+        _ANJALI_CACHE_LOADED_AT = now
+        logger.debug(f"Anjali cache loaded: {len(_ANJALI_CACHE)} rows")
+
+
+def get_anjali_enrichment(ticker: str, market: str) -> dict | None:
+    """Look up Anjali enrichment data for a ticker.
+
+    Returns dict with Anjali scores, or None if not available.
+    """
+    _load_anjali_cache()
+    key = f"{ticker}:{market}"
+    row = _ANJALI_CACHE.get(key)
+    if not row:
+        # Try bare ticker (without .NS suffix for Indian stocks)
+        bare = ticker.replace(".NS", "").replace(".BO", "")
+        row = _ANJALI_CACHE.get(f"{bare}:{market}")
+    return row if row else None
+
+
+def blend_anjali_score(composite: float, anjali_data: dict | None) -> tuple[float, bool]:
+    """Blend existing 5-factor composite with Anjali quintile composite.
+
+    Anjali composite ranges from -16 to +16. Normalized to 0-10 scale:
+        anjali_10 = (composite_anjali_score + 16) / 32 * 10
+
+    Blend: 60% existing, 40% Anjali (if Anjali data available).
+
+    Returns:
+        (blended_composite, anjali_available) tuple.
+    """
+    if not anjali_data or anjali_data.get("composite_anjali_score") is None:
+        return composite, False
+
+    anjali_raw = float(anjali_data["composite_anjali_score"])
+    # Normalize: -16..+16 → 0..10
+    anjali_10 = (anjali_raw + 16) / 32 * 10
+    anjali_10 = max(0, min(10, anjali_10))  # clamp
+
+    # Normalize existing composite to 0-10 scale
+    existing_10 = _score_to_1_10(composite)
+
+    # Blend
+    blended_10 = existing_10 * (1 - _ANJALI_BLEND_WEIGHT) + anjali_10 * _ANJALI_BLEND_WEIGHT
+    blended_10 = max(1, min(10, round(blended_10, 1)))
+
+    # Convert back to 0-1 composite scale
+    blended_composite = (blended_10 - 1) / 9  # 1→0, 10→1
+    return round(blended_composite, 4), True
+
+
 def row_to_ai_score(row: pd.Series, market: str, score_1_10_override: int | None = None) -> AIScore:
     regime_id = int(row.get("regime_id", 1))
     composite = float(row["composite_score"])
+
+    # Blend with Anjali if available
+    anjali_data = get_anjali_enrichment(str(row["ticker"]), market)
+    composite, anjali_available = blend_anjali_score(composite, anjali_data)
+
+    # Recalculate score_1_10 if Anjali blend changed composite
+    if anjali_available and score_1_10_override is None:
+        score_1_10_override = _score_to_1_10(composite)
 
     return AIScore(
         ticker=str(row["ticker"]),

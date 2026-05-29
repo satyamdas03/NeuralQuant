@@ -218,6 +218,31 @@ def _run_screener_sync(req: ScreenerRequest, engine: Any) -> ScreenerResponse:
 
     filtered = result_df[result_df["composite_score"] >= req.min_score]
     filtered = filtered.sort_values("composite_score", ascending=False)
+
+    # Anjali Value Screener filters
+    if req.min_anjali_composite is not None or req.valuation_sweet_spot or req.loss_making is not None:
+        from nq_api.score_builder import get_anjali_enrichment
+        anjali_pass = []
+        for _, row in filtered.iterrows():
+            a = get_anjali_enrichment(str(row["ticker"]), req.market)
+            if a is None:
+                continue  # No Anjali data — skip if filters active
+            comp = a.get("composite_anjali_score")
+            if req.min_anjali_composite is not None and (comp is None or comp < req.min_anjali_composite):
+                continue
+            if req.valuation_sweet_spot:
+                # Q2 sweet spot = valuation_score between +0.5 and +1.5
+                val_score = a.get("valuation_score")
+                if val_score is None or val_score < 0.5 or val_score > 1.5:
+                    continue
+            if req.loss_making is False:
+                # Exclude loss-making companies
+                if a.get("loss_profit_yoy") or a.get("loss_profit_ttm") or a.get("loss_profit_qoq"):
+                    continue
+            anjali_pass.append(row)
+        if anjali_pass:
+            filtered = pd.DataFrame(anjali_pass)
+
     ranked_scores = rank_scores_in_universe(filtered).reset_index(drop=True)
     filtered = filtered.reset_index(drop=True).head(req.max_results)
 

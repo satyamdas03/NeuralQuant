@@ -44,6 +44,10 @@ class ScreenerRequest(BaseModel):
     min_quality: Optional[float] = None
     min_low_vol: Optional[float] = None
     max_momentum: Optional[float] = None
+    # Anjali Value Screener filters (-16 to +16 composite scale)
+    min_anjali_composite: Optional[float] = None  # minimum Anjali composite score
+    valuation_sweet_spot: Optional[bool] = None   # True = only Q2 valuation stocks
+    loss_making: Optional[bool] = None             # True = exclude loss-making companies
 
 
 class ScreenerResponse(BaseModel):

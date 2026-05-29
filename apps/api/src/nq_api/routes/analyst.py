@@ -773,6 +773,14 @@ async def run_analyst(
     if enrichment:
         _merge_enrichment(context, enrichment)
 
+    # Anjali Value Screener enrichment (quintile-scored cross-sectional context)
+    from nq_api.score_builder import get_anjali_enrichment
+    from nq_api.agents.anjali_context import build_anjali_context
+    anjali_data = get_anjali_enrichment(ticker, req.market)
+    anjali_ctx = build_anjali_context(anjali_data)
+    if anjali_ctx:
+        context["anjali_context"] = anjali_ctx
+
     orch = ParaDebateOrchestrator()
     return await orch.analyse(ticker=ticker, market=req.market, context=context)
 

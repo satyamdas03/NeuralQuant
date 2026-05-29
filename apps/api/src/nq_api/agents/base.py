@@ -74,6 +74,10 @@ class BaseAnalystAgent(ABC):
 
     def run(self, ticker: str, context: dict, _msg_override: str | None = None) -> AgentOutput:
         user_msg = _msg_override if _msg_override else self._build_user_message(ticker, context)
+        # Inject Anjali Value Screener context if available
+        anjali_ctx = context.get("anjali_context")
+        if anjali_ctx and isinstance(anjali_ctx, str):
+            user_msg += anjali_ctx
         ctx_keys = [k for k in context if context.get(k) is not None and k != "ticker"][:5]
         logger.info("%s agent starting for %s (context keys: %s...)", self.agent_name, ticker, ctx_keys)
         try:
