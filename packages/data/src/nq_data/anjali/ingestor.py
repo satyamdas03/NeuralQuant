@@ -1,7 +1,11 @@
-"""Anjali Value Screener — Supabase upsert ingestor.
+"""Anjali Value Screener — Supabase ingestor.
 
 Takes a scored DataFrame and upserts rows into public.anjali_enrichment
 using Supabase PostgREST API (same pattern as score_cache.py).
+
+Uses DELETE + INSERT strategy: first deletes all rows for the target
+market, then inserts fresh data. This avoids upsert compatibility issues
+with different PostgREST versions.
 """
 from __future__ import annotations
 
@@ -48,7 +52,7 @@ def _supabase_rest(
         "apikey": _SUPABASE_KEY,
         "Authorization": f"Bearer {_SUPABASE_KEY}",
         "Content-Type": "application/json",
-        "Prefer": "return=minimal,resolution=merge-duplicates",
+        "Prefer": "return=minimal",
     }
 
     try:
@@ -60,6 +64,16 @@ def _supabase_rest(
     except Exception as e:
         logger.error(f"Supabase REST error ({table} {method}): {e}")
         return None
+
+
+def _delete_market(table: str, market: str) -> bool:
+    """Delete all rows for a given market from the table."""
+    result = _supabase_rest(
+        table,
+        method="DELETE",
+        query={"market": f"eq.{market}"},
+    )
+    return result is not None
 
 
 # ---------------------------------------------------------------------------
@@ -107,6 +121,13 @@ _COLUMN_MAP = {
     "loss_profit_ttm": "loss_profit_ttm",
     "loss_profit_qoq": "loss_profit_qoq",
     "data_collected_at": "data_collected_at",
+    # NSE-specific columns (migration 012)
+    "alpha": "alpha",
+    "final_score": "final_score",
+    "rebalance_date": "rebalance_date",
+    "future_return": "future_return",
+    "strategy_stocks": "strategy_stocks",
+    "stocks_list": "stocks_list",
 }
 
 
@@ -127,20 +148,32 @@ def ingest_to_supabase(
     market: str,
     batch_size: int = 100,
 ) -> int:
-    """Upsert scored Anjali data into public.anjali_enrichment.
+    """Replace Anjali data for a market in Supabase.
+
+    Strategy: DELETE all rows for the market, then INSERT fresh data.
+    This avoids upsert compatibility issues across PostgREST versions.
 
     Args:
-        df: Scored DataFrame (output of compute_quintile_scores).
+        df: Scored DataFrame (output of compute_quintile_scores or Excel ingestor).
         market: 'US' or 'IN'.
-        batch_size: Rows per Supabase upsert call.
+        batch_size: Rows per Supabase INSERT call.
 
     Returns:
-        Number of rows successfully upserted.
+        Number of rows successfully inserted.
     """
     if df.empty:
         logger.warning("Empty DataFrame — nothing to ingest")
         return 0
 
+    # Step 1: Delete existing data for this market
+    logger.info(f"Deleting existing {market} rows from anjali_enrichment...")
+    deleted = _delete_market("anjali_enrichment", market)
+    if not deleted:
+        logger.error(f"Failed to delete existing {market} data — aborting ingest")
+        return 0
+    logger.info(f"Deleted existing {market} data")
+
+    # Step 2: Prepare and insert fresh data
     now_iso = datetime.now(timezone.utc).isoformat()
     rows: list[dict[str, Any]] = []
     supabase_cols = set(_COLUMN_MAP.values())
@@ -163,8 +196,8 @@ def ingest_to_supabase(
         logger.warning("No valid rows to ingest after filtering")
         return 0
 
-    # Upsert in batches
-    total_upserted = 0
+    # Insert in batches
+    total_inserted = 0
     for i in range(0, len(rows), batch_size):
         batch = rows[i : i + batch_size]
         result = _supabase_rest(
@@ -173,10 +206,10 @@ def ingest_to_supabase(
             body=batch,
         )
         if result is not None:
-            total_upserted += len(batch)
-            logger.debug(f"Upserted batch {i // batch_size + 1}: {len(batch)} rows")
+            total_inserted += len(batch)
+            logger.debug(f"Inserted batch {i // batch_size + 1}: {len(batch)} rows")
         else:
-            logger.error(f"Failed to upsert batch starting at row {i}")
+            logger.error(f"Failed to insert batch starting at row {i}")
 
-    logger.info(f"Ingested {total_upserted}/{len(rows)} rows into anjali_enrichment ({market})")
-    return total_upserted
+    logger.info(f"Ingested {total_inserted}/{len(rows)} rows into anjali_enrichment ({market})")
+    return total_inserted

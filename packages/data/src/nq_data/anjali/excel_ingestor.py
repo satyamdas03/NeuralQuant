@@ -237,12 +237,13 @@ def ingest_excel_to_supabase(path: str | Path) -> dict[str, int]:
     """
     from nq_data.anjali.ingestor import ingest_to_supabase
 
+    sheet_markets = {"sp500": "US", "smallmidcap": "US", "nse100": "IN"}
     sheets = read_anjali_excel(path)
     counts = {}
     for key, df in sheets.items():
         if df.empty:
             continue
-        count = ingest_to_supabase(df)
+        count = ingest_to_supabase(df, market=sheet_markets[key])
         counts[key] = count
         logger.info(f"Ingested {key}: {count} rows")
     return counts

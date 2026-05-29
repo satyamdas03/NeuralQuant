@@ -54,7 +54,7 @@ def main() -> int:
         }
         sheet_name, market = sheet_map[args.sheet]
         df = read_anjali_sheet(str(path), sheet=sheet_name, market=market)
-        count = ingest_to_supabase(df)
+        count = ingest_to_supabase(df, market=market)
         print(f"Ingested {count} rows from {sheet_name}")
         return 0 if count > 0 else 1
 
