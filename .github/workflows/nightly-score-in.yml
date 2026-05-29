@@ -1,31 +1,18 @@
-name: nightly-score
+name: nightly-score-in
 
 on:
+  schedule:
+    - cron: "30 2 * * *"  # 02:30 UTC daily (30 min after US starts)
   workflow_dispatch:
-    inputs:
-      market:
-        description: "Market to score (US, IN, BOTH)"
-        required: false
-        default: "BOTH"
-        type: choice
-        options:
-          - US
-          - IN
-          - BOTH
-
-# NOTE: Scheduled runs are now split into separate workflows:
-#   nightly-score-us.yml (cron: 0 2 * * *) — US only, 360min timeout
-#   nightly-score-in.yml (cron: 30 2 * * *) — IN only, 120min timeout
-# This workflow is kept for manual dispatch only.
 
 concurrency:
-  group: nightly-score
+  group: nightly-score-in
   cancel-in-progress: false
 
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
 
@@ -46,11 +33,11 @@ jobs:
             "httpx" "python-dateutil"
           uv pip install --system -e packages/data -e packages/signals -e apps/api
 
-      - name: Run nightly score builder
+      - name: Run nightly score builder (IN only)
         env:
           PYTHONUNBUFFERED: "1"
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
           FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
-        run: python scripts/nightly_score.py --market ${{ inputs.market || 'BOTH' }}
+        run: python scripts/nightly_score.py --market IN
