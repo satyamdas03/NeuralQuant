@@ -1,6 +1,6 @@
 "use client";
 
-import type { StockSummary } from "@/lib/types";
+import type { StockSummary, AnjaliScores } from "@/lib/types";
 
 type Props = { summary: StockSummary };
 
@@ -21,6 +21,79 @@ function fmtMcap(v: number | null, cur: string): string {
   if (v >= 1e9) return `$${(v / 1e9).toFixed(1)}B`;
   if (v >= 1e6) return `$${(v / 1e6).toFixed(0)}M`;
   return `$${fmtNum(v, 0)}`;
+}
+
+function anjaliCompositeLabel(c: number | null | undefined): string {
+  if (c == null) return "—";
+  return c >= 0 ? `+${c.toFixed(1)}` : c.toFixed(1);
+}
+
+function anjaliCompositeColor(c: number | null | undefined): string {
+  if (c == null) return "text-on-surface-variant";
+  if (c >= 6) return "text-tertiary-fixed-dim";
+  if (c >= 2) return "text-primary-fixed";
+  if (c >= -2) return "text-on-surface-variant";
+  return "text-cyber-red";
+}
+
+function quintileLabel(score: number | null | undefined): string {
+  if (score == null) return "—";
+  // Scores range -4 to +4
+  if (score >= 1.5) return "Q5 ★";
+  if (score >= 0.5) return "Q4";
+  if (score >= -0.5) return "Q3";
+  if (score >= -1.5) return "Q2";
+  return "Q1";
+}
+
+function quintileColor(score: number | null | undefined): string {
+  if (score == null) return "text-on-surface-variant";
+  if (score >= 1.5) return "text-tertiary-fixed-dim";
+  if (score >= 0.5) return "text-primary-fixed";
+  return "text-on-surface-variant";
+}
+
+function AnjaliRow({ anjali }: { anjali: AnjaliScores }) {
+  return (
+    <div className="mt-1.5 pt-1.5 border-t border-outline-variant/20">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-[10px] font-mono uppercase tracking-wider text-primary">
+          Anjali Value Screener
+        </span>
+        <span className={`text-xs font-bold font-mono ${anjaliCompositeColor(anjali.composite)}`}>
+          {anjaliCompositeLabel(anjali.composite)}
+          <span className="text-[10px] text-on-surface-variant">/16</span>
+        </span>
+      </div>
+      <div className="grid grid-cols-4 gap-x-2 gap-y-0.5">
+        {[
+          { label: "Growth", score: anjali.growth_score },
+          { label: "Return", score: anjali.return_score },
+          { label: "Value", score: anjali.valuation_score },
+          { label: "Risk", score: anjali.risk_score },
+        ].map(({ label, score }) => (
+          <div key={label}>
+            <span className="text-[9px] text-on-surface-variant">{label}</span>
+            <div className={`text-[11px] font-mono font-medium ${quintileColor(score)}`}>
+              {quintileLabel(score)}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-1.5 mt-1">
+        {anjali.valuation_sweet_spot && (
+          <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-tertiary/15 text-tertiary border border-tertiary/30">
+            VALUE SWEET SPOT
+          </span>
+        )}
+        {anjali.is_loss_making && (
+          <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-error/15 text-error border border-error/30">
+            LOSS-MAKING
+          </span>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default function StockSummaryCard({ summary }: Props) {
@@ -113,6 +186,7 @@ export default function StockSummaryCard({ summary }: Props) {
           ))}
         </div>
       )}
+      {summary.anjali && <AnjaliRow anjali={summary.anjali} />}
     </div>
   );
 }

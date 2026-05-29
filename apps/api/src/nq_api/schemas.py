@@ -175,6 +175,7 @@ class StockSummary(BaseModel):
     sector: str | None = None
     forecast_score: float | None = None  # 1-10
     currency: str = "$"
+    anjali: AnjaliScores | None = None  # Anjali Value Screener scores
     # FMP Premium enrichment fields
     analyst_consensus: str | None = None
     analyst_buy_pct: float | None = None

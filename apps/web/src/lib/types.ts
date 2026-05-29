@@ -453,6 +453,7 @@ export interface StockSummary {
   yield_curve_2y: number | null;
   yield_curve_10y: number | null;
   yield_curve_spread: number | null;
+  anjali?: AnjaliScores | null;  // Anjali Value Screener scores
 }
 
 // ── Portfolio Output Types (Phase 1) ──────────────────────────────────────────

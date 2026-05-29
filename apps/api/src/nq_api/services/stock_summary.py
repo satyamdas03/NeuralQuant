@@ -2,7 +2,7 @@
 import logging
 import re as _re
 
-from nq_api.schemas import StockSummary
+from nq_api.schemas import StockSummary, AnjaliScores
 
 log = logging.getLogger(__name__)
 
@@ -209,6 +209,27 @@ def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, plat
     if price is None:
         return None
 
+    # Anjali Value Screener lookup
+    anjali_scores = None
+    try:
+        from nq_api.score_builder import get_anjali_enrichment
+        anjali_data = get_anjali_enrichment(effective_ticker, market)
+        if anjali_data:
+            val_score = anjali_data.get("valuation_score")
+            anjali_scores = AnjaliScores(
+                growth_score=anjali_data.get("growth_score"),
+                return_score=anjali_data.get("return_score"),
+                valuation_score=val_score,
+                risk_score=anjali_data.get("risk_score"),
+                composite=anjali_data.get("composite_anjali_score"),
+                is_loss_making=bool(
+                    anjali_data.get("loss_profit_yoy") or anjali_data.get("loss_profit_ttm") or anjali_data.get("loss_profit_qoq")
+                ),
+                valuation_sweet_spot=0.5 <= (val_score or 0) <= 1.5 if val_score is not None else False,
+            )
+    except Exception:
+        pass
+
     return StockSummary(
         ticker=effective_ticker,
         name=name if name else None,
@@ -226,4 +247,5 @@ def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, plat
         sector=sector if sector else None,
         forecast_score=forecast_score,
         currency=cur,
+        anjali=anjali_scores,
     )
