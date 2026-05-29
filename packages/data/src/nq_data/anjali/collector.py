@@ -1,8 +1,7 @@
 """Anjali Value Screener — data collector.
 
 Ports the anjali-value-stocks collector into the NeuralQuant data pipeline.
-Returns DataFrames instead of writing CSVs. Uses DuckDB DataStore for
-checkpointing instead of CSV files.
+Returns DataFrames instead of writing CSVs. Uses JSON checkpointing for resume.
 
 Usage:
     df = collect_stocks(universe="SP500", market="US")
@@ -14,15 +13,17 @@ import logging
 import math
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Literal
 
 import numpy as np
 import pandas as pd
 import yfinance as yf
 
-from nq_data.store import DataStore
-
 logger = structlog.get_logger() if __import__("os").environ.get("STRUCTLOG") else logging.getLogger(__name__)
+
+# Checkpoint file path (JSON-based, simpler than DuckDB for checkpoint data)
+_CHECKPOINT_DIR = Path(__file__).resolve().parents[4] / "data" / "anjali_checkpoints"
 
 # ---------------------------------------------------------------------------
 # Universe definitions
@@ -224,19 +225,21 @@ def collect_stocks(
     benchmark_3mo = _fetch_benchmark(benchmark_ticker, "3mo")
     benchmark_1y = _fetch_benchmark(benchmark_ticker, "1y")
 
-    # Load checkpoint from DuckDB if available
-    store = DataStore()
-    checkpoint_key = f"anjali_checkpoint_{universe}_{market}"
-    existing = store.query(f"SELECT * FROM anjali_checkpoint WHERE universe = '{universe}' AND market = '{market}'")
+    # Load checkpoint from JSON file if available
+    checkpoint_file = _CHECKPOINT_DIR / f"{universe}_{market}.json"
+    done_tickers: set[str] = set()
+    if checkpoint_file.exists():
+        try:
+            import json
+            existing = json.loads(checkpoint_file.read_text(encoding="utf-8"))
+            done_tickers = {r["ticker"] for r in existing if "ticker" in r}
+            logger.info(f"Checkpoint: {len(done_tickers)} tickers already collected, resuming")
+        except Exception as e:
+            logger.warning(f"Failed to load checkpoint: {e}")
+            done_tickers = set()
+
     start_idx = 0
     results: list[dict] = []
-
-    if existing is not None and not existing.empty:
-        # Resume from checkpoint
-        done_tickers = set(existing["ticker"].tolist())
-        logger.info(f"Checkpoint: {len(done_tickers)} tickers already collected, resuming")
-    else:
-        done_tickers = set()
 
     logger.info(f"Starting Anjali collection: {universe} ({market}), {len(tickers_list)} tickers")
 
@@ -252,15 +255,15 @@ def collect_stocks(
 
         if (i + 1) % checkpoint_every == 0:
             logger.info(f"Checkpoint: {i + 1}/{len(tickers_list)} tickers processed, {len(results)} successful")
-            # Save checkpoint to DuckDB
+            # Save checkpoint to JSON
             if results:
-                _save_checkpoint(store, results, universe, market)
+                _save_checkpoint(results, universe, market)
 
         time.sleep(delay)
 
     # Final save
     if results:
-        _save_checkpoint(store, results, universe, market)
+        _save_checkpoint(results, universe, market)
 
     df = pd.DataFrame(results)
     logger.info(f"Collection complete: {len(df)} stocks collected for {universe} ({market})")
@@ -433,12 +436,28 @@ def _collect_one(
         return None
 
 
-def _save_checkpoint(store: DataStore, results: list[dict], universe: str, market: str) -> None:
-    """Save collection progress to DuckDB checkpoint."""
+def _save_checkpoint(results: list[dict], universe: str, market: str) -> None:
+    """Save collection progress to JSON checkpoint file."""
+    import json
     try:
-        df = pd.DataFrame(results)
-        # Upsert logic — replace existing rows for same universe/market
-        store.upsert_dataframe("anjali_checkpoint", df, on=["ticker", "market"])
-        logger.debug(f"Checkpoint saved: {len(results)} rows")
+        _CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
+        checkpoint_file = _CHECKPOINT_DIR / f"{universe}_{market}.json"
+        # Merge with existing checkpoint
+        existing: list[dict] = []
+        if checkpoint_file.exists():
+            try:
+                existing = json.loads(checkpoint_file.read_text(encoding="utf-8"))
+            except Exception:
+                existing = []
+        # Merge: replace existing tickers with new data
+        existing_tickers = {r["ticker"]: i for i, r in enumerate(existing) if "ticker" in r}
+        for row in results:
+            ticker = row.get("ticker")
+            if ticker in existing_tickers:
+                existing[existing_tickers[ticker]] = row
+            else:
+                existing.append(row)
+        checkpoint_file.write_text(json.dumps(existing, default=str), encoding="utf-8")
+        logger.debug(f"Checkpoint saved: {len(results)} rows, total {len(existing)}")
     except Exception as e:
         logger.warning(f"Checkpoint save failed: {e}")
