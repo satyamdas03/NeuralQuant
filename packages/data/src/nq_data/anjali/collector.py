@@ -344,7 +344,7 @@ def _collect_one(
             logger.debug(f"Quarterly financials error for {ticker}: {e}")
 
         # Loss flags
-        row["loss_profit_yoy"] = row.get("net_profit_yoY_growth") is not None and row["net_profit_yoy_growth"] < 0
+        row["loss_profit_yoy"] = row.get("net_profit_yoy_growth") is not None and row["net_profit_yoy_growth"] < 0
         row["loss_profit_ttm"] = row.get("net_profit_ttm_growth") is not None and row["net_profit_ttm_growth"] < 0
         row["loss_profit_qoq"] = row.get("qoq_profit_growth") is not None and row["qoq_profit_growth"] < 0
 

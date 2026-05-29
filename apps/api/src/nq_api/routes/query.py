@@ -446,6 +446,18 @@ async def run_nl_query_v2(
         if len(tech_lines) > 1:
             context_parts.append("\n".join(tech_lines))
 
+    # Anjali Value Screener context injection
+    if effective_ticker_v2:
+        try:
+            from nq_api.score_builder import get_anjali_enrichment
+            from nq_api.agents.anjali_context import build_anjali_context
+            anjali_data = get_anjali_enrichment(effective_ticker_v2, effective_market_v2)
+            anjali_ctx = build_anjali_context(anjali_data)
+            if anjali_ctx:
+                context_parts.append(anjali_ctx)
+        except Exception as e:
+            logger.debug("Anjali enrichment lookup failed for %s: %s", effective_ticker_v2, e)
+
     user_msg = "\n".join(context_parts)
 
     # Reinforce: if platform_ctx contains CURRENT_PRICE, add an extra reminder at the end
@@ -876,6 +888,17 @@ async def run_nl_query_v2_stream(
                         tech_lines.append(f"  {label}: {v}")
                 if len(tech_lines) > 1:
                     context_parts.append("\n".join(tech_lines))
+            # Anjali Value Screener context injection (streaming endpoint)
+            if stream_ticker:
+                try:
+                    from nq_api.score_builder import get_anjali_enrichment
+                    from nq_api.agents.anjali_context import build_anjali_context
+                    anjali_data = get_anjali_enrichment(stream_ticker, stream_market)
+                    anjali_ctx = build_anjali_context(anjali_data)
+                    if anjali_ctx:
+                        context_parts.append(anjali_ctx)
+                except Exception:
+                    pass
             result_holder["user_msg"] = "\n".join(context_parts)
             # Reinforce: if platform_ctx contains CURRENT_PRICE, add reminder
             if platform_ctx and "CURRENT_PRICE" in platform_ctx:
