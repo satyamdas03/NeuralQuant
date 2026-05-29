@@ -32,8 +32,12 @@ from livekit.plugins import deepgram
 from livekit.plugins import elevenlabs
 from livekit.rtc import LocalParticipant
 
-from quantastra.context import build_greeting_context, summarize_and_store_session
-from quantastra.persona import INITIAL_GREETING, SYSTEM_PROMPT
+from quantastra.context import (
+    build_greeting_context,
+    build_personalized_greeting,
+    summarize_and_store_session,
+)
+from quantastra.persona import SYSTEM_PROMPT
 from quantastra.tools.macro_tools import MacroToolsMixin
 from quantastra.tools.market_tools import MarketToolsMixin
 from quantastra.tools.portfolio_tools import PortfolioToolsMixin
@@ -248,7 +252,8 @@ async def entrypoint(ctx: JobContext):
                 "data": tool_results,
             }))
 
-    session.say(INITIAL_GREETING)
+    greeting = await build_personalized_greeting(user_id)
+    session.say(greeting)
 
     log.info("QuantAstra agent ready in room: %s", ctx.room.name)
 

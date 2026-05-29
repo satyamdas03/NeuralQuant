@@ -68,11 +68,6 @@ interface TranscriptLine {
   timestamp: number;
 }
 
-interface ToolResult {
-  tool: string;
-  result: Record<string, unknown>;
-}
-
 interface CalcStep {
   label: string;
   formula?: string;
@@ -98,7 +93,7 @@ function QuantAstraCallInner() {
   const { logActivity } = useSessionTracker();
   const [agentState, setAgentState] = useState<AgentState>("initializing");
   const [transcriptLines, setTranscriptLines] = useState<TranscriptLine[]>([]);
-  const [toolResults, setToolResults] = useState<ToolResult[]>([]);
+  // Tool results logged via logActivity; Data Panel removed (commit 4ead9b9)
   const [agentSpeaking, setAgentSpeaking] = useState(false);
   const [agentTimeout, setAgentTimeout] = useState(false);
   const [whiteboardOpen, setWhiteboardOpen] = useState(false);
@@ -204,7 +199,7 @@ function QuantAstraCallInner() {
                   tool: tr.tool,
                 });
               }
-              setToolResults((prev) => [...prev, ...data.data]);
+              // Tool results logged via logActivity above; Data Panel display removed
             }
             break;
           case "whiteboard_update":

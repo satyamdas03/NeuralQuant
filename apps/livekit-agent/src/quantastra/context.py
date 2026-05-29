@@ -9,6 +9,52 @@ from datetime import datetime, timezone
 log = logging.getLogger(__name__)
 
 
+async def _fetch_user_name(user_id: str) -> str | None:
+    """Fetch the user's display name from Supabase users table."""
+    try:
+        from nq_api.cache.score_cache import _supabase_rest
+
+        result = _supabase_rest(
+            f"users?id=eq.{user_id}&select=name,email",
+            method="GET",
+        )
+        if isinstance(result, list) and result:
+            name = result[0].get("name")
+            if name:
+                return name
+            email = result[0].get("email", "")
+            if "@" in email:
+                return email.split("@")[0]
+    except Exception:
+        log.warning("Failed to fetch user name for %s", user_id)
+    return None
+
+
+async def build_personalized_greeting(user_id: str) -> str:
+    """Build a personalized greeting for the user based on profile and session history.
+
+    Returns a greeting string for the agent's first spoken utterance.
+    """
+    name = await _fetch_user_name(user_id)
+    last_summary = await _fetch_last_session_summary(user_id)
+
+    if name and last_summary:
+        return (
+            f"Hey {name}, welcome back. In our last session we talked about "
+            f"{last_summary} What's on your mind today?"
+        )
+
+    if name:
+        return (
+            f"Hey {name}, I'm QuantAstra, your portfolio manager at QuantAlpha. "
+            "I've got live markets, AI research, and your portfolio pulled up. "
+            "What's on your mind today?"
+        )
+
+    from quantastra.persona import INITIAL_GREETING
+    return INITIAL_GREETING
+
+
 async def _fetch_last_session_summary(user_id: str) -> str | None:
     """Fetch the most recent session summary for a user from Supabase."""
     try:

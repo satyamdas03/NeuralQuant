@@ -13,11 +13,18 @@ export default function InstallPWA() {
   const [show, setShow] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
+  // Determine initial show state — already installed? don't show
+  const [isStandalone] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(display-mode: standalone)").matches
+  );
+
   useEffect(() => {
+    if (isStandalone) return;
+
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-      // Show after 30s of engagement, only if not installed
+      // Show after 30s of engagement, only if not dismissed
       const timer = setTimeout(() => {
         if (!dismissed) setShow(true);
       }, 30000);
@@ -25,13 +32,8 @@ export default function InstallPWA() {
     };
     window.addEventListener("beforeinstallprompt", handler);
 
-    // Hide if already standalone
-    if (window.matchMedia("(display-mode: standalone)").matches) {
-      setShow(false);
-    }
-
     return () => window.removeEventListener("beforeinstallprompt", handler);
-  }, [dismissed]);
+  }, [dismissed, isStandalone]);
 
   const install = useCallback(async () => {
     if (!deferredPrompt) return;
