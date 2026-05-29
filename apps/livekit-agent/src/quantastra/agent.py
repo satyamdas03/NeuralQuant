@@ -259,7 +259,7 @@ async def entrypoint(ctx: JobContext):
 
     async def _on_shutdown(reason: str = "") -> None:
         log.info("Agent shutting down: %s", reason)
-        if user_id != "anonymous" and agent._conversation_turns:
+        if not user_id.startswith("anonymous") and agent._conversation_turns:
             try:
                 await summarize_and_store_session(user_id, agent._conversation_turns)
             except Exception:

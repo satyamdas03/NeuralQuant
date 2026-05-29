@@ -113,19 +113,23 @@ async def summarize_and_store_session(user_id: str, turns: list[dict]) -> None:
         # Create a lightweight user_sessions row so session_reports FK is satisfied
         session_id = _new_uuid()
         now_iso = datetime.now(timezone.utc).isoformat()
-        _supabase_rest(
-            "user_sessions",
-            method="POST",
-            body=[{
-                "id": session_id,
-                "user_id": user_id,
-                "started_at": now_iso,
-                "ended_at": now_iso,
-                "duration_seconds": 0,
-                "is_guest": False,
-                "metadata": {"source": "quantastra_voice"},
-            }],
-        )
+        try:
+            _supabase_rest(
+                "user_sessions",
+                method="POST",
+                body=[{
+                    "id": session_id,
+                    "user_id": user_id,
+                    "started_at": now_iso,
+                    "ended_at": now_iso,
+                    "duration_seconds": 0,
+                    "is_guest": False,
+                    "metadata": {"source": "quantastra_voice"},
+                }],
+            )
+        except Exception:
+            log.warning("Failed to create user_sessions row for %s — skipping", user_id)
+            return
 
         _supabase_rest(
             "session_reports",

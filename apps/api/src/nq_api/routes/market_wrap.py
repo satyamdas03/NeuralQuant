@@ -20,6 +20,7 @@ from nq_api.config import FRONTEND_URL
 from nq_api.auth.models import User
 from nq_api.auth.rate_limit import get_current_user
 from nq_api.auth.deps import get_current_user_optional
+from nq_api.notify import RESEND_FROM, _send_email_with_retry
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/market-wrap", tags=["market-wrap"])
@@ -198,7 +199,6 @@ def _build_market_wrap_html(
 def _send_market_wrap(to: str, name: str | None, market: str,
                       user_id: str | None = None) -> bool:
     """Fetch market data and top picks, build HTML, send via Resend."""
-    from nq_api.notify import _resend_client, RESEND_FROM
     from nq_api.routes.market import _market_overview_sync
     from nq_api.cache.score_cache import read_top_picks
 
@@ -227,23 +227,7 @@ def _send_market_wrap(to: str, name: str | None, market: str,
     html = _build_market_wrap_html(market_data, top_picks, market, name, watchlist_picks)
     subject = f"NeuralQuant Daily Wrap — {market_label(market)}"
 
-    resend = _resend_client()
-    if not resend or not os.environ.get("RESEND_API_KEY"):
-        logger.info("RESEND_API_KEY not set — logging market wrap: %s -> %s", subject, to)
-        return True
-
-    try:
-        resend.Emails.send({
-            "from": RESEND_FROM,
-            "to": to,
-            "subject": subject,
-            "html": html,
-        })
-        logger.info("Market wrap email sent: %s -> %s", subject, to)
-        return True
-    except Exception:
-        logger.exception("Failed to send market wrap to %s", to)
-        return False
+    return _send_email_with_retry(to, subject, html)
 
 
 def market_label(market: str) -> str:

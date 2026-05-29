@@ -213,25 +213,35 @@ def _store_report(session_id: str, user_id: str, report_text: str, summary: str)
         return None
 
 
+import time as _time
+
+
 def _send_report_email(to: str, subject: str, html_body: str) -> bool:
-    """Send the session report email via Resend."""
+    """Send the session report email via Resend with retry.
+
+    Returns True only if the API confirms delivery.
+    Returns False on misconfiguration or persistent failure so callers can alert.
+    """
     resend = _resend_client()
     if not resend or not os.environ.get("RESEND_API_KEY"):
-        log.info("RESEND_API_KEY not set — logging report email: %s -> %s", subject, to)
-        return True
-
-    try:
-        resend.Emails.send({
-            "from": RESEND_FROM,
-            "to": to,
-            "subject": subject,
-            "html": html_body,
-        })
-        log.info("Session report email sent: %s -> %s", subject, to)
-        return True
-    except Exception:
-        log.exception("Failed to send session report email to %s", to)
+        log.warning("RESEND_API_KEY not set — cannot send report email: %s -> %s", subject, to)
         return False
+
+    for attempt in range(1, 4):
+        try:
+            resend.Emails.send({
+                "from": RESEND_FROM,
+                "to": to,
+                "subject": subject,
+                "html": html_body,
+            })
+            log.info("Session report email sent: %s -> %s (attempt %d)", subject, to, attempt)
+            return True
+        except Exception:
+            log.exception("Failed to send session report email to %s (attempt %d)", to, attempt)
+            if attempt < 3:
+                _time.sleep(2 ** attempt)  # 2s, 4s, then give up
+    return False
 
 
 def _mark_report_sent(report_id: str) -> None:

@@ -24,6 +24,30 @@ def _resend_client():
         return None
 
 
+def _send_email_with_retry(to: str, subject: str, html: str) -> bool:
+    """Send email via Resend with exponential-backoff retry.
+
+    Returns True only on confirmed delivery. False on misconfiguration
+    or persistent failure so callers can surface the issue.
+    """
+    resend = _resend_client()
+    if not resend or not os.environ.get("RESEND_API_KEY"):
+        logger.warning("RESEND_API_KEY not set — cannot send: %s -> %s", subject, to)
+        return False
+
+    import time as _time
+    for attempt in range(1, 4):
+        try:
+            resend.Emails.send({"from": RESEND_FROM, "to": to, "subject": subject, "html": html})
+            logger.info("Email sent: %s -> %s (attempt %d)", subject, to, attempt)
+            return True
+        except Exception:
+            logger.exception("Failed to send email to %s (attempt %d)", to, attempt)
+            if attempt < 3:
+                _time.sleep(2 ** attempt)
+    return False
+
+
 def send_alert_email(
     to: str,
     ticker: str,
@@ -77,23 +101,7 @@ def send_alert_email(
     </div>
     """
 
-    resend = _resend_client()
-    if not resend or not os.environ.get("RESEND_API_KEY"):
-        logger.info("RESEND_API_KEY not set — logging alert: %s -> %s", subject, to)
-        return True
-
-    try:
-        resend.Emails.send({
-            "from": RESEND_FROM,
-            "to": to,
-            "subject": subject,
-            "html": html,
-        })
-        logger.info("Alert email sent: %s -> %s", subject, to)
-        return True
-    except Exception:
-        logger.exception("Failed to send alert email to %s", to)
-        return False
+    return _send_email_with_retry(to, subject, html)
 
 
 # ---------------------------------------------------------------------------
@@ -182,18 +190,7 @@ def send_welcome_email(to: str, name: str | None = None) -> bool:
     {_NQ_BRAND_FOOT}
     """
 
-    resend = _resend_client()
-    if not resend or not os.environ.get("RESEND_API_KEY"):
-        logger.info("RESEND_API_KEY not set — logging welcome email: %s -> %s", subject, to)
-        return True
-
-    try:
-        resend.Emails.send({"from": RESEND_FROM, "to": to, "subject": subject, "html": html})
-        logger.info("Welcome email sent to %s", to)
-        return True
-    except Exception:
-        logger.exception("Failed to send welcome email to %s", to)
-        return False
+    return _send_email_with_retry(to, subject, html)
 
 
 def send_debate_demo_email(to: str) -> bool:
@@ -218,18 +215,7 @@ def send_debate_demo_email(to: str) -> bool:
     {_NQ_BRAND_FOOT}
     """
 
-    resend = _resend_client()
-    if not resend or not os.environ.get("RESEND_API_KEY"):
-        logger.info("RESEND_API_KEY not set — logging debate demo email: %s -> %s", subject, to)
-        return True
-
-    try:
-        resend.Emails.send({"from": RESEND_FROM, "to": to, "subject": subject, "html": html})
-        logger.info("Debate demo email sent to %s", to)
-        return True
-    except Exception:
-        logger.exception("Failed to send debate demo email to %s", to)
-        return False
+    return _send_email_with_retry(to, subject, html)
 
 
 def send_screener_email(to: str) -> bool:
@@ -254,18 +240,7 @@ def send_screener_email(to: str) -> bool:
     {_NQ_BRAND_FOOT}
     """
 
-    resend = _resend_client()
-    if not resend or not os.environ.get("RESEND_API_KEY"):
-        logger.info("RESEND_API_KEY not set — logging screener email: %s -> %s", subject, to)
-        return True
-
-    try:
-        resend.Emails.send({"from": RESEND_FROM, "to": to, "subject": subject, "html": html})
-        logger.info("Screener email sent to %s", to)
-        return True
-    except Exception:
-        logger.exception("Failed to send screener email to %s", to)
-        return False
+    return _send_email_with_retry(to, subject, html)
 
 
 def send_upgrade_email(to: str) -> bool:
@@ -301,15 +276,4 @@ def send_upgrade_email(to: str) -> bool:
     {_NQ_BRAND_FOOT}
     """
 
-    resend = _resend_client()
-    if not resend or not os.environ.get("RESEND_API_KEY"):
-        logger.info("RESEND_API_KEY not set — logging upgrade email: %s -> %s", subject, to)
-        return True
-
-    try:
-        resend.Emails.send({"from": RESEND_FROM, "to": to, "subject": subject, "html": html})
-        logger.info("Upgrade email sent to %s", to)
-        return True
-    except Exception:
-        logger.exception("Failed to send upgrade email to %s", to)
-        return False
+    return _send_email_with_retry(to, subject, html)
