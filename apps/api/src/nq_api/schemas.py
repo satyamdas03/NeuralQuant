@@ -21,6 +21,17 @@ class SubScores(BaseModel):
     insider: float = 0.5         # 0-1 (EDGAR Form 4 cluster score, US only)
 
 
+class AnjaliScores(BaseModel):
+    """Anjali Value Screener quintile scores (-4 to +4 each, composite -16 to +16)."""
+    growth_score: float | None = None        # -4 to +4 vs index peers
+    return_score: float | None = None        # -4 to +4
+    valuation_score: float | None = None     # -4 to +4 (Q2=+1 sweet spot)
+    risk_score: float | None = None          # -4 to +4 (Q4=+1 sweet spot)
+    composite: float | None = None            # -16 to +16
+    is_loss_making: bool = False              # True if any loss flag set
+    valuation_sweet_spot: bool = False        # True if Q2 valuation (score 0.5-1.5)
+
+
 class AIScore(BaseModel):
     ticker: str
     market: Literal["US", "IN", "GLOBAL"]
@@ -32,6 +43,7 @@ class AIScore(BaseModel):
     top_drivers: list[FeatureDriver]  # top 5 positive + negative features
     confidence: Literal["high", "medium", "low"]
     last_updated: str            # ISO datetime
+    anjali: AnjaliScores | None = None  # Anjali Value Screener scores (None if not available)
 
 
 class ScreenerRequest(BaseModel):

@@ -21,6 +21,16 @@ export interface SubScores {
   insider?: number;
 }
 
+export interface AnjaliScores {
+  growth_score: number | null;        // -4 to +4 vs index peers
+  return_score: number | null;        // -4 to +4
+  valuation_score: number | null;     // -4 to +4 (Q2=+1 sweet spot)
+  risk_score: number | null;          // -4 to +4 (Q4=+1 sweet spot)
+  composite: number | null;           // -16 to +16
+  is_loss_making: boolean;            // True if any loss flag set
+  valuation_sweet_spot: boolean;      // True if Q2 valuation (score 0.5-1.5)
+}
+
 export interface AIScore {
   ticker: string;
   market: Market;
@@ -32,6 +42,7 @@ export interface AIScore {
   top_drivers: FeatureDriver[];
   confidence: ConfidenceLevel;
   last_updated: string;
+  anjali?: AnjaliScores | null;  // Anjali Value Screener scores (null if not available)
 }
 
 export interface AgentOutput {
@@ -63,6 +74,10 @@ export interface ScreenerRequest {
   min_quality?: number;
   min_low_vol?: number;
   max_momentum?: number;
+  // Anjali Value Screener filters
+  min_anjali_composite?: number;   // minimum Anjali composite score
+  valuation_sweet_spot?: boolean;  // only Q2 valuation stocks
+  loss_making?: boolean;           // exclude loss-making companies
 }
 
 export interface ScreenerResponse {

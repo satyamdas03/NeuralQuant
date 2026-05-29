@@ -9,7 +9,7 @@ import logging
 import os
 
 import pandas as pd
-from nq_api.schemas import AIScore, SubScores, FeatureDriver
+from nq_api.schemas import AIScore, SubScores, FeatureDriver, AnjaliScores
 
 logger = logging.getLogger(__name__)
 
@@ -201,6 +201,22 @@ def row_to_ai_score(row: pd.Series, market: str, score_1_10_override: int | None
     if anjali_available and score_1_10_override is None:
         score_1_10_override = _score_to_1_10(composite)
 
+    # Build Anjali scores if available
+    anjali_scores = None
+    if anjali_data and anjali_available:
+        val_score = anjali_data.get("valuation_score")
+        anjali_scores = AnjaliScores(
+            growth_score=anjali_data.get("growth_score"),
+            return_score=anjali_data.get("return_score"),
+            valuation_score=val_score,
+            risk_score=anjali_data.get("risk_score"),
+            composite=anjali_data.get("composite_anjali_score"),
+            is_loss_making=bool(
+                anjali_data.get("loss_profit_yoy") or anjali_data.get("loss_profit_ttm") or anjali_data.get("loss_profit_qoq")
+            ),
+            valuation_sweet_spot=0.5 <= (val_score or 0) <= 1.5 if val_score is not None else False,
+        )
+
     return AIScore(
         ticker=str(row["ticker"]),
         market=market,
@@ -219,4 +235,5 @@ def row_to_ai_score(row: pd.Series, market: str, score_1_10_override: int | None
         top_drivers=build_top_drivers(row),
         confidence=_confidence(row),
         last_updated=datetime.now(timezone.utc).isoformat(),
+        anjali=anjali_scores,
     )
