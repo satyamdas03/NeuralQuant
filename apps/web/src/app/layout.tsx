@@ -1,10 +1,110 @@
-import type { Metadata } from "next"; import Script from "next/script"; import { Syne, Space_Mono, Instrument_Serif } from "next/font/google"; import "./globals.css"; import AppShell from "@/components/layout/AppShell"; import WalkthroughProvider from "@/components/onboarding/WalkthroughProvider"; import ServiceWorkerRegister from "@/components/ui/ServiceWorkerRegister"; import InstallPWA from "@/components/ui/InstallPWA"; import UpgradePrompt from "@/components/ui/UpgradePrompt"; import { SessionProvider } from "@/lib/session-tracker"; const syne = Syne({ subsets: ["latin"], variable: "--font-syne", weight: ["400", "600", "700", "800"], }); const spaceMono = Space_Mono({ subsets: ["latin"], variable: "--font-space-mono", weight: ["400", "700"], }); const instrumentSerif = Instrument_Serif({ subsets: ["latin"], variable: "--font-serif", weight: ["400"], style: ["normal", "italic"], }); export const metadata: Metadata = { title: "NeuralQuant — AI Stock Intelligence", description: "Institutional-grade AI stock analysis for US and India markets. ForeCast Score, PARA-DEBATE multi-agent analysis, and regime detection.", manifest: "/manifest.json", icons: { icon: "/icons/icon-512.png", apple: "/icons/icon-192.png", }, appleWebApp: { capable: true, title: "NeuralQuant", statusBarStyle: "black-translucent", }, }; export const viewport = { themeColor: "#00ffb2", width: "device-width", initialScale: 1, maximumScale: 5, }; export default function RootLayout({ children }: { children: React.ReactNode }) { return ( <html lang="en" className="dark" suppressHydrationWarning> <body className={`${syne.variable} ${spaceMono.variable} ${instrumentSerif.variable} font-sans min-h-screen antialiased`}> {process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN && ( <Script defer data-domain={process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN} src="https://plausible.io/js/script.js" /> )}
-      <ServiceWorkerRegister />
-      <SessionProvider>
-        <WalkthroughProvider>
-          <AppShell>{children}</AppShell>
-          <InstallPWA />
-	          <UpgradePrompt />
-        </WalkthroughProvider>
-      </SessionProvider>
-    </body> </html> ); }
+import type { Metadata } from "next";
+import Script from "next/script";
+import { Syne, Space_Mono, Instrument_Serif } from "next/font/google";
+import "./globals.css";
+import AppShell from "@/components/layout/AppShell";
+import WalkthroughProvider from "@/components/onboarding/WalkthroughProvider";
+import ServiceWorkerRegister from "@/components/ui/ServiceWorkerRegister";
+import InstallPWA from "@/components/ui/InstallPWA";
+import UpgradePrompt from "@/components/ui/UpgradePrompt";
+import { SessionProvider } from "@/lib/session-tracker";
+import AnalyticsRouteTracker from "@/components/AnalyticsRouteTracker";
+
+const syne = Syne({
+  subsets: ["latin"],
+  variable: "--font-syne",
+  weight: ["400", "600", "700", "800"],
+});
+
+const spaceMono = Space_Mono({
+  subsets: ["latin"],
+  variable: "--font-space-mono",
+  weight: ["400", "700"],
+});
+
+const instrumentSerif = Instrument_Serif({
+  subsets: ["latin"],
+  variable: "--font-serif",
+  weight: ["400"],
+  style: ["normal", "italic"],
+});
+
+export const metadata: Metadata = {
+  metadataBase: new URL("https://neuralquant.co"),
+  title: {
+    default: "NeuralQuant — AI Stock Intelligence",
+    template: "%s | NeuralQuant",
+  },
+  description:
+    "Institutional-grade AI stock analysis for US and India markets. ForeCast Score, PARA-DEBATE multi-agent analysis, and regime detection.",
+  manifest: "/manifest.json",
+  icons: {
+    icon: "/icons/icon-512.png",
+    apple: "/icons/icon-192.png",
+  },
+  appleWebApp: {
+    capable: true,
+    title: "NeuralQuant",
+    statusBarStyle: "black-translucent",
+  },
+  openGraph: {
+    title: "NeuralQuant — AI Stock Intelligence",
+    description:
+      "Institutional-grade AI stock analysis for US and India markets. ForeCast Score, PARA-DEBATE multi-agent analysis, and regime detection.",
+    siteName: "NeuralQuant",
+    type: "website",
+    url: "/",
+    images: ["/og-image.png"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "NeuralQuant — AI Stock Intelligence",
+    description:
+      "Institutional-grade AI stock analysis for US and India markets. ForeCast Score, PARA-DEBATE multi-agent analysis, and regime detection.",
+  },
+  alternates: {
+    canonical: "https://neuralquant.co",
+  },
+};
+
+export const viewport = {
+  themeColor: "#00ffb2",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html
+      lang="en"
+      className="dark"
+      suppressHydrationWarning
+    >
+      <body
+        className={`${syne.variable} ${spaceMono.variable} ${instrumentSerif.variable} font-sans min-h-screen antialiased`}
+      >
+        {process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN && (
+          <Script
+            defer
+            data-domain={process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN}
+            src="https://plausible.io/js/script.js"
+          />
+        )}
+        <ServiceWorkerRegister />
+        <AnalyticsRouteTracker />
+        <SessionProvider>
+          <WalkthroughProvider>
+            <AppShell>{children}</AppShell>
+            <InstallPWA />
+            <UpgradePrompt />
+          </WalkthroughProvider>
+        </SessionProvider>
+      </body>
+    </html>
+  );
+}

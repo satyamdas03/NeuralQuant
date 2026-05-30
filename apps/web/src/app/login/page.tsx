@@ -6,6 +6,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import GradientButton from "@/components/ui/GradientButton";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+import { trackEvent, EVENT } from "@/lib/analytics";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,7 @@ function LoginForm() {
     e.preventDefault();
     setError(null);
     setLoading(true);
+    trackEvent(EVENT.AUTH_STARTED, { provider: "email_login" });
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);

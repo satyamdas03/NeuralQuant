@@ -1,9 +1,11 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { trackEvent, EVENT } from "@/lib/analytics";
 
 export function GoogleSignInButton({ label = "Continue with Google" }: { label?: string }) {
   const handleGoogleSignIn = async () => {
+    trackEvent(EVENT.AUTH_STARTED, { provider: "google" });
     const supabase = createClient();
     const envUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
     const base = envUrl || (typeof window !== "undefined" ? window.location.origin : "");

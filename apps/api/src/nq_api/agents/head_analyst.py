@@ -82,7 +82,7 @@ RISK_FACTORS:
             raw_fields = {
                 k: v for k, v in raw_context.items()
                 if v is not None and k in (
-                    "price", "change_pct", "pe_ttm", "pb_ratio", "market_cap",
+                    "current_price", "change_pct", "pe_ttm", "pb_ratio", "market_cap",
                     "composite_score", "regime_label", "sector", "momentum_percentile",
                     "quality_percentile", "value_percentile", "low_vol_percentile",
                     "low_short_interest_rank", "short_interest_pct", "revenue_growth", "debt_equity",
@@ -93,6 +93,22 @@ RISK_FACTORS:
                     "sector_median_pe_ttm", "sector_median_roe",
                     "sector_median_gross_profit_margin", "sector_median_debt_equity",
                     "sector_median_composite_score",
+                    "forward_pe", "peg_ratio", "profit_margin", "operating_margin",
+                    "ev_ebitda", "free_cashflow", "current_ratio", "revenue_per_share",
+                    "institutional_ownership", "fifty_day_average", "two_hundred_day_average",
+                    "target_high_price", "target_low_price", "number_of_analyst_opinions",
+                    "payout_ratio",
+                    # Peer deep-dive fields (peer_1_* / peer_2_*)
+                    "peer_1_ticker", "peer_1_score", "peer_1_current_price", "peer_1_pe_ttm",
+                    "peer_1_pb_ratio", "peer_1_beta", "peer_1_market_cap", "peer_1_roe",
+                    "peer_1_gross_profit_margin", "peer_1_forward_pe", "peer_1_peg_ratio",
+                    "peer_1_profit_margin", "peer_1_operating_margin", "peer_1_ev_ebitda",
+                    "peer_1_free_cashflow", "peer_1_current_ratio", "peer_1_institutional_ownership",
+                    "peer_2_ticker", "peer_2_score", "peer_2_current_price", "peer_2_pe_ttm",
+                    "peer_2_pb_ratio", "peer_2_beta", "peer_2_market_cap", "peer_2_roe",
+                    "peer_2_gross_profit_margin", "peer_2_forward_pe", "peer_2_peg_ratio",
+                    "peer_2_profit_margin", "peer_2_operating_margin", "peer_2_ev_ebitda",
+                    "peer_2_free_cashflow", "peer_2_current_ratio", "peer_2_institutional_ownership",
                 )
             }
             if raw_fields:

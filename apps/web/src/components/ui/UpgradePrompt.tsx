@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { X, ArrowRight, Zap } from "lucide-react";
+import { trackEvent, EVENT } from "@/lib/analytics";
 
 /**
  * UpgradePrompt — shows a CTA when the API returns 429 (rate limit)
@@ -14,6 +15,7 @@ import { X, ArrowRight, Zap } from "lucide-react";
 let _setUpgradeVisible: ((v: boolean, tier?: string, reason?: string) => void) | null = null;
 
 export function showUpgrade(reason?: string, tier?: string) {
+  trackEvent(EVENT.UPGRADE_CLICKED, { reason: reason || "rate_limit", tier: tier || "investor" });
   _setUpgradeVisible?.(true, tier, reason);
 }
 

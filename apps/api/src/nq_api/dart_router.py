@@ -443,6 +443,22 @@ def _build_analyst_context(ticker: str, market: str, engine) -> dict:
             "accruals_ratio": round(_r("accruals_ratio"), 4) if _r("accruals_ratio") is not None else None,
             "revenue_growth_yoy": round(_r("revenue_growth_yoy"), 4) if _r("revenue_growth_yoy") is not None else None,
             "debt_equity": round(_r("debt_equity"), 2) if _r("debt_equity") is not None else None,
+            "roe": round(_r("roe"), 3) if _r("roe") is not None else None,
+            "forward_pe": round(_r("forward_pe"), 2) if _r("forward_pe") is not None else None,
+            "peg_ratio": round(_r("peg_ratio"), 2) if _r("peg_ratio") is not None else None,
+            "profit_margin": round(_r("profit_margin"), 3) if _r("profit_margin") is not None else None,
+            "operating_margin": round(_r("operating_margin"), 3) if _r("operating_margin") is not None else None,
+            "ev_ebitda": round(_r("ev_ebitda"), 2) if _r("ev_ebitda") is not None else None,
+            "free_cashflow": round(_r("free_cashflow"), 0) if _r("free_cashflow") is not None else None,
+            "current_ratio": round(_r("current_ratio"), 2) if _r("current_ratio") is not None else None,
+            "revenue_per_share": round(_r("revenue_per_share"), 2) if _r("revenue_per_share") is not None else None,
+            "institutional_ownership": round(_r("institutional_ownership"), 3) if _r("institutional_ownership") is not None else None,
+            "fifty_day_average": round(_r("fifty_day_average"), 2) if _r("fifty_day_average") is not None else None,
+            "two_hundred_day_average": round(_r("two_hundred_day_average"), 2) if _r("two_hundred_day_average") is not None else None,
+            "target_high_price": round(_r("target_high_price"), 2) if _r("target_high_price") is not None else None,
+            "target_low_price": round(_r("target_low_price"), 2) if _r("target_low_price") is not None else None,
+            "number_of_analyst_opinions": int(row.get("number_of_analyst_opinions")) if row.get("number_of_analyst_opinions") is not None else None,
+            "payout_ratio": round(_r("payout_ratio"), 3) if _r("payout_ratio") is not None else None,
         })
 
     # Sector median comparison (for agent context)
@@ -475,7 +491,54 @@ def _build_analyst_context(ticker: str, market: str, engine) -> dict:
             if k not in context:
                 context[k] = v
 
+    # Peer deep-dive — enrich top 2 nearby competitors with full fundamentals
+    _inject_peer_fundamentals(context, ticker, market)
+
     return context
+
+
+def _inject_peer_fundamentals(context: dict, primary_ticker: str, market: str) -> None:
+    """Fetch top 2 peer fundamentals and inject as peer_1_*/peer_2_* keys."""
+    from nq_api.data_builder import _fetch_one
+
+    cached_all = score_cache.read_top(market, 50, max_age_seconds=86400)
+    if not cached_all:
+        cached_all = score_cache.read_top(market, 50, max_age_seconds=999999999)
+    if not cached_all:
+        return
+
+    primary_rank = next(
+        (i for i, r in enumerate(cached_all) if r.get("ticker") == primary_ticker),
+        -1,
+    )
+    if primary_rank < 0:
+        return
+
+    peer_offsets = [primary_rank - 1, primary_rank + 1]
+    peer_idx = 0
+    for offset in peer_offsets:
+        if 0 <= offset < len(cached_all) and peer_idx < 2:
+            peer = cached_all[offset]
+            peer_ticker = peer.get("ticker", "?")
+            try:
+                peer_data = _fetch_one(peer_ticker, market)
+                if peer_data and not peer_data.get("long_name", "").startswith("Empty"):
+                    prefix = f"peer_{peer_idx + 1}"
+                    context[f"{prefix}_ticker"] = peer_ticker
+                    context[f"{prefix}_score"] = int(peer.get("composite_score", 0.5) * 10)
+                    for field in (
+                        "current_price", "pe_ttm", "pb_ratio", "beta",
+                        "market_cap", "roe", "gross_profit_margin",
+                        "forward_pe", "peg_ratio", "profit_margin",
+                        "operating_margin", "ev_ebitda", "free_cashflow",
+                        "current_ratio", "institutional_ownership",
+                    ):
+                        v = peer_data.get(field)
+                        if v is not None:
+                            context[f"{prefix}_{field}"] = v
+                    peer_idx += 1
+            except Exception:
+                pass  # Skip peer on error
 
 
 def _build_context_from_cache(ticker: str, market: str) -> dict | None:
@@ -569,6 +632,22 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
             "accruals_ratio": round(float(cached["accruals_ratio"]), 4) if cached.get("accruals_ratio") is not None else None,
             "revenue_growth_yoy": round(float(cached["revenue_growth_yoy"]), 4) if cached.get("revenue_growth_yoy") is not None else None,
             "debt_equity": round(float(cached["debt_equity"]), 2) if cached.get("debt_equity") is not None else None,
+            "roe": round(float(cached.get("roe")), 3) if cached.get("roe") is not None else None,
+            "forward_pe": round(float(cached.get("forward_pe")), 2) if cached.get("forward_pe") is not None else None,
+            "peg_ratio": round(float(cached.get("peg_ratio")), 2) if cached.get("peg_ratio") is not None else None,
+            "profit_margin": round(float(cached.get("profit_margin")), 3) if cached.get("profit_margin") is not None else None,
+            "operating_margin": round(float(cached.get("operating_margin")), 3) if cached.get("operating_margin") is not None else None,
+            "ev_ebitda": round(float(cached.get("ev_ebitda")), 2) if cached.get("ev_ebitda") is not None else None,
+            "free_cashflow": round(float(cached.get("free_cashflow")), 0) if cached.get("free_cashflow") is not None else None,
+            "current_ratio": round(float(cached.get("current_ratio")), 2) if cached.get("current_ratio") is not None else None,
+            "revenue_per_share": round(float(cached.get("revenue_per_share")), 2) if cached.get("revenue_per_share") is not None else None,
+            "institutional_ownership": round(float(cached.get("institutional_ownership")), 3) if cached.get("institutional_ownership") is not None else None,
+            "fifty_day_average": round(float(cached.get("fifty_day_average")), 2) if cached.get("fifty_day_average") is not None else None,
+            "two_hundred_day_average": round(float(cached.get("two_hundred_day_average")), 2) if cached.get("two_hundred_day_average") is not None else None,
+            "target_high_price": round(float(cached.get("target_high_price")), 2) if cached.get("target_high_price") is not None else None,
+            "target_low_price": round(float(cached.get("target_low_price")), 2) if cached.get("target_low_price") is not None else None,
+            "number_of_analyst_opinions": int(cached.get("number_of_analyst_opinions")) if cached.get("number_of_analyst_opinions") is not None else None,
+            "payout_ratio": round(float(cached.get("payout_ratio")), 3) if cached.get("payout_ratio") is not None else None,
         }
 
         # Sector median comparison (for agent context)
@@ -600,6 +679,9 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
             for k, v in finnhub_data.items():
                 if k not in context:
                     context[k] = v
+
+        # Peer deep-dive — enrich top 2 nearby competitors with full fundamentals
+        _inject_peer_fundamentals(context, ticker, market)
 
         return context
     except Exception as e:

@@ -616,12 +616,13 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
             lines.append("⚠ MANDATORY: ALL values marked [VERIFIED] are REAL live data (FMP primary, yfinance fallback) for TODAY. Fields not shown are unavailable -- do NOT invent them. P/E, Beta, Price, Market Cap change after earnings, splits, and volatility shifts. Your training data is WRONG for these values. ALWAYS quote the EXACT [VERIFIED] values shown above.")
             parts.append("\n".join(lines))
 
-        # Inject competitor comparison for specific stocks
+        # Inject competitor comparison with deep fundamentals
         if in_universe_tickers and needs_stock_scores:
             try:
                 from nq_api.data_builder import _fetch_yf_info_cached
+                from nq_api.cache import score_cache as _sc_comp
 
-                comp_lines = ["Competitor comparison:"]
+                comp_lines = ["Competitor deep-dive:"]
                 for t in in_universe_tickers[:2]:
                     try:
                         info = _fetch_yf_info_cached(t)
@@ -632,27 +633,47 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                                 comp_lines.append(f"  {t} sector: {sector} | industry: {industry}")
                     except Exception:
                         pass
-                # Show nearby alternatives from cache
-                cached_all = score_cache.read_top(target_market, 50, max_age_seconds=300)
+                # Show nearby alternatives from cache with deep fundamentals
+                cached_all = _sc_comp.read_top(target_market, 50, max_age_seconds=300)
                 if not cached_all:
-                    cached_all = score_cache.read_top(target_market, 50, max_age_seconds=86400)
+                    cached_all = _sc_comp.read_top(target_market, 50, max_age_seconds=86400)
                 if not cached_all:
-                    cached_all = score_cache.read_top(target_market, 50, max_age_seconds=999999999)
+                    cached_all = _sc_comp.read_top(target_market, 50, max_age_seconds=999999999)
                 if cached_all:
                     cache_map = {r.get("ticker"): r for r in cached_all}
-                    for t in in_universe_tickers[:2]:
-                        if t in cache_map:
-                            row = cache_map[t]
-                            rank = next((i for i, r in enumerate(cached_all) if r.get("ticker") == t), -1)
-                            for pi in range(max(0, rank - 1), min(len(cached_all), rank + 2)):
-                                if pi != rank and pi < len(cached_all):
-                                    peer = cached_all[pi]
-                                    peer_sc = int(peer.get("composite_score", 0.5) * 10)
-                                    comp_lines.append(
-                                        f"  Alternative: {peer['ticker']} (ForeCast {peer_sc}/10) "
-                                        f"-- Quality {peer.get('quality_percentile', 0):.0%} "
-                                        f"Momentum {peer.get('momentum_percentile', 0):.0%}"
-                                    )
+                    primary_ticker = in_universe_tickers[0] if in_universe_tickers else None
+                    primary_rank = next((i for i, r in enumerate(cached_all) if r.get("ticker") == primary_ticker), -1)
+                    # Pick top 2 peers (rank-1 and rank+1 around the primary)
+                    peer_indices = []
+                    for offset in [-1, 1]:
+                        pi = primary_rank + offset
+                        if 0 <= pi < len(cached_all) and pi != primary_rank:
+                            peer_indices.append(pi)
+                    for pi in peer_indices[:2]:
+                        peer = cached_all[pi]
+                        peer_ticker = peer.get("ticker", "?")
+                        peer_sc = int(peer.get("composite_score", 0.5) * 10)
+                        comp_lines.append(
+                            f"  Alternative: {peer_ticker} (ForeCast {peer_sc}/10)"
+                            f" -- Quality {peer.get('quality_percentile', 0):.0%}"
+                            f" Momentum {peer.get('momentum_percentile', 0):.0%}"
+                        )
+                        # Deep fundamentals for peer
+                        try:
+                            peer_data = _fetch_one(peer_ticker, target_market)
+                            if peer_data and not peer_data.get("long_name", "").startswith("Empty"):
+                                comp_lines.append(
+                                    f"    {peer_ticker} deep: "
+                                    f"Price=${peer_data.get('current_price', 'N/A')} "
+                                    f"P/E={peer_data.get('pe_ttm', 'N/A')} "
+                                    f"P/B={peer_data.get('pb_ratio', 'N/A')} "
+                                    f"Beta={peer_data.get('beta', 'N/A')} "
+                                    f"MCap={peer_data.get('market_cap', 'N/A')} "
+                                    f"ROE={peer_data.get('roe', 'N/A')} "
+                                    f"Margin={peer_data.get('gross_profit_margin', 'N/A')}"
+                                )
+                        except Exception:
+                            pass  # Skip peer fundamentals on error
                 if len(comp_lines) > 1:
                     parts.append("\n".join(comp_lines))
             except Exception:

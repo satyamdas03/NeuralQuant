@@ -6,6 +6,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import GradientButton from "@/components/ui/GradientButton";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+import { trackEvent, EVENT } from "@/lib/analytics";
 
 function SignupForm() {
   const router = useRouter();
@@ -21,6 +22,7 @@ function SignupForm() {
     setError(null);
     setInfo(null);
     setLoading(true);
+    trackEvent(EVENT.AUTH_STARTED, { provider: "email_signup" });
     const supabase = createClient();
     const refCode = searchParams.get("ref");
     const { data, error } = await supabase.auth.signUp({

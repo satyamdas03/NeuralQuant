@@ -691,6 +691,21 @@ def _empty_row(ticker: str) -> dict:
         "revenue_growth_yoy": None,
         "fcf_yield": None,
         "eps_ttm": None,
+        "forward_pe": None,
+        "peg_ratio": None,
+        "profit_margin": None,
+        "operating_margin": None,
+        "ev_ebitda": None,
+        "free_cashflow": None,
+        "current_ratio": None,
+        "revenue_per_share": None,
+        "institutional_ownership": None,
+        "fifty_day_average": None,
+        "two_hundred_day_average": None,
+        "target_high_price": None,
+        "target_low_price": None,
+        "number_of_analyst_opinions": None,
+        "payout_ratio": None,
     }
 
 
@@ -1047,6 +1062,28 @@ def _fetch_one(ticker: str, market: str, fast_pe: bool = True) -> dict:
             except (TypeError, ValueError):
                 eps_ttm = None
 
+        # ── Additional enrichment fields (yfinance .info + FMP overlay) ──
+        forward_pe = _safe(info.get("forwardPE"), None)
+        peg_ratio = _safe(info.get("pegRatio"), None)
+        profit_margin = _safe(info.get("profitMargins"), None)
+        operating_margin = _safe(info.get("operatingMargins"), None)
+        ev_ebitda = _safe(info.get("enterpriseToEbitda"), None)
+        free_cashflow = _safe(info.get("freeCashflow"), None)
+        current_ratio = _safe(info.get("currentRatio"), None)
+        revenue_per_share = _safe(info.get("revenuePerShare"), None)
+        institutional_ownership = _safe(info.get("heldPercentInstitutions"), None)
+        fifty_day_average = _safe(info.get("fiftyDayAverage"), None)
+        two_hundred_day_average = _safe(info.get("twoHundredDayAverage"), None)
+        target_high_price = _safe(info.get("targetHighPrice"), None)
+        target_low_price = _safe(info.get("targetLowPrice"), None)
+        number_of_analyst_opinions = None
+        if info.get("numberOfAnalystOpinions") is not None:
+            try:
+                number_of_analyst_opinions = int(float(info["numberOfAnalystOpinions"]))
+            except (TypeError, ValueError):
+                pass
+        payout_ratio = _safe(info.get("payoutRatio"), None)
+
         result = {
             "gross_profit_margin": gpm,
             "roe": roe,
@@ -1077,6 +1114,21 @@ def _fetch_one(ticker: str, market: str, fast_pe: bool = True) -> dict:
             "revenue_growth_yoy": round(float(info.get("revenueGrowth")) * 100, 1) if info.get("revenueGrowth") is not None else None,
             "fcf_yield": round(fcf_val / market_cap, 4) if (fcf_val := _safe(info.get("freeCashflow")) or 0) > 0 and market_cap else None,
             "eps_ttm": eps_ttm,
+            "forward_pe": forward_pe,
+            "peg_ratio": peg_ratio,
+            "profit_margin": profit_margin,
+            "operating_margin": operating_margin,
+            "ev_ebitda": ev_ebitda,
+            "free_cashflow": free_cashflow,
+            "current_ratio": current_ratio,
+            "revenue_per_share": revenue_per_share,
+            "institutional_ownership": institutional_ownership,
+            "fifty_day_average": fifty_day_average,
+            "two_hundred_day_average": two_hundred_day_average,
+            "target_high_price": target_high_price,
+            "target_low_price": target_low_price,
+            "number_of_analyst_opinions": number_of_analyst_opinions,
+            "payout_ratio": payout_ratio,
         }
     except Exception as exc:
         log.debug("Fundamental fetch failed for %s: %s — returning empty row", ticker, exc)
