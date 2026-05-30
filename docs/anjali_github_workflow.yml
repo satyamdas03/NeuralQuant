@@ -32,6 +32,5 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          PYTHONPATH: ${{ github.workspace }}/neuralquant/packages/data/src
         run: |
           python neuralquant/scripts/ingest_anjali_excel.py --path US_Stock_Analysis_Coloured.xlsx
