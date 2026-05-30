@@ -107,7 +107,7 @@ export default function WelcomeModal({ onClose }: WelcomeModalProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="glass-strong ghost-border mx-4 w-full max-w-md p-8">
         <h2 className="font-headline text-xl font-bold text-on-surface">
-          Welcome to QuantAlpha
+          Welcome to NeuralQuant
         </h2>
         <p className="mt-2 text-sm text-on-surface-variant">
           Pick 3–5 stocks to start your first watchlist. You can always change

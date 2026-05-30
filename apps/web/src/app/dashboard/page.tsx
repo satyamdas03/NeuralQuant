@@ -12,6 +12,7 @@ import RegimeBadge from "@/components/ui/RegimeBadge";
 import { ArrowUpRight, ArrowDownRight, TrendingUp, Newspaper } from "lucide-react";
 import SocialBuzzCard from "@/components/ui/SocialBuzzCard";
 import QuantAstraFAB from "@/components/quantastra/QuantAstraFAB";
+import WelcomeModal from "@/components/onboarding/WelcomeModal";
 
 // ─── Index Bar ────────────────────────────────────────────────────────────────
 
@@ -244,6 +245,10 @@ export default function DashboardPage() {
   const [sectorsLoading, setSectorsLoading] = useState(true);
   const [stocksLoading, setStocksLoading] = useState(true);
   const [moversLoading, setMoversLoading] = useState(true);
+  const [showWelcome, setShowWelcome] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return !localStorage.getItem("nq_onboarding_seen");
+  });
 
   useEffect(() => {
     api.getMarketOverview()
@@ -273,6 +278,10 @@ export default function DashboardPage() {
   }, []);
 
   return (
+    <>
+      {showWelcome && (
+        <WelcomeModal onClose={() => { setShowWelcome(false); localStorage.setItem("nq_onboarding_seen", "1"); }} />
+      )}
     <div className="space-y-5 p-4 lg:p-6">
       {/* Market Indices */}
       <div id="dashboard-market-indices">
@@ -322,5 +331,6 @@ export default function DashboardPage() {
       </div>
       <QuantAstraFAB />
     </div>
+    </>
   );
 }
