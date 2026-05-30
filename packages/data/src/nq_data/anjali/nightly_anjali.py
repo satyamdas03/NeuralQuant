@@ -22,7 +22,7 @@ def load_scores_by_ticker(
 
     Args:
         market: "US" or "IN"
-        index_group: "SP500", "SP400", "SP600", or "NSE250"
+        index_group: "SP500", "SP400", "SP600", "SP400+SP600", "NIFTY100", "NIFTY200", or "NSE250"
         supabase: Supabase client instance. If None, creates one from env vars.
     """
     if supabase is None:

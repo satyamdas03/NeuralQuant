@@ -131,7 +131,7 @@ SHEET_META = {
     },
     "NSE 100 Analysis": {
         "market": "IN",
-        "index_group": "NSE250",
+        "index_group": "NIFTY100",
         "col_map": _NSE_COL_MAP,
     },
 }

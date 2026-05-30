@@ -195,7 +195,7 @@ def read_anjali_sheet(
         else:
             df["index_group"] = "SP400+SP600"
     elif sheet == "NSE 100 Analysis":
-        df["index_group"] = "NSE250"
+        df["index_group"] = "NIFTY100"
     else:
         df["index_group"] = None
 
