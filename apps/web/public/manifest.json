@@ -1,7 +1,7 @@
 {
-  "name": "QuantAlpha AI — Portfolio Intelligence",
-  "short_name": "QuantAlpha",
-  "description": "Institutional-grade equity research powered by multi-agent AI. Deploy specialized quantitative agents to analyze, debate, and forecast market movements.",
+  "name": "NeuralQuant — AI Stock Intelligence",
+  "short_name": "NeuralQuant",
+  "description": "Institutional-grade AI stock analysis for US and India markets. ForeCast Score, PARA-DEBATE multi-agent analysis, and regime detection.",
   "start_url": "/dashboard",
   "scope": "/",
   "id": "/?source=pwa",
