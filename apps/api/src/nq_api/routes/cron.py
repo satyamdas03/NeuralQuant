@@ -5,11 +5,7 @@ Endpoints:
   POST /cron/anjali?market=US|IN|BOTH           — rebuild anjali_enrichment
 
 All endpoints require CRON_SECRET header to prevent unauthorized triggers.
-
-In-process scheduler also runs these automatically at the same times as GHA did:
-  - US scores: 02:00 UTC
-  - IN scores: 02:30 UTC
-  - Anjali: 20:30 UTC
+Jobs run in background threads — endpoints return immediately with status.
 """
 from __future__ import annotations
 
@@ -30,6 +26,10 @@ CRON_SECRET = os.environ.get("CRON_SECRET", "")
 # ── Lock to prevent concurrent runs ──────────────────────────────────────────────
 _score_lock = threading.Lock()
 _anjali_lock = threading.Lock()
+
+# Track last run results for status polling
+_score_last_result: dict = {}
+_anjali_last_result: dict = {}
 
 
 def _verify_secret(authorization: str | None):
@@ -67,19 +67,41 @@ def _run_nightly_score(market: str) -> dict:
     return results
 
 
-@router.post("/nightly-score")
-def cron_nightly_score(
-    market: str = Query("BOTH", regex="^(US|IN|BOTH)$"),
-    authorization: str | None = Header(None),
-):
-    """Trigger score_cache rebuild. Protected by CRON_SECRET."""
-    _verify_secret(authorization)
-    if not _score_lock.acquire(blocking=False):
-        raise HTTPException(status_code=409, detail="Score rebuild already running")
+def _run_score_bg(market: str):
+    """Background thread wrapper for nightly score."""
+    global _score_last_result
     try:
-        return _run_nightly_score(market)
+        log.info("[cron] Starting nightly score rebuild for %s", market)
+        result = _run_nightly_score(market)
+        _score_last_result = result
+        log.info("[cron] Completed nightly score rebuild for %s: %s rows", market, result.get("rows", 0))
+    except Exception:
+        log.exception("[cron] Nightly score failed for %s", market)
+        _score_last_result = {"market": market, "error": "unexpected failure", "completed": datetime.now(timezone.utc).isoformat()}
     finally:
         _score_lock.release()
+
+
+@router.post("/nightly-score")
+def cron_nightly_score(
+    market: str = Query("BOTH", pattern="^(US|IN|BOTH)$"),
+    authorization: str | None = Header(None),
+):
+    """Trigger score_cache rebuild. Protected by CRON_SECRET.
+    Runs in background thread — returns immediately."""
+    _verify_secret(authorization)
+    if not _score_lock.acquire(blocking=False):
+        return {"status": "already_running", "market": market, "message": "Score rebuild is already running. Use GET /cron/nightly-score/status to check progress."}
+    threading.Thread(target=_run_score_bg, args=(market,), daemon=True).start()
+    return {"status": "started", "market": market, "message": "Score rebuild started in background. Use GET /cron/nightly-score/status to check progress."}
+
+
+@router.get("/nightly-score/status")
+def cron_nightly_score_status(authorization: str | None = Header(None)):
+    """Check status of last nightly score run."""
+    _verify_secret(authorization)
+    is_running = _score_lock.locked()
+    return {"running": is_running, "last_result": _score_last_result}
 
 
 # ── Anjali Enrichment ───────────────────────────────────────────────────────────
@@ -104,44 +126,62 @@ def _run_anjali(market: str) -> dict:
     return results
 
 
-@router.post("/anjali")
-def cron_anjali(
-    market: str = Query("BOTH", regex="^(US|IN|BOTH)$"),
-    authorization: str | None = Header(None),
-):
-    """Trigger Anjali enrichment rebuild. Protected by CRON_SECRET."""
-    _verify_secret(authorization)
-    if not _anjali_lock.acquire(blocking=False):
-        raise HTTPException(status_code=409, detail="Anjali refresh already running")
+def _run_anjali_bg():
+    """Background thread wrapper for Anjali enrichment."""
+    global _anjali_last_result
     try:
-        return _run_anjali(market)
+        log.info("[cron] Starting Anjali enrichment rebuild")
+        result = _run_anjali("BOTH")
+        _anjali_last_result = result
+        log.info("[cron] Completed Anjali enrichment rebuild: %s rows", result.get("total", 0))
+    except Exception:
+        log.exception("[cron] Anjali enrichment failed")
+        _anjali_last_result = {"error": "unexpected failure", "completed": datetime.now(timezone.utc).isoformat()}
     finally:
         _anjali_lock.release()
+
+
+@router.post("/anjali")
+def cron_anjali(
+    market: str = Query("BOTH", pattern="^(US|IN|BOTH)$"),
+    authorization: str | None = Header(None),
+):
+    """Trigger Anjali enrichment rebuild. Protected by CRON_SECRET.
+    Runs in background thread — returns immediately."""
+    _verify_secret(authorization)
+    if not _anjali_lock.acquire(blocking=False):
+        return {"status": "already_running", "market": market, "message": "Anjali refresh is already running. Use GET /cron/anjali/status to check progress."}
+    mkt = market
+    threading.Thread(target=lambda: (_run_anjali_bg_wrap(mkt)), daemon=True).start()
+    return {"status": "started", "market": market, "message": "Anjali refresh started in background. Use GET /cron/anjali/status to check progress."}
+
+
+def _run_anjali_bg_wrap(market: str):
+    """Background thread wrapper for Anjali — acquires lock, runs, releases."""
+    global _anjali_last_result
+    try:
+        log.info("[cron] Starting Anjali enrichment for %s", market)
+        result = _run_anjali(market)
+        _anjali_last_result = result
+        log.info("[cron] Completed Anjali enrichment for %s", market)
+    except Exception:
+        log.exception("[cron] Anjali enrichment failed for %s", market)
+        _anjali_last_result = {"market": market, "error": "unexpected failure", "completed": datetime.now(timezone.utc).isoformat()}
+    finally:
+        _anjali_lock.release()
+
+
+@router.get("/anjali/status")
+def cron_anjali_status(authorization: str | None = Header(None)):
+    """Check status of last Anjali enrichment run."""
+    _verify_secret(authorization)
+    is_running = _anjali_lock.locked()
+    return {"running": is_running, "last_result": _anjali_last_result}
 
 
 # ── In-process Scheduler ───────────────────────────────────────────────────────
 
 _SCHEDULED_JOBS_STARTED = False
-
-
-def _run_score_bg(market: str):
-    """Background thread wrapper for nightly score."""
-    try:
-        log.info("[scheduler] Starting nightly score rebuild for %s", market)
-        _run_nightly_score(market)
-        log.info("[scheduler] Completed nightly score rebuild for %s", market)
-    except Exception:
-        log.exception("[scheduler] Nightly score failed for %s", market)
-
-
-def _run_anjali_bg():
-    """Background thread wrapper for Anjali enrichment."""
-    try:
-        log.info("[scheduler] Starting Anjali enrichment rebuild")
-        _run_anjali("BOTH")
-        log.info("[scheduler] Completed Anjali enrichment rebuild")
-    except Exception:
-        log.exception("[scheduler] Anjali enrichment failed")
 
 
 async def start_scheduled_jobs():
@@ -160,9 +200,6 @@ async def start_scheduled_jobs():
         return
     _SCHEDULED_JOBS_STARTED = True
 
-    import asyncio as _aio
-    from datetime import time as _time
-
     log.info("[scheduler] Starting in-process cron scheduler")
 
     # Simple scheduler: check every 60s if it's time to run a job
@@ -180,19 +217,28 @@ async def start_scheduled_jobs():
                 if now.hour == 2 and now.minute < 5 and _ran_us_today != today:
                     _ran_us_today = today
                     log.info("[scheduler] Triggering US nightly score at %s", now.isoformat())
-                    threading.Thread(target=_run_score_bg, args=("US",), daemon=True).start()
+                    if _score_lock.acquire(blocking=False):
+                        threading.Thread(target=_run_score_bg, args=("US",), daemon=True).start()
+                    else:
+                        log.warning("[scheduler] US score already running, skipping")
 
                 # IN scores at 02:30 UTC
                 if now.hour == 2 and now.minute >= 25 and now.minute < 35 and _ran_in_today != today:
                     _ran_in_today = today
                     log.info("[scheduler] Triggering IN nightly score at %s", now.isoformat())
-                    threading.Thread(target=_run_score_bg, args=("IN",), daemon=True).start()
+                    if _score_lock.acquire(blocking=False):
+                        threading.Thread(target=_run_score_bg, args=("IN",), daemon=True).start()
+                    else:
+                        log.warning("[scheduler] IN score already running, skipping")
 
                 # Anjali at 20:30 UTC
                 if now.hour == 20 and now.minute >= 25 and now.minute < 35 and _ran_anjali_today != today:
                     _ran_anjali_today = today
                     log.info("[scheduler] Triggering Anjali enrichment at %s", now.isoformat())
-                    threading.Thread(target=_run_anjali_bg, daemon=True).start()
+                    if _anjali_lock.acquire(blocking=False):
+                        threading.Thread(target=_run_anjali_bg_wrap, args=("BOTH",), daemon=True).start()
+                    else:
+                        log.warning("[scheduler] Anjali already running, skipping")
 
             except Exception:
                 log.exception("[scheduler] Error in scheduler loop")
