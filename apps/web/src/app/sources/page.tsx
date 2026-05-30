@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   SOURCES,
-  CATEGORY_LABELS,
   CATEGORY_COLORS,
   type DataSourceCategory,
 } from "@/data/sources";

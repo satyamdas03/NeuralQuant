@@ -40,9 +40,6 @@ export default function ComparePage() {
   const neuralquantWins = COMPARE_QUESTIONS.filter(
     (q) => q.winner === "neuralquant"
   ).length;
-  const partialWins = COMPARE_QUESTIONS.filter(
-    (q) => q.winner === "partial"
-  ).length;
 
   return (
     <div className="min-h-screen bg-surface text-on-surface">
