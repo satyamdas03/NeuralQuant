@@ -29,6 +29,7 @@ from nq_api.routes.webhooks_paypal import router as paypal_webhook_router
 from nq_api.routes.webhooks_stripe import router as stripe_webhook_router
 from nq_api.routes.referrals import router as referral_router
 from nq_api.routes.session import router as session_router
+from nq_api.routes.cron import router as cron_router
 
 
 async def _run_pending_migrations():
@@ -354,6 +355,10 @@ async def lifespan(app: FastAPI):
     from nq_api.routes.terminal import _keep_warm
     asyncio.create_task(_keep_warm(), name="openbb_keep_warm")
 
+    # Start in-process cron scheduler (replaces GHA nightly workflows)
+    from nq_api.routes.cron import start_scheduled_jobs
+    await start_scheduled_jobs()
+
     # Safety: warn if live trading is enabled
     if os.environ.get("TRADE_ENABLED", "false").lower() == "true":
         dry = os.environ.get("DRY_RUN", "true").lower()
@@ -451,6 +456,7 @@ app.include_router(market_wrap_router)
 app.include_router(terminal_router, prefix="/terminal", tags=["terminal"])
 app.include_router(livekit_token_router)
 app.include_router(session_router)
+app.include_router(cron_router)
 
 
 @app.get("/health")

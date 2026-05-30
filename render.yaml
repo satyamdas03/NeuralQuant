@@ -75,6 +75,12 @@ services:
         sync: false
       - key: LIVEKIT_API_SECRET
         sync: false
+      - key: CRON_SECRET
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
     plan: pro
     healthCheckPath: /health
 
