@@ -40,9 +40,9 @@ export default function PricingPage() {
     setCurrency(detectCurrency());
   }, []);
 
-  async function handleCheckout(tier: string) {
+  async function handleCheckout(tier: string, provider: "paypal" | "stripe" = "stripe") {
     setLoading(tier);
-    trackEvent("checkout_started", { tier, currency: "USD" });
+    trackEvent("checkout_started", { tier, provider, currency: "USD" });
     try {
       const token = (() => {
         if (typeof window === "undefined") return "";
@@ -50,7 +50,10 @@ export default function PricingPage() {
         if (stored) { try { return JSON.parse(stored).access_token; } catch { /* */ } }
         return "";
       })();
-      const res = await fetch(`${API_URL}/checkout/session?tier=${tier}&currency=USD`, {
+      const endpoint = provider === "stripe"
+        ? `${API_URL}/checkout/stripe/session?tier=${tier}`
+        : `${API_URL}/checkout/session?tier=${tier}&currency=USD`;
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       });
@@ -141,13 +144,22 @@ export default function PricingPage() {
                     Get started free
                   </Link>
                 ) : (
-                  <button
-                    onClick={() => handleCheckout(tier.key)}
-                    disabled={loading !== null}
-                    className="w-full px-6 py-3 bg-gradient-to-r from-[#c1c1ff] to-[#bdf4ff] text-[#0f0f1a] font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
-                  >
-                    {loading === tier.key ? "Redirecting…" : "Subscribe with PayPal"}
-                  </button>
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => handleCheckout(tier.key, "stripe")}
+                      disabled={loading !== null}
+                      className="w-full px-6 py-3 bg-gradient-to-r from-[#c1c1ff] to-[#bdf4ff] text-[#0f0f1a] font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+                    >
+                      {loading === tier.key ? "Redirecting…" : "Pay with Card"}
+                    </button>
+                    <button
+                      onClick={() => handleCheckout(tier.key, "paypal")}
+                      disabled={loading !== null}
+                      className="w-full px-6 py-2.5 ghost-border text-on-surface-variant hover:text-on-surface font-medium text-xs transition-colors"
+                    >
+                      or pay with PayPal
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -155,7 +167,7 @@ export default function PricingPage() {
         </div>
 
         <p className="mt-8 text-center text-xs text-on-surface-variant">
-          Secure payment via PayPal. All charges in USD. Cancel anytime. No lock-in.
+          Secure payment via Stripe or PayPal. All charges in USD. Cancel anytime. No lock-in.
         </p>
 
         {/* Why Upgrade */}

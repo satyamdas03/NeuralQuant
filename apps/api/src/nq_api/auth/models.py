@@ -12,6 +12,8 @@ class User(BaseModel):
     email: str
     tier: Tier = "free"
     paypal_subscription_id: str | None = None
+    stripe_customer_id: str | None = None
+    stripe_subscription_id: str | None = None
     subscription_status: str | None = None
     referral_bonus_queries: int = 0
 
@@ -36,4 +38,11 @@ PAYPAL_PRICES: dict[str, str] = {
     "investor": os.environ.get("PAYPAL_PLAN_INVESTOR_USD", ""),
     "pro": os.environ.get("PAYPAL_PLAN_PRO_USD", ""),
     "api": os.environ.get("PAYPAL_PLAN_API_USD", ""),
+}
+
+# Stripe price IDs — set via env vars
+STRIPE_PRICES: dict[str, str] = {
+    "investor": os.environ.get("STRIPE_PRICE_INVESTOR", ""),
+    "pro": os.environ.get("STRIPE_PRICE_PRO", ""),
+    "api": os.environ.get("STRIPE_PRICE_API", ""),
 }
