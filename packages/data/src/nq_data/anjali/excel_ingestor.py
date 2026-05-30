@@ -235,7 +235,7 @@ def ingest_excel_to_supabase(path: str | Path) -> dict[str, int]:
     Returns:
         Dict with counts per sheet.
     """
-    from nq_data.anjali.ingestor import ingest_to_supabase
+    from .ingestor import ingest_to_supabase
 
     sheet_markets = {"sp500": "US", "smallmidcap": "US", "nse100": "IN"}
     sheets = read_anjali_excel(path)
@@ -270,7 +270,7 @@ if __name__ == "__main__":
         }
         sheet_name, market = sheet_map[args.sheet]
         df = read_anjali_sheet(args.path, sheet=sheet_name, market=market)
-        from nq_data.anjali.ingestor import ingest_to_supabase
+        from .ingestor import ingest_to_supabase
         count = ingest_to_supabase(df)
         print(f"Ingested {count} rows from {sheet_name}")
         sys.exit(0)

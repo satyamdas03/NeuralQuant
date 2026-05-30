@@ -10,9 +10,11 @@ import logging
 import sys
 from pathlib import Path
 
-# Ensure packages on path
+# Ensure anjali subpackage on path WITHOUT importing full nq_data package
+# (nq_data.__init__ imports pydantic, duckdb, etc. which aren't needed here)
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "packages" / "data" / "src"))
+sys.path.insert(0, str(ROOT / "packages" / "data" / "src" / "nq_data"))
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("anjali_excel_ingest")
@@ -37,7 +39,8 @@ def main() -> int:
         return 2
 
     if args.sheet == "all":
-        from nq_data.anjali.excel_ingestor import ingest_excel_to_supabase
+        # Import anjali subpackage directly, bypassing nq_data.__init__
+        from anjali.excel_ingestor import ingest_excel_to_supabase
         counts = ingest_excel_to_supabase(str(path))
         for key, count in counts.items():
             print(f"  {key}: {count} rows")
@@ -45,8 +48,8 @@ def main() -> int:
         print(f"TOTAL: {total} rows ingested")
         return 0 if total > 0 else 1
     else:
-        from nq_data.anjali.excel_ingestor import read_anjali_sheet
-        from nq_data.anjali.ingestor import ingest_to_supabase
+        from anjali.excel_ingestor import read_anjali_sheet
+        from anjali.ingestor import ingest_to_supabase
         sheet_map = {
             "sp500": ("S&P 500 Analysis", "US"),
             "smallmidcap": ("SmallMidCap Analysis", "US"),
