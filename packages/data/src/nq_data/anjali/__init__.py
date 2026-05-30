@@ -16,6 +16,10 @@ __all__ = [
     "read_anjali_excel",
     "read_anjali_sheet",
     "ingest_excel_to_supabase",
+    "ExcelIngestor",
+    "SCORE_MAP",
+    "COLOR_HEX_MAP",
+    "hex_to_quintile",
 ]
 
 
@@ -42,4 +46,16 @@ def __getattr__(name: str):
     if name == "ingest_excel_to_supabase":
         from .excel_ingestor import ingest_excel_to_supabase
         return ingest_excel_to_supabase
+    if name == "ExcelIngestor":
+        from .excel_ingestor import ExcelIngestor
+        return ExcelIngestor
+    if name == "SCORE_MAP":
+        from .scorer import SCORE_MAP
+        return SCORE_MAP
+    if name == "COLOR_HEX_MAP":
+        from .scorer import COLOR_HEX_MAP
+        return COLOR_MAP
+    if name == "hex_to_quintile":
+        from .scorer import hex_to_quintile
+        return hex_to_quintile
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

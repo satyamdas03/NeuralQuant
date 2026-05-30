@@ -14,21 +14,34 @@ Usage:
     df_sp500 = read_anjali_sheet(path, sheet="S&P 500 Analysis", market="US")
     df_smc = read_anjali_sheet(path, sheet="SmallMidCap Analysis", market="US")
     df_nse = read_anjali_sheet(path, sheet="NSE 100 Analysis", market="IN")
+
+For Supabase direct ingestion (CI workflow):
+    ingestor = ExcelIngestor(supabase_client)
+    stats = ingestor.ingest("path/to/US_Stock_Analysis_Coloured.xlsx")
 """
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
+from openpyxl import load_workbook
+from supabase import Client
+
+from .mappings import SHEET_META, INDEX_GROUP_MAP, _SP500_COL_MAP, _NSE_COL_MAP
+from .scorer import hex_to_quintile
 
 logger = logging.getLogger(__name__)
 
-# Column mapping: Excel column → our DB column
-# SP500 / SmallMidCap sheet columns (35 columns)
-_SP500_COL_MAP = {
+# ---------------------------------------------------------------------------
+# Column mapping: Excel column → our DB column (pandas-based path)
+# ---------------------------------------------------------------------------
+
+# SP500 / SmallMidCap sheet columns (raw values only — quintiles come from cell colors)
+_PANDAS_SP500_COL_MAP = {
     "Ticker": "ticker",
     "Sector": "sector",
     "Sub Sector": "sub_sector",
@@ -67,7 +80,7 @@ _SP500_COL_MAP = {
 }
 
 # NSE sheet has different column order + extra columns
-_NSE_COL_MAP = {
+_PANDAS_NSE_COL_MAP = {
     "NseCode": "ticker",
     "Sector": "sector",
     "Sub Sector": "sub_sector",
@@ -112,9 +125,7 @@ def _sanitize_df(df: pd.DataFrame) -> pd.DataFrame:
     """Clean DataFrame: replace inf with None, convert numpy types."""
     df = df.copy()
     for col in df.columns:
-        # Replace inf/-inf with NaN
         df[col] = df[col].replace([np.inf, -np.inf], None)
-        # Convert numpy types to Python types
         if df[col].dtype in [np.float64, np.float32, np.int64, np.int32]:
             df[col] = df[col].where(pd.notna(df[col]), None)
     return df
@@ -142,10 +153,7 @@ def read_anjali_sheet(
     raw = pd.read_excel(path, sheet_name=sheet, engine="openpyxl")
     logger.info(f"Read {len(raw)} rows from '{sheet}' sheet")
 
-    # Choose column map
-    col_map = _NSE_COL_MAP if market == "IN" else _SP500_COL_MAP
-
-    # Rename columns
+    col_map = _PANDAS_NSE_COL_MAP if market == "IN" else _PANDAS_SP500_COL_MAP
     df = raw.rename(columns=col_map)
 
     # Drop columns not in our map (like Index Name for NSE)
@@ -180,14 +188,18 @@ def read_anjali_sheet(
     if sheet == "S&P 500 Analysis":
         df["index_group"] = "SP500"
     elif sheet == "SmallMidCap Analysis":
-        df["index_group"] = "SP400+SP600"
+        # Split by Index column if present
+        if "Index" in raw.columns:
+            idx_map = {"MidCap 400": "SP400", "SmallCap 600": "SP600"}
+            df["index_group"] = raw["Index"].map(idx_map).fillna("SP400+SP600")
+        else:
+            df["index_group"] = "SP400+SP600"
     elif sheet == "NSE 100 Analysis":
-        df["index_group"] = "NIFTY100"
+        df["index_group"] = "NSE250"
     else:
         df["index_group"] = None
 
     # Add data_collected_at timestamp
-    from datetime import datetime, timezone
     df["data_collected_at"] = datetime.now(timezone.utc).isoformat()
 
     # For NSE: add .NS suffix to tickers if not present
@@ -196,7 +208,7 @@ def read_anjali_sheet(
             lambda t: t + ".NS" if pd.notna(t) and "." not in str(t) else t
         )
 
-    # PB Ratio: exclude negative values (like ABBV -108.95)
+    # PB Ratio: exclude negative values
     if "pb_ratio" in df.columns:
         df.loc[df["pb_ratio"] < 0, "pb_ratio"] = None
 
@@ -249,32 +261,147 @@ def ingest_excel_to_supabase(path: str | Path) -> dict[str, int]:
     return counts
 
 
-if __name__ == "__main__":
-    import argparse
-    import sys
+# ---------------------------------------------------------------------------
+# ExcelIngestor — openpyxl-based Supabase ingestion (for CI workflow)
+# Reads cell fill colors to extract quintile labels alongside raw values.
+# ---------------------------------------------------------------------------
 
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+_BATCH_SIZE = 500
 
-    ap = argparse.ArgumentParser(description="Ingest Anjali Excel data into Supabase")
-    ap.add_argument("path", help="Path to US_Stock_Analysis_Coloured.xlsx")
-    ap.add_argument("--sheet", choices=["sp500", "smallmidcap", "nse100", "all"], default="all")
-    args = ap.parse_args()
 
-    if args.sheet == "all":
-        counts = ingest_excel_to_supabase(args.path)
-    else:
-        sheet_map = {
-            "sp500": ("S&P 500 Analysis", "US"),
-            "smallmidcap": ("SmallMidCap Analysis", "US"),
-            "nse100": ("NSE 100 Analysis", "IN"),
-        }
-        sheet_name, market = sheet_map[args.sheet]
-        df = read_anjali_sheet(args.path, sheet=sheet_name, market=market)
-        from .ingestor import ingest_to_supabase
-        count = ingest_to_supabase(df)
-        print(f"Ingested {count} rows from {sheet_name}")
-        sys.exit(0)
+class ExcelIngestor:
+    """Reads the Anjali Excel and upserts to Supabase anjali_enrichment table.
 
-    for key, count in counts.items():
-        print(f"  {key}: {count} rows")
-    print(f"TOTAL: {sum(counts.values())} rows ingested")
+    Uses openpyxl to read both cell values AND fill colors (quintile labels),
+    then performs per-market DELETE+INSERT refresh.
+    """
+
+    def __init__(self, supabase: Client):
+        self.supabase = supabase
+
+    def ingest(self, source: Path | str) -> dict[str, int]:
+        """Parse workbook, build records, and refresh Supabase per market.
+
+        Returns dict of sheet_name → row count ingested.
+        """
+        source = Path(source)
+        logger.info("Loading workbook: %s", source)
+        wb = load_workbook(str(source), data_only=True)
+
+        us_records: list[dict[str, Any]] = []
+        in_records: list[dict[str, Any]] = []
+        stats: dict[str, int] = {}
+
+        for sheet_name, meta in SHEET_META.items():
+            if sheet_name not in wb.sheetnames:
+                logger.warning("Sheet %s not found in workbook, skipping", sheet_name)
+                continue
+            ws = wb[sheet_name]
+            records = self._parse_sheet(ws, meta)
+            if meta["market"] == "US":
+                us_records.extend(records)
+            else:
+                in_records.extend(records)
+            stats[sheet_name] = len(records)
+            logger.info("Sheet %s: %d records", sheet_name, len(records))
+
+        if us_records:
+            self._refresh_market("US", us_records)
+            logger.info("Refreshed US market: %d rows", len(us_records))
+        if in_records:
+            self._refresh_market("IN", in_records)
+            logger.info("Refreshed IN market: %d rows", len(in_records))
+
+        wb.close()
+        return stats
+
+    def _parse_sheet(
+        self, ws, meta: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        """Parse a single worksheet into a list of record dicts."""
+        header_row = [cell.value for cell in next(ws.iter_rows(min_row=1, max_row=1))]
+        col_idx = {h: i for i, h in enumerate(header_row) if h is not None}
+
+        col_map = meta["col_map"]
+        derive_index = meta.get("index_group_derive")
+        fixed_index_group = meta.get("index_group")
+        market = meta["market"]
+        fetched_at = datetime.now(timezone.utc).isoformat()
+
+        records: list[dict[str, Any]] = []
+
+        for row in ws.iter_rows(min_row=2):
+            if row[0].value is None:
+                continue
+
+            record: dict[str, Any] = {
+                "market": market,
+                "fetched_at": fetched_at,
+            }
+
+            # Determine index_group
+            if derive_index:
+                idx_col = col_idx.get(derive_index)
+                if idx_col is not None:
+                    idx_val = row[idx_col].value
+                    record["index_group"] = INDEX_GROUP_MAP.get(str(idx_val).strip())
+                if not record.get("index_group"):
+                    continue
+            else:
+                record["index_group"] = fixed_index_group
+
+            # Map each column
+            for excel_header, (db_col, quintile_col, dtype) in col_map.items():
+                if excel_header not in col_idx:
+                    continue
+                cell = row[col_idx[excel_header]]
+                raw = self._coerce(cell.value, dtype)
+                record[db_col] = raw
+
+                # Extract quintile from cell fill color
+                if quintile_col:
+                    color_hex = cell.fill.start_color.rgb
+                    q = hex_to_quintile(color_hex)
+                    record[quintile_col] = q
+
+            # Skip rows without a ticker
+            if not record.get("ticker"):
+                continue
+
+            # Remove internal _index_derive field if present
+            record.pop("_index_derive", None)
+
+            records.append(record)
+
+        return records
+
+    @staticmethod
+    def _coerce(value: Any, dtype: str) -> Any:
+        """Coerce an Excel cell value to the expected Python type."""
+        if value is None or value == "":
+            return None
+        if dtype == "float":
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                return None
+        if dtype == "text":
+            return str(value).strip()
+        return value
+
+    def _refresh_market(self, market: str, records: list[dict[str, Any]]) -> None:
+        """DELETE all rows for a market, then INSERT in batches."""
+        logger.info("Deleting existing %s rows from anjali_enrichment", market)
+        self.supabase.table("anjali_enrichment").delete().eq("market", market).execute()
+
+        total = len(records)
+        for i in range(0, total, _BATCH_SIZE):
+            batch = records[i : i + _BATCH_SIZE]
+            self.supabase.table("anjali_enrichment").insert(batch).execute()
+            logger.info(
+                "Inserted batch %d-%d of %d for market=%s",
+                i + 1,
+                min(i + _BATCH_SIZE, total),
+                total,
+                market,
+            )

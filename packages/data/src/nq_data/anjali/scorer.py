@@ -57,6 +57,63 @@ RISK_SCORE_COLS = ["qtr_std", "yr_std", "qtr_beta", "yr_beta"]
 # Loss flag columns → override growth score to -1
 LOSS_FLAG_COLS = ["loss_profit_yoy", "loss_profit_ttm", "loss_profit_qoq"]
 
+# ---------------------------------------------------------------------------
+# Excel cell color → quintile label mapping (for ExcelIngestor)
+# ---------------------------------------------------------------------------
+
+# Numeric score for each quintile label (matches build_excel.py SCORE_MAP)
+SCORE_MAP = {
+    "DG": 1.0,
+    "LG": 0.5,
+    "White": 0.0,
+    "LR": -0.5,
+    "DR": -1.0,
+}
+
+# Hex color → quintile label (matches build_excel.py FILLS)
+COLOR_HEX_MAP = {
+    "34CF58": "DG",
+    "99F2BB": "LG",
+    "FFFFFF": "White",
+    "E3CACA": "LR",
+    "F5AEAE": "DR",
+}
+
+# Reverse map: quintile → hex (for verification)
+QUINTILE_HEX_MAP = {v: k for k, v in COLOR_HEX_MAP.items()}
+
+
+def normalize_hex(hex_color: str | None) -> str | None:
+    """Strip the ARGB alpha prefix that openpyxl prepends to RGB hex codes.
+
+    openpyxl returns 8-char ARGB strings like 'FF34CF58' (opaque) or
+    '0099F2BB' (transparent fill). We strip the 2-char alpha prefix to
+    get the 6-char RGB hex for quintile lookup.
+    """
+    if not hex_color:
+        return None
+    h = hex_color.lstrip("#")
+    # openpyxl returns 8-char ARGB — strip 2-char alpha prefix
+    if len(h) == 8:
+        h = h[2:]
+    return h.upper()
+
+
+def hex_to_quintile(hex_color: str | None) -> str | None:
+    """Convert an openpyxl fill color hex string to a quintile label (DG/LG/White/LR/DR).
+
+    Returns None for no fill or unrecognized colors.
+    """
+    h = normalize_hex(hex_color)
+    if not h:
+        return None
+    return COLOR_HEX_MAP.get(h)
+
+
+# ---------------------------------------------------------------------------
+# Quintile assignment engine
+# ---------------------------------------------------------------------------
+
 
 def _quintile_assign(
     series: pd.Series,
@@ -170,8 +227,6 @@ def compute_quintile_scores(
         mask = pd.Series(True, index=result.index)
 
     # --- GROWTH SCORE ---
-    # Exclude QoQ (too noisy) — score only 4 core growth columns
-    # Loss-making companies get -1.0 per column regardless of quintile
     growth_scores = pd.Series(0.0, index=result.index)
     loss_any = result[LOSS_FLAG_COLS].any(axis=1) if all(c in result.columns for c in LOSS_FLAG_COLS) else pd.Series(False, index=result.index)
 
@@ -183,7 +238,6 @@ def compute_quintile_scores(
                 score_map=GROWTH_SCORES,
                 nan_score=None,
             )
-            # Fill NaN with 0 for the sum (no data = neutral)
             growth_scores = growth_scores.add(col_scores.fillna(0), fill_value=0)
 
     result["growth_score"] = growth_scores
@@ -202,8 +256,6 @@ def compute_quintile_scores(
     result["return_score"] = return_scores
 
     # --- VALUATION SCORE ---
-    # COUNTER-INTUITIVE: Q1 cheapest = 0 (value trap risk), Q2 = +1 (sweet spot)
-    # NaN → -1.0 penalty
     valuation_scores = pd.Series(0.0, index=result.index)
     for col in VALUATION_SCORE_COLS:
         if col in result.columns:
@@ -217,8 +269,6 @@ def compute_quintile_scores(
     result["valuation_score"] = valuation_scores
 
     # --- RISK SCORE ---
-    # COUNTER-INTUITIVE: Q1 safest = -0.5 (missed returns), Q4 = +1 (sweet spot)
-    # Q5 riskiest = -1.0
     risk_scores = pd.Series(0.0, index=result.index)
     for col in RISK_SCORE_COLS:
         if col in result.columns:

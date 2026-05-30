@@ -461,3 +461,30 @@ def _save_checkpoint(results: list[dict], universe: str, market: str) -> None:
         logger.debug(f"Checkpoint saved: {len(results)} rows, total {len(existing)}")
     except Exception as e:
         logger.warning(f"Checkpoint save failed: {e}")
+
+# ---------------------------------------------------------------------------
+# GitHub Excel fetcher (for CI workflow / local testing)
+# ---------------------------------------------------------------------------
+
+_ANJALI_RAW_URL = (
+    "https://raw.githubusercontent.com/satyamdas03/AnjaliValueStocksStartup/"
+    "main/US_Stock_Analysis_Coloured.xlsx"
+)
+
+
+def fetch_excel(destination: Path | str) -> Path:
+    """Download the latest Anjali Excel from GitHub to destination.
+
+    Returns the Path to the downloaded file.
+    Raises on HTTP errors.
+    """
+    dest = Path(destination)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+
+    logger.info("Downloading Anjali Excel from %s", _ANJALI_RAW_URL)
+    resp = requests.get(_ANJALI_RAW_URL, timeout=120)
+    resp.raise_for_status()
+
+    dest.write_bytes(resp.content)
+    logger.info("Downloaded %d bytes to %s", len(resp.content), dest)
+    return dest
