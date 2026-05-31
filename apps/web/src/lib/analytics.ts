@@ -26,6 +26,9 @@ export const EVENT = {
   TERMINAL_USED: "terminal_used",
   COMPARE_USED: "compare_used",
   SOURCES_VIEWED: "sources_viewed",
+  ANALYSIS_SHARED: "analysis_shared",
+  ANALYSIS_VIEWED: "analysis_viewed",
+  SIGNUP_FROM_SHARE: "signup_from_share",
 } as const;
 
 export type EventName = (typeof EVENT)[keyof typeof EVENT];

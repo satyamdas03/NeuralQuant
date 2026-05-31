@@ -16,6 +16,7 @@ import { TransparencyPanel } from "@/components/TransparencyPanel";
 import GhostBorderCard from "@/components/ui/GhostBorderCard";
 import ConsensusPanel from "@/components/ConsensusPanel";
 import GradientButton from "@/components/ui/GradientButton";
+import ShareAnalysisButton from "@/components/ShareAnalysisButton";
 import { Star, ArrowRight, Loader2 } from "lucide-react";
 
 export default function StockPage() {
@@ -200,7 +201,20 @@ export default function StockPage() {
           </p>
         </div>
       ) : (
-        <AgentDebatePanel report={report} />
+        <>
+          <AgentDebatePanel report={report} />
+          {report && (
+            <div className="mt-3 flex justify-end">
+              <ShareAnalysisButton
+                ticker={ticker}
+                market={market}
+                report={report}
+                verdict={report.head_analyst_verdict}
+                compositeScore={report.consensus_score * 10}
+              />
+            </div>
+          )}
+        </>
       )}
     </div>
   );

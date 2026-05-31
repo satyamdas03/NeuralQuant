@@ -13,7 +13,7 @@ import asyncio
 import logging
 import os
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Header, HTTPException, Query
 
@@ -179,6 +179,112 @@ def cron_anjali_status(authorization: str | None = Header(None)):
     return {"running": is_running, "last_result": _anjali_last_result}
 
 
+# ── Onboarding Email Scheduler ───────────────────────────────────────────────────
+
+_EMAIL_WINDOWS = [
+    # (column, age_days, email_fn_name)
+    ("welcome_email_sent_at", 0, "send_welcome_email"),
+    ("debate_demo_email_sent_at", 1, "send_debate_demo_email"),
+    ("screener_email_sent_at", 3, "send_screener_email"),
+    ("upgrade_email_sent_at", 7, "send_upgrade_email"),
+]
+
+
+def _run_onboarding_emails():
+    """Dispatch onboarding emails to users matching age windows.
+
+    Runs daily at 09:00 UTC. Queries users table for users whose
+    created_at falls in the right window and whose email column is NULL.
+    """
+    import httpx
+    from nq_api.notify import send_welcome_email, send_debate_demo_email, send_screener_email, send_upgrade_email
+
+    _EMAIL_FNS = {
+        "send_welcome_email": send_welcome_email,
+        "send_debate_demo_email": send_debate_demo_email,
+        "send_screener_email": send_screener_email,
+        "send_upgrade_email": send_upgrade_email,
+    }
+
+    supabase_url = os.environ.get("SUPABASE_URL", "")
+    supabase_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+    if not supabase_url or not supabase_key:
+        log.warning("[onboarding-emails] SUPABASE_URL or SERVICE_ROLE_KEY not set — skipping")
+        return
+
+    headers = {
+        "apikey": supabase_key,
+        "Authorization": f"Bearer {supabase_key}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation",
+    }
+    base = f"{supabase_url}/rest/v1/users"
+
+    now = datetime.now(timezone.utc)
+    sent_counts = {col: 0 for col, _, _ in _EMAIL_WINDOWS}
+
+    for column, age_days, fn_name in _EMAIL_WINDOWS:
+        # Calculate the window: users created between (age_days+1) days ago and age_days days ago
+        # Day-0 = created today (0 days ago), Day-1 = created 1 day ago, etc.
+        window_start = now - timedelta(days=age_days + 1)
+        window_end = now - timedelta(days=age_days)
+
+        # PostgREST: use AND filter for compound conditions on same column
+        params = {
+            "select": "id,email,name",
+            "and": f"(created_at.gte.{window_start.isoformat()},created_at.lt.{window_end.isoformat()},{column}.is.null)",
+        }
+
+        try:
+            resp = httpx.get(base, headers=headers, params=params, timeout=15)
+            resp.raise_for_status()
+            users = resp.json()
+        except Exception:
+            log.exception("[onboarding-emails] Failed to query users for %s", column)
+            continue
+
+        if not users:
+            log.info("[onboarding-emails] No users to email for %s (window=%s)", column, age_days)
+            continue
+
+        email_fn = _EMAIL_FNS[fn_name]
+        for user in users:
+            email = user.get("email")
+            if not email:
+                continue
+            name = user.get("name")
+            user_id = user["id"]
+
+            try:
+                if fn_name == "send_welcome_email":
+                    ok = email_fn(email, name=name)
+                else:
+                    ok = email_fn(email)
+            except Exception:
+                log.exception("[onboarding-emails] Failed to send %s to %s", fn_name, email)
+                continue
+
+            if ok:
+                # Mark email sent
+                patch = {column: now.isoformat()}
+                try:
+                    httpx.patch(
+                        f"{base}",
+                        headers=headers,
+                        params={"id": f"eq.{user_id}"},
+                        json=patch,
+                        timeout=10,
+                    )
+                except Exception:
+                    log.exception("[onboarding-emails] Failed to mark %s sent for user %s", column, user_id)
+                sent_counts[column] += 1
+                log.info("[onboarding-emails] Sent %s to %s", fn_name, email)
+            else:
+                log.warning("[onboarding-emails] Email send returned False for %s to %s", fn_name, email)
+
+    log.info("[onboarding-emails] Dispatch complete: %s", sent_counts)
+
+
 # ── In-process Scheduler ───────────────────────────────────────────────────────
 
 _SCHEDULED_JOBS_STARTED = False
@@ -207,6 +313,7 @@ async def start_scheduled_jobs():
         _ran_us_today = ""
         _ran_in_today = ""
         _ran_anjali_today = ""
+        _ran_email_today = ""
 
         while True:
             try:
@@ -239,6 +346,12 @@ async def start_scheduled_jobs():
                         threading.Thread(target=_run_anjali_bg_wrap, args=("BOTH",), daemon=True).start()
                     else:
                         log.warning("[scheduler] Anjali already running, skipping")
+
+                # Onboarding emails at 09:00 UTC
+                if now.hour == 9 and now.minute < 5 and _ran_email_today != today:
+                    _ran_email_today = today
+                    log.info("[scheduler] Triggering onboarding email dispatch at %s", now.isoformat())
+                    threading.Thread(target=_run_onboarding_emails, daemon=True).start()
 
             except Exception:
                 log.exception("[scheduler] Error in scheduler loop")

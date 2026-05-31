@@ -18,6 +18,27 @@ from nq_api.agents.orchestrator import ParaDebateOrchestrator
 from nq_api.auth.rate_limit import enforce_tier_quota
 from nq_api.auth.deps import get_current_user_optional
 from nq_api.auth.models import User
+
+
+def _fire_analysis_event(ticker: str, market: str, user: User | None) -> None:
+    """Best-effort analytics event: analysis_run. Never blocks or fails."""
+    try:
+        import httpx
+        url = os.environ.get("SUPABASE_URL", "")
+        key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+        if not url or not key:
+            return
+        endpoint = f"{url}/rest/v1/user_events"
+        headers = {"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+        httpx.post(endpoint, json=[{
+            "event_type": "analysis_run",
+            "category": "engagement",
+            "label": f"PARA-DEBATE: {ticker}",
+            "payload": {"ticker": ticker, "market": market},
+            "user_id": str(user.id) if user else None,
+        }], headers=headers, timeout=5)
+    except Exception:
+        pass
 from nq_api.cache import score_cache
 from nq_api.data_builder import _yf_symbol, _get_yf_session, _fetch_yf_info_cached
 logger = logging.getLogger(__name__)
@@ -782,7 +803,9 @@ async def run_analyst(
         context["anjali_context"] = anjali_ctx
 
     orch = ParaDebateOrchestrator()
-    return await orch.analyse(ticker=ticker, market=req.market, context=context)
+    result = await orch.analyse(ticker=ticker, market=req.market, context=context)
+    _fire_analysis_event(ticker, req.market, user)
+    return result
 
 
 @router.post("/stream")
@@ -923,6 +946,7 @@ async def run_analyst_stream(
         else:
             resp: AnalystResponse = result_holder.get("result")
             if resp:
+                _fire_analysis_event(ticker, market, user)
                 yield f'data: {json.dumps({"status": "done", "result": resp.model_dump()})}\n\n'
             else:
                 yield f'data: {json.dumps({"status": "error", "message": "No result produced"})}\n\n'

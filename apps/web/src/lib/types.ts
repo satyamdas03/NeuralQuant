@@ -668,3 +668,38 @@ export interface RiskProfileConfig {
   description: string;
 }
 
+// ── Share & Analytics Types ────────────────────────────────────────────────
+
+export interface ShareAnalysis {
+  share_id: string;
+  ticker: string;
+  market: string;
+  verdict: string;
+  score: number;
+  analyst_response: Record<string, unknown>;
+  score_data?: Record<string, unknown>;
+  meta_data?: Record<string, unknown>;
+  sentiment_data?: Record<string, unknown>;
+  view_count: number;
+  created_at: string;
+  is_public: boolean;
+}
+
+export interface AnalyticsDashboard {
+  period: string;
+  summary: {
+    total_events: number;
+    total_shares_created: number;
+    total_share_views: number;
+    unique_active_users: number;
+  };
+  events_by_type: Record<string, number>;
+  top_shared_tickers: Array<{ ticker: string; shares: number; views: number }>;
+  daily_breakdown: Array<{ date: string; events: number; shares: number; views: number }>;
+  conversion_funnel: {
+    shares_created: number;
+    shares_viewed: number;
+    signups_from_share: number;
+  };
+}
+

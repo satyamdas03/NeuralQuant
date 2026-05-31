@@ -30,6 +30,8 @@ from nq_api.routes.webhooks_stripe import router as stripe_webhook_router
 from nq_api.routes.referrals import router as referral_router
 from nq_api.routes.session import router as session_router
 from nq_api.routes.cron import router as cron_router
+from nq_api.routes.share import router as share_router
+from nq_api.routes.analytics import router as analytics_router
 
 
 async def _run_pending_migrations():
@@ -457,6 +459,8 @@ app.include_router(terminal_router, prefix="/terminal", tags=["terminal"])
 app.include_router(livekit_token_router)
 app.include_router(session_router)
 app.include_router(cron_router)
+app.include_router(share_router)
+app.include_router(analytics_router)
 
 
 @app.get("/health")

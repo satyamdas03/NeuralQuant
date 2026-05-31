@@ -88,6 +88,10 @@ export const authedApi = {
       body: JSON.stringify(body),
     }),
 
+  // ── Analytics (admin only: pro/api tier) ────────────────────────────────────
+  getAnalyticsDashboard: (period: "24h" | "7d" | "30d" = "7d") =>
+    authedFetch<import("./types").AnalyticsDashboard>(`/internal/analytics/dashboard?period=${period}`),
+
 };
 
 export const api = {
@@ -263,6 +267,24 @@ export const api = {
   // Pillar C: sentiment (public, free, cached at edge by client)
   getSentiment: (ticker: string, market: Market = "US", limit = 15) =>
     apiFetch<SentimentResponse>(`/sentiment/news/${ticker}?market=${market}&limit=${limit}`),
+
+  // ── Share API (public, no auth required) ─────────────────────────────────
+  createShareAnalysis: (body: {
+    ticker: string;
+    market: string;
+    analyst_response: Record<string, unknown> | AnalystResponse;
+    score_data?: Record<string, unknown>;
+    meta_data?: Record<string, unknown>;
+    sentiment_data?: Record<string, unknown>;
+    verdict?: string;
+    score?: number;
+  }) => apiFetch<{ share_id: string; url: string }>("/share/analysis", {
+    method: "POST",
+    body: JSON.stringify(body),
+  }),
+
+  getShareAnalysis: (shareId: string) =>
+    apiFetch<Record<string, unknown>>(`/share/analysis/${shareId}`),
 };
 
 // Guest-aware — counts against backtest_per_day tier cap (works without login)
