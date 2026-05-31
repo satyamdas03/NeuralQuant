@@ -86,6 +86,8 @@ VALID_VERDICTS = {"STRONG_BUY", "BUY", "HOLD", "SELL", "STRONG_SELL", "BULL", "B
 
 
 class ShareAnalysisRequest(BaseModel):
+    model_config = {"extra": "allow"}  # Accept unknown fields gracefully
+
     ticker: str = Field(..., min_length=1, max_length=20)
     market: str = Field("US", pattern="^(US|IN)$")
     analyst_response: dict = Field(default_factory=dict)
@@ -93,7 +95,7 @@ class ShareAnalysisRequest(BaseModel):
     meta_data: dict | None = None
     sentiment_data: dict | None = None
     verdict: str = Field("HOLD")
-    score: float = Field(5.0, ge=0, le=10)
+    score: float | None = Field(None)
 
 
 class ShareAnalysisResponse(BaseModel):
@@ -109,6 +111,9 @@ async def create_share(
     user: User | None = Depends(get_current_user_optional),
 ):
     """Create a shareable link for a PARA-DEBATE analysis. No auth required."""
+    logger.info("[share] create_share: ticker=%s market=%s verdict=%s score=%s user=%s",
+                req.ticker, req.market, req.verdict, req.score,
+                user.id if user else "guest")
     share_id = secrets.token_urlsafe(12)
 
     # Normalize verdict
@@ -125,7 +130,7 @@ async def create_share(
         "meta_data": req.meta_data or {},
         "sentiment_data": req.sentiment_data or {},
         "verdict": verdict,
-        "score": req.score,
+        "score": req.score if req.score is not None else 5.0,
         "creator_id": str(user.id) if user else None,
         "creator_email": user.email if user else None,
         "is_public": True,

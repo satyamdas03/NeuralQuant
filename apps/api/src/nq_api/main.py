@@ -384,6 +384,15 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="NeuralQuant API", version="4.0.0", lifespan=lifespan)
 
+# Log validation errors for debugging
+from fastapi.exceptions import RequestValidationError
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(request, exc):
+    log.warning("[422] Validation error on %s %s: %s", request.method, request.url.path, exc.errors())
+    from fastapi.responses import JSONResponse
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
