@@ -18,7 +18,7 @@ export default function AnalyticsDashboardPage() {
 
   useEffect(() => {
     authedApi.me()
-      .then((u) => setAuthed(u.tier === "pro" || u.tier === "api"))
+      .then((u) => setAuthed(u.tier === "pro" || u.tier === "api" || u.tier === "free"))
       .catch(() => setAuthed(false));
   }, []);
 
