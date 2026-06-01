@@ -233,4 +233,36 @@ async def build_greeting_context(user_id: str | None) -> str:
     # Portfolio data requires an authenticated Supabase query; the agent
     # loads it on-demand via the lookup_portfolio tool.
 
+    # ── IRS + sell signal scan for portfolio-holding users ─────────────────
+    if user_id and user_id != "anonymous":
+        try:
+            from nq_api.cache.score_cache import _supabase_rest
+
+            wl = _supabase_rest(
+                f"watchlists?user_id=eq.{user_id}&select=ticker,market&limit=50",
+                method="GET",
+            )
+            if wl:
+                hard_sells = []
+                for s in wl:
+                    rows = _supabase_rest(
+                        f"anjali_enrichment?ticker=eq.{s['ticker']}&market=eq.{s.get('market', 'US')}"
+                        f"&select=ticker,g_score,risk_eff_score,irs_pct",
+                        method="GET",
+                    )
+                    if rows:
+                        r = rows[0]
+                        g = float(r.get("g_score") or 0)
+                        re = float(r.get("risk_eff_score") or 0)
+                        if g < -4.0 or re < -3.5:
+                            hard_sells.append(f"{r['ticker']} (G={g:.1f}, RiskEff={re:.1f})")
+                if hard_sells:
+                    parts.append(
+                        "\n⚠️ PORTFOLIO SELL SIGNALS [VERIFIED]: "
+                        + ", ".join(hard_sells)
+                        + " — Flag these proactively in your greeting."
+                    )
+        except Exception as exc:
+            log.warning("IRS sell signal scan failed: %s", exc)
+
     return "\n".join(parts) if parts else ""

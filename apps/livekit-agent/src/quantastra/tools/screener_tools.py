@@ -1,4 +1,4 @@
-"""Stock screening tools mixin — find stocks by criteria, peer comparison."""
+"""Stock screening tools mixin — find stocks by criteria, peer comparison, IRS leaders."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ log = logging.getLogger(__name__)
 
 
 class ScreenerToolsMixin:
-    """Stock screening tools — find stocks by criteria, peer comparison."""
+    """Stock screening tools — find stocks by criteria, peer comparison, IRS leaders."""
 
     @function_tool
     async def run_screener(
@@ -80,6 +80,80 @@ class ScreenerToolsMixin:
             }, default=str)
         except Exception as exc:
             log.error("run_screener failed: %s", exc)
+            return json.dumps({"status": "error", "reason": str(exc)})
+
+    @function_tool
+    async def get_irs_leaders(
+        self,
+        market: str = "IN",
+        n: int = 10,
+    ) -> str:
+        """Get top stocks ranked by Investment Readiness Score (IRS%).
+
+        IRS% is the north star metric: ((g_score + risk_eff_score + 20) / 40) × 100.
+        Range 0-100%. Higher = better risk-adjusted quality.
+        - IRS > 65% = STRONG BUY zone
+        - IRS 45-65% = MODERATE
+        - IRS 30-45% = WEAK
+        - IRS < 30% = VERY WEAK (never recommend)
+
+        Mining & Metals stocks are EXCLUDED for IN market.
+
+        VOICE: "The top IRS names right now... TCS at eighty-two percent, that's
+        exceptional risk-adjusted quality. Infosys at seventy-four percent..."
+
+        Parameters:
+            market: Market — 'US' or 'IN'
+            n: Number of top stocks (max 25)
+        """
+        n = min(n, 25)
+        try:
+            from nq_api.cache.score_cache import _supabase_rest
+
+            # Query anjali_enrichment sorted by irs_pct descending
+            result = _supabase_rest(
+                f"anjali_enrichment?market=eq.{market}&irs_pct=not.is.null"
+                f"&order=irs_pct.desc&limit={n}&select=ticker,name,irs_pct,g_score,risk_eff_score,sector,composite_anjali_score",
+                method="GET",
+            )
+
+            if not result:
+                return json.dumps({"status": "unavailable", "reason": "IRS data not yet populated — run nightly_anjali first"})
+
+            # Filter out Mining & Metals for IN market
+            _MINING_SECTORS = {"mining", "metals", "mining & metals"}
+            if market == "IN":
+                result = [
+                    r for r in result
+                    if (r.get("sector") or "").lower() not in _MINING_SECTORS
+                ]
+
+            leaders = []
+            for r in result[:n]:
+                irs_pct = r.get("irs_pct")
+                if irs_pct is None:
+                    continue
+                irs_val = float(irs_pct)
+                zone = "STRONG BUY" if irs_val > 65 else "MODERATE" if irs_val > 45 else "WEAK" if irs_val > 30 else "VERY WEAK"
+                leaders.append({
+                    "ticker": r.get("ticker"),
+                    "name": r.get("name", ""),
+                    "irs_pct": round(irs_val, 1),
+                    "g_score": r.get("g_score"),
+                    "risk_eff_score": r.get("risk_eff_score"),
+                    "composite_score": r.get("composite_anjali_score"),
+                    "sector": r.get("sector", ""),
+                    "zone": zone,
+                })
+
+            return json.dumps({
+                "status": "ok",
+                "market": market,
+                "count": len(leaders),
+                "leaders": leaders,
+            }, default=str)
+        except Exception as exc:
+            log.error("get_irs_leaders failed: %s", exc)
             return json.dumps({"status": "error", "reason": str(exc)})
 
     @function_tool
