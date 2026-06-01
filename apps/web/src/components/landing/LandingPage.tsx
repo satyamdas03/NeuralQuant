@@ -479,18 +479,18 @@ export default function LandingPage() {
             >
               Data Sources
             </Link>
-            <a
-              href="#"
+            <Link
+              href="/terms"
               className="font-mono text-[11px] font-bold tracking-[0.2em] uppercase text-text-muted hover:text-primary-fixed transition-colors"
             >
               Terms of Service
-            </a>
-            <a
-              href="#"
+            </Link>
+            <Link
+              href="/privacy"
               className="font-mono text-[11px] font-bold tracking-[0.2em] uppercase text-text-muted hover:text-primary-fixed transition-colors"
             >
               Privacy Policy
-            </a>
+            </Link>
             <a
               href="#"
               className="font-mono text-[11px] font-bold tracking-[0.2em] uppercase text-text-muted hover:text-primary-fixed transition-colors"

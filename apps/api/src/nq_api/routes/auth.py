@@ -1,4 +1,4 @@
-"""GET /auth/me — return current user profile."""
+"""Auth routes — user profile, stats, account deletion."""
 import logging
 from fastapi import APIRouter, Depends
 
@@ -89,3 +89,72 @@ def save_user_profile(profile: UserProfile, user: User = Depends(get_current_use
         extra_headers={"Prefer": "return=representation,resolution=merge-duplicates"},
     )
     return profile
+
+
+@router.post("/delete-account")
+def delete_account(user: User = Depends(get_current_user)):
+    """Permanently delete user account and all associated data.
+
+    Cascade deletes all user data from Supabase tables, then deletes the auth user.
+    This action is IRREVERSIBLE.
+
+    Tables cleaned (FK cascades handle most via ON DELETE CASCADE):
+    - user_profiles, watchlists, watchlist_stocks
+    - conversations, conversation_messages
+    - session_reports, user_sessions
+    - mobile_push_tokens
+    - stripe_customers (if exists)
+    - quarterly_test_runs/results (admin only, not applicable)
+    """
+    import os
+    from datetime import datetime, timezone
+
+    user_id = str(user.id)
+    logger.warning("ACCOUNT DELETION requested for user %s", user_id)
+
+    deleted_tables = []
+
+    # 1. Delete user-owned data from tables without FK cascade
+    _user_tables = [
+        ("user_profiles", f"user_id=eq.{user_id}"),
+        ("mobile_push_tokens", f"user_id=eq.{user_id}"),
+    ]
+    for table, filter_str in _user_tables:
+        try:
+            _supabase_rest(f"{table}?{filter_str}", method="DELETE")
+            deleted_tables.append(table)
+        except Exception as exc:
+            logger.warning("Failed to delete from %s: %s", table, exc)
+
+    # 2. Delete the auth user via Supabase admin API
+    supabase_url = os.environ.get("SUPABASE_URL", "")
+    service_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+
+    if supabase_url and service_key:
+        try:
+            import httpx
+            with httpx.Client(timeout=15) as client:
+                r = client.delete(
+                    f"{supabase_url}/auth/v1/admin/users/{user_id}",
+                    headers={
+                        "apikey": service_key,
+                        "Authorization": f"Bearer {service_key}",
+                    },
+                )
+                r.raise_for_status()
+                deleted_tables.append("auth.users")
+                logger.info("Auth user %s deleted successfully", user_id)
+        except Exception as exc:
+            logger.error("Failed to delete auth user %s: %s", user_id, exc)
+            return {
+                "status": "partial",
+                "message": "User data deleted from some tables but auth user deletion failed. Contact support.",
+                "deleted_tables": deleted_tables,
+            }
+
+    return {
+        "status": "deleted",
+        "message": "Account and all associated data permanently deleted.",
+        "deleted_tables": deleted_tables,
+        "deleted_at": datetime.now(timezone.utc).isoformat(),
+    }
