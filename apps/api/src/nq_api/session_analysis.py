@@ -294,7 +294,7 @@ def _build_email_html(report_body: str, user_name: str | None) -> str:
       <div style="padding: 20px 32px; border-top: 1px solid #1e1e30;">
         <p style="margin: 0; font-size: 12px; color: #a0a0b0;">
           <a href="{FRONTEND_URL}/dashboard" style="color: #00ffb2;">Dashboard</a>
-           · <a href="{FRONTEND_URL}/query" style="color: #00ffb2;">Ask AI</a>
+           · <a href="{FRONTEND_URL}/query" style="color: #00ffb2;">Ask Morgan</a>
            · <a href="{FRONTEND_URL}/screener" style="color: #00ffb2;">Screener</a>
         </p>
         <p style="margin: 8px 0 0; font-size: 11px; color: #606070;">

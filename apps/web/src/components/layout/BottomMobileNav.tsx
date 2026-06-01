@@ -15,7 +15,7 @@ const NAV = [
   { href: "/dashboard", label: "Workspace", icon: LayoutDashboard },
   { href: "/news", label: "News", icon: Newspaper },
   { href: "/screener", label: "Screener", icon: ScanSearch },
-  { href: "/query", label: "Ask AI", icon: MessageSquareText, center: true },
+  { href: "/query", label: "Ask Morgan", icon: MessageSquareText, center: true },
   { href: "/trade", label: "Trade", icon: TrendingUp, beta: true },
 ];
 

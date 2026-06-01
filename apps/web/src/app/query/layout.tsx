@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Ask AI — NeuralQuant",
-  description: "Ask AI anything about stocks, sectors, or macro. Multi-agent PARA-DEBATE with conversation memory, live data, and source citations.",
+  title: "Ask Morgan — NeuralQuant",
+  description: "Ask Morgan anything about stocks, sectors, or macro. Senior equity research analyst with institutional-grade analysis, live data, and source citations.",
   openGraph: {
-    title: "Ask AI — NeuralQuant",
-    description: "Ask AI anything about stocks, sectors, or macro. Multi-agent PARA-DEBATE with conversation memory, live data, and source citations.",
+    title: "Ask Morgan — NeuralQuant",
+    description: "Ask Morgan anything about stocks, sectors, or macro. Senior equity research analyst with institutional-grade analysis, live data, and source citations.",
     url: "https://neuralquant.co/query",
     siteName: "NeuralQuant",
     images: ["/og-image.png"],
@@ -13,8 +13,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Ask AI — NeuralQuant",
-    description: "Ask AI anything about stocks, sectors, or macro. Multi-agent PARA-DEBATE with conversation memory, live data, and source citations.",
+    title: "Ask Morgan — NeuralQuant",
+    description: "Ask Morgan anything about stocks, sectors, or macro. Senior equity research analyst with institutional-grade analysis, live data, and source citations.",
   },
   alternates: {
     canonical: "https://neuralquant.co/query",

@@ -28,6 +28,10 @@ class AnjaliScores(BaseModel):
     valuation_score: float | None = None     # -4 to +4 (Q2=+1 sweet spot)
     risk_score: float | None = None          # -4 to +4 (Q4=+1 sweet spot)
     composite: float | None = None            # -16 to +16
+    g_score: float | None = None            # Quantitative Conviction Score: -12 to +12
+    risk_eff_score: float | None = None      # Risk Efficiency Score: -8 to +8
+    irs_raw: float | None = None             # IRS raw: -20 to +20
+    irs_pct: float | None = None             # IRS %: 0 to 100
     is_loss_making: bool = False              # True if any loss flag set
     valuation_sweet_spot: bool = False        # True if Q2 valuation (score 0.5-1.5)
 
@@ -115,6 +119,7 @@ class QueryRequest(BaseModel):
     session_key: Optional[str] = None  # persistent conversation key (client-generated UUID)
     profile: UserProfile | None = None
     clarification_answers: list[str] | None = None  # answers from ClarificationCard
+    is_report: bool = False  # True when DART classifies as REPORT (16-section institutional)
 
 
 class QueryResponse(BaseModel):
@@ -122,6 +127,7 @@ class QueryResponse(BaseModel):
     data_sources: list[str]      # which data was used to answer
     follow_up_questions: list[str]  # 3 suggested follow-ups
     route: Literal["SNAP", "REACT", "DEEP"] = "REACT"
+    is_report: bool = False      # True if response is a full institutional research report
 
 
 # ── Structured Query Response (v2) ──────────────────────────────────────────

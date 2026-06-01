@@ -1086,3 +1086,74 @@ async def get_yield_curve():
     except Exception as exc:
         log.warning("Yield curve fetch failed: %s", exc)
         return {"enabled": True, "data": {}, "error": str(exc)}
+
+
+@router.get("/{ticker}/anjali")
+async def get_anjali_detail(ticker: str, market: str = "US"):
+    """Full Anjali enrichment row including IRS scores for a single ticker."""
+    import os as _os
+    import httpx as _hx
+
+    url = _os.environ.get("SUPABASE_URL", "")
+    key = _os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+    if not url or not key:
+        raise HTTPException(status_code=500, detail="Supabase not configured")
+
+    # Try bare ticker first (for Indian stocks without .NS suffix)
+    bare_ticker = ticker.replace(".NS", "").replace(".BO", "").upper()
+
+    endpoint = f"{url}/rest/v1/anjali_enrichment"
+    headers = {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+    }
+
+    # Try original ticker first, then bare
+    for t in [ticker.upper(), bare_ticker]:
+        try:
+            with _hx.Client(timeout=10) as client:
+                r = client.get(
+                    endpoint,
+                    params={
+                        "select": "*",
+                        "ticker": f"eq.{t}",
+                        "market": f"eq.{market}",
+                        "limit": "1",
+                    },
+                    headers=headers,
+                )
+                r.raise_for_status()
+                data = r.json()
+                if data and isinstance(data, list) and len(data) > 0:
+                    row = data[0]
+                    # Add IRS interpretation
+                    irs_pct = row.get("irs_pct")
+                    g_score = row.get("g_score")
+                    risk_eff = row.get("risk_eff_score")
+                    interpretation = "N/A"
+                    if irs_pct is not None:
+                        if irs_pct > 65:
+                            interpretation = "STRONG BUY"
+                        elif irs_pct >= 45:
+                            interpretation = "MODERATE"
+                        elif irs_pct >= 30:
+                            interpretation = "WEAK"
+                        else:
+                            interpretation = "VERY WEAK"
+                    if g_score is not None and g_score < -0.5:
+                        interpretation = "NEUTRAL ZONE"
+                    if g_score is not None and g_score < -4:
+                        interpretation = "SELL (G Score)"
+                    if risk_eff is not None and risk_eff < -3.5:
+                        interpretation = "SELL (Risk)"
+
+                    row["irs_interpretation"] = interpretation
+                    row["sebi_disclaimer"] = (
+                        "QuantAlpha is a research tool, not a SEBI-registered investment advisor. "
+                        "Please consult a qualified financial advisor before investing."
+                    )
+                    return row
+        except Exception as exc:
+            log.warning("Anjali detail fetch failed for %s: %s", t, exc)
+
+    raise HTTPException(status_code=404, detail=f"Anjali data not found for {ticker}")

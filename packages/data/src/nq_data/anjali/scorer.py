@@ -289,8 +289,33 @@ def compute_quintile_scores(
         + result["risk_score"]
     )
 
+    # --- G SCORE (Quantitative Conviction Score) ---
+    # G Score = Growth + Return + Valuation (range -12 to +12)
+    result["g_score"] = (
+        result["growth_score"]
+        + result["return_score"]
+        + result["valuation_score"]
+    )
+
+    # --- RISK EFFICIENCY SCORE ---
+    # Risk Score scaled by 2.0 → range -8 to +8
+    # Q4 risk sweet spot becomes +2.0, Q1 safest becomes -1.0
+    result["risk_eff_score"] = result["risk_score"] * 2.0
+
+    # --- IRS (Investment Readiness Score) ---
+    # IRS Raw = G Score + Risk Eff Score (range -20 to +20)
+    result["irs_raw"] = result["g_score"] + result["risk_eff_score"]
+
+    # IRS % = ((irs_raw + 20) / 40) * 100 (range 0 to 100)
+    result["irs_pct"] = ((result["irs_raw"] + 20) / 40) * 100
+
     # Round all scores
-    for score_col in ["growth_score", "return_score", "valuation_score", "risk_score", "composite_anjali_score"]:
+    for score_col in [
+        "growth_score", "return_score", "valuation_score", "risk_score",
+        "composite_anjali_score", "g_score", "risk_eff_score", "irs_raw",
+    ]:
         result[score_col] = result[score_col].round(1)
+
+    result["irs_pct"] = result["irs_pct"].round(1)
 
     return result

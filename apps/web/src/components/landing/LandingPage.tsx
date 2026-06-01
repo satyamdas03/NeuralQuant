@@ -229,7 +229,7 @@ export default function LandingPage() {
           <UpgradeCard
             icon="📰"
             title="News Sentiment Engine"
-            body="Finnhub buzz score, bullish/bearish %, sentiment label — fed directly into the sentiment agent. Headlines plus full article summaries in Ask AI."
+            body="Finnhub buzz score, bullish/bearish %, sentiment label — fed directly into the sentiment agent. Headlines plus full article summaries in Ask Morgan."
           />
           <UpgradeCard
             icon="🇮🇳"
@@ -244,7 +244,7 @@ export default function LandingPage() {
           <UpgradeCard
             icon="💬"
             title="Conversation Memory"
-            body="Ask AI remembers your prior questions within a session. Follow-ups like &ldquo;what about the bear case?&rdquo; now carry context from the previous turn."
+            body="Ask Morgan remembers your prior questions within a session. Follow-ups like &ldquo;what about the bear case?&rdquo; now carry context from the previous turn."
           />
         </div>
       </section>
@@ -284,7 +284,7 @@ export default function LandingPage() {
             Start free. Scale when ready.
           </h2>
           <p className="text-text-muted max-w-xl mx-auto">
-            Full access to PARA-DEBATE, Ask AI, screener, and watchlists — no
+            Full access to PARA-DEBATE, Ask Morgan, screener, and watchlists — no
             credit card required.
           </p>
         </div>
@@ -303,7 +303,7 @@ export default function LandingPage() {
               <li>50 AI queries/day</li>
               <li>5 backtests/day</li>
               <li>Full PARA-DEBATE analysis</li>
-              <li>Ask AI with conversation memory</li>
+              <li>Ask Morgan with conversation memory</li>
               <li>Live technical indicators (RSI, MACD, ATR)</li>
               <li>Insider sentiment &amp; news sentiment</li>
               <li>Sector peer comparisons</li>
@@ -336,7 +336,7 @@ export default function LandingPage() {
               <li>Everything in Free, plus:</li>
               <li>Priority support</li>
               <li>Faster response times</li>
-              <li>Extended Ask AI history (30 days)</li>
+              <li>Extended Ask Morgan history (30 days)</li>
             </ul>
             <div className="mt-8">
               <Link
@@ -360,7 +360,7 @@ export default function LandingPage() {
               <li>50 backtests/day</li>
               <li>Everything in Investor, plus:</li>
               <li>Priority support</li>
-              <li>Unlimited Ask AI history</li>
+              <li>Unlimited Ask Morgan history</li>
               <li>Early access to new features</li>
               <li>API access (coming soon)</li>
             </ul>

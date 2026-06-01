@@ -57,6 +57,13 @@ _DEEP_TRIGGERS = {
     "long thesis", "short thesis", "regime outlook", "factor outlook",
 }
 
+# REPORT triggers — full 16-section institutional research report (Morgan tier)
+_REPORT_TRIGGERS = {
+    "full report", "research report", "institutional report", "research",
+    "analyze in detail", "detailed report", "in-depth report",
+    "equity research", "company report", "stock report",
+}
+
 _SNAP_STOP_WORDS = {
     "why", "how will", "what if", "forecast", "predict", "scenario",
     "outlook", "trend", "future", "expect", "going to", "will it",
@@ -65,37 +72,44 @@ _SNAP_STOP_WORDS = {
 }
 
 
-def classify_query(question: str, explicit_ticker: str | None = None) -> Route:
-    """Classify a natural-language query into SNAP, REACT, or DEEP."""
+def classify_query(question: str, explicit_ticker: str | None = None) -> tuple[Route, bool]:
+    """Classify a natural-language query into SNAP, REACT, or DEEP.
+
+    Returns (route, is_report) tuple. is_report=True when the query
+    matches REPORT triggers (16-section institutional research report).
+    """
     q = question.strip().lower()
     short_query = len(question.strip()) <= 60
     has_ticker = explicit_ticker is not None or _extract_ticker_from_question(question) is not None
 
+    # 0. Check for REPORT triggers first (superset of DEEP)
+    is_report = any(k in q for k in _REPORT_TRIGGERS)
+
     # 1. Force REACT for comparative / portfolio / screener queries
     if any(k in q for k in _REACT_FORCERS):
-        return "REACT"
+        return "REACT", False
 
     # 2. Check for DEEP signals
     has_deep = any(k in q for k in _DEEP_TRIGGERS)
-    if has_deep:
+    if has_deep or is_report:
         # If it also looks like a comparison, stay REACT
         if any(k in q for k in {"compare", "versus", "vs ", "better", "worse"}):
-            return "REACT"
-        return "DEEP"
+            return "REACT", False
+        return "DEEP", is_report
 
     # 3. Check for SNAP signals
     has_snap = any(k in q for k in _SNAP_TRIGGERS)
     has_uncertainty = any(k in q for k in _SNAP_STOP_WORDS)
 
     if has_snap and not has_uncertainty and (short_query or has_ticker):
-        return "SNAP"
+        return "SNAP", False
 
     # 4. Long, single-ticker queries without comparison → DEEP
     if len(question.strip()) > 120 and has_ticker and not any(k in q for k in _REACT_FORCERS):
-        return "DEEP"
+        return "DEEP", False
 
     # 5. Default to REACT
-    return "REACT"
+    return "REACT", False
 
 
 # ── Ticker extraction helpers ─────────────────────────────────────────────

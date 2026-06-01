@@ -19,7 +19,7 @@ const NAV = [
   { href: "/dashboard", label: "Workspace", icon: LayoutDashboard },
   { href: "/news", label: "NewsDesk", icon: Newspaper },
   { href: "/screener", label: "Screener", icon: ScanSearch },
-  { href: "/query", label: "Ask AI", icon: MessageSquareText },
+  { href: "/query", label: "Ask Morgan", icon: MessageSquareText },
   { href: "/backtest", label: "Strategy", icon: FlaskConical },
   { href: "/trade", label: "Trade", icon: TrendingUp, beta: true },
   { href: "/terminal", label: "Terminal", icon: Terminal, beta: true },

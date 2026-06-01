@@ -132,7 +132,7 @@ def _load_anjali_cache():
     data = _supabase_rest(
         "anjali_enrichment",
         method="GET",
-        query={"select": "ticker,market,composite_anjali_score,growth_score,return_score,valuation_score,risk_score,future_pe,future_peg,loss_profit_yoy,loss_profit_ttm,loss_profit_qoq"},
+        query={"select": "ticker,market,composite_anjali_score,growth_score,return_score,valuation_score,risk_score,g_score,risk_eff_score,irs_raw,irs_pct,future_pe,future_peg,loss_profit_yoy,loss_profit_ttm,loss_profit_qoq"},
     )
     if data and isinstance(data, list):
         _ANJALI_CACHE = {}
@@ -211,6 +211,10 @@ def row_to_ai_score(row: pd.Series, market: str, score_1_10_override: int | None
             valuation_score=val_score,
             risk_score=anjali_data.get("risk_score"),
             composite=anjali_data.get("composite_anjali_score"),
+            g_score=anjali_data.get("g_score"),
+            risk_eff_score=anjali_data.get("risk_eff_score"),
+            irs_raw=anjali_data.get("irs_raw"),
+            irs_pct=anjali_data.get("irs_pct"),
             is_loss_making=bool(
                 anjali_data.get("loss_profit_yoy") or anjali_data.get("loss_profit_ttm") or anjali_data.get("loss_profit_qoq")
             ),

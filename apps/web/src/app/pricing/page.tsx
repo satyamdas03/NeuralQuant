@@ -10,7 +10,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://neuralquant.onrender
 const FEATURE_ROWS = [
   { feature: "AI Stock Queries", free: "5/day", investor: "100/day", pro: "Unlimited", api: "Unlimited" },
   { feature: "ForeCast Score", free: "Top 10", investor: "All 100", pro: "All 100", api: "All 100" },
-  { feature: "Ask AI Analysis", free: "5/day", investor: "100/day", pro: "Unlimited", api: "Unlimited" },
+  { feature: "Ask Morgan Analysis", free: "5/day", investor: "100/day", pro: "Unlimited", api: "Unlimited" },
   { feature: "Screener Access", free: "Basic", investor: "Full", pro: "Full", api: "Full" },
   { feature: "Watchlists", free: "1", investor: "10", pro: "50", api: "50" },
   { feature: "Alerts", free: "—", investor: "5", pro: "25", api: "25" },

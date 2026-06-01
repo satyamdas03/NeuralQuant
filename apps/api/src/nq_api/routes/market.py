@@ -472,3 +472,49 @@ async def data_quality():
             "fed_funds_rate": getattr(m, "fed_funds_rate", None) if macro_fresh else None,
         } if macro_fresh else None,
     }
+
+
+@router.get("/trending")
+async def trending_tickers(
+    limit: int = 10,
+    market: str = "US",
+):
+    """Top tickers analyzed today — based on recent Anjali IRS scores."""
+    import os
+    import httpx as _hx
+
+    url = os.environ.get("SUPABASE_URL", "")
+    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+    if not url or not key:
+        return {"trending": [], "market": market}
+
+    endpoint = f"{url}/rest/v1/anjali_enrichment"
+    headers = {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+    }
+
+    try:
+        with _hx.Client(timeout=10) as client:
+            r = client.get(
+                endpoint,
+                params={
+                    "select": "ticker,market,sector,irs_pct,g_score,risk_eff_score",
+                    "market": f"eq.{market}",
+                    "irs_pct": "not.is.null",
+                    "order": "irs_pct.desc",
+                    "limit": str(limit),
+                },
+                headers=headers,
+            )
+            r.raise_for_status()
+            data = r.json()
+    except Exception as exc:
+        logging.getLogger(__name__).warning("Trending fetch failed: %s", exc)
+        data = []
+
+    return {
+        "trending": data if isinstance(data, list) else [],
+        "market": market,
+        "count": len(data) if isinstance(data, list) else 0,
+    }

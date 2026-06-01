@@ -1,5 +1,5 @@
 """
-Shared post-hoc validation for Ask AI responses.
+Shared post-hoc validation for Ask Morgan responses.
 
 Unifies validation that was scattered across query.py:
   - _VALIDATION_RULES constant

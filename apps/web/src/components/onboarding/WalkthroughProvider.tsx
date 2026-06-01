@@ -57,11 +57,11 @@ const TOUR_STEPS: Step[] = [
     placement: "left",
   },
 
-  // ── Ask AI / Query ──
+  // ── Ask Morgan / Query ──
   {
     target: "#query-input-area",
-    title: "Ask AI Anything",
-    content: "Ask QuantAlpha any financial question in plain English. Portfolio allocation, stock deep dives, market scenarios — the AI pulls live data from FMP, yfinance, and news sources to answer with verified numbers.",
+    title: "Ask Morgan Anything",
+    content: "Ask Morgan any financial question in plain English. Portfolio allocation, stock deep dives, market scenarios — the senior equity research analyst pulls live data from FMP, yfinance, and news sources to answer with verified numbers.",
     placement: "top",
   },
 
@@ -105,7 +105,7 @@ const TOUR_STEPS: Step[] = [
   {
     target: "#sidebar-nav",
     title: "Navigation Hub",
-    content: "Your command center. Dashboard for market overview, Ask AI for questions, Screener for stock discovery, Stocks for deep dives, Terminal for direct data access, Performance for methodology, and Trade for strategy automation.",
+    content: "Your command center. Dashboard for market overview, Ask Morgan for questions, Screener for stock discovery, Stocks for deep dives, Terminal for direct data access, Performance for methodology, and Trade for strategy automation.",
     placement: "right",
   },
 ];

@@ -32,6 +32,8 @@ from nq_api.services.constants import (
 from nq_api.services.prompts import (
     _SYSTEM, _SYSTEM_STRUCTURED, _PORTFOLIO_OUTPUT_RULES,
     _PROFILE_PROMPT_TEMPLATE, _STRUCTURED_TOOL,
+    MORGAN_PERSONA, MORGAN_STYLE_RULES, MORGAN_RESEARCH_REPORT_PROMPT,
+    MORGAN_SECTOR_PROMPT,
 )
 from nq_api.services.anthropic_helpers import (
     _is_ollama_proxy, _query_client, _call_anthropic_with_retry,
@@ -91,7 +93,7 @@ async def run_nl_query(
         )
 
     # ── DART routing ──────────────────────────────────────────────────────────
-    route = dart.classify_query(req.question, req.ticker)
+    route, _is_report = dart.classify_query(req.question, req.ticker)
 
     if route == "SNAP":
         return await dart.handle_snap(req)
@@ -234,11 +236,17 @@ async def run_nl_query(
             messages.append({"role": m.role, "content": content})
         messages.append({"role": "user", "content": user_msg})
 
+        # ── Morgan REPORT tier for /v1 (unstructured) ──────────────────────
+        _v1_system = _SYSTEM
+        if _is_report:
+            _v1_system += "\n\n" + MORGAN_PERSONA + "\n\n" + MORGAN_STYLE_RULES
+            log.info("Morgan REPORT tier activated for /v1: %s", effective_ticker)
+
         response = await _call_anthropic_with_retry(
             client,
             model=query_model,
-            max_tokens=3000,
-            system=_SYSTEM,
+            max_tokens=6000 if _is_report else 3000,
+            system=_v1_system,
             messages=messages,
         )
         # Extract text from first text-type block (skip thinking blocks)
@@ -309,7 +317,7 @@ async def run_nl_query_v2(
         )
 
     # ── DART routing ── (SNAP disabled — force REACT for full structured detail)
-    classified = dart.classify_query(req.question, req.ticker)
+    classified, _is_report_v2 = dart.classify_query(req.question, req.ticker)
     route = "REACT" if classified == "SNAP" else classified
 
     # REACT or DEEP: use LLM with structured prompt
@@ -593,16 +601,42 @@ async def run_nl_query_v2(
                 user_msg = user_msg + "\n\n" + _build_profile_prompt(req.profile)
             messages[-1]["content"] = user_msg
 
+        # ── Morgan REPORT tier injection ──────────────────────────────────────
+        if _is_report_v2:
+            morgan_extra = "\n\n" + MORGAN_PERSONA + "\n\n" + MORGAN_STYLE_RULES
+            # Detect sector query — use sector prompt instead of single-stock report
+            _is_sector_q = any(k.lower() in req.question.lower() for k in _SECTOR_KEYWORDS)
+            if _is_sector_q and not effective_ticker_v2:
+                morgan_extra += "\n\n" + MORGAN_SECTOR_PROMPT
+            else:
+                # Build report template with available data
+                _rpt = MORGAN_RESEARCH_REPORT_PROMPT
+                _rpt = _rpt.replace("{COMPANY_NAME}", effective_ticker_v2 or "the company")
+                _rpt = _rpt.replace("{TICKER}", effective_ticker_v2 or "N/A")
+                # Fill placeholders from verified data extracted from platform context
+                _v = extract_verified_values(platform_ctx)
+                _rpt = _rpt.replace("{CURRENT_PRICE}", str(_v.get("CURRENT_PRICE", "N/A")))
+                _rpt = _rpt.replace("{IRS_PCT}", str(_v.get("IRS_PCT", "N/A")))
+                _rpt = _rpt.replace("{G_SCORE}", str(_v.get("G_SCORE", "N/A")))
+                _rpt = _rpt.replace("{RISK_EFF_SCORE}", str(_v.get("RISK_EFF_SCORE", "N/A")))
+                _rpt = _rpt.replace("{PE_TTM}", str(_v.get("PE_TTM", _v.get("TRAILING_PE", "N/A"))))
+                _rpt = _rpt.replace("{FUTURE_PE}", str(_v.get("FUTURE_PE", "N/A")))
+                _rpt = _rpt.replace("{SECTOR}", str(_v.get("SECTOR", "N/A")))
+                morgan_extra += "\n\n" + _rpt
+            system_prompt += morgan_extra
+            log.info("Morgan REPORT tier activated for /v2: %s (sector=%s)", effective_ticker_v2, _is_sector_q)
+
         # Inject profile context for all queries (not just portfolio)
         if req.profile and not portfolio_intent:
             user_msg = user_msg + "\n\n[INVESTOR PROFILE CONTEXT] " + _build_profile_prompt(req.profile)
             messages[-1]["content"] = user_msg
 
         # Force tool_use for guaranteed structured output (no markdown leakage).
+        _report_max_tokens = 12000 if _is_report_v2 else 8000
         response = await _call_anthropic_with_retry(
             client,
             model=query_model,
-            max_tokens=8000,
+            max_tokens=_report_max_tokens,
             system=system_prompt,
             tools=[_STRUCTURED_TOOL],
             tool_choice={"type": "tool", "name": _STRUCTURED_TOOL["name"]},
@@ -699,6 +733,9 @@ async def run_nl_query_v2(
                 # Validate LLM metrics against injected [VERIFIED] data
                 verified = extract_verified_values(platform_ctx)
                 _, result.summary, _ = validate_response(result.metrics or [], result.summary or "", verified)
+                # Mark as Morgan report if classified
+                if _is_report_v2:
+                    result.is_report = True
                 # Attach stock summary from enrichment data
                 result.stock_summary = _build_stock_summary(effective_ticker_v2, effective_market_v2, enrichment, platform_ctx)
                 # Persist conversation turn (best-effort)
@@ -784,7 +821,7 @@ async def run_nl_query_v2_stream(
         # SNAP returns short cache-only answers which produce empty/weak cards.
         # DEEP (PARA-DEBATE) is reserved for explicit deep-analysis triggers and
         # is fine to keep. All other queries route to REACT.
-        classified = dart.classify_query(req.question, req.ticker)
+        classified, _is_report_stream = dart.classify_query(req.question, req.ticker)
         route = "REACT" if classified == "SNAP" else classified
 
         # Phase 2-4: Context gathering (parallel)
@@ -1063,6 +1100,29 @@ async def run_nl_query_v2_stream(
                         result_holder["user_msg"] = result_holder["user_msg"] + "\n\n" + _build_profile_prompt(req.profile)
                     messages[-1]["content"] = result_holder["user_msg"]
 
+                # ── Morgan REPORT tier injection (streaming) ────────────────────
+                if _is_report_stream:
+                    morgan_extra = "\n\n" + MORGAN_PERSONA + "\n\n" + MORGAN_STYLE_RULES
+                    _is_sector_q_s = any(k.lower() in req.question.lower() for k in _SECTOR_KEYWORDS)
+                    if _is_sector_q_s and not stream_ticker:
+                        morgan_extra += "\n\n" + MORGAN_SECTOR_PROMPT
+                    else:
+                        _rpt = MORGAN_RESEARCH_REPORT_PROMPT
+                        _rpt = _rpt.replace("{COMPANY_NAME}", stream_ticker or "the company")
+                        _rpt = _rpt.replace("{TICKER}", stream_ticker or "N/A")
+                        # Extract verified values from platform context string
+                        _sv = extract_verified_values(result_holder.get("platform_ctx"))
+                        _rpt = _rpt.replace("{CURRENT_PRICE}", str(_sv.get("CURRENT_PRICE", "N/A")))
+                        _rpt = _rpt.replace("{IRS_PCT}", str(_sv.get("IRS_PCT", "N/A")))
+                        _rpt = _rpt.replace("{G_SCORE}", str(_sv.get("G_SCORE", "N/A")))
+                        _rpt = _rpt.replace("{RISK_EFF_SCORE}", str(_sv.get("RISK_EFF_SCORE", "N/A")))
+                        _rpt = _rpt.replace("{PE_TTM}", str(_sv.get("PE_TTM", _sv.get("TRAILING_PE", "N/A"))))
+                        _rpt = _rpt.replace("{FUTURE_PE}", str(_sv.get("FUTURE_PE", "N/A")))
+                        _rpt = _rpt.replace("{SECTOR}", str(_sv.get("SECTOR", "N/A")))
+                        morgan_extra += "\n\n" + _rpt
+                    system_prompt += morgan_extra
+                    log.info("Morgan REPORT tier activated for /v2/stream: %s (sector=%s)", stream_ticker, _is_sector_q_s)
+
                 # Inject profile context for all non-portfolio streaming queries
                 if req.profile and not portfolio_intent:
                     result_holder["user_msg"] = result_holder["user_msg"] + "\n\n[INVESTOR PROFILE CONTEXT] " + _build_profile_prompt(req.profile)
@@ -1071,11 +1131,12 @@ async def run_nl_query_v2_stream(
                 # Force tool_use: model MUST call `respond_with_neuralquant_forecast`
                 # with arguments matching the schema. No more markdown leakage.
                 # 90s timeout prevents indefinite hangs on complex queries
+                _report_max_tokens_stream = 12000 if _is_report_stream else 8000
                 try:
                     response = await _call_anthropic_with_retry(
                         client,
                         model=query_model,
-                        max_tokens=8000,
+                        max_tokens=_report_max_tokens_stream,
                         system=system_prompt,
                         tools=[_STRUCTURED_TOOL],
                         tool_choice={"type": "tool", "name": _STRUCTURED_TOOL["name"]},
@@ -1205,6 +1266,9 @@ async def run_nl_query_v2_stream(
                             result_holder["result"].summary or "",
                             verified,
                         )
+                        # Mark as Morgan report if classified
+                        if _is_report_stream:
+                            result_holder["result"].is_report = True
                         # Attach stock summary from enrichment data
                         result_holder["result"].stock_summary = _build_stock_summary(
                             stream_ticker, stream_market,
