@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "NeuralQuant",
+    "slug": "neuralquant",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "scheme": "neuralquant",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "co.neuralquant.app",
+      "infoPlist": {
+        "UIBackgroundModes": ["remote-notification"]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0f0f1a",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "package": "co.neuralquant.app",
+      "permissions": ["NOTIFICATIONS"]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png"
+        }
+      ],
+      "expo-secure-store"
+    ],
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
