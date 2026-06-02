@@ -169,6 +169,14 @@ def ingest_to_supabase(
         logger.warning("Empty DataFrame — nothing to ingest")
         return 0
 
+    # Deduplicate on (ticker, market, index_group) — PK constraint
+    dedup_cols = [c for c in ["ticker", "market", "index_group"] if c in df.columns]
+    if dedup_cols:
+        before = len(df)
+        df = df.drop_duplicates(subset=dedup_cols, keep="last")
+        if len(df) < before:
+            logger.warning(f"Deduped {before - len(df)} duplicate rows on {dedup_cols}")
+
     # Step 1: Delete existing data for this market
     logger.info(f"Deleting existing {market} rows from anjali_enrichment...")
     deleted = _delete_market("anjali_enrichment", market)
@@ -200,7 +208,7 @@ def ingest_to_supabase(
         logger.warning("No valid rows to ingest after filtering")
         return 0
 
-    # Insert in batches
+    # Insert in batches, with single-row fallback on batch failure
     total_inserted = 0
     for i in range(0, len(rows), batch_size):
         batch = rows[i : i + batch_size]
@@ -213,7 +221,19 @@ def ingest_to_supabase(
             total_inserted += len(batch)
             logger.debug(f"Inserted batch {i // batch_size + 1}: {len(batch)} rows")
         else:
-            logger.error(f"Failed to insert batch starting at row {i}")
+            logger.warning(f"Batch insert failed at row {i}, falling back to single-row insert")
+            # Try each row individually to salvage what we can
+            for row in batch:
+                single_result = _supabase_rest(
+                    "anjali_enrichment",
+                    method="POST",
+                    body=[row],
+                )
+                if single_result is not None:
+                    total_inserted += 1
+                else:
+                    ticker = row.get("ticker", "?")
+                    logger.error(f"Failed to insert row for ticker={ticker}")
 
     logger.info(f"Ingested {total_inserted}/{len(rows)} rows into anjali_enrichment ({market})")
     return total_inserted
