@@ -54,16 +54,34 @@ function quintileColor(score: number | null | undefined): string {
 }
 
 function AnjaliRow({ anjali }: { anjali: AnjaliScores }) {
+  const irsPct = anjali.irs_pct;
+  const irsZone = irsPct == null ? null
+    : irsPct >= 65 ? "INVESTMENT READY"
+    : irsPct >= 45 ? "CAUTION"
+    : "AVOID";
+  const irsColor = irsPct == null ? ""
+    : irsPct >= 65 ? "text-primary-fixed"
+    : irsPct >= 45 ? "text-amber-400"
+    : "text-red-400";
+
   return (
     <div className="mt-1.5 pt-1.5 border-t border-outline-variant/20">
       <div className="flex items-center justify-between mb-1">
         <span className="text-[10px] font-mono uppercase tracking-wider text-primary">
           Anjali Value Screener
         </span>
-        <span className={`text-xs font-bold font-mono ${anjaliCompositeColor(anjali.composite)}`}>
-          {anjaliCompositeLabel(anjali.composite)}
-          <span className="text-[10px] text-on-surface-variant">/16</span>
-        </span>
+        <div className="flex items-center gap-2">
+          {irsPct != null && (
+            <span className={`text-xs font-bold font-mono ${irsColor}`}>
+              IRS {irsPct.toFixed(0)}%
+              <span className="text-[9px] ml-1">{irsZone}</span>
+            </span>
+          )}
+          <span className={`text-xs font-bold font-mono ${anjaliCompositeColor(anjali.composite)}`}>
+            {anjaliCompositeLabel(anjali.composite)}
+            <span className="text-[10px] text-on-surface-variant">/16</span>
+          </span>
+        </div>
       </div>
       <div className="grid grid-cols-4 gap-x-2 gap-y-0.5">
         {[
@@ -89,6 +107,11 @@ function AnjaliRow({ anjali }: { anjali: AnjaliScores }) {
         {anjali.is_loss_making && (
           <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-error/15 text-error border border-error/30">
             LOSS-MAKING
+          </span>
+        )}
+        {anjali.g_score != null && anjali.g_score < -4 && (
+          <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-red-500/15 text-red-400 border border-red-500/30">
+            HARD SELL
           </span>
         )}
       </div>

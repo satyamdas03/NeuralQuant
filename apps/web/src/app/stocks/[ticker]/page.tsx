@@ -17,6 +17,7 @@ import GhostBorderCard from "@/components/ui/GhostBorderCard";
 import ConsensusPanel from "@/components/ConsensusPanel";
 import GradientButton from "@/components/ui/GradientButton";
 import ShareAnalysisButton from "@/components/ShareAnalysisButton";
+import IRSZoneBadge from "@/components/IRSZoneBadge";
 import { Star, ArrowRight, Loader2 } from "lucide-react";
 
 export default function StockPage() {
@@ -157,6 +158,11 @@ export default function StockPage() {
 
       {/* Regime Context */}
       <RegimeContextPanel regime={score.regime_label} />
+
+      {/* IRS + Anjali Section */}
+      {score.anjali && (score.anjali.irs_pct != null || score.anjali.g_score != null) && (
+        <IRSZoneBadge anjali={score.anjali} ticker={ticker} market={market} />
+      )}
 
       {/* ForeCast Score Cards */}
       <div className="grid md:grid-cols-3 gap-5">

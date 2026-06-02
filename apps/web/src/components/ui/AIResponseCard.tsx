@@ -15,6 +15,7 @@ import SEBIDisclaimer from "./SEBIDisclaimer";
 import type { RegimeLabel, StructuredQueryResponse } from "@/lib/types";
 import ProfilerCard from "./ProfilerCard";
 import ClarificationCard from "./ClarificationCard";
+import MorganReportCard from "@/components/MorganReportCard";
 import type { UserProfile } from "@/lib/types";
 
 type Props = {
@@ -76,6 +77,9 @@ export default function AIResponseCard({
           onSubmit={onProfilerSubmit || (() => {})}
         />
       );
+    }
+    if (parsed.is_report) {
+      return <MorganReportCard response={parsed} />;
     }
     if (parsed.is_portfolio_response) {
       return (

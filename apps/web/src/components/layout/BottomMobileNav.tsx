@@ -8,6 +8,7 @@ import {
   MessageSquareText,
   Newspaper,
   TrendingUp,
+  PieChart,
   Menu,
 } from "lucide-react";
 
@@ -16,6 +17,7 @@ const NAV = [
   { href: "/news", label: "News", icon: Newspaper },
   { href: "/screener", label: "Screener", icon: ScanSearch },
   { href: "/query", label: "Ask Morgan", icon: MessageSquareText, center: true },
+  { href: "/portfolio", label: "Portfolio", icon: PieChart },
   { href: "/trade", label: "Trade", icon: TrendingUp, beta: true },
 ];
 

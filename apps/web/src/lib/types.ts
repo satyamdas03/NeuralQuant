@@ -29,6 +29,10 @@ export interface AnjaliScores {
   composite: number | null;           // -16 to +16
   is_loss_making: boolean;            // True if any loss flag set
   valuation_sweet_spot: boolean;      // True if Q2 valuation (score 0.5-1.5)
+  // Phase 3: IRS fields
+  g_score?: number | null;           // -12 to +12 (growth + return + valuation)
+  risk_eff_score?: number | null;    // -8 to +8 (risk_score × 2)
+  irs_pct?: number | null;           // 0 to 100% Investment Readiness Score
 }
 
 export interface AIScore {
@@ -523,6 +527,7 @@ export interface StructuredQueryResponse {
   action_prompts?: ActionPrompt[];
   sebi_disclaimer?: string;
   is_portfolio_response?: boolean;
+  is_report?: boolean;
   profiler_needed?: boolean;
   clarification_needed?: boolean;
   clarification_questions?: ClarificationQuestion[];
@@ -701,5 +706,121 @@ export interface AnalyticsDashboard {
     shares_viewed: number;
     signups_from_share: number;
   };
+}
+
+// ── Astra Portfolio Types (Phase 3) ─────────────────────────────────────────
+
+export type AstraRiskProfile = "low" | "high" | "very_high";
+
+export interface AstraPoolStock {
+  ticker: string;
+  name?: string;
+  sector?: string;
+  irs_pct: number | null;
+  g_score: number | null;
+  risk_eff_score: number | null;
+  composite?: number | null;
+  pool: string;
+  allocation_pct: number;
+  entry_price?: number | null;
+  target_price?: number | null;
+  stop_loss?: number | null;
+  rationale?: string;
+}
+
+export interface AstraRecommendResponse {
+  risk_profile: AstraRiskProfile;
+  pools: Array<{
+    name: string;
+    allocation_pct: number;
+    stocks: AstraPoolStock[];
+  }>;
+  total_stocks: number;
+  avg_irs_pct: number | null;
+  sebi_disclaimer: string;
+}
+
+export interface AstraAssessHolding {
+  ticker: string;
+  name?: string;
+  sector?: string;
+  irs_pct: number | null;
+  g_score: number | null;
+  risk_eff_score: number | null;
+  signal: "BUY" | "HOLD" | "SELL" | "NEUTRAL";
+  reason?: string;
+}
+
+export interface AstraAssessResponse {
+  holdings: AstraAssessHolding[];
+  aggregate_irs_pct: number | null;
+  total_holdings: number;
+  sell_count: number;
+  neutral_count: number;
+  sebi_disclaimer: string;
+}
+
+export interface SellSignal {
+  ticker: string;
+  name?: string;
+  sector?: string;
+  g_score: number | null;
+  risk_eff_score: number | null;
+  irs_pct: number | null;
+  reason: string;
+  severity: "HARD_SELL" | "NEUTRAL";
+}
+
+export interface AstraSellSignalsResponse {
+  sell_signals: SellSignal[];
+  neutral_signals: SellSignal[];
+  sebi_disclaimer: string;
+}
+
+export interface GeopoliticalWarning {
+  category: string;
+  severity: "HIGH" | "MEDIUM" | "LOW";
+  title: string;
+  description: string;
+  affected_sectors: string[];
+  affected_tickers: string[];
+  source?: string;
+}
+
+export interface AstraGeopoliticalScanResponse {
+  warnings: GeopoliticalWarning[];
+  total_scanned: number;
+  high_risk_count: number;
+  medium_risk_count: number;
+  sebi_disclaimer: string;
+}
+
+export interface AnjaliDetailResponse {
+  ticker: string;
+  market: string;
+  name?: string;
+  sector?: string;
+  index_group?: string;
+  // Sub-scores
+  growth_score: number | null;
+  return_score: number | null;
+  valuation_score: number | null;
+  risk_score: number | null;
+  composite: number | null;
+  // IRS
+  g_score: number | null;
+  risk_eff_score: number | null;
+  irs_raw: number | null;
+  irs_pct: number | null;
+  // Interpretation
+  irs_zone: string;
+  sell_signal: boolean;
+  sell_reason?: string;
+  // Fundamentals
+  pe_ratio?: number | null;
+  market_cap_bn?: number | null;
+  dii_quarter?: number | null;
+  fii_quarter?: number | null;
+  sebi_disclaimer: string;
 }
 

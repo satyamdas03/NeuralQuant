@@ -10,6 +10,8 @@ import type {
   TerminalEndpoint, TerminalCategory, TerminalQueryResult, TerminalHealth,
   TradeSignalsResponse, TradeStrategy, CalibrationReport, RiskProfileConfig,
   BacktestResponse,
+  AstraRiskProfile, AstraRecommendResponse, AstraSellSignalsResponse,
+  AstraGeopoliticalScanResponse, AnjaliDetailResponse,
 } from "./types";
 
 // Route all requests through Next.js /api/ rewrite proxy to avoid CORS issues.
@@ -91,6 +93,28 @@ export const authedApi = {
   // ── Analytics (admin only: pro/api tier) ────────────────────────────────────
   getAnalyticsDashboard: (period: "24h" | "7d" | "30d" = "7d") =>
     authedFetch<import("./types").AnalyticsDashboard>(`/internal/analytics/dashboard?period=${period}`),
+
+  // ── Astra Portfolio Intelligence (Phase 3) ──────────────────────────────────
+  getAstraRecommend: (riskProfile: AstraRiskProfile, market: Market = "IN") =>
+    authedFetch<AstraRecommendResponse>("/astra/recommend", {
+      method: "POST",
+      body: JSON.stringify({ risk_profile: riskProfile, market }),
+    }),
+
+  getAstraSellSignals: (market: Market = "IN") =>
+    authedFetch<AstraSellSignalsResponse>(`/astra/sell-signals?market=${market}`),
+
+  getAstraGeopoliticalScan: (market: Market = "IN") =>
+    authedFetch<AstraGeopoliticalScanResponse>(`/astra/geopolitical-scan?market=${market}`),
+
+  saveRiskProfile: (profile: AstraRiskProfile) =>
+    authedFetch<{ status: string; risk_profile: AstraRiskProfile }>("/astra/risk-profile", {
+      method: "POST",
+      body: JSON.stringify({ risk_profile: profile }),
+    }),
+
+  getRiskProfile: () =>
+    authedFetch<{ risk_profile: AstraRiskProfile | null }>("/astra/risk-profile"),
 
 };
 
@@ -267,6 +291,10 @@ export const api = {
   // Pillar C: sentiment (public, free, cached at edge by client)
   getSentiment: (ticker: string, market: Market = "US", limit = 15) =>
     apiFetch<SentimentResponse>(`/sentiment/news/${ticker}?market=${market}&limit=${limit}`),
+
+  // Anjali detail (public, cached)
+  getAnjali: (ticker: string, market: Market = "IN") =>
+    apiFetch<AnjaliDetailResponse>(`/stocks/${ticker}/anjali?market=${market}`),
 
   // ── Share API (public, no auth required) ─────────────────────────────────
   createShareAnalysis: (body: {
