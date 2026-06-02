@@ -275,6 +275,7 @@ class StructuredQueryResponse(BaseModel):
     data_sources: list[str] = []
     follow_up_questions: list[str] = []
     route: Literal["SNAP", "REACT", "DEEP"] = "REACT"
+    is_report: bool = False      # True if response is a full institutional research report
 
     # --- Phase 1: portfolio output fields (all optional) ---
     market_context: Optional[list[MarketContextCard]] = None
