@@ -12,7 +12,7 @@ export interface TierInfo {
 }
 
 // USD prices must match PayPal plan amounts exactly.
-// INR prices are approximate reference — PayPal charges in USD only.
+// INR prices are charged via Stripe (India-specific prices).
 export const TIERS: TierInfo[] = [
   {
     key: "free",

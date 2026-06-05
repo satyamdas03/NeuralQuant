@@ -1,7 +1,8 @@
 """Stripe Checkout session creation.
 
-Creates Stripe Checkout sessions for investor/pro/api tiers.
+Creates Stripe Checkout Sessions for investor/pro/api tiers.
 Runs alongside existing PayPal checkout — frontend chooses provider.
+Supports regional pricing: IN prices for Indian users, US prices otherwise.
 """
 import os
 import logging
@@ -16,11 +17,16 @@ log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/checkout/stripe", tags=["checkout-stripe"])
 
-# Stripe price IDs — set via env vars
-STRIPE_PRICES: dict[str, str] = {
-    "investor": os.environ.get("STRIPE_PRICE_INVESTOR", ""),
-    "pro": os.environ.get("STRIPE_PRICE_PRO", ""),
-    "api": os.environ.get("STRIPE_PRICE_API", ""),
+# Regional Stripe price IDs — IN (India) and US (rest of world)
+STRIPE_PRICES_IN: dict[str, str] = {
+    "investor": os.environ.get("STRIPE_PRICE_INVESTOR_IN", "") or os.environ.get("STRIPE_PRICE_INVESTOR", ""),
+    "pro": os.environ.get("STRIPE_PRICE_PRO_IN", "") or os.environ.get("STRIPE_PRICE_PRO", ""),
+    "api": os.environ.get("STRIPE_PRICE_MORGAN_IN", "") or os.environ.get("STRIPE_PRICE_API", ""),
+}
+STRIPE_PRICES_US: dict[str, str] = {
+    "investor": os.environ.get("STRIPE_PRICE_INVESTOR_US", "") or os.environ.get("STRIPE_PRICE_INVESTOR", ""),
+    "pro": os.environ.get("STRIPE_PRICE_PRO_US", "") or os.environ.get("STRIPE_PRICE_PRO", ""),
+    "api": os.environ.get("STRIPE_PRICE_MORGAN_US", "") or os.environ.get("STRIPE_PRICE_API", ""),
 }
 
 # Stripe secret key
@@ -32,15 +38,26 @@ if _stripe_key:
 @router.post("/session")
 async def create_stripe_checkout_session(
     tier: str = Query(..., pattern=r"^(investor|pro|api)$"),
+    currency: str = Query("USD", pattern=r"^(USD|INR)$"),
     user: User = Depends(get_current_user),
 ):
-    """Create a Stripe Checkout session and return the redirect URL."""
+    """Create a Stripe Checkout session and return the redirect URL.
+
+    Currency parameter selects regional pricing:
+    - INR → India-specific Stripe prices (if configured)
+    - USD → US/international Stripe prices (fallback)
+    """
     if not _stripe_key:
         raise HTTPException(501, "Stripe is not configured")
 
-    price_id = STRIPE_PRICES.get(tier)
+    prices = STRIPE_PRICES_IN if currency == "INR" else STRIPE_PRICES_US
+    price_id = prices.get(tier)
     if not price_id:
-        raise HTTPException(400, f"No Stripe price configured for {tier}")
+        # Fallback to generic price if regional not available
+        fallback = os.environ.get(f"STRIPE_PRICE_{tier.upper()}", "")
+        price_id = fallback
+    if not price_id:
+        raise HTTPException(400, f"No Stripe price configured for {tier} in {currency}")
 
     try:
         session = stripe.checkout.Session.create(

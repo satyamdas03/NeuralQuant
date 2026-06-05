@@ -16,6 +16,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from nq_api.auth.deps import get_current_user
 from nq_api.auth.models import User
 
+log = logging.getLogger(__name__)
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/testing/quarterly", tags=["testing"])
 
@@ -237,6 +239,24 @@ async def evaluate_quarterly_test(
         return {"run_id": run_id, "evaluated": 0, "message": "No results to evaluate"}
 
     # Get current prices for each ticker
+    # Also compute Nifty50 benchmark return for the same period
+    benchmark_return = None
+    run_date_str = run.get("run_date")
+    if run_date_str:
+        try:
+            import yfinance as yf
+            from datetime import date as _date
+            run_date = _date.fromisoformat(str(run_date_str))
+            nifty = yf.Ticker("^NSEI")
+            nifty_hist = nifty.history(start=run_date, end=_date.today())
+            if len(nifty_hist) >= 2:
+                benchmark_return = round(
+                    (nifty_hist["Close"].iloc[-1] - nifty_hist["Close"].iloc[0])
+                    / nifty_hist["Close"].iloc[0] * 100, 2
+                )
+        except Exception:
+            log.warning("Could not fetch Nifty50 benchmark return")
+
     evaluated = []
     for r in results_data:
         ticker = r.get("ticker", "")
@@ -254,8 +274,6 @@ async def evaluate_quarterly_test(
 
         if exit_price:
             return_pct = round((exit_price - float(entry_price)) / float(entry_price) * 100, 2)
-            # TODO: fetch Nifty50 benchmark return for same period
-            benchmark_return = None
             alpha = round(return_pct - benchmark_return, 2) if benchmark_return is not None else None
 
             _supabase_rest(

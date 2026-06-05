@@ -44,7 +44,7 @@ export default function PricingPage() {
 
   async function handleCheckout(tier: string, provider: "paypal" | "stripe" = "stripe") {
     setLoading(tier);
-    trackEvent(EVENT.CHECKOUT_STARTED, { tier, provider, currency: "USD" });
+    trackEvent(EVENT.CHECKOUT_STARTED, { tier, provider, currency });
     try {
       const token = (() => {
         if (typeof window === "undefined") return "";
@@ -53,7 +53,7 @@ export default function PricingPage() {
         return "";
       })();
       const endpoint = provider === "stripe"
-        ? `${API_URL}/checkout/stripe/session?tier=${tier}`
+        ? `${API_URL}/checkout/stripe/session?tier=${tier}&currency=${currency}`
         : `${API_URL}/checkout/session?tier=${tier}&currency=USD`;
       const res = await fetch(endpoint, {
         method: "POST",
@@ -108,7 +108,7 @@ export default function PricingPage() {
         </div>
         {currency === "INR" && (
           <p className="mt-2 text-center text-xs text-on-surface-variant">
-            INR prices are approximate. All payments processed in USD via PayPal.
+            INR prices shown for reference. Stripe will charge in INR for India, USD via PayPal.
           </p>
         )}
 
@@ -169,7 +169,7 @@ export default function PricingPage() {
         </div>
 
         <p className="mt-8 text-center text-xs text-on-surface-variant">
-          Secure payment via Stripe or PayPal. All charges in USD. Cancel anytime. No lock-in.
+          Secure payment via Stripe or PayPal. INR available for India via Stripe. Cancel anytime. No lock-in.
         </p>
 
         {/* Why Upgrade */}

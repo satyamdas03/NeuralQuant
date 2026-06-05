@@ -40,9 +40,14 @@ PAYPAL_PRICES: dict[str, str] = {
     "api": os.environ.get("PAYPAL_PLAN_API_USD", ""),
 }
 
-# Stripe price IDs — set via env vars
-STRIPE_PRICES: dict[str, str] = {
-    "investor": os.environ.get("STRIPE_PRICE_INVESTOR", ""),
-    "pro": os.environ.get("STRIPE_PRICE_PRO", ""),
-    "api": os.environ.get("STRIPE_PRICE_API", ""),
+# Stripe price IDs — regional variants (IN for India, US for rest of world)
+STRIPE_PRICES_IN: dict[str, str] = {
+    "investor": os.environ.get("STRIPE_PRICE_INVESTOR_IN", "") or os.environ.get("STRIPE_PRICE_INVESTOR", ""),
+    "pro": os.environ.get("STRIPE_PRICE_PRO_IN", "") or os.environ.get("STRIPE_PRICE_PRO", ""),
+    "api": os.environ.get("STRIPE_PRICE_MORGAN_IN", "") or os.environ.get("STRIPE_PRICE_API", ""),
+}
+STRIPE_PRICES_US: dict[str, str] = {
+    "investor": os.environ.get("STRIPE_PRICE_INVESTOR_US", "") or os.environ.get("STRIPE_PRICE_INVESTOR", ""),
+    "pro": os.environ.get("STRIPE_PRICE_PRO_US", "") or os.environ.get("STRIPE_PRICE_PRO", ""),
+    "api": os.environ.get("STRIPE_PRICE_MORGAN_US", "") or os.environ.get("STRIPE_PRICE_API", ""),
 }
