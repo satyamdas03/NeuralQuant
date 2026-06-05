@@ -1,6 +1,9 @@
 """Constants for the query service — ticker maps, keywords, macro configs."""
 import os
 
+# ── AWS Bedrock feature flag ──────────────────────────────────────────
+USE_BEDROCK = os.getenv("USE_BEDROCK", "false").lower() == "true"
+
 MODEL = os.environ.get("ANTHROPIC_DEFAULT_SONNET_MODEL", "claude-sonnet-4-6")
 # When bypassing Ollama proxy, use real Anthropic model name
 _CLOUD_MODEL = os.environ.get("NQ_QUERY_MODEL", "claude-sonnet-4-6")

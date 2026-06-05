@@ -37,6 +37,21 @@ export const metadata: Metadata = {
   },
   description:
     "Institutional-grade AI stock analysis for US and India markets. ForeCast Score, PARA-DEBATE multi-agent analysis, and regime detection.",
+  keywords: [
+    "stock analysis",
+    "AI investing",
+    "Indian stocks",
+    "IRS score",
+    "PARA-DEBATE",
+    "QuantAlpha",
+    "NeuralQuant",
+    "SmallCap",
+    "MicroCap",
+    "stock screener",
+    "portfolio intelligence",
+  ],
+  authors: [{ name: "QuantAlpha" }],
+  robots: "index, follow",
   manifest: "/manifest.json",
   icons: {
     icon: "/icons/icon-512.png",
@@ -51,7 +66,7 @@ export const metadata: Metadata = {
     title: "NeuralQuant — AI Stock Intelligence",
     description:
       "Institutional-grade AI stock analysis for US and India markets. ForeCast Score, PARA-DEBATE multi-agent analysis, and regime detection.",
-    siteName: "NeuralQuant",
+    siteName: "QuantAlpha",
     type: "website",
     url: "/",
     images: ["/og-image.png"],

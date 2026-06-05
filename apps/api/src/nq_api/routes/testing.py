@@ -332,3 +332,85 @@ async def get_test_history(
         })
 
     return {"history": history}
+
+
+@router.get("/equity-curve")
+async def get_equity_curve(
+    quarter: str = "Q1FY27",
+    user: User = Depends(get_current_user),
+):
+    """
+    Returns aggregate quarterly test stats for the landing page backtest section.
+    Used by the EquityCurveChart component.
+    """
+    _require_admin(user)
+
+    try:
+        # Fetch the test run for this quarter
+        run_resp = _supabase_rest(
+            "quarterly_test_runs",
+            "GET",
+            query={
+                "select": "id,selected_tickers,run_date,quarter",
+                "quarter": f"eq.{quarter}",
+                "order": "created_at.desc",
+                "limit": "1",
+            },
+        )
+
+        if not run_resp or not isinstance(run_resp, list) or len(run_resp) == 0:
+            return {
+                "quarter": quarter,
+                "avg_return": 0,
+                "avg_benchmark": 0,
+                "alpha": 0,
+                "hit_rate": 0,
+                "individual_results": [],
+                "note": f"No test run found for {quarter}",
+            }
+
+        run = run_resp[0]
+
+        # Fetch results
+        results_resp = _supabase_rest(
+            "quarterly_test_results",
+            "GET",
+            query={
+                "select": "ticker,entry_price,exit_price,return_pct,benchmark_return_pct,alpha,evaluated_at",
+                "run_id": f"eq.{run['id']}",
+            },
+        )
+
+        results = results_resp if results_resp and isinstance(results_resp, list) else []
+
+        # Calculate aggregate stats
+        returns = [r["return_pct"] for r in results if r.get("return_pct") is not None]
+        benchmark_returns = [r["benchmark_return_pct"] for r in results if r.get("benchmark_return_pct") is not None]
+
+        avg_return = sum(returns) / len(returns) if returns else 0
+        avg_benchmark = sum(benchmark_returns) / len(benchmark_returns) if benchmark_returns else 0
+        alpha = avg_return - avg_benchmark
+
+        # Hit rate: % of selections that beat benchmark
+        if returns and benchmark_returns:
+            avg_bench = avg_benchmark
+            beats = len([r for r in returns if r > avg_bench])
+            hit_rate = beats / len(returns) * 100
+        else:
+            hit_rate = 0
+
+        return {
+            "quarter": quarter,
+            "run_date": run.get("run_date"),
+            "selected_tickers": run.get("selected_tickers", []),
+            "avg_return": round(avg_return, 2),
+            "avg_benchmark": round(avg_benchmark, 2),
+            "alpha": round(alpha, 2),
+            "hit_rate": round(hit_rate, 1),
+            "total_selections": len(results),
+            "individual_results": results,
+        }
+
+    except Exception as e:
+        logger.error("Equity curve fetch failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))

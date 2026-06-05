@@ -7,6 +7,7 @@ import { Menu, X } from "lucide-react";
 import CitationCard from "@/components/ui/CitationCard";
 import DebateShowcase from "@/components/ui/DebateShowcase";
 import MarketTicker from "@/components/ui/MarketTicker";
+import BacktestResultsSection from "@/components/landing/BacktestResultsSection";
 
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -274,6 +275,8 @@ export default function LandingPage() {
           </Link>
         </div>
       </section>
+      {/* Backtest Results */}
+      <BacktestResultsSection />
       {/* Pricing */}
       <section className="max-w-[1400px] mx-auto px-4 lg:px-16 py-24 border-t border-border-glow">
         <div className="text-center mb-12">

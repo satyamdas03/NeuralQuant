@@ -412,6 +412,26 @@ def _collect_one(
         row["ev_sales"] = _safe_round(info.get("enterpriseToRevenue"))
         row["ev_ebitda"] = _safe_round(info.get("enterpriseToEbitda"))
 
+        # --- Additional yfinance .info fields for richer agent context ---
+        row["roe"] = _safe_round(info.get("returnOnEquity"), 4)
+        row["roa"] = _safe_round(info.get("returnOnAssets"), 4)
+        row["operating_margin"] = _safe_round(info.get("operatingMargins"), 4)
+        row["profit_margin"] = _safe_round(info.get("profitMargins"), 4)
+        row["gross_margin"] = _safe_round(info.get("grossMargins"), 4)
+        row["trailing_peg_ratio"] = _safe_round(info.get("trailingPegRatio"), 2)
+        row["current_ratio"] = _safe_round(info.get("currentRatio"), 2)
+        row["quick_ratio"] = _safe_round(info.get("quickRatio"), 2)
+        row["debt_to_equity"] = _safe_round(info.get("debtToEquity"), 2)
+        row["eps_ttm"] = _safe_round(info.get("trailingEps"), 2)
+        row["forward_eps"] = _safe_round(info.get("forwardEps"), 2)
+        row["book_value"] = _safe_round(info.get("bookValue"), 2)
+        row["dividend_yield"] = _safe_round(info.get("dividendYield"), 4)
+        if row["dividend_yield"] is not None:
+            row["dividend_yield"] *= 100
+        row["payout_ratio"] = _safe_round(info.get("payoutRatio"), 4)
+        if row["payout_ratio"] is not None:
+            row["payout_ratio"] *= 100
+
         # --- Size (uncolored) ---
         mc = info.get("marketCap")
         row["market_cap_bn"] = _safe_round(mc / 1e9) if mc else None

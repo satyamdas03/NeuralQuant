@@ -5,7 +5,10 @@ import logging
 
 import anthropic
 
-from nq_api.services.constants import MODEL, _CLOUD_MODEL
+from nq_api.services.constants import MODEL, _CLOUD_MODEL, USE_BEDROCK
+
+if USE_BEDROCK:
+    from nq_api.services.bedrock_client import bedrock
 
 log = logging.getLogger(__name__)
 
@@ -20,6 +23,10 @@ def _query_client(api_key: str, timeout: float = 120.0) -> tuple[anthropic.Anthr
 
     Returns (client, model_name) tuple.
     """
+    if USE_BEDROCK:
+        # Route through AWS Bedrock — zero other code changes needed
+        log.info("Using AWS Bedrock for inference")
+        return bedrock, _CLOUD_MODEL
     if _is_ollama_proxy():
         saved = os.environ.pop("ANTHROPIC_BASE_URL", None)
         try:

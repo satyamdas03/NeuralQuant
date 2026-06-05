@@ -32,6 +32,7 @@ from nq_api.routes.session import router as session_router
 from nq_api.routes.cron import router as cron_router
 from nq_api.routes.share import router as share_router
 from nq_api.routes.analytics import router as analytics_router
+from nq_api.routes.analytics_track import router as analytics_track_router
 from nq_api.routes.astra_portfolio import router as astra_portfolio_router
 from nq_api.routes.mobile import router as mobile_router
 from nq_api.routes.testing import router as testing_router
@@ -473,6 +474,7 @@ app.include_router(session_router)
 app.include_router(cron_router)
 app.include_router(share_router)
 app.include_router(analytics_router)
+app.include_router(analytics_track_router)
 app.include_router(astra_portfolio_router)
 app.include_router(mobile_router)
 app.include_router(testing_router)

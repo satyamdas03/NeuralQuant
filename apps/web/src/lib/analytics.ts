@@ -51,3 +51,74 @@ declare global {
     plausible?: (event: string, options?: { props?: Record<string, string> }) => void;
   }
 }
+
+// ── Backend analytics (POST /api/analytics/track) ────────────────────
+
+type AnalyticsEvent =
+  | 'analysis_run'
+  | 'analysis_shared'
+  | 'analysis_viewed'
+  | 'screener_used'
+  | 'morgan_query'
+  | 'mf_overlap_run'
+  | 'signup_completed'
+  | 'astra_session'
+  | 'signup_from_share'
+  | 'page_view'
+  | 'pricing_viewed'
+  | 'methodology_viewed';
+
+interface AnalyticsProperties {
+  [key: string]: string | number | boolean | null;
+}
+
+export async function trackApiEvent(
+  eventType: AnalyticsEvent,
+  properties: AnalyticsProperties = {}
+): Promise<void> {
+  try {
+    await fetch('/api/analytics/track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event_type: eventType, properties }),
+    });
+  } catch {
+    // Silent fail — never break the UI for analytics
+  }
+}
+
+// Convenience wrappers
+export const analytics = {
+  analysisRun: (ticker: string, market: string) =>
+    trackApiEvent('analysis_run', { ticker, market }),
+
+  analysisShared: (ticker: string, shareId: string) =>
+    trackApiEvent('analysis_shared', { ticker, share_id: shareId }),
+
+  analysisViewed: (shareId: string) =>
+    trackApiEvent('analysis_viewed', { share_id: shareId }),
+
+  screenerUsed: (market: string, filters: string) =>
+    trackApiEvent('screener_used', { market, filters }),
+
+  morganQuery: (query: string) =>
+    trackApiEvent('morgan_query', { query_length: query.length }),
+
+  signupCompleted: (method: string) =>
+    trackApiEvent('signup_completed', { method }),
+
+  astraSession: (sessionId: string) =>
+    trackApiEvent('astra_session', { session_id: sessionId }),
+
+  signupFromShare: (shareId: string) =>
+    trackApiEvent('signup_from_share', { share_id: shareId }),
+
+  pageView: (path: string) =>
+    trackApiEvent('page_view', { path }),
+
+  pricingViewed: () =>
+    trackApiEvent('pricing_viewed'),
+
+  methodologyViewed: () =>
+    trackApiEvent('methodology_viewed'),
+};
