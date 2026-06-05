@@ -55,6 +55,11 @@ export const fetchSellSignals = () => api.get('/astra/sell-signals').then((r) =>
 export const saveRiskProfile = (profile: string) =>
   api.post('/astra/risk-profile', { risk_profile: profile }).then((r) => r.data);
 
+export const fetchWatchlist = () => api.get('/watchlist').then((r) => r.data);
+
+export const fetchPortfolioAssess = (holdings: any[]) =>
+  api.post('/astra/assess', holdings).then((r) => r.data);
+
 // ── Mobile push ──────────────────────────────────────────────────────
 export const registerPushToken = (token: string, platform: 'ios' | 'android') =>
   api.post('/mobile/push-token', { token, platform }).then((r) => r.data);

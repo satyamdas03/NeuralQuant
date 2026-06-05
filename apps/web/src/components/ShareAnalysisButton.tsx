@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Share2, Link, Check, Loader2, X } from "lucide-react";
 import { api } from "@/lib/api";
-import { trackEvent, EVENT } from "@/lib/analytics";
+import { trackEvent, EVENT, trackApiEvent } from "@/lib/analytics";
 import type { AnalystResponse } from "@/lib/types";
 
 interface ShareAnalysisButtonProps {
@@ -52,6 +52,7 @@ export default function ShareAnalysisButton({
       setShared(true);
       setShowDialog(true);
       trackEvent(EVENT.ANALYSIS_SHARED, { ticker, share_id: result.share_id });
+      trackApiEvent("analysis_shared", { ticker, share_id: result.share_id }).catch(() => {});
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to create share link");
     } finally {

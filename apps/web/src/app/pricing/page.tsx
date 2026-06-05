@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { TIERS, formatPrice, detectCurrency, type Currency } from "@/lib/pricing";
-import { trackEvent, EVENT } from "@/lib/analytics";
+import { trackEvent, EVENT, trackApiEvent } from "@/lib/analytics";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://neuralquant.onrender.com";
 
@@ -39,6 +39,7 @@ export default function PricingPage() {
   useEffect(() => {
     setCurrency(detectCurrency());
     trackEvent(EVENT.TIER_VIEWED, { page: "pricing" });
+    trackApiEvent("pricing_viewed").catch(() => {});
   }, []);
 
   async function handleCheckout(tier: string, provider: "paypal" | "stripe" = "stripe") {

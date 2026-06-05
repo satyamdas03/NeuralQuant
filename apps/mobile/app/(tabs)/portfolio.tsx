@@ -14,13 +14,16 @@ import { useRouter } from 'expo-router';
 export default function PortfolioScreen() {
   const { isSignedIn } = useAuthStore();
   const { riskProfile, setRiskProfile } = useRiskProfileStore();
-  const { holdings, isLoading } = usePortfolioStore();
+  const { holdings, isLoading, fetchHoldings } = usePortfolioStore();
   const [sellSignals, setSellSignals] = useState<any>(null);
   const [recommendation, setRecommendation] = useState<any>(null);
   const router = useRouter();
 
   useEffect(() => {
-    if (isSignedIn) { fetchSellSignals().then(setSellSignals).catch(() => {}); }
+    if (isSignedIn) {
+      fetchSellSignals().then(setSellSignals).catch(() => {});
+      fetchHoldings();
+    }
   }, [isSignedIn]);
 
   const getRecommendation = async (profile: string) => {

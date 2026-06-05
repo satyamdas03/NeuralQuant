@@ -21,6 +21,7 @@ from nq_api.auth.models import User
 from nq_api.auth.rate_limit import get_current_user
 from nq_api.auth.deps import get_current_user_optional
 from nq_api.notify import RESEND_FROM, _send_email_with_retry
+from nq_api.services.prompts import MARKET_WRAP_PROMPT, MARKET_WRAP_PERSONALIZED_PROMPT
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/market-wrap", tags=["market-wrap"])
@@ -30,6 +31,7 @@ class MarketWrapRequest(BaseModel):
     email: str
     name: Optional[str] = None
     market: str = "US"
+    user_id: Optional[str] = None
 
 
 class BroadcastRequest(BaseModel):
@@ -40,6 +42,7 @@ class BroadcastRequest(BaseModel):
 def _get_watchlist_scores(user_id: str, market: str, limit: int = 5) -> list[dict]:
     """Fetch score_cache entries for tickers in a user's watchlist."""
     from nq_api.cache.score_cache import _supabase_rest
+    from nq_api.routes.market import _batch_pct_change
 
     try:
         watchlist = _supabase_rest(
@@ -56,6 +59,9 @@ def _get_watchlist_scores(user_id: str, market: str, limit: int = 5) -> list[dic
     if not tickers:
         return []
 
+    # Fetch live price changes for watchlist tickers
+    price_changes = _batch_pct_change(tickers)
+
     # Build OR filter for score_cache lookup
     ticker_filter = ",".join(f"ticker.eq.{t}" for t in tickers)
     try:
@@ -64,10 +70,31 @@ def _get_watchlist_scores(user_id: str, market: str, limit: int = 5) -> list[dic
             f"&select=ticker,composite_score,sector,current_price,long_name"
             f"&order=composite_score.desc&limit={limit}"
         )
-        return scores if scores else []
     except Exception:
         logger.debug("Failed to fetch watchlist scores for user %s", user_id)
         return []
+
+    if not scores:
+        return []
+
+    def _verdict(score: float) -> str:
+        if score >= 7.5:
+            return "STRONG BUY"
+        if score >= 6.0:
+            return "BUY"
+        if score >= 4.5:
+            return "HOLD"
+        if score >= 3.0:
+            return "SELL"
+        return "STRONG SELL"
+
+    for row in scores:
+        ticker = row.get("ticker", "")
+        pc = price_changes.get(ticker, {})
+        row["change_pct"] = pc.get("change_pct")
+        row["verdict"] = _verdict(float(row.get("composite_score") or 0))
+
+    return scores
 
 
 def _build_market_wrap_html(
@@ -76,6 +103,7 @@ def _build_market_wrap_html(
     market: str = "US",
     name: str | None = None,
     watchlist_picks: list[dict] | None = None,
+    narrative: str | None = None,
 ) -> str:
     """Build the daily market wrap email HTML with optional personalization."""
     market_label = "NIFTY 500" if market == "IN" else "S&P 500"
@@ -142,6 +170,16 @@ def _build_market_wrap_html(
 
     today = datetime.now(timezone.utc).strftime("%A, %B %d, %Y")
 
+    # Personalized narrative
+    narrative_html = ""
+    if narrative:
+        narrative_html = f"""
+      <div style="padding: 0 32px 16px;">
+        <p style="font-size: 15px; line-height: 1.6; margin: 0; color: #e0e0e0;">
+          {narrative}
+        </p>
+      </div>"""
+
     return f"""
     <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 520px;
                 margin: 0 auto; background: #0f0f1a; color: #e0e0e0;
@@ -152,7 +190,7 @@ def _build_market_wrap_html(
         <h1 style="margin: 4px 0 0; font-size: 22px;">NeuralQuant Daily Wrap</h1>
         <p style="margin: 4px 0 0; font-size: 14px; opacity: 0.8;">{greeting} {market_label} Market Snapshot</p>
       </div>
-
+{narrative_html}
       <div style="padding: 24px 32px;">
         <h2 style="font-size: 16px; margin: 0 0 12px; color: #bdf4ff;">Market Snapshot</h2>
         <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
@@ -196,6 +234,66 @@ def _build_market_wrap_html(
     </div>"""
 
 
+def _generate_wrap_narrative(
+    market_data: dict,
+    top_picks: list[dict],
+    watchlist_picks: list[dict] | None,
+    market: str,
+    name: str | None,
+) -> str:
+    """Generate market wrap narrative via Claude. Returns empty string on failure."""
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return ""
+
+    # Format market snapshot
+    indices = market_data.get("indices", [])
+    market_snapshot = ""
+    for idx in indices:
+        market_snapshot += f"- {idx.get('name', 'N/A')}: {idx.get('price', 'N/A')} ({idx.get('change_pct', 0):+.2f}%)\n"
+
+    # Format top picks
+    top_picks_text = ""
+    for pick in top_picks[:3]:
+        top_picks_text += f"- {pick.get('ticker', 'N/A')}: Score {pick.get('composite_score', 0):.1f}/10 ({pick.get('sector', 'N/A')})\n"
+
+    if watchlist_picks:
+        holdings_text = ""
+        for h in watchlist_picks[:5]:
+            chg = h.get("change_pct")
+            chg_str = f"{chg:+.2f}%" if chg is not None else "N/A"
+            holdings_text += (
+                f"- {h.get('ticker', 'N/A')}: Score {h.get('composite_score', 0):.1f}/10, "
+                f"{chg_str} today, verdict: {h.get('verdict', 'N/A')}\n"
+            )
+        prompt = MARKET_WRAP_PERSONALIZED_PROMPT.format(
+            market_snapshot=market_snapshot,
+            top_picks=top_picks_text,
+            holdings_context=holdings_text,
+        )
+    else:
+        prompt = MARKET_WRAP_PROMPT.format(
+            market_snapshot=market_snapshot,
+            top_picks=top_picks_text,
+        )
+
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=api_key, timeout=30.0)
+        response = client.messages.create(
+            model=os.environ.get("ANTHROPIC_DEFAULT_SONNET_MODEL", "claude-sonnet-4-6"),
+            max_tokens=256,
+            system="You are NeuralQuant's senior market writer. Be concise and data-driven.",
+            messages=[{"role": "user", "content": prompt}],
+        )
+        for block in response.content:
+            if block.type == "text":
+                return block.text.strip()
+    except Exception:
+        logger.debug("Market wrap narrative generation failed")
+    return ""
+
+
 def _send_market_wrap(to: str, name: str | None, market: str,
                       user_id: str | None = None) -> bool:
     """Fetch market data and top picks, build HTML, send via Resend."""
@@ -224,7 +322,19 @@ def _send_market_wrap(to: str, name: str | None, market: str,
         except Exception:
             logger.debug("Market wrap: failed to fetch watchlist scores for %s", user_id)
 
-    html = _build_market_wrap_html(market_data, top_picks, market, name, watchlist_picks)
+    # Generate personalized narrative only when watchlist is present
+    narrative = None
+    if watchlist_picks:
+        try:
+            narrative = _generate_wrap_narrative(
+                market_data, top_picks, watchlist_picks, market, name
+            )
+        except Exception:
+            logger.debug("Market wrap: narrative generation failed for %s", user_id)
+
+    html = _build_market_wrap_html(
+        market_data, top_picks, market, name, watchlist_picks, narrative
+    )
     subject = f"NeuralQuant Daily Wrap — {market_label(market)}"
 
     return _send_email_with_retry(to, subject, html)
@@ -282,8 +392,13 @@ async def send_market_wrap(
     background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
 ):
-    """Send a market wrap email to the requesting user."""
-    background_tasks.add_task(_send_market_wrap, req.email, req.name, req.market)
+    """Send a market wrap email to the requesting user.
+
+    When the user has watchlist stocks, the wrap includes a personalized
+    narrative generated by Claude mentioning their holdings.
+    """
+    uid = req.user_id or user.id
+    background_tasks.add_task(_send_market_wrap, req.email, req.name, req.market, uid)
     return {"status": "queued", "email": req.email, "market": req.market}
 
 

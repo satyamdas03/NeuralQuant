@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { api } from "@/lib/api";
 import type { ScreenerResponse } from "@/lib/types";
@@ -10,6 +10,7 @@ import GhostBorderCard from "@/components/ui/GhostBorderCard";
 import ScreenerPresets from "@/components/ui/ScreenerPresets";
 import { PRESETS, type ScreenerPreset } from "@/data/screener-presets";
 import { ScanSearch, Filter } from "lucide-react";
+import { trackApiEvent } from "@/lib/analytics";
 
 export default function ScreenerPage() {
   return (
@@ -62,6 +63,23 @@ function ScreenerInner() {
     setMarket(urlMarket);
     load(urlMarket);
   }, [urlMarket]);
+
+  // Track screener filter usage (skip initial mount)
+  const filtersChangedRef = useRef(false);
+  useEffect(() => {
+    if (!filtersChangedRef.current) {
+      filtersChangedRef.current = true;
+      return;
+    }
+    if (!data) return;
+    const filters = JSON.stringify({
+      preset: activePreset,
+      min_composite: minAnjaliComposite,
+      value_sweet_spot: valueSweetSpotOnly,
+      exclude_loss_making: excludeLossMaking,
+    });
+    trackApiEvent("screener_used", { market, filters }).catch(() => {});
+  }, [activePreset, minAnjaliComposite, valueSweetSpotOnly, excludeLossMaking, market, data]);
 
   const handlePresetSelect = (preset: ScreenerPreset | null) => {
     setActivePreset(preset?.id ?? null);

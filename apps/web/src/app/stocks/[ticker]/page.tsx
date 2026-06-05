@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { api, authedApi } from "@/lib/api";
 import { useSessionTracker } from "@/lib/session-tracker";
+import { trackApiEvent } from "@/lib/analytics";
 import Link from "next/link";
 import type { AIScore, AnalystResponse, StockMeta, Market, SentimentResponse } from "@/lib/types";
 import { AIScoreCard } from "@/components/AIScoreCard";
@@ -57,6 +58,7 @@ export default function StockPage() {
   const runDebate = async () => {
     logActivity("para_debate_start", "analysis", `PARA-DEBATE: ${ticker}`, { ticker, market });
     setAnalysing(true);
+    trackApiEvent("analysis_run", { ticker, market }).catch(() => {});
     try {
       // Use SSE streaming variant so Render's 30 s idle-connection timeout
       // never fires during the 60–120 s multi-agent debate.

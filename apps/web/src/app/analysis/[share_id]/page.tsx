@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import { trackEvent, EVENT } from "@/lib/analytics";
+import { trackEvent, EVENT, trackApiEvent } from "@/lib/analytics";
 import GlassPanel from "@/components/ui/GlassPanel";
 import GradientButton from "@/components/ui/GradientButton";
 import { Share2, TrendingUp, TrendingDown, Minus, Eye, ChevronDown, ChevronUp, ArrowRight, AlertTriangle } from "lucide-react";
@@ -32,6 +32,7 @@ export default function ShareAnalysisPage() {
       .then((result) => {
         setData(result);
         trackEvent(EVENT.ANALYSIS_VIEWED, { share_id: shareId, ticker: String(result.ticker || "") });
+        trackApiEvent("analysis_viewed", { share_id: shareId }).catch(() => {});
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Analysis not found"))
       .finally(() => setLoading(false));

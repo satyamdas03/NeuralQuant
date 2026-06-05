@@ -18,6 +18,7 @@ import {
 import GhostBorderCard from "@/components/ui/GhostBorderCard";
 import GlassPanel from "@/components/ui/GlassPanel";
 import GradientButton from "@/components/ui/GradientButton";
+import { trackApiEvent } from "@/lib/analytics";
 
 /* ────────────────────────────
    Animated section hook
@@ -241,6 +242,10 @@ export default function MethodologyPage() {
   const logicSection = useAnimatedSection(0.1);
   const dataSection = useAnimatedSection(0.1);
   const risksSection = useAnimatedSection(0.1);
+
+  useEffect(() => {
+    trackApiEvent("methodology_viewed").catch(() => {});
+  }, []);
 
   return (
     <div
@@ -595,7 +600,7 @@ export default function MethodologyPage() {
               }`}
               style={{ color: "var(--color-text-muted)" }}
             >
-              Every selection was scored by the Anjali Value Engine (IRS% > 65)
+              Every selection was scored by the Anjali Value Engine (IRS% {'>'} 65)
               and tracked against NIFTY50 from April through June 2026. No
               hindsight. No cherry-picking.
             </p>

@@ -1,0 +1,40 @@
+QuantAlpha ai, Phase 3 is live.
+
+Today we're shipping three capabilities that make institutional-grade stock screening accessible to every Indian investor:
+
+→ IRS% — Investment Readiness Score
+A single 0-100% metric that combines growth momentum, valuation, return trajectory, and risk efficiency into one diagnostic number. Like a credit score, but for equities.
+
+Three zones:
+🟢 65%+ = Investment Ready — strong fundamentals, manageable risk
+🟡 45-65% = Caution — mixed signals, dig deeper
+🔴 Below 45% = Avoid — elevated risk, poor momentum
+
+Every IRS% comes with its component scores published alongside it. No black box.
+
+→ Portfolio Intelligence with Risk Profiling
+Answer 3 questions about your risk appetite, and QuantAstra builds a portfolio from IRS%-screened stocks — with automatic sell signal detection (G Score < -4 = hard sell, G < -0.5 = caution zone).
+
+→ Ask Morgan: Institutional-Grade Research Reports
+Get a 16-section Morgan-style analysis for any stock — sector context, financial breakdown, scenarios, and allocations — powered by live data from FMP Premium.
+
+What makes QuantAlpha ai, different from other AI stock tools:
+
+1. Transparent scoring. Every IRS% shows its component scores — growth, valuation, return, risk. You see exactly what drives the number.
+
+2. Mining & Metals exclusion by default. We're SEBI-compliance aware from day one.
+
+3. 6-tier data validation cascade. Our pipeline validates each data point through multiple independent sources. Stale or divergent data gets flagged, not hidden.
+
+4. PARA-DEBATE framework. Multiple AI perspectives argue each side before giving you a verdict. No single-model hallucination.
+
+We've also launched our quarterly validation framework — applying IRS% screening across risk profiles and tracking results transparently on our methodology page.
+
+This is v1. We'll be wrong sometimes. But we'd rather be transparent about our methodology than sell you black-box alpha.
+
+Try it free at neuralquant.co
+
+---
+QuantAlpha ai, is not a SEBI-registered Investment Adviser or Research Analyst. This content is for informational purposes only and does not constitute investment advice. Past performance of any model or strategy does not guarantee future results. Please consult a SEBI-registered investment professional before making investment decisions.
+
+#AIinFinance #FintechInnovation #InvestmentReadiness #QuantInvesting #StartupIndia

@@ -2,6 +2,7 @@
 
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
+import { fetchWatchlist, fetchPortfolioAssess } from '../services/api';
 
 // ── Global type for auth token ────────────────────────────────────────
 declare global {
@@ -49,6 +50,7 @@ interface PortfolioState {
   isLoading: boolean;
   setHoldings: (stocks: any[]) => void;
   setLoading: (loading: boolean) => void;
+  fetchHoldings: () => Promise<void>;
 }
 
 export const usePortfolioStore = create<PortfolioState>((set) => ({
@@ -56,4 +58,23 @@ export const usePortfolioStore = create<PortfolioState>((set) => ({
   isLoading: false,
   setHoldings: (stocks) => set({ holdings: stocks, isLoading: false }),
   setLoading: (loading) => set({ isLoading: loading }),
+  fetchHoldings: async () => {
+    set({ isLoading: true });
+    try {
+      const watchlist = await fetchWatchlist();
+      const items = watchlist?.items || [];
+      if (items.length === 0) {
+        set({ holdings: [], isLoading: false });
+        return;
+      }
+      const holdingsPayload = items.map((item: any) => ({
+        ticker: item.ticker,
+        market: item.market || 'US',
+      }));
+      const assessment = await fetchPortfolioAssess(holdingsPayload);
+      set({ holdings: assessment?.holdings || [], isLoading: false });
+    } catch {
+      set({ isLoading: false });
+    }
+  },
 }));

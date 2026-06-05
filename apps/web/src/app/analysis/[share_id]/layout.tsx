@@ -5,7 +5,7 @@ type Props = { params: Promise<{ share_id: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { share_id } = await params;
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://neuralquant.co";
-  const ogImageUrl = `${baseUrl}/share/analysis/${share_id}/og-image`;
+  const ogImageUrl = `${baseUrl}/api/og/analysis/${share_id}`;
 
   return {
     title: "Stock Analysis | NeuralQuant",

@@ -11,7 +11,7 @@ import GlassPanel from "@/components/ui/GlassPanel";
 import type { UserProfile } from "@/lib/types";
 import { authedApi } from "@/lib/api";
 import { useSessionTracker } from "@/lib/session-tracker";
-import { trackEvent, EVENT } from "@/lib/analytics";
+import { trackEvent, EVENT, trackApiEvent } from "@/lib/analytics";
 
 const EXAMPLES = [
   "What is the effect of Iran-US tensions on oil stocks?",
@@ -92,6 +92,7 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
     if (!q || loading) return;
     logActivity("ask_ai_question", "conversation", q, { question: q, ticker: defaultTicker });
     trackEvent(EVENT.QUERY_SUBMITTED, { question: q.substring(0, 80), ticker: defaultTicker || "general" });
+    trackApiEvent("morgan_query", { query_length: q.length }).catch(() => {});
     setLastUserQuestion(q);
     setClarificationAnswers(undefined);
     setSlowLoad(false);
