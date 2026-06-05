@@ -87,10 +87,11 @@ class BedrockClient:
     def _resolve_model(self, model: str) -> str:
         """Map Anthropic model names to Bedrock cross-region inference profile IDs."""
         # Pass through if already a cross-region profile (us./apac./global.)
-        if model.startswith(("us.", "apac.", "global.", "eu.")):
+        if model.startswith(("us.", "apac.", "global.", "eu.", "au.", "jp.")):
             return model
-        # Strip version suffixes for lookup
-        base = model.split("-20")[0] if "-20" in model else model
+        # Strip version suffixes for lookup (e.g. "claude-sonnet-4-5-20250929-v1:0" → "claude-sonnet-4-5")
+        import re
+        base = re.sub(r"-20\d{6}-v\d+.*$", "", model).rstrip("-")
         bedrock_id = BEDROCK_MODEL_MAP.get(base) or BEDROCK_MODEL_MAP.get(model)
         if not bedrock_id:
             logger.warning(f"Unknown model {model}, using sonnet-4-6 as fallback")
