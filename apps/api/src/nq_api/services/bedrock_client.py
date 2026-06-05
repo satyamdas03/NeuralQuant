@@ -1,7 +1,11 @@
 """
 AWS Bedrock client — drop-in replacement for anthropic.Anthropic.
-Routes all Claude calls through Amazon Bedrock in ap-south-1 (Mumbai).
+Routes all Claude calls through Amazon Bedrock via cross-region inference profiles.
 Activated by USE_BEDROCK=true env var. Zero other code changes needed.
+
+Cross-region inference profiles are required for newer Claude models (4.x+).
+Direct model IDs (anthropic.claude-*) do not support on-demand invocation for
+these models — only INFERENCE_PROFILE type is available.
 """
 
 import asyncio
@@ -15,13 +19,24 @@ from botocore.config import Config as BotoConfig
 
 logger = logging.getLogger(__name__)
 
-# Bedrock model IDs — verify at:
-# https://docs.aws.amazon.com/bedrock/latest/userguide/model-ids.html
+# Bedrock cross-region inference profile IDs
+# These are the ONLY way to invoke newer Claude models on Bedrock.
+# Format: {region_prefix}.anthropic.{model-version}
+# See: https://docs.aws.amazon.com/bedrock/latest/userguide/cross-region-inference.html
 BEDROCK_MODEL_MAP = {
-    "claude-sonnet-4-6": "anthropic.claude-sonnet-4-6-20260101-v1:0",
-    "claude-sonnet-4-5": "anthropic.claude-sonnet-4-5-20250514-v1:0",
-    "claude-haiku-4-5": "anthropic.claude-haiku-4-5-20251001-v1:0",
+    # Sonnet 4.6 (primary — matches current anthropic_helpers MODEL default)
+    "claude-sonnet-4-6": "us.anthropic.claude-sonnet-4-6",
+    # Sonnet 4.5
+    "claude-sonnet-4-5": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    # Haiku 4.5 (low-latency fallback)
+    "claude-haiku-4-5": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+    # Claude 3.7 Sonnet (APAC — Mumbai data residency)
+    "claude-3-7-sonnet": "apac.anthropic.claude-3-7-sonnet-20250219-v1:0",
 }
+
+# Default region for the Bedrock runtime client
+# us-east-1 for US cross-region profiles, ap-south-1 for APAC
+BEDROCK_RUNTIME_REGION = os.getenv("BEDROCK_RUNTIME_REGION", "us-east-1")
 
 
 class _BedrockContent:
@@ -57,7 +72,7 @@ class BedrockClient:
     """
 
     def __init__(self):
-        region = os.getenv("AWS_DEFAULT_REGION", "ap-south-1")
+        region = BEDROCK_RUNTIME_REGION
         self.client = boto3.client(
             service_name="bedrock-runtime",
             region_name=region,
@@ -70,9 +85,9 @@ class BedrockClient:
         logger.info(f"BedrockClient initialized in {region}")
 
     def _resolve_model(self, model: str) -> str:
-        """Map Anthropic model names to Bedrock model IDs."""
-        # Pass through if already a Bedrock model ID
-        if model.startswith("anthropic."):
+        """Map Anthropic model names to Bedrock cross-region inference profile IDs."""
+        # Pass through if already a cross-region profile (us./apac./global.)
+        if model.startswith(("us.", "apac.", "global.", "eu.")):
             return model
         # Strip version suffixes for lookup
         base = model.split("-20")[0] if "-20" in model else model
