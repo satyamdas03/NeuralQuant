@@ -270,6 +270,19 @@ def _build_analyst_context(ticker: str, market: str) -> dict:
         "debt_equity":               round(float(info.get("debtToEquity", 100.0)) / 100, 2) if info.get("debtToEquity") else None,
         "revenue_growth":            round(float(info.get("revenueGrowth", 0.0)) * 100, 1) if info.get("revenueGrowth") else None,
         "insider_cluster_score":      _compute_insider_score(info, fund) or 0.5,
+        "roa":                       round(_safe_float(fund.get("roa"), 0.08), 3) if fund.get("roa") is not None else None,
+        "operating_margin":          round(_safe_float(fund.get("operating_margin"), 0.0), 3) if fund.get("operating_margin") is not None else None,
+        "profit_margin":             round(_safe_float(fund.get("profit_margin"), 0.0), 3) if fund.get("profit_margin") is not None else None,
+        "earnings_growth_yoy":       round(_safe_float(fund.get("earnings_growth_yoy"), 0.0), 1) if fund.get("earnings_growth_yoy") is not None else None,
+        "ev_revenue":                round(_safe_float(fund.get("ev_revenue"), 0.0), 2) if fund.get("ev_revenue") is not None else None,
+        "ev_ebitda":                 round(_safe_float(fund.get("ev_ebitda"), 0.0), 2) if fund.get("ev_ebitda") is not None else None,
+        "trailing_peg_ratio":        round(_safe_float(fund.get("trailing_peg_ratio"), 1.0), 2) if fund.get("trailing_peg_ratio") is not None else None,
+        "current_ratio":             round(_safe_float(fund.get("current_ratio"), 0.0), 2) if fund.get("current_ratio") is not None else None,
+        "quick_ratio":               round(_safe_float(fund.get("quick_ratio"), 0.0), 2) if fund.get("quick_ratio") is not None else None,
+        "forward_eps":               round(_safe_float(fund.get("forward_eps"), 0.0), 2) if fund.get("forward_eps") is not None else None,
+        "book_value":                round(_safe_float(fund.get("book_value"), 0.0), 2) if fund.get("book_value") is not None else None,
+        "dividend_yield":            round(_safe_float(fund.get("dividend_yield"), 0.0), 2) if fund.get("dividend_yield") is not None else None,
+        "payout_ratio":              round(_safe_float(fund.get("payout_ratio"), 0.0), 3) if fund.get("payout_ratio") is not None else None,
     }
 
     # Data quality flags — tell agents which values are reliable vs missing/synthetic
@@ -398,7 +411,10 @@ def _fetch_finnhub_data(ticker: str, market: str) -> dict:
             for key in ("current_price", "change_pct", "pe_ttm", "pb_ratio", "beta",
                         "market_cap", "week52_high", "week52_low", "analyst_target",
                         "analyst_rec", "long_name", "sector", "industry", "eps_ttm",
-                        "dividend_yield", "earnings_date"):
+                        "dividend_yield", "earnings_date", "roa", "operating_margin",
+                        "profit_margin", "earnings_growth_yoy", "ev_revenue", "ev_ebitda",
+                        "trailing_peg_ratio", "current_ratio", "quick_ratio",
+                        "forward_eps", "book_value", "payout_ratio"):
                 val = fund.get(key)
                 if val is not None and key not in result:
                     result[key] = val
@@ -733,6 +749,19 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
             "debt_equity":               round(_safe_float(info.get("debtToEquity"), 100.0) / 100, 2) if info.get("debtToEquity") is not None else None,
             "revenue_growth":            round(_safe_float(info.get("revenueGrowth"), 0.0) * 100, 1) if info.get("revenueGrowth") is not None else None,
             "insider_cluster_score":      _compute_insider_score(info, fund) or 0.5,
+            "roa":                       round(_safe_float(fund.get("roa"), 0.08), 3) if fund.get("roa") is not None else None,
+            "operating_margin":          round(_safe_float(fund.get("operating_margin"), 0.0), 3) if fund.get("operating_margin") is not None else None,
+            "profit_margin":             round(_safe_float(fund.get("profit_margin"), 0.0), 3) if fund.get("profit_margin") is not None else None,
+            "earnings_growth_yoy":       round(_safe_float(fund.get("earnings_growth_yoy"), 0.0), 1) if fund.get("earnings_growth_yoy") is not None else None,
+            "ev_revenue":                round(_safe_float(fund.get("ev_revenue"), 0.0), 2) if fund.get("ev_revenue") is not None else None,
+            "ev_ebitda":                 round(_safe_float(fund.get("ev_ebitda"), 0.0), 2) if fund.get("ev_ebitda") is not None else None,
+            "trailing_peg_ratio":        round(_safe_float(fund.get("trailing_peg_ratio"), 1.0), 2) if fund.get("trailing_peg_ratio") is not None else None,
+            "current_ratio":             round(_safe_float(fund.get("current_ratio"), 0.0), 2) if fund.get("current_ratio") is not None else None,
+            "quick_ratio":               round(_safe_float(fund.get("quick_ratio"), 0.0), 2) if fund.get("quick_ratio") is not None else None,
+            "forward_eps":               round(_safe_float(fund.get("forward_eps"), 0.0), 2) if fund.get("forward_eps") is not None else None,
+            "book_value":                round(_safe_float(fund.get("book_value"), 0.0), 2) if fund.get("book_value") is not None else None,
+            "dividend_yield":            round(_safe_float(fund.get("dividend_yield"), 0.0), 2) if fund.get("dividend_yield") is not None else None,
+            "payout_ratio":              round(_safe_float(fund.get("payout_ratio"), 0.0), 3) if fund.get("payout_ratio") is not None else None,
         }
 
         # Sector median comparison (for agent context)

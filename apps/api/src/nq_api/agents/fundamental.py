@@ -84,6 +84,31 @@ class FundamentalAgent(BaseAnalystAgent):
         de = context.get('debt_equity', None)
         de_display = f"{de}" if de is not None and de != 'N/A' else 'N/A'
 
+        # Additional profitability fields
+        def _pct(val):
+            if val is not None and val != 'N/A':
+                return f"{float(val) * 100:.1f}%"
+            return 'N/A'
+
+        def _fmt(val, fmt=".2f"):
+            if val is not None and val != 'N/A':
+                return f"{float(val):{fmt}}"
+            return 'N/A'
+
+        roa_display = _pct(context.get('roa'))
+        opm_display = _pct(context.get('operating_margin'))
+        npm_display = _pct(context.get('profit_margin'))
+        eg_display = _fmt(context.get('earnings_growth_yoy'), ".1f")
+        ev_rev_display = _fmt(context.get('ev_revenue'))
+        ev_ebitda_display = _fmt(context.get('ev_ebitda'))
+        peg_display = _fmt(context.get('trailing_peg_ratio'))
+        cr_display = _fmt(context.get('current_ratio'))
+        qr_display = _fmt(context.get('quick_ratio'))
+        fwd_eps_display = _fmt(context.get('forward_eps'))
+        bv_display = _fmt(context.get('book_value'))
+        div_yield_display = _pct(context.get('dividend_yield'))
+        payout_display = _pct(context.get('payout_ratio'))
+
         # Sector median comparison
         sector = context.get('sector', '')
         sector_section = ""
@@ -124,17 +149,30 @@ IMPORTANT: Every value below marked [VERIFIED] is LIVE data from FMP/yfinance â€
 Financial data [VERIFIED] (live as of today):
 - Piotroski F-Score: {context.get('piotroski', 'N/A')} / 9 [VERIFIED] (higher = stronger fundamentals)
 - Gross profit margin: {gpm_display} [VERIFIED]
+- Operating margin: {opm_display} [VERIFIED]
+- Net profit margin: {npm_display} [VERIFIED]
 - ROE: {roe_display} [VERIFIED]
+- ROA: {roa_display} [VERIFIED]
 - Revenue growth YoY: {rev_display} [VERIFIED]
+- Earnings growth YoY: {eg_display}% [VERIFIED]
 - Debt/Equity: {de_display} [VERIFIED]
+- Current ratio: {cr_display} [VERIFIED]
+- Quick ratio: {qr_display} [VERIFIED]
 - Quality composite percentile: {context.get('quality_percentile', 'N/A')} [VERIFIED] (0-1 scale)
 - Trailing P/E ratio: {pe}x [VERIFIED]
 - Price-to-Book ratio: {pb}x [VERIFIED]
+- PEG ratio (trailing): {peg_display} [VERIFIED]
+- EV/Revenue: {ev_rev_display}x [VERIFIED]
+- EV/EBITDA: {ev_ebitda_display}x [VERIFIED]
 - Beta (market sensitivity): {beta} [VERIFIED]
 - Accruals ratio: {context.get('accruals_ratio', 'N/A')} [VERIFIED] (lower/negative = better)
 - Market cap: {context.get('market_cap', 'N/A')} [VERIFIED]
 - 52-week range: {context.get('week52_low', 'N/A')} â€“ {context.get('week52_high', 'N/A')} [VERIFIED]
 - Analyst target mean: {context.get('analyst_target_mean', 'N/A')} [VERIFIED]
+- Forward EPS: {fwd_eps_display} [VERIFIED]
+- Book value per share: {bv_display} [VERIFIED]
+- Dividend yield: {div_yield_display} [VERIFIED]
+- Payout ratio: {payout_display} [VERIFIED]
 - AI composite score: {context.get('composite_score', 'N/A')} [VERIFIED] (0-1 scale)
 {sector_section}{dq_section}
 Provide your fundamental stance on {ticker}. Reference the specific numbers above in your key points."""
