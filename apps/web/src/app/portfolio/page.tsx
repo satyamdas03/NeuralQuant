@@ -1,14 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { authedApi } from "@/lib/api";
 import type { AstraRiskProfile, AstraRecommendResponse } from "@/lib/types";
-import { mapToRiskProfile, PROFILE_COLORS } from "@/components/RiskProfilerModal";
 import RiskProfilerModal from "@/components/RiskProfilerModal";
 import SellSignalsPanel from "@/components/SellSignalsPanel";
 import GeopoliticalScanPanel from "@/components/GeopoliticalScanPanel";
 import GhostBorderCard from "@/components/ui/GhostBorderCard";
-import GradientButton from "@/components/ui/GradientButton";
 import { PieChart, Shield, TrendingUp, Zap, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
 
 const PROFILE_META: Record<AstraRiskProfile, { label: string; desc: string; icon: typeof Shield; color: string; bgColor: string }> = {
@@ -143,14 +141,14 @@ export default function PortfolioPage() {
       });
   }, []);
 
-  const loadRecommendation = (profile: AstraRiskProfile) => {
+  const loadRecommendation = useCallback((profile: AstraRiskProfile) => {
     setLoading(true);
     setError(null);
     authedApi.getAstraRecommend(profile, market)
       .then(setRecommendation)
       .catch((e) => setError(e instanceof Error ? e.message : "Failed to load recommendations"))
       .finally(() => setLoading(false));
-  };
+  }, [market]);
 
   const handleProfileComplete = (profile: AstraRiskProfile) => {
     setRiskProfile(profile);

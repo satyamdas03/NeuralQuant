@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { authedApi } from "@/lib/api";
 import type { GeopoliticalWarning } from "@/lib/types";
 import GhostBorderCard from "@/components/ui/GhostBorderCard";
-import { Globe, AlertTriangle, Loader2 } from "lucide-react";
+import { Globe, Loader2 } from "lucide-react";
 
 function severityBadge(severity: "HIGH" | "MEDIUM" | "LOW") {
   const colors = {

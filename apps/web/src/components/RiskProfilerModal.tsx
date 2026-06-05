@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { authedApi } from "@/lib/api";
 import type { AstraRiskProfile } from "@/lib/types";
-import { Shield, TrendingUp, Zap, ArrowRight, Loader2 } from "lucide-react";
+import { Shield, TrendingUp, Zap, Loader2 } from "lucide-react";
 
 interface RiskProfilerModalProps {
   onComplete: (profile: AstraRiskProfile) => void;

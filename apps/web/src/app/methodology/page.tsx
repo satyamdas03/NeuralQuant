@@ -41,7 +41,7 @@ function useAnimatedSection(threshold = 0.12) {
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [threshold]);
 
   return { ref, visible };
 }
@@ -1071,7 +1071,7 @@ export default function MethodologyPage() {
             {[
               {
                 title: "Survivorship Bias",
-                body: "Backtests run on today's constituents. Delisted or merged companies are excluded, which may inflate historical performance.",
+                body: "Backtests run on today&apos;s constituents. Delisted or merged companies are excluded, which may inflate historical performance.",
               },
               {
                 title: "Look-Ahead Bias",

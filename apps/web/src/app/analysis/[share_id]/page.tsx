@@ -7,7 +7,7 @@ import { api } from "@/lib/api";
 import { trackEvent, EVENT, trackApiEvent } from "@/lib/analytics";
 import GlassPanel from "@/components/ui/GlassPanel";
 import GradientButton from "@/components/ui/GradientButton";
-import { Share2, TrendingUp, TrendingDown, Minus, Eye, ChevronDown, ChevronUp, ArrowRight, AlertTriangle } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Eye, ChevronDown, ChevronUp, ArrowRight, AlertTriangle } from "lucide-react";
 
 type AgentOutput = {
   agent: string;

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { authedApi } from "@/lib/api";
 import type { SellSignal } from "@/lib/types";
 import GhostBorderCard from "@/components/ui/GhostBorderCard";
-import { AlertTriangle, ArrowRight, Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import Link from "next/link";
 
 export default function SellSignalsPanel({ market = "IN" }: { market?: "US" | "IN" | "GLOBAL" }) {
