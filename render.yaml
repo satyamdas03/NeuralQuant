@@ -81,6 +81,14 @@ services:
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
+      - key: USE_BEDROCK
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: BEDROCK_RUNTIME_REGION
+        value: "us-east-1"
     plan: pro
     healthCheckPath: /health
 
