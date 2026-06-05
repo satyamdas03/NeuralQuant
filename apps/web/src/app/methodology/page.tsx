@@ -247,6 +247,45 @@ export default function MethodologyPage() {
     trackApiEvent("methodology_viewed").catch(() => {});
   }, []);
 
+  const faqJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: [
+      {
+        "@type": "Question",
+        name: "What is IRS% scoring?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "IRS% (Institutional Research Score) is NeuralQuant's proprietary composite metric that aggregates fundamental, technical, and sentiment signals into a single 0-100 score. Scores above 65 indicate institutional-grade conviction.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "How were the Q1FY27 backtest results generated?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Three model portfolios (Alpha, Growth, Value) were constructed using IRS% scores above 65, tracked against NIFTY50 from April through June 2026. All entry prices were recorded at market open on selection day. No hindsight bias or cherry-picking.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Is NeuralQuant SEBI-registered investment advice?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "No. NeuralQuant is a research and analytical tool, not a SEBI-registered investment advisor. All analysis, scores, and recommendations are for educational and research purposes only. Users should consult a SEBI-registered advisor before making investment decisions.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "What is PARA-DEBATE?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "PARA-DEBATE is NeuralQuant's 7-agent AI consensus system where separate AI agents analyze stocks from different perspectives (fundamental, technical, sentiment, risk, macro, contrarian, and synthesis) before arriving at a consensus verdict.",
+        },
+      },
+    ],
+  };
+
   return (
     <div
       className="min-h-screen"
@@ -255,6 +294,10 @@ export default function MethodologyPage() {
         color: "var(--color-text-primary)",
       }}
     >
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
       {/* ═══════════════════════════════════════════
           HERO
          ═══════════════════════════════════════════ */}

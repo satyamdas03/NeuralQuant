@@ -29,6 +29,45 @@ const instrumentSerif = Instrument_Serif({
   style: ["normal", "italic"],
 });
 
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      name: "NeuralQuant",
+      url: "https://neuralquant.co",
+      logo: "https://www.neuralquant.co/icons/icon-512.png",
+      description:
+        "AI-powered stock intelligence platform with IRS% scoring and 7-agent PARA-DEBATE analysis for US and India markets.",
+    },
+    {
+      "@type": "WebSite",
+      name: "NeuralQuant",
+      url: "https://neuralquant.co",
+      potentialAction: {
+        "@type": "SearchAction",
+        target: "https://www.neuralquant.co/stocks/{search_term_string}",
+        "query-input": "required name=search_term_string",
+      },
+    },
+    {
+      "@type": "SoftwareApplication",
+      name: "NeuralQuant",
+      applicationCategory: "FinanceApplication",
+      operatingSystem: "Web",
+      url: "https://neuralquant.co",
+      description:
+        "Institutional-grade AI stock analysis with IRS% scoring, PARA-DEBATE multi-agent consensus, and regime detection for US and India markets.",
+      offers: {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "USD",
+        description: "Free tier with limited queries. Pro plans from $9.99/mo.",
+      },
+    },
+  ],
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://neuralquant.co"),
   title: {
@@ -111,6 +150,10 @@ export default function RootLayout({
           />
         )}
         <ServiceWorkerRegister />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
         <AnalyticsRouteTracker />
         <SessionProvider>
           <WalkthroughProvider>
