@@ -878,7 +878,7 @@ async def run_analyst(
     if enrichment:
         _merge_enrichment(context, enrichment)
 
-    # Anjali Value Screener enrichment (quintile-scored cross-sectional context)
+    # QuantFactor Engine enrichment (quintile-scored cross-sectional context)
     from nq_api.score_builder import get_anjali_enrichment
     from nq_api.agents.anjali_context import build_anjali_context
     anjali_data = get_anjali_enrichment(ticker, req.market)

@@ -88,7 +88,7 @@ class BaseAnalystAgent(ABC):
 
     def run(self, ticker: str, context: dict, _msg_override: str | None = None) -> AgentOutput:
         user_msg = _msg_override if _msg_override else self._build_user_message(ticker, context)
-        # Inject Anjali Value Screener context if available
+        # Inject QuantFactor Engine context if available
         anjali_ctx = context.get("anjali_context")
         if anjali_ctx and isinstance(anjali_ctx, str):
             user_msg += anjali_ctx

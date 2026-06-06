@@ -1,4 +1,4 @@
-"""Nightly Anjali enrichment refresh job.
+"""Nightly QuantFactor enrichment refresh job.
 
 Collects quintile-scored cross-sectional data for all universes
 and upserts into public.anjali_enrichment.
@@ -40,7 +40,7 @@ async def refresh_anjali_data(
     market: str | None = None,
     universe: str | None = None,
 ) -> dict[str, int]:
-    """Collect, score, and ingest Anjali data for all configured universes.
+    """Collect, score, and ingest QuantFactor data for all configured universes.
 
     Args:
         market: If set, only process this market ('US' or 'IN').
@@ -57,7 +57,7 @@ async def refresh_anjali_data(
         if universe and uni != universe:
             continue
 
-        logger.info(f"Starting Anjali collection: {uni} ({mkt})")
+        logger.info(f"Starting QuantFactor collection: {uni} ({mkt})")
 
         try:
             # Step 1: Collect raw data

@@ -454,7 +454,7 @@ async def run_nl_query_v2(
         if len(tech_lines) > 1:
             context_parts.append("\n".join(tech_lines))
 
-    # Anjali Value Screener context injection
+    # QuantFactor Engine context injection
     if effective_ticker_v2:
         try:
             from nq_api.score_builder import get_anjali_enrichment
@@ -925,7 +925,7 @@ async def run_nl_query_v2_stream(
                         tech_lines.append(f"  {label}: {v}")
                 if len(tech_lines) > 1:
                     context_parts.append("\n".join(tech_lines))
-            # Anjali Value Screener context injection (streaming endpoint)
+            # QuantFactor Engine context injection (streaming endpoint)
             if stream_ticker:
                 try:
                     from nq_api.score_builder import get_anjali_enrichment

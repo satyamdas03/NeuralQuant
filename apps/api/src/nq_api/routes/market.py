@@ -336,12 +336,13 @@ def _market_movers_sync():
             if gainers or losers or actives:
                 def _to_mover(m):
                     price = m.get("price")
-                    # Only skip items with missing/None price — allow price=0
-                    # (stale after-hours/weekend data still useful for context)
+                    # Skip items with missing price or micro-penny stocks (<$1)
                     if price is None:
                         return None
                     try:
-                        float(price)
+                        p = float(price)
+                        if p < 1.0:
+                            return None  # Sub-dollar stocks are unreliable
                     except (ValueError, TypeError):
                         return None
                     ticker = m.get("ticker", "")
@@ -507,7 +508,7 @@ async def trending_tickers(
     limit: int = 10,
     market: str = "US",
 ):
-    """Top tickers analyzed today — based on recent Anjali IRS scores."""
+    """Top tickers analyzed today — based on recent QuantFactor IRS scores."""
     import os
     import httpx as _hx
 

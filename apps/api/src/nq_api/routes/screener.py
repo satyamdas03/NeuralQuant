@@ -244,14 +244,14 @@ def _run_screener_sync(req: ScreenerRequest, engine: Any) -> ScreenerResponse:
     filtered = result_df[result_df["composite_score"] >= req.min_score]
     filtered = filtered.sort_values("composite_score", ascending=False)
 
-    # Anjali Value Screener filters
+    # QuantFactor Engine filters
     if req.min_anjali_composite is not None or req.valuation_sweet_spot or req.loss_making is not None:
         from nq_api.score_builder import get_anjali_enrichment
         anjali_pass = []
         for _, row in filtered.iterrows():
             a = get_anjali_enrichment(str(row["ticker"]), req.market)
             if a is None:
-                continue  # No Anjali data — skip if filters active
+                continue  # No QuantFactor data — skip if filters active
             comp = a.get("composite_anjali_score")
             if req.min_anjali_composite is not None and (comp is None or comp < req.min_anjali_composite):
                 continue

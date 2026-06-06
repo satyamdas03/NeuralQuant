@@ -1,7 +1,7 @@
 """Quarterly performance testing — selection strategy validation.
 
 Tracks MicroCap and SmallCap selection tests against actual returns
-to prove the Anjali selection logic generates positive alpha.
+to prove the QuantFactor selection logic generates positive alpha.
 """
 from __future__ import annotations
 

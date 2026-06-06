@@ -234,7 +234,7 @@ def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, plat
                      "yes" if platform_ctx else "no")
         return None
 
-    # Anjali Value Screener lookup
+    # QuantFactor Engine lookup
     anjali_scores = None
     try:
         from nq_api.score_builder import get_anjali_enrichment

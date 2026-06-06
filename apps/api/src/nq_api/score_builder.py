@@ -1,8 +1,8 @@
 # apps/api/src/nq_api/score_builder.py
 """Maps raw SignalEngine output to AIScore schema with explainability.
 
-Since v4.1: Anjali enrichment blend — 60% existing 5-factor composite,
-40% Anjali quintile composite (normalized -16..+16 → 0..10).
+Since v4.1: QuantFactor enrichment blend — 60% existing 5-factor composite,
+40% QuantFactor quintile composite (normalized -16..+16 → 0..10).
 """
 from datetime import datetime, timezone
 import logging
@@ -105,17 +105,17 @@ def rank_scores_in_universe(result_df: pd.DataFrame) -> pd.Series:
 
 
 # ---------------------------------------------------------------------------
-# Anjali enrichment blend
+# QuantFactor enrichment blend
 # ---------------------------------------------------------------------------
 
-_ANJALI_BLEND_WEIGHT = 0.4  # 60% existing 5-factor, 40% Anjali composite
+_ANJALI_BLEND_WEIGHT = 0.4  # 60% existing 5-factor, 40% QuantFactor composite
 _ANJALI_CACHE: dict[str, dict] = {}  # Simple in-memory cache
 _ANJALI_CACHE_MAX_AGE = 3600  # 1 hour in seconds
 _ANJALI_CACHE_LOADED_AT: float = 0
 
 
 def _supabase_rest(table: str, method: str = "GET", query: dict | None = None, body=None):
-    """Minimal Supabase REST call for Anjali data lookup."""
+    """Minimal Supabase REST call for QuantFactor data lookup."""
     import requests
     from nq_api.cache.score_cache import _sanitize_floats
     url = os.environ.get("SUPABASE_URL", "")
@@ -144,7 +144,7 @@ def _supabase_rest(table: str, method: str = "GET", query: dict | None = None, b
 
 
 def _load_anjali_cache():
-    """Load all Anjali enrichment data into memory cache."""
+    """Load all QuantFactor enrichment data into memory cache."""
     global _ANJALI_CACHE, _ANJALI_CACHE_LOADED_AT
     import time
 
@@ -167,9 +167,9 @@ def _load_anjali_cache():
 
 
 def get_anjali_enrichment(ticker: str, market: str) -> dict | None:
-    """Look up Anjali enrichment data for a ticker.
+    """Look up QuantFactor enrichment data for a ticker.
 
-    Returns dict with Anjali scores, or None if not available.
+    Returns dict with QuantFactor scores, or None if not available.
     """
     _load_anjali_cache()
     key = f"{ticker}:{market}"
@@ -182,12 +182,12 @@ def get_anjali_enrichment(ticker: str, market: str) -> dict | None:
 
 
 def blend_anjali_score(composite: float, anjali_data: dict | None) -> tuple[float, bool]:
-    """Blend existing 5-factor composite with Anjali quintile composite.
+    """Blend existing 5-factor composite with QuantFactor quintile composite.
 
-    Anjali composite ranges from -16 to +16. Normalized to 0-10 scale:
+    QuantFactor composite ranges from -16 to +16. Normalized to 0-10 scale:
         anjali_10 = (composite_anjali_score + 16) / 32 * 10
 
-    Blend: 60% existing, 40% Anjali (if Anjali data available).
+    Blend: 60% existing, 40% QuantFactor (if QuantFactor data available).
 
     Returns:
         (blended_composite, anjali_available) tuple.
@@ -216,15 +216,15 @@ def row_to_ai_score(row: pd.Series, market: str, score_1_10_override: int | None
     regime_id = int(row.get("regime_id", 1) or 1)
     composite = _safe_float(row.get("composite_score", 0.0), 0.0)
 
-    # Blend with Anjali if available
+    # Blend with QuantFactor if available
     anjali_data = get_anjali_enrichment(str(row["ticker"]), market)
     composite, anjali_available = blend_anjali_score(composite, anjali_data)
 
-    # Recalculate score_1_10 if Anjali blend changed composite
+    # Recalculate score_1_10 if QuantFactor blend changed composite
     if anjali_available and score_1_10_override is None:
         score_1_10_override = _score_to_1_10(composite)
 
-    # Build Anjali scores if available
+    # Build QuantFactor scores if available
     anjali_scores = None
     if anjali_data and anjali_available:
         val_score = anjali_data.get("valuation_score")
