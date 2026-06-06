@@ -68,7 +68,7 @@ function AnjaliRow({ anjali }: { anjali: AnjaliScores }) {
     <div className="mt-1.5 pt-1.5 border-t border-outline-variant/20">
       <div className="flex items-center justify-between mb-1">
         <span className="text-[10px] font-mono uppercase tracking-wider text-primary">
-          Anjali Value Screener
+          QuantFactor Screener
         </span>
         <div className="flex items-center gap-2">
           {irsPct != null && (

@@ -343,7 +343,7 @@ export default function MethodologyPage() {
               }`}
               style={{ lineHeight: 0.95, letterSpacing: "-0.02em" }}
             >
-              The Anjali Value Engine{" "}
+              The QuantFactor Engine{" "}
               <span className="italic text-primary-fixed">
                 — How QuantAlpha Selects Stocks
               </span>
@@ -1013,7 +1013,7 @@ export default function MethodologyPage() {
               }`}
               style={{ color: "var(--color-text-muted)" }}
             >
-              Every selection was scored by the Anjali Value Engine (IRS% {'>'} 65)
+              Every selection was scored by the QuantFactor Engine (IRS% {'>'} 65)
               and tracked against NIFTY50 from April through June 2026. No
               hindsight. No cherry-picking.
             </p>

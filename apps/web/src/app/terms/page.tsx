@@ -42,7 +42,7 @@ export default function TermsPage() {
         <h2 className="font-headline text-xl font-semibold text-text mb-4">2. Description of Service</h2>
         <p className="mb-3">
           NeuralQuant provides AI-powered stock analysis, portfolio intelligence, and market data tools.
-          Our services include but are not limited to: AI stock scoring (Anjali), PARA-DEBATE multi-agent analysis,
+          Our services include but are not limited to: AI stock scoring (QuantFactor), PARA-DEBATE multi-agent analysis,
           Ask Morgan research reports, QuantAstra voice portfolio management, AI Screener, and portfolio tracking.
         </p>
       </section>

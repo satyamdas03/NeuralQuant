@@ -24,19 +24,21 @@ def _fire_analysis_event(ticker: str, market: str, user: User | None) -> None:
     """Best-effort analytics event: analysis_run. Never blocks or fails."""
     try:
         import httpx
+        from nq_api.cache.score_cache import _sanitize_floats
         url = os.environ.get("SUPABASE_URL", "")
         key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
         if not url or not key:
             return
         endpoint = f"{url}/rest/v1/user_events"
         headers = {"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json"}
-        httpx.post(endpoint, json=[{
+        row = _sanitize_floats({
             "event_type": "analysis_run",
             "category": "engagement",
             "label": f"PARA-DEBATE: {ticker}",
             "payload": {"ticker": ticker, "market": market},
             "user_id": str(user.id) if user else None,
-        }], headers=headers, timeout=5)
+        })
+        httpx.post(endpoint, json=[row], headers=headers, timeout=5)
     except Exception:
         pass
 from nq_api.cache import score_cache

@@ -426,7 +426,16 @@ async def broadcast_market_wrap(
 
     # Fetch subscribed users from Supabase
     try:
-        users = _supabase_rest(f"users?select=email,name,tier,id&tier=gte.{req.tier}")
+        # tier is text, not numeric — build or clause for tier >= requested
+        _TIER_ORDER = {"free": 0, "investor": 1, "pro": 2, "api": 3}
+        min_level = _TIER_ORDER.get(req.tier, 1)
+        allowed = [t for t, lvl in _TIER_ORDER.items() if lvl >= min_level]
+        tier_or = ",".join(f"tier.eq.{t}" for t in allowed)
+        users = _supabase_rest(
+            "users",
+            "GET",
+            query={"select": "email,name,tier,id", "or": f"({tier_or})"},
+        )
     except Exception as e:
         raise HTTPException(500, f"Failed to fetch users: {e}")
 

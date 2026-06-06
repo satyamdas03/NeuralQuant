@@ -115,7 +115,7 @@ export default function BacktestResultsSection() {
               isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
             }`}
           >
-            Every selection was scored by the Anjali Value Engine (IRS%) and
+            Every selection was scored by the QuantFactor Engine (IRS%) and
             tracked against NIFTY50 from April through June 2026. No hindsight.
             No cherry-picking.
           </p>

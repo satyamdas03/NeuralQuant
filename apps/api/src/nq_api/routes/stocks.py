@@ -543,14 +543,16 @@ def _empty_meta(ticker: str) -> dict:
 def _persist_meta(ticker: str, market: str, data: dict) -> None:
     """Persist stock meta to Supabase for cold-start resilience."""
     import json as _json
-    from nq_api.cache.score_cache import _supabase_rest
+    from nq_api.cache.score_cache import _supabase_rest, _sanitize_floats
     from datetime import datetime, timezone
 
     try:
+        # Sanitize NaN/Inf before JSON serialization (data may contain NaN from yfinance)
+        safe_data = _sanitize_floats(data)
         row = {
             "ticker": ticker,
             "market": market,
-            "data": _json.dumps(data),
+            "data": _json.dumps(safe_data),
             "fetched_at": datetime.now(timezone.utc).isoformat(),
         }
         # Upsert: insert new or update existing for this ticker+market

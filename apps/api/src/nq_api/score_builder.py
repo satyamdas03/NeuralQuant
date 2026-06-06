@@ -6,6 +6,7 @@ Since v4.1: Anjali enrichment blend — 60% existing 5-factor composite,
 """
 from datetime import datetime, timezone
 import logging
+import math
 import os
 
 import pandas as pd
@@ -14,6 +15,21 @@ from nq_api.schemas import AIScore, SubScores, FeatureDriver, AnjaliScores
 logger = logging.getLogger(__name__)
 
 REGIME_LABELS = {1: "Risk-On", 2: "Late-Cycle", 3: "Bear", 4: "Recovery"}
+
+
+def _safe_float(v, default: float = 0.0) -> float:
+    """Coerce to finite float; NaN/None/inf → default. Prevents NaN leaking into Supabase writes."""
+    try:
+        if v is None:
+            return default
+        if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+            return default
+        if pd.isna(v):
+            return default
+        fv = float(v)
+        return fv if math.isfinite(fv) else default
+    except (TypeError, ValueError):
+        return default
 
 _FEATURE_DISPLAY = {
     "quality_percentile":        ("Quality composite",   True),
@@ -98,9 +114,10 @@ _ANJALI_CACHE_MAX_AGE = 3600  # 1 hour in seconds
 _ANJALI_CACHE_LOADED_AT: float = 0
 
 
-def _supabase_rest(table: str, method: str = "GET", query: dict | None = None):
+def _supabase_rest(table: str, method: str = "GET", query: dict | None = None, body=None):
     """Minimal Supabase REST call for Anjali data lookup."""
     import requests
+    from nq_api.cache.score_cache import _sanitize_floats
     url = os.environ.get("SUPABASE_URL", "")
     key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
     if not url or not key:
@@ -111,8 +128,14 @@ def _supabase_rest(table: str, method: str = "GET", query: dict | None = None):
         "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
     }
+    # Sanitize body before JSON serialization (NaN/Inf → None)
+    if body is not None:
+        if isinstance(body, list):
+            body = [_sanitize_floats(item) if isinstance(item, dict) else item for item in body]
+        elif isinstance(body, dict):
+            body = _sanitize_floats(body)
     try:
-        resp = requests.request(method, endpoint, headers=headers, params=query, timeout=10)
+        resp = requests.request(method, endpoint, headers=headers, params=query, json=body, timeout=10)
         resp.raise_for_status()
         return resp.json()
     except Exception as e:
@@ -190,8 +213,8 @@ def blend_anjali_score(composite: float, anjali_data: dict | None) -> tuple[floa
 
 
 def row_to_ai_score(row: pd.Series, market: str, score_1_10_override: int | None = None) -> AIScore:
-    regime_id = int(row.get("regime_id", 1))
-    composite = float(row["composite_score"])
+    regime_id = int(row.get("regime_id", 1) or 1)
+    composite = _safe_float(row.get("composite_score", 0.0), 0.0)
 
     # Blend with Anjali if available
     anjali_data = get_anjali_enrichment(str(row["ticker"]), market)
@@ -229,12 +252,12 @@ def row_to_ai_score(row: pd.Series, market: str, score_1_10_override: int | None
         regime_id=regime_id,
         regime_label=REGIME_LABELS.get(regime_id, "Unknown"),
         sub_scores=SubScores(
-            quality=round(float(row.get("quality_percentile", 0.5)), 3),
-            momentum=round(float(row.get("momentum_percentile", 0.5)), 3),
-            short_interest=round(float(row.get("short_interest_percentile", 0.5)), 3),
-            value=round(float(row.get("value_percentile", 0.5)), 3),
-            low_vol=round(float(row.get("low_vol_percentile", 0.5)), 3),
-            growth=round(float(row.get("growth_percentile", 0.5)), 3),
+            quality=round(_safe_float(row.get("quality_percentile", 0.5), 0.5), 3),
+            momentum=round(_safe_float(row.get("momentum_percentile", 0.5), 0.5), 3),
+            short_interest=round(_safe_float(row.get("short_interest_percentile", 0.5), 0.5), 3),
+            value=round(_safe_float(row.get("value_percentile", 0.5), 0.5), 3),
+            low_vol=round(_safe_float(row.get("low_vol_percentile", 0.5), 0.5), 3),
+            growth=round(_safe_float(row.get("growth_percentile", 0.5), 0.5), 3),
         ),
         top_drivers=build_top_drivers(row),
         confidence=_confidence(row),

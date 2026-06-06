@@ -5,6 +5,7 @@ Read by /screener for sub-100ms responses.
 """
 from __future__ import annotations
 import logging
+import math
 import os
 from datetime import datetime, timezone, timedelta
 from typing import Any
@@ -15,6 +16,50 @@ import httpx
 
 
 log = logging.getLogger(__name__)
+
+
+def _is_nonfinite(v) -> bool:
+    """Check if v is NaN or Inf. Handles Python float and numpy-like types."""
+    if isinstance(v, float):
+        return math.isnan(v) or math.isinf(v)
+    if hasattr(v, '__float__') and not isinstance(v, (str, int, bool, type(None))):
+        try:
+            fv = float(v)
+            return math.isnan(fv) or math.isinf(fv)
+        except (TypeError, ValueError):
+            pass
+    return False
+
+
+def _sanitize_floats(d: dict) -> dict:
+    """Replace NaN/Inf floats with None for JSON serialization (Supabase rejects NaN).
+
+    Handles Python float, numpy.float64, and other numeric types that may carry NaN/Inf.
+    Also converts numpy scalar types to Python float for JSON serialization.
+    """
+    out = {}
+    for k, v in d.items():
+        if _is_nonfinite(v):
+            out[k] = None
+        elif isinstance(v, dict):
+            out[k] = _sanitize_floats(v)
+        elif isinstance(v, list):
+            out[k] = [
+                _sanitize_floats(i) if isinstance(i, dict)
+                else (None if _is_nonfinite(i) else i)
+                for i in v
+            ]
+        elif hasattr(v, '__float__') and not isinstance(v, (str, int, bool, type(None))):
+            # numpy.float64 etc — convert to Python float for JSON serialization
+            try:
+                out[k] = float(v)
+            except (TypeError, ValueError):
+                out[k] = v
+        else:
+            out[k] = v
+    return out
+
+
 _env_loaded = False
 _known_columns: set[str] | None = None
 
@@ -52,6 +97,13 @@ def _supabase_rest(
     }
     if extra_headers:
         headers.update(extra_headers)
+
+    # Sanitize body before JSON serialization (httpx uses allow_nan=False, rejects NaN/Inf)
+    if body is not None:
+        if isinstance(body, list):
+            body = [_sanitize_floats(item) if isinstance(item, dict) else item for item in body]
+        elif isinstance(body, dict):
+            body = _sanitize_floats(body)
 
     try:
         with httpx.Client(timeout=10) as client:
@@ -134,7 +186,7 @@ def read_top_picks(
         query={
             "select": "ticker,composite_score,sector",
             "market": f"eq.{market}",
-            "composite_at": f"gte.{cutoff}",
+            "computed_at": f"gte.{cutoff}",
             "order": "composite_score.desc",
             "limit": str(limit),
         },
@@ -151,7 +203,8 @@ def upsert_scores(rows: list[dict[str, Any]]) -> int:
     for r in rows:
         r.setdefault("computed_at", now_iso)
     # Filter to only columns that exist in the table (PostgREST rejects unknown columns)
-    filtered = [{k: v for k, v in r.items() if k in known} for r in rows]
+    # AND sanitize NaN/Inf → None (Supabase REST rejects NaN in JSON)
+    filtered = [_sanitize_floats({k: v for k, v in r.items() if k in known}) for r in rows]
     result = _supabase_rest("score_cache", method="POST", body=filtered)
     # Also INSERT into score_cache_history (append-only for walk-forward validation)
     # Uses same data but INSERT only — no upsert, preserving historical snapshots
@@ -160,7 +213,7 @@ def upsert_scores(rows: list[dict[str, Any]]) -> int:
                         "regime_label", "quality_percentile", "momentum_percentile",
                         "value_percentile", "low_vol_percentile", "short_interest_percentile",
                         "insider_percentile", "pe_ttm", "pb_ratio", "gross_profit_margin", "roe", "computed_at"}
-        history_rows = [{k: v for k, v in r.items() if k in history_cols} for r in rows]
+        history_rows = [_sanitize_floats({k: v for k, v in r.items() if k in history_cols}) for r in rows]
         _supabase_rest("score_cache_history", method="POST", body=history_rows)
     except Exception:
         pass  # Table may not exist yet — non-critical
@@ -348,12 +401,16 @@ def write_enrichment(ticker: str, market: str, data: dict[str, Any]) -> bool:
     for k, v in data.items():
         if k not in _ENRICHMENT_COLUMNS:
             continue
-        if isinstance(v, (int, float, str, bool)) or v is None:
+        if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+            row[k] = None  # Supabase rejects NaN/Inf in JSON
+        elif isinstance(v, (int, float, str, bool)) or v is None:
             row[k] = v
         elif isinstance(v, dict):
             import json
             row[k] = json.dumps(v)
     # Filter out keys that don't exist in the table (will be created on first upsert)
+    # Sanitize NaN/Inf → None before JSON serialization
+    row = _sanitize_floats(row)
     # Use POST with Prefer: return=representation for upsert
     _load_env()
     url = os.environ.get("SUPABASE_URL", "")

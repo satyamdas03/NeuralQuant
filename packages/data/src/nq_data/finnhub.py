@@ -209,7 +209,8 @@ class FinnhubClient:
             except Exception as exc:
                 err_msg = str(exc).lower()
                 is_rate_limit = any(s in err_msg for s in ("too many", "rate limit", "429", "throttl"))
-                if is_rate_limit and attempt < max_retries - 1:
+                is_crumb = "crumb" in err_msg or "401" in err_msg
+                if (is_rate_limit or is_crumb) and attempt < max_retries - 1:
                     wait = 3 * (2 ** attempt)  # 3s, 6s
                     log.warning("yfinance rate-limited for %s, retrying in %ds (attempt %d/%d)", ticker, wait, attempt + 1, max_retries)
                     _time.sleep(wait)

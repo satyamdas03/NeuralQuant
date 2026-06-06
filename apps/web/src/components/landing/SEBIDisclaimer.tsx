@@ -36,7 +36,7 @@ export default function SEBIDisclaimer() {
           </h4>
 
           <p className="font-mono text-[11px] md:text-xs text-text-muted leading-relaxed">
-            Results shown are based on backtested quantitative selection using the Anjali Value Engine
+            Results shown are based on backtested quantitative selection using the QuantFactor Engine
             (IRS% scoring system) applied to Indian SmallCap 250 and MicroCap 250 universes for
             Q1 FY2027 (April–June 2026). Past performance does not guarantee future results.
             Backtested results are hypothetical and do not reflect actual trading. QuantAlpha is a

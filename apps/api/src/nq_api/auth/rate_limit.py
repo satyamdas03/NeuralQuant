@@ -61,6 +61,11 @@ def _usage_rest(
         "Content-Type": "application/json",
         "Prefer": "return=representation,count=exact",
     }
+    # Sanitize body before JSON serialization (NaN/Inf → None, Supabase rejects NaN)
+    if body is not None:
+        from nq_api.cache.score_cache import _sanitize_floats
+        if isinstance(body, dict):
+            body = _sanitize_floats(body)
     try:
         with httpx.Client(timeout=10) as c:
             if method == "GET":

@@ -58,7 +58,7 @@ export default function AnjaliDetailPage() {
   useEffect(() => {
     api.getAnjali(ticker, market)
       .then(setData)
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load Anjali data"))
+      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load QuantFactor data"))
       .finally(() => setLoading(false));
   }, [ticker, market]);
 
@@ -67,7 +67,7 @@ export default function AnjaliDetailPage() {
       <div className="space-y-5 p-4 lg:p-6">
         <div className="flex items-center justify-center py-12 gap-2">
           <Loader2 size={24} className="animate-spin text-primary" />
-          <span className="text-on-surface-variant">Loading Anjali analysis…</span>
+          <span className="text-on-surface-variant">Loading QuantFactor analysis…</span>
         </div>
       </div>
     );
@@ -78,7 +78,7 @@ export default function AnjaliDetailPage() {
       <div className="space-y-5 p-4 lg:p-6">
         <div className="text-center py-12">
           <AlertTriangle size={24} className="mx-auto text-error mb-2" />
-          <p className="text-error">{error || "Anjali data not available for this stock."}</p>
+          <p className="text-error">{error || "QuantFactor data not available for this stock."}</p>
           <p className="text-sm text-on-surface-variant mt-2">Try switching the market (IN/US) or check back later.</p>
         </div>
       </div>
@@ -103,7 +103,7 @@ export default function AnjaliDetailPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-headline text-xl font-bold text-on-surface">
-            {ticker.toUpperCase()} · Anjali Analysis
+            {ticker.toUpperCase()} · QuantFactor Analysis
           </h1>
           {data.name && <p className="text-sm text-on-surface-variant">{data.name}</p>}
           {data.sector && <p className="text-xs text-on-surface-variant">{data.sector}</p>}

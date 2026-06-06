@@ -44,6 +44,13 @@ def _rest(
     }
     if extra_headers:
         headers.update(extra_headers)
+    # Sanitize body before JSON serialization (NaN/Inf → None, Supabase rejects NaN)
+    if body is not None:
+        from nq_api.cache.score_cache import _sanitize_floats
+        if isinstance(body, list):
+            body = [_sanitize_floats(item) if isinstance(item, dict) else item for item in body]
+        elif isinstance(body, dict):
+            body = _sanitize_floats(body)
     try:
         with httpx.Client(timeout=10) as c:
             if method == "GET":

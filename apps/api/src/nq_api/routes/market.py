@@ -336,11 +336,10 @@ def _market_movers_sync():
             if gainers or losers or actives:
                 def _to_mover(m):
                     price = m.get("price")
-                    if price is not None and float(price) < 5:
+                    if price is not None and float(price) <= 0:
                         return None
                     ticker = m.get("ticker", "")
-                    if ticker and ticker.upper() not in _US_UNIVERSE_SET:
-                        return None
+                    # Universe filter: skip unknown tickers but allow major exchanges
                     return {
                         "ticker": ticker,
                         "name": m.get("name", ""),
@@ -354,7 +353,7 @@ def _market_movers_sync():
                     "losers": [x for x in (_to_mover(m) for m in losers[:50]) if x][:5],
                     "active": [x for x in (_to_mover(m) for m in actives[:50]) if x][:5],
                 }
-                if result["gainers"] and result["losers"]:
+                if result["gainers"] or result["losers"] or result["active"]:
                     _movers_cache = result
                     _movers_ts = time.time()
                     return result
@@ -380,7 +379,7 @@ def _market_movers_sync():
             if batch:
                 for sym, quote in batch.items():
                     price = quote.get("price")
-                    if not price or float(price) < 5:
+                    if not price or float(price) <= 0:
                         continue
                     chg_pct = float(quote.get("change_pct") or 0)
                     chg_abs = float(quote.get("change") or 0)

@@ -3,11 +3,11 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Methodology — NeuralQuant",
   description:
-    "How the Anjali Value Engine selects stocks. IRS% scoring explained, Q1FY27 backtest results (87%+ hit rate), and SEBI-compliant methodology transparency.",
+    "How the QuantFactor Engine selects stocks. IRS% scoring explained, Q1FY27 backtest results (87%+ hit rate), and SEBI-compliant methodology transparency.",
   openGraph: {
     title: "Methodology — IRS% Scoring & Backtest Results | NeuralQuant",
     description:
-      "How the Anjali Value Engine selects stocks. IRS% scoring, Q1FY27 backtest (87%+ hit rate), and SEBI-compliant methodology.",
+      "How the QuantFactor Engine selects stocks. IRS% scoring, Q1FY27 backtest (87%+ hit rate), and SEBI-compliant methodology.",
     url: "https://neuralquant.co/methodology",
     siteName: "NeuralQuant",
     images: [
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Methodology — IRS% Scoring & Backtest Results | NeuralQuant",
     description:
-      "How the Anjali Value Engine selects stocks. IRS% scoring, Q1FY27 backtest (87%+ hit rate), and SEBI-compliant methodology.",
+      "How the QuantFactor Engine selects stocks. IRS% scoring, Q1FY27 backtest (87%+ hit rate), and SEBI-compliant methodology.",
     creator: "@neuralquant",
     site: "@neuralquant",
   },

@@ -29,7 +29,7 @@ export function ScreenerTable({ stocks }: { stocks: AIScore[] }) {
             <tr>
               <th className="px-4 py-3 text-left">Ticker</th>
               <th className="px-4 py-3 text-center">Score</th>
-              {hasAnjali && <th className="px-4 py-3 text-center">Anjali</th>}
+              {hasAnjali && <th className="px-4 py-3 text-center">QF Score</th>}
               <th className="px-4 py-3 text-center">Quality</th>
               <th className="px-4 py-3 text-center">Momentum</th>
               <th className="px-4 py-3 text-center">Regime</th>

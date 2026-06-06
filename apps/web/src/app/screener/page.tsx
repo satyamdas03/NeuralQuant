@@ -169,7 +169,7 @@ function ScreenerInner() {
             }`}
           >
             <Filter size={12} />
-            Anjali Value
+            QuantFactor
           </button>
         )}
       </div>
@@ -178,12 +178,12 @@ function ScreenerInner() {
         <div className="glass border border-border-glow p-4 space-y-3">
           <div className="flex items-center gap-2 text-xs font-mono text-primary">
             <Filter size={14} />
-            Anjali Value Screener Filters
+            QuantFactor Screener Filters
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-[10px] font-mono uppercase tracking-wider text-on-surface-variant mb-1">
-                Min Anjali Composite
+                Min QF Composite
               </label>
               <input
                 type="range"

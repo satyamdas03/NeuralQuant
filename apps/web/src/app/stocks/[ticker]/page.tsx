@@ -39,15 +39,30 @@ export default function StockPage() {
 
   useEffect(() => {
     logActivity("stock_view", "analysis", `Viewed ${ticker}`, { ticker, market });
-    api.getStock(ticker, market)
-      .then(setScore)
-      .catch((e) => {
-        const msg = e instanceof Error ? e.message : String(e);
-        const statusMatch = msg.match(/API error (\d+):/);
-        setScoreStatus(statusMatch ? parseInt(statusMatch[1], 10) : 500);
-        console.error("getStock failed:", e);
-      })
-      .finally(() => setLoading(false));
+    let retries = 0;
+    const maxRetries = 3;
+    const fetchScore = () => {
+      api.getStock(ticker, market)
+        .then(setScore)
+        .catch((e) => {
+          const msg = e instanceof Error ? e.message : String(e);
+          const statusMatch = msg.match(/API error (\d+):/);
+          const status = statusMatch ? parseInt(statusMatch[1], 10) : 500;
+          // Auto-retry on 503 (score cache miss / cold start) up to 3 times
+          if (status === 503 && retries < maxRetries) {
+            retries++;
+            setTimeout(fetchScore, 5000);
+            return;
+          }
+          setScoreStatus(status);
+          console.error("getStock failed:", e);
+        })
+        .finally(() => {
+          if (retries === 0 || score) setLoading(false);
+          else if (retries >= maxRetries) setLoading(false);
+        });
+    };
+    fetchScore();
     api.getStockMeta(ticker, market).then(setMeta).catch(() => {});
     api.getSentiment(ticker, market, 12).then(setSentiment).catch(() => {});
     authedApi.listWatchlist().then(r => {
@@ -161,7 +176,7 @@ export default function StockPage() {
       {/* Regime Context */}
       <RegimeContextPanel regime={score.regime_label} />
 
-      {/* IRS + Anjali Section */}
+      {/* IRS + QuantFactor Section */}
       {score.anjali && (score.anjali.irs_pct != null || score.anjali.g_score != null) && (
         <IRSZoneBadge anjali={score.anjali} ticker={ticker} market={market} />
       )}
