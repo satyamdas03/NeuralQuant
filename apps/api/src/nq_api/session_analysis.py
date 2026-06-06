@@ -20,8 +20,14 @@ def _fetch_activities(session_id: str) -> list[dict]:
     """Fetch all activities for a session, ordered by time."""
     try:
         result = _supabase_rest(
-            f"session_activities?session_id=eq.{session_id}&select=*&order=created_at.asc&limit=500",
+            "session_activities",
             method="GET",
+            query={
+                "session_id": f"eq.{session_id}",
+                "select": "*",
+                "order": "created_at.asc",
+                "limit": "500",
+            },
         )
         return result if isinstance(result, list) else []
     except Exception:
@@ -253,8 +259,9 @@ def _mark_report_sent(report_id: str) -> None:
     """Mark a report as emailed."""
     try:
         _supabase_rest(
-            f"session_reports?id=eq.{report_id}",
+            "session_reports",
             method="PATCH",
+            query={"id": f"eq.{report_id}"},
             body=[{
                 "email_sent": True,
                 "email_sent_at": datetime.now(timezone.utc).isoformat(),

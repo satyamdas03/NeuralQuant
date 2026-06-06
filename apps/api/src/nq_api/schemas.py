@@ -22,7 +22,7 @@ class SubScores(BaseModel):
 
 
 class AnjaliScores(BaseModel):
-    """Anjali Value Screener quintile scores (-4 to +4 each, composite -16 to +16)."""
+    """QuantFactor Engine quintile scores (-4 to +4 each, composite -16 to +16)."""
     growth_score: float | None = None        # -4 to +4 vs index peers
     return_score: float | None = None        # -4 to +4
     valuation_score: float | None = None     # -4 to +4 (Q2=+1 sweet spot)
@@ -47,7 +47,7 @@ class AIScore(BaseModel):
     top_drivers: list[FeatureDriver]  # top 5 positive + negative features
     confidence: Literal["high", "medium", "low"]
     last_updated: str            # ISO datetime
-    anjali: AnjaliScores | None = None  # Anjali Value Screener scores (None if not available)
+    anjali: AnjaliScores | None = None  # QuantFactor Engine scores (None if not available)
 
 
 class ScreenerRequest(BaseModel):
@@ -60,8 +60,8 @@ class ScreenerRequest(BaseModel):
     min_quality: Optional[float] = None
     min_low_vol: Optional[float] = None
     max_momentum: Optional[float] = None
-    # Anjali Value Screener filters (-16 to +16 composite scale)
-    min_anjali_composite: Optional[float] = None  # minimum Anjali composite score
+    # QuantFactor Engine filters (-16 to +16 composite scale)
+    min_anjali_composite: Optional[float] = None  # minimum QuantFactor composite score
     valuation_sweet_spot: Optional[bool] = None   # True = only Q2 valuation stocks
     loss_making: Optional[bool] = None             # True = exclude loss-making companies
 
@@ -181,7 +181,7 @@ class StockSummary(BaseModel):
     sector: str | None = None
     forecast_score: float | None = None  # 1-10
     currency: str = "$"
-    anjali: AnjaliScores | None = None  # Anjali Value Screener scores
+    anjali: AnjaliScores | None = None  # QuantFactor Engine scores
     # FMP Premium enrichment fields
     analyst_consensus: str | None = None
     analyst_buy_pct: float | None = None

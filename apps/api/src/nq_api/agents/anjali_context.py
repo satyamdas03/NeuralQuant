@@ -67,7 +67,7 @@ def build_anjali_context(enrichment: dict | None) -> str:
 
     # Build context block
     lines = [
-        "\nANJALI VALUE SCREENER DATA (quintile-scored cross-sectionally vs index peers):",
+        "\nQUANTFACTOR ENGINE DATA (quintile-scored cross-sectionally vs index peers):",
     ]
 
     # Valuation metrics (most actionable)
@@ -101,7 +101,7 @@ def build_anjali_context(enrichment: dict | None) -> str:
     if risk is not None:
         score_parts.append(f"Risk Score: {risk}/4")
     if composite is not None:
-        score_parts.append(f"COMPOSITE ANJALI: {composite}/16")
+        score_parts.append(f"COMPOSITE QF: {composite}/16")
     if score_parts:
         lines.append(f"  Quintile Scores (each -4 to +4 vs same-index peers):")
         for part in score_parts:

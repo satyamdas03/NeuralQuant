@@ -107,6 +107,7 @@ function MoversPanel({ gainers, losers, active, loading }: {
 }) {
   const [tab, setTab] = useState<"gainers" | "losers" | "active">("gainers");
   const rows = tab === "gainers" ? gainers : tab === "losers" ? losers : active;
+  const hasStale = rows.some((m) => m.stale);
 
   return (
     <GhostBorderCard>
@@ -125,6 +126,12 @@ function MoversPanel({ gainers, losers, active, loading }: {
           </button>
         ))}
       </div>
+
+      {hasStale && (
+        <div className="px-4 py-1.5 text-[10px] text-on-surface-variant bg-surface-high/50 border-b border-ghost-border/30">
+          Prices may be stale &mdash; market is currently closed
+        </div>
+      )}
 
       {loading && !rows.length ? (
         <div className="space-y-3 p-4">
@@ -148,7 +155,7 @@ function MoversPanel({ gainers, losers, active, loading }: {
               <div>
                 <div className="text-sm font-semibold text-on-surface">{m.ticker}</div>
                 <div className="tabular-nums text-xs text-on-surface-variant">
-                  ${m.price.toLocaleString()}
+                  ${m.price?.toLocaleString() ?? "N/A"}
                 </div>
               </div>
               <span

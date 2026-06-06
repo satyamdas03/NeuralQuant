@@ -336,10 +336,15 @@ def _market_movers_sync():
             if gainers or losers or actives:
                 def _to_mover(m):
                     price = m.get("price")
-                    if price is not None and float(price) <= 0:
+                    # Only skip items with missing/None price — allow price=0
+                    # (stale after-hours/weekend data still useful for context)
+                    if price is None:
+                        return None
+                    try:
+                        float(price)
+                    except (ValueError, TypeError):
                         return None
                     ticker = m.get("ticker", "")
-                    # Universe filter: skip unknown tickers but allow major exchanges
                     return {
                         "ticker": ticker,
                         "name": m.get("name", ""),
@@ -348,20 +353,38 @@ def _market_movers_sync():
                         "change_abs": m.get("change"),
                         "volume": m.get("volume"),
                     }
+                def _build_category(raw, label):
+                    """Build mover list; if all filtered out, fall back to raw data with stale flag."""
+                    filtered = [x for x in (_to_mover(m) for m in raw[:50]) if x][:5]
+                    if not filtered and raw:
+                        logger.warning("FMP %s: all filtered out (%d raw), using unfiltered stale data", label, len(raw))
+                        filtered = [
+                            {
+                                "ticker": m.get("ticker", ""),
+                                "name": m.get("name", ""),
+                                "price": m.get("price"),
+                                "change_pct": m.get("change_pct"),
+                                "change_abs": m.get("change"),
+                                "volume": m.get("volume"),
+                                "stale": True,
+                            }
+                            for m in raw[:5]
+                        ]
+                    return filtered
                 result = {
-                    "gainers": [x for x in (_to_mover(m) for m in gainers[:50]) if x][:5],
-                    "losers": [x for x in (_to_mover(m) for m in losers[:50]) if x][:5],
-                    "active": [x for x in (_to_mover(m) for m in actives[:50]) if x][:5],
+                    "gainers": _build_category(gainers, "gainers"),
+                    "losers": _build_category(losers, "losers"),
+                    "active": _build_category(actives, "active"),
                 }
                 if result["gainers"] or result["losers"] or result["active"]:
                     _movers_cache = result
                     _movers_ts = time.time()
                     return result
-                # If gainers or losers empty (e.g. universe filter removed all), fall through to yfinance
+                # Should not reach here now, but keep as safety net
                 if not result["gainers"]:
-                    logger.warning("FMP gainers: all filtered out (%d raw)", len(gainers))
+                    logger.warning("FMP gainers: empty after all processing (%d raw)", len(gainers))
                 if not result["losers"]:
-                    logger.warning("FMP losers: all filtered out (%d raw)", len(losers))
+                    logger.warning("FMP losers: empty after all processing (%d raw)", len(losers))
                 # Save partial FMP result for merge after yfinance fallback
                 _fmp_partial = result
             else:
@@ -379,7 +402,13 @@ def _market_movers_sync():
             if batch:
                 for sym, quote in batch.items():
                     price = quote.get("price")
-                    if not price or float(price) <= 0:
+                    # Only skip items with missing/None price — allow price=0
+                    # (stale after-hours/weekend data still useful for context)
+                    if price is None:
+                        continue
+                    try:
+                        float(price)
+                    except (ValueError, TypeError):
                         continue
                     chg_pct = float(quote.get("change_pct") or 0)
                     chg_abs = float(quote.get("change") or 0)

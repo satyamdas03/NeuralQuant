@@ -206,8 +206,33 @@ async def run_screener(
                 total=len(ai_scores),
             )
 
-    # Live compute fallback (cache miss or custom tickers)
-    return await asyncio.to_thread(_run_screener_sync, req, engine)
+    # Live compute fallback (cache miss or custom tickers) — hard 20s timeout
+    try:
+        result = await asyncio.wait_for(
+            asyncio.to_thread(_run_screener_sync, req, engine),
+            timeout=20.0,
+        )
+        return result
+    except asyncio.TimeoutError:
+        logger.warning("run_screener timed out for market=%s after 20s", req.market)
+        # Return partial: try serving whatever cache we have, even if stale
+        try:
+            cached_fallback = await asyncio.to_thread(
+                score_cache.read_top, req.market, n=req.max_results, max_age_seconds=999999999
+            )
+            if cached_fallback:
+                regime_id = _get_live_regime_id(req.market)
+                ai_scores = _cache_rows_to_ai_scores(cached_fallback[:req.max_results], req.market, regime_id)
+                ai_scores = _apply_preset_filters(ai_scores, req)
+                return ScreenerResponse(
+                    regime_label=REGIME_LABELS.get(regime_id, "Unknown"),
+                    regime_id=regime_id,
+                    results=ai_scores,
+                    total=len(ai_scores),
+                )
+        except Exception:
+            pass
+        return ScreenerResponse(regime_label="Unknown", regime_id=1, results=[], total=0)
 
 
 def _run_screener_sync(req: ScreenerRequest, engine: Any) -> ScreenerResponse:

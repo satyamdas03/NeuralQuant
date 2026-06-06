@@ -331,11 +331,12 @@ def _run_market_wrap_broadcast(market: str):
         return
 
     # Fetch subscribed users (investor tier and above)
+    # tier is text — use PostgREST `in` operator (gte on text columns causes 400)
     try:
         users = _supabase_rest(
             "users",
             "GET",
-            query={"select": "id,email,name,tier", "or": "(tier.eq.investor,tier.eq.pro,tier.eq.api)"},
+            query={"select": "id,email,name,tier", "tier": "in.(investor,pro,api)"},
         )
     except Exception:
         log.exception("[market-wrap] Failed to fetch users")

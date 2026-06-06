@@ -84,10 +84,29 @@ async def run_backtest(
     if req.fast >= req.slow:
         raise HTTPException(status_code=400, detail="fast must be < slow")
 
-    result = await asyncio.to_thread(_run_backtest_sync, req)
-    if isinstance(result, HTTPException):
-        raise result
-    return result
+    try:
+        result = await asyncio.wait_for(
+            asyncio.to_thread(_run_backtest_sync, req),
+            timeout=30.0,
+        )
+        if isinstance(result, HTTPException):
+            raise result
+        return result
+    except asyncio.TimeoutError:
+        logger.warning("backtest timed out for %s after 30s", req.ticker)
+        # Return partial result with zeroed metrics instead of a 504
+        return BacktestResponse(
+            ticker=req.ticker.upper(),
+            strategy=req.strategy,
+            final_equity=req.initial_capital,
+            total_return_pct=0.0,
+            buy_hold_return_pct=0.0,
+            sharpe=0.0,
+            max_drawdown_pct=0.0,
+            n_trades=0,
+            n_days=0,
+            equity_curve=[],
+        )
 
 
 def _run_backtest_sync(req: BacktestRequest) -> BacktestResponse | HTTPException:

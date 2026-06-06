@@ -103,7 +103,7 @@ export const SOURCES: DataSource[] = [
     icon: "Database",
   },
   {
-    name: "Anjali Value Screener",
+    name: "QuantFactor Screener",
     category: "alternative",
     coverage: ["US", "IN"],
     description:

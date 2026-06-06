@@ -46,7 +46,7 @@ export interface AIScore {
   top_drivers: FeatureDriver[];
   confidence: ConfidenceLevel;
   last_updated: string;
-  anjali?: AnjaliScores | null;  // Anjali Value Screener scores (null if not available)
+  anjali?: AnjaliScores | null;  // QuantFactor Engine scores (null if not available)
 }
 
 export interface AgentOutput {
@@ -78,8 +78,8 @@ export interface ScreenerRequest {
   min_quality?: number;
   min_low_vol?: number;
   max_momentum?: number;
-  // Anjali Value Screener filters
-  min_anjali_composite?: number;   // minimum Anjali composite score
+  // QuantFactor Engine filters
+  min_anjali_composite?: number;   // minimum QuantFactor composite score
   valuation_sweet_spot?: boolean;  // only Q2 valuation stocks
   loss_making?: boolean;           // exclude loss-making companies
 }
@@ -161,6 +161,7 @@ export interface Mover {
   change_pct: number;
   change_abs: number;
   volume: number;
+  stale?: boolean;
 }
 
 export interface MarketMovers {
@@ -457,7 +458,7 @@ export interface StockSummary {
   yield_curve_2y: number | null;
   yield_curve_10y: number | null;
   yield_curve_spread: number | null;
-  anjali?: AnjaliScores | null;  // Anjali Value Screener scores
+  anjali?: AnjaliScores | null;  // QuantFactor Engine scores
 }
 
 // ── Portfolio Output Types (Phase 1) ──────────────────────────────────────────

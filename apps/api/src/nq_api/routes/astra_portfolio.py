@@ -5,6 +5,7 @@ IRS north-star recommendations, and SEBI disclaimer.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from datetime import datetime, timezone
@@ -191,68 +192,87 @@ async def recommend_portfolio(
     """
     portfolios: dict[str, list] = {}
 
-    if market in ("IN", "BOTH"):
-        # Pool A: LM250 Alpha (Large & MidCap)
-        lm250 = _fetch_anjali_pool(
-            market="IN",
-            index_groups=["NSE250", "NIFTY200", "NIFTY100"],
-            min_g_score=0,
-            min_risk_score=0,
-            min_irs_pct=65,
-            limit=25,
-        )
-        portfolios["lm250"] = lm250
+    try:
+        if market in ("IN", "BOTH"):
+            # Pool A: LM250 Alpha (Large & MidCap)
+            lm250 = await asyncio.wait_for(
+                asyncio.to_thread(_fetch_anjali_pool,
+                    market="IN",
+                    index_groups=["NSE250", "NIFTY200", "NIFTY100"],
+                    min_g_score=0,
+                    min_risk_score=0,
+                    min_irs_pct=65,
+                    limit=25,
+                ),
+                timeout=10.0,
+            )
+            portfolios["lm250"] = lm250
 
-        # Pool B: SmallCap High Growth
-        smallcap = _fetch_anjali_pool(
-            market="IN",
-            index_groups=["NSE250"],
-            min_g_score=0,
-            require_all_growth_positive=True,
-            require_holding_positive=True,
-            require_fii_quarter_positive=True,
-            min_risk_score=0,
-            min_irs_pct=50,
-            limit=15,
-        )
-        portfolios["smallcap"] = smallcap
+            # Pool B: SmallCap High Growth
+            smallcap = await asyncio.wait_for(
+                asyncio.to_thread(_fetch_anjali_pool,
+                    market="IN",
+                    index_groups=["NSE250"],
+                    min_g_score=0,
+                    require_all_growth_positive=True,
+                    require_holding_positive=True,
+                    require_fii_quarter_positive=True,
+                    min_risk_score=0,
+                    min_irs_pct=50,
+                    limit=15,
+                ),
+                timeout=10.0,
+            )
+            portfolios["smallcap"] = smallcap
 
-        # Pool C: MicroCap (stricter risk)
-        microcap = _fetch_anjali_pool(
-            market="IN",
-            index_groups=["NSE250"],
-            min_g_score=0,
-            require_all_growth_positive=True,
-            require_holding_positive=True,
-            require_fii_quarter_positive=True,
-            require_risk_strict=1.0,  # Risk Score > 1.0 for MicroCap
-            min_irs_pct=50,
-            limit=10,
-        )
-        portfolios["microcap"] = microcap
+            # Pool C: MicroCap (stricter risk)
+            microcap = await asyncio.wait_for(
+                asyncio.to_thread(_fetch_anjali_pool,
+                    market="IN",
+                    index_groups=["NSE250"],
+                    min_g_score=0,
+                    require_all_growth_positive=True,
+                    require_holding_positive=True,
+                    require_fii_quarter_positive=True,
+                    require_risk_strict=1.0,  # Risk Score > 1.0 for MicroCap
+                    min_irs_pct=50,
+                    limit=10,
+                ),
+                timeout=10.0,
+            )
+            portfolios["microcap"] = microcap
 
-        # Pool D: Turnaround (Very High Risk only)
-        turnaround = _fetch_anjali_pool(
-            market="IN",
-            index_groups=["NSE250"],
-            require_holding_positive=True,
-            require_all_growth_positive=True,
-            min_risk_score=0,
-            min_irs_pct=40,
-            limit=10,
-        )
-        portfolios["turnaround"] = turnaround
+            # Pool D: Turnaround (Very High Risk only)
+            turnaround = await asyncio.wait_for(
+                asyncio.to_thread(_fetch_anjali_pool,
+                    market="IN",
+                    index_groups=["NSE250"],
+                    require_holding_positive=True,
+                    require_all_growth_positive=True,
+                    min_risk_score=0,
+                    min_irs_pct=40,
+                    limit=10,
+                ),
+                timeout=10.0,
+            )
+            portfolios["turnaround"] = turnaround
 
-    if market in ("US", "BOTH"):
-        us_pool = _fetch_anjali_pool(
-            market="US",
-            index_groups=["SP500", "SP400", "SP400+SP600"],
-            min_g_score=0,
-            min_risk_score=0,
-            min_irs_pct=65,
-            limit=25,
-        )
-        portfolios["us_sp500"] = us_pool
+        if market in ("US", "BOTH"):
+            us_pool = await asyncio.wait_for(
+                asyncio.to_thread(_fetch_anjali_pool,
+                    market="US",
+                    index_groups=["SP500", "SP400", "SP400+SP600"],
+                    min_g_score=0,
+                    min_risk_score=0,
+                    min_irs_pct=65,
+                    limit=25,
+                ),
+                timeout=10.0,
+            )
+            portfolios["us_sp500"] = us_pool
+    except asyncio.TimeoutError:
+        logger.warning("recommend_portfolio: pool fetch timed out, returning partial data")
+        # Continue with whatever pools we got before timeout
 
     # Build allocation based on risk profile
     if risk_profile == "low":

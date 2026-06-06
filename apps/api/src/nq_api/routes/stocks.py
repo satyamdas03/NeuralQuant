@@ -356,6 +356,9 @@ def _merge_meta(base: dict, overlay: dict) -> dict:
     return merged
 
 
+_META_TIMEOUT = 15  # seconds — hard cap for meta enrichment; return partial on timeout
+
+
 @router.get("/{ticker}/meta")
 async def get_stock_meta(ticker: str, market: str = Query("US")):
     t_up = _normalize_ticker(ticker, market)
@@ -371,16 +374,19 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
     # Try Supabase persistent cache — but only serve if fresh AND complete
     from nq_api.cache.score_cache import _supabase_rest
     supa_row = None
-    supa = _supabase_rest(
-        "stock_meta",
-        method="GET",
-        query={
-            "select": "data,fetched_at",
-            "ticker": f"eq.{t_up}",
-            "market": f"eq.{market}",
-            "order": "fetched_at.desc",
-            "limit": "1",
-        },
+    supa = await asyncio.wait_for(
+        asyncio.to_thread(_supabase_rest,
+            "stock_meta",
+            method="GET",
+            query={
+                "select": "data,fetched_at",
+                "ticker": f"eq.{t_up}",
+                "market": f"eq.{market}",
+                "order": "fetched_at.desc",
+                "limit": "1",
+            },
+        ),
+        timeout=5.0,
     )
     if isinstance(supa, list) and supa:
         import json as _json
@@ -403,23 +409,66 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
         except Exception:
             log.warning("meta Supabase cache parse failed for %s", t_up)
 
+    # ── Enrichment with hard 15s timeout ──
+    # Each step gets a slice of the budget. On timeout, return whatever we have.
+    meta_start = time.monotonic()
+
+    async def _remaining() -> float:
+        """Seconds left before the 15s budget expires."""
+        return max(0.5, _META_TIMEOUT - (time.monotonic() - meta_start))
+
+    def _partial_or_empty(data, label: str) -> dict:
+        """Return partial data merged with any cache, or empty meta."""
+        if isinstance(data, dict):
+            merged = _merge_meta(data, supa_row) if supa_row else data
+            if _has_null_fields(merged):
+                sc = _read_score_cache(t_up, market)
+                if sc:
+                    merged = _merge_meta(merged, sc)
+            return merged
+        log.warning("meta %s returned exception for %s: %s", label, t_up, data)
+        if supa_row:
+            return supa_row
+        sc = _read_score_cache(t_up, market)
+        if sc:
+            return _merge_meta(_empty_meta(t_up), sc)
+        return _empty_meta(t_up)
+
     # Primary: FMP (Financial Modeling Prep) — reliable, no Yahoo 401
-    fmp_meta = await asyncio.to_thread(_fetch_stock_meta_fmp, t_up, market)
+    fmp_meta = None
+    try:
+        fmp_meta = await asyncio.wait_for(
+            asyncio.to_thread(_fetch_stock_meta_fmp, t_up, market),
+            timeout=min(8.0, _remaining()),
+        )
+    except asyncio.TimeoutError:
+        log.warning("meta FMP timed out for %s after %.1fs", t_up, time.monotonic() - meta_start)
+
     if isinstance(fmp_meta, dict) and not _has_null_fields(fmp_meta):
         _META_CACHE[cache_key] = (fmp_meta, time.monotonic())
         _persist_meta(t_up, market, fmp_meta)
         return fmp_meta
-    if isinstance(fmp_meta, dict):
-        # FMP partial — merge with Supabase/score_cache to fill gaps
-        merged = _merge_meta(fmp_meta, supa_row) if supa_row else fmp_meta
-        if _has_null_fields(merged):
-            sc = _read_score_cache(t_up, market)
-            if sc:
-                merged = _merge_meta(merged, sc)
-        # Always try yfinance for partial FMP — it may have fresh P/E, price, etc.
-        # that Supabase cache doesn't (stale values). _merge_meta only fills nulls,
-        # so yfinance won't overwrite FMP values (FMP is authoritative for name/beta/sector).
-        yf_result = await asyncio.to_thread(_fetch_stock_meta, t_up, market)
+
+    # FMP partial or failed — try yfinance, Yahoo direct with remaining budget
+    fmp_partial = fmp_meta if isinstance(fmp_meta, dict) else None
+    merged = fmp_partial or (supa_row or _empty_meta(t_up))
+    if supa_row and fmp_partial:
+        merged = _merge_meta(fmp_partial, supa_row)
+    if _has_null_fields(merged):
+        sc = _read_score_cache(t_up, market)
+        if sc:
+            merged = _merge_meta(merged, sc)
+
+    # yfinance attempt — only if budget remaining
+    if _remaining() > 1.0:
+        yf_result = None
+        try:
+            yf_result = await asyncio.wait_for(
+                asyncio.to_thread(_fetch_stock_meta, t_up, market),
+                timeout=min(5.0, _remaining()),
+            )
+        except asyncio.TimeoutError:
+            log.warning("meta yfinance timed out for %s after %.1fs total", t_up, time.monotonic() - meta_start)
         if isinstance(yf_result, dict):
             merged = _merge_meta(merged, yf_result)
             # For P/E and current_price, prefer yfinance fresh data over stale cache
@@ -427,51 +476,39 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
                 merged["pe_ttm"] = yf_result["pe_ttm"]
             if yf_result.get("current_price") and merged.get("current_price") != yf_result["current_price"]:
                 merged["current_price"] = yf_result["current_price"]
+        elif isinstance(yf_result, Exception):
+            # yfinance failed — try Yahoo direct fallback if budget remains
+            if _remaining() > 1.0:
+                fallback = None
+                try:
+                    fallback = await asyncio.wait_for(
+                        asyncio.to_thread(_fetch_stock_meta_yahoo_direct, t_up, market),
+                        timeout=min(5.0, _remaining()),
+                    )
+                except asyncio.TimeoutError:
+                    log.warning("meta Yahoo direct timed out for %s after %.1fs total", t_up, time.monotonic() - meta_start)
+                if isinstance(fallback, dict):
+                    merged = _merge_meta(merged, fallback)
+
+    # Return whatever we have — even if partial, better than timeout
+    if not _has_null_fields(merged) or merged.get("ticker"):
         _META_CACHE[cache_key] = (merged, time.monotonic())
         _persist_meta(t_up, market, merged)
+        elapsed = time.monotonic() - meta_start
+        if elapsed > 10:
+            log.warning("meta slow response for %s: %.1fs (partial=%s)", t_up, elapsed, _has_null_fields(merged))
         return merged
 
-    # Secondary: yfinance
-    result = await asyncio.to_thread(_fetch_stock_meta, t_up, market)
-    if isinstance(result, dict):
-        # Merge with Supabase cache or score_cache to fill any nulls
-        if _has_null_fields(result):
-            merged = _merge_meta(result, supa_row) if supa_row else result
-            if _has_null_fields(merged):
-                sc = _read_score_cache(t_up, market)
-                if sc:
-                    merged = _merge_meta(merged, sc)
-            result = merged
-        _META_CACHE[cache_key] = (result, time.monotonic())
-        _persist_meta(t_up, market, result)
-        return result
-
-    # Fallback: Yahoo quoteSummary v10 (with 1 retry)
-    log.warning("meta yfinance failed for %s (%s) — trying Yahoo fallback: %s",
-                t_up, market, result)
-    fallback = await asyncio.to_thread(_fetch_stock_meta_yahoo_direct, t_up, market)
-    if isinstance(fallback, dict):
-        if _has_null_fields(fallback):
-            merged = _merge_meta(fallback, supa_row) if supa_row else fallback
-            if _has_null_fields(merged):
-                sc = _read_score_cache(t_up, market)
-                if sc:
-                    merged = _merge_meta(merged, sc)
-            fallback = merged
-        _META_CACHE[cache_key] = (fallback, time.monotonic())
-        _persist_meta(t_up, market, fallback)
-        return fallback
-
-    # Fallback: merge Supabase cache + score_cache
+    # Last resort: merge Supabase cache + score_cache
     sc = _read_score_cache(t_up, market)
     if supa_row or sc:
         base = supa_row or _build_from_score_cache(t_up, market, sc) or _empty_meta(t_up)
-        merged = base
+        merged_last = base
         if sc:
-            merged = _merge_meta(merged, sc)
-        _META_CACHE[cache_key] = (merged, time.monotonic())
+            merged_last = _merge_meta(merged_last, sc)
+        _META_CACHE[cache_key] = (merged_last, time.monotonic())
         log.info("meta: serving merged cache for %s", t_up)
-        return merged
+        return merged_last
 
     # Both failed — serve stale cache if available, else minimal response
     if cached:
@@ -1158,4 +1195,4 @@ async def get_anjali_detail(ticker: str, market: str = "US"):
         except Exception as exc:
             log.warning("Anjali detail fetch failed for %s: %s", t, exc)
 
-    raise HTTPException(status_code=404, detail=f"Anjali data not found for {ticker}")
+    raise HTTPException(status_code=404, detail=f"QuantFactor data not found for {ticker}")

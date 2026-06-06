@@ -52,6 +52,41 @@ def _get_yf_session():
             _yf_session = False  # sentinel: don't retry
     return _yf_session if _yf_session else None
 
+
+def _reset_yf_session():
+    """Reset the shared yfinance session after an Invalid Crumb auth error.
+
+    Yahoo Finance cookies expire periodically. When this happens, the
+    cached session becomes stale and all subsequent yfinance calls fail
+    with HTTP 401 / "Invalid Crumb".  Resetting forces a new curl_cffi
+    session which triggers yfinance to re-authenticate with Yahoo.
+    """
+    global _yf_session
+    old = _yf_session
+    _yf_session = None  # force re-creation on next _get_yf_session()
+    # Close old session to release resources
+    if old and old is not False:
+        try:
+            old.close()
+        except Exception:
+            pass
+    # Also clear yfinance internal crumb/cookie cache
+    try:
+        import yfinance.utils as yf_utils
+        if hasattr(yf_utils, "_CRUMB"):
+            yf_utils._CRUMB = None
+        if hasattr(yf_utils, "_COOKIE"):
+            yf_utils._COOKIE = None
+    except Exception:
+        pass
+    log.info("Reset yfinance session after crumb/auth error")
+
+
+def _is_yf_crumb_error(exc: Exception) -> bool:
+    """Detect yfinance 'Invalid Crumb' or 401 auth errors."""
+    msg = str(exc).lower()
+    return "crumb" in msg or "401" in msg or "unauthorized" in msg
+
 _IS_RENDER = bool(os.environ.get("RENDER"))
 _lock = threading.Lock()
 _fund_cache: dict[str, dict] = {}
@@ -94,6 +129,10 @@ def _fetch_yf_info_cached(sym: str) -> dict:
             log.debug("yfinance empty info for %s (attempt %d/%d)", sym, attempt + 1, 3)
         except Exception as exc:
             log.debug("yfinance fetch exception for %s (attempt %d/%d): %s", sym, attempt + 1, 3, exc)
+            # On crumb/auth error, reset session and retry immediately
+            if _is_yf_crumb_error(exc) and attempt == 0:
+                _reset_yf_session()
+                continue
         if attempt < 2:
             time.sleep(3.0 if _IS_RENDER else 1.0)
 
@@ -506,8 +545,15 @@ def fetch_real_macro() -> _LiveMacro:
             h = yf.Ticker("^VIX", session=_get_yf_session()).history(period="5d", auto_adjust=True)
             if not h.empty:
                 m.vix = float(h["Close"].iloc[-1])
-        except Exception:
-            pass
+        except Exception as _vix_exc:
+            if _is_yf_crumb_error(_vix_exc):
+                _reset_yf_session()
+                try:
+                    h = yf.Ticker("^VIX", session=_get_yf_session()).history(period="5d", auto_adjust=True)
+                    if not h.empty:
+                        m.vix = float(h["Close"].iloc[-1])
+                except Exception:
+                    pass
 
     # --- yfinance: SPX 200-day MA + 1-month return ---
     if not _on_gha:
@@ -521,8 +567,21 @@ def fetch_real_macro() -> _LiveMacro:
                 m.spx_return_1m = (
                     float(spx["Close"].iloc[-1]) / float(spx["Close"].iloc[-22]) - 1
                 )
-        except Exception:
-            pass
+        except Exception as _spx_exc:
+            if _is_yf_crumb_error(_spx_exc):
+                _reset_yf_session()
+                try:
+                    spx = yf.Ticker("^GSPC", session=_get_yf_session()).history(period="252d", auto_adjust=True)
+                    if len(spx) >= 200:
+                        last = float(spx["Close"].iloc[-1])
+                        ma200 = float(spx["Close"].tail(200).mean())
+                        m.spx_vs_200ma = (last - ma200) / ma200
+                    if len(spx) >= 22:
+                        m.spx_return_1m = (
+                            float(spx["Close"].iloc[-1]) / float(spx["Close"].iloc[-22]) - 1
+                        )
+                except Exception:
+                    pass
 
     # --- FRED: HY spread, ISM PMI, 2Y/10Y yields, CPI, Fed funds ---
     fred_key = os.environ.get("FRED_API_KEY", "").strip()
@@ -612,8 +671,15 @@ def fetch_real_macro_in() -> _LiveMacroIN:
             h = yf.Ticker("^INDIAVIX", session=_get_yf_session()).history(period="5d", auto_adjust=True)
             if not h.empty:
                 m.india_vix = float(h["Close"].iloc[-1])
-        except Exception:
-            pass
+        except Exception as _ivix_exc:
+            if _is_yf_crumb_error(_ivix_exc):
+                _reset_yf_session()
+                try:
+                    h = yf.Ticker("^INDIAVIX", session=_get_yf_session()).history(period="5d", auto_adjust=True)
+                    if not h.empty:
+                        m.india_vix = float(h["Close"].iloc[-1])
+                except Exception:
+                    pass
 
     # Nifty 50 — 200-day MA + 1-month return
     if not _on_gha:
@@ -628,8 +694,22 @@ def fetch_real_macro_in() -> _LiveMacroIN:
                     float(nifty["Close"].iloc[-1]) / float(nifty["Close"].iloc[-22]) - 1
                 )
                 m.sensex_close = last
-        except Exception:
-            pass
+        except Exception as _nifty_exc:
+            if _is_yf_crumb_error(_nifty_exc):
+                _reset_yf_session()
+                try:
+                    nifty = yf.Ticker("^NSEI", session=_get_yf_session()).history(period="252d", auto_adjust=True)
+                    if len(nifty) >= 200:
+                        last = float(nifty["Close"].iloc[-1])
+                        ma200 = float(nifty["Close"].tail(200).mean())
+                        m.nifty_vs_200ma = (last - ma200) / ma200
+                    if len(nifty) >= 22:
+                        m.nifty_return_1m = (
+                            float(nifty["Close"].iloc[-1]) / float(nifty["Close"].iloc[-22]) - 1
+                        )
+                        m.sensex_close = last
+                except Exception:
+                    pass
 
     # USD/INR — use USDINR=X which returns ~83.5 (INR per USD).
     # INRUSD=X returns ~0.012 (USD per INR) which is confusing for agents.
@@ -638,14 +718,23 @@ def fetch_real_macro_in() -> _LiveMacroIN:
             usdinr = yf.Ticker("USDINR=X", session=_get_yf_session()).history(period="5d", auto_adjust=True)
             if not usdinr.empty:
                 m.inr_usd = round(float(usdinr["Close"].iloc[-1]), 2)
-        except Exception:
-            # Fallback: try INRUSD=X and invert
-            try:
-                inrusd = yf.Ticker("INRUSD=X", session=_get_yf_session()).history(period="5d", auto_adjust=True)
-                if not inrusd.empty:
-                    m.inr_usd = round(1.0 / float(inrusd["Close"].iloc[-1]), 2)
-            except Exception:
-                pass
+        except Exception as _fx_exc:
+            if _is_yf_crumb_error(_fx_exc):
+                _reset_yf_session()
+                try:
+                    usdinr = yf.Ticker("USDINR=X", session=_get_yf_session()).history(period="5d", auto_adjust=True)
+                    if not usdinr.empty:
+                        m.inr_usd = round(float(usdinr["Close"].iloc[-1]), 2)
+                except Exception:
+                    pass
+            else:
+                # Fallback: try INRUSD=X and invert
+                try:
+                    inrusd = yf.Ticker("INRUSD=X", session=_get_yf_session()).history(period="5d", auto_adjust=True)
+                    if not inrusd.empty:
+                        m.inr_usd = round(1.0 / float(inrusd["Close"].iloc[-1]), 2)
+                except Exception:
+                    pass
 
     if _on_gha:
         log.info("GHA detected — India yfinance macro calls skipped")
@@ -810,8 +899,18 @@ def _fetch_one(ticker: str, market: str, fast_pe: bool = True) -> dict:
                     close_vals = dl_hist["Close"].dropna()
                     if len(close_vals) > 0:
                         dl_price = float(close_vals.iloc[-1])
-            except Exception:
-                pass
+            except Exception as _dl_exc:
+                if _is_yf_crumb_error(_dl_exc):
+                    _reset_yf_session()
+                    try:
+                        dl_hist = yf.download(sym, period="5d", progress=False, auto_adjust=True,
+                                              threads=False, session=_get_yf_session())
+                        if dl_hist is not None and not dl_hist.empty and "Close" in dl_hist.columns:
+                            close_vals = dl_hist["Close"].dropna()
+                            if len(close_vals) > 0:
+                                dl_price = float(close_vals.iloc[-1])
+                    except Exception:
+                        pass
             if dl_price and dl_price > 0:
                 info = {"currentPrice": dl_price, "regularMarketPrice": dl_price}
                 log.info("yf.download rescued %s: price=%.2f (info+FMP both failed)", sym, dl_price)
@@ -1080,8 +1179,21 @@ def _fetch_one(ticker: str, market: str, fast_pe: bool = True) -> dict:
                         if len(close_vals) > 0:
                             current_price = float(close_vals.iloc[-1])
                             log.debug("yf.download fallback price for %s: %.2f", ticker, current_price)
-                except Exception:
-                    pass
+                except Exception as _yf_exc:
+                    if _is_yf_crumb_error(_yf_exc):
+                        _reset_yf_session()
+                        try:
+                            sess = _get_yf_session()
+                            yf_kw = {"period": "5d", "progress": False, "auto_adjust": True, "threads": False}
+                            if sess:
+                                yf_kw["session"] = sess
+                            hist = yf.download(sym, **yf_kw)
+                            if hist is not None and not hist.empty and "Close" in hist.columns:
+                                close_vals = hist["Close"].dropna()
+                                if len(close_vals) > 0:
+                                    current_price = float(close_vals.iloc[-1])
+                        except Exception:
+                            pass
             if current_price is None:
                 _missing.add("current_price")
 

@@ -61,8 +61,14 @@ async def _fetch_last_session_summary(user_id: str) -> str | None:
         from nq_api.cache.score_cache import _supabase_rest
 
         result = _supabase_rest(
-            f"session_reports?user_id=eq.{user_id}&select=summary,generated_at&order=generated_at.desc&limit=1",
+            "session_reports",
             method="GET",
+            query={
+                "user_id": f"eq.{user_id}",
+                "select": "summary,generated_at",
+                "order": "generated_at.desc",
+                "limit": "1",
+            },
         )
         if isinstance(result, list) and result:
             return result[0].get("summary")

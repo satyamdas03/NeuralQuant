@@ -128,10 +128,10 @@ async def run_nl_query(
             return default
 
     enrichment, headlines, macro_ctx, platform_ctx, finnhub_news = await asyncio.gather(
-        _timed(asyncio.to_thread(_fetch_enrichment, effective_ticker, req.market or 'US'), 45.0, {}),
+        _timed(asyncio.to_thread(_fetch_enrichment, effective_ticker, req.market or 'US'), 15.0, {}),
         _timed(asyncio.to_thread(_fetch_relevant_news, req.question, req.ticker, 5), 8.0, []),
         _timed(asyncio.to_thread(_build_macro_context, req.question, req.market or "US", today), 10.0, None),
-        _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, req.market or "US"), 45.0, None),
+        _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, req.market or "US"), 15.0, None),
         _timed(asyncio.to_thread(_fetch_finnhub_news_summaries, req.ticker, req.market or "US", 5), 8.0, []),
     )
 
@@ -358,9 +358,9 @@ async def run_nl_query_v2(
     headlines, macro_ctx, platform_ctx, finnhub_news, enrichment = await asyncio.gather(
         _timed(asyncio.to_thread(_fetch_relevant_news, req.question, effective_ticker_v2, 5), 8.0, []),
         _timed(asyncio.to_thread(_build_macro_context, req.question, effective_market_v2, today), 10.0, None),
-        _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, effective_market_v2), 45.0, None),
+        _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, effective_market_v2), 15.0, None),
         _timed(asyncio.to_thread(_fetch_finnhub_news_summaries, effective_ticker_v2, effective_market_v2, 5), 8.0, []),
-        _timed(asyncio.to_thread(_fetch_enrichment, effective_ticker_v2, effective_market_v2), 45.0, {}),
+        _timed(asyncio.to_thread(_fetch_enrichment, effective_ticker_v2, effective_market_v2), 15.0, {}),
     )
 
     context_parts = [
@@ -872,9 +872,9 @@ async def run_nl_query_v2_stream(
             headlines, macro_ctx, platform_ctx, finnhub_news, enrichment = await asyncio.gather(
                 _timed(asyncio.to_thread(_fetch_relevant_news, req.question, stream_ticker, 5), 8.0, []),
                 _timed(asyncio.to_thread(_build_macro_context, req.question, stream_market, today), 10.0, None),
-                _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, stream_market), 45.0, None),
+                _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, stream_market), 15.0, None),
                 _timed(asyncio.to_thread(_fetch_finnhub_news_summaries, stream_ticker, stream_market, 5), 8.0, []),
-                _timed(asyncio.to_thread(_fetch_enrichment, stream_ticker, stream_market), 45.0, {}),
+                _timed(asyncio.to_thread(_fetch_enrichment, stream_ticker, stream_market), 15.0, {}),
             )
             context_parts = [f"Today's date: {today}", f"User question: {req.question}"]
             if macro_ctx:
@@ -949,7 +949,7 @@ async def run_nl_query_v2_stream(
         while not context_done.is_set():
             yield 'data: {"status":"running"}\n\n'
             elapsed = time.monotonic() - ctx_start
-            if elapsed > 55:                       # 55s: must be >= max inner timeout (45s) + buffer
+            if elapsed > 25:                       # 25s: must be >= max inner timeout (15s) + buffer
                 context_task.cancel()
                 result_holder.setdefault("error", "Context gathering timed out")
                 break
