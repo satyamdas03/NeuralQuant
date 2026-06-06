@@ -19,7 +19,14 @@ log = logging.getLogger(__name__)
 
 
 def _is_nonfinite(v) -> bool:
-    """Check if v is NaN or Inf. Handles Python float and numpy-like types."""
+    """Check if v is NaN, Inf, or pandas NA. Handles Python float and numpy-like types."""
+    # pandas NA / numpy NaN / pd.isna() objects
+    try:
+        import pandas as pd
+        if pd.isna(v) and v is not None and v is not False:
+            return True
+    except Exception:
+        pass
     if isinstance(v, float):
         return math.isnan(v) or math.isinf(v)
     if hasattr(v, '__float__') and not isinstance(v, (str, int, bool, type(None))):
