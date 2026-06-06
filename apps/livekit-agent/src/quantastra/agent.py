@@ -263,8 +263,30 @@ async def entrypoint(ctx: JobContext):
 
     log.info("QuantAstra agent ready in room: %s", ctx.room.name)
 
+    # ── Keepalive ping loop ────────────────────────────────────────────────
+    async def _keepalive_ping() -> None:
+        """Periodic ping to prevent connection timeouts and detect silent drops."""
+        while True:
+            try:
+                await asyncio.sleep(30)
+                await _publish(participant, {
+                    "type": "ping",
+                    "timestamp": asyncio.get_event_loop().time(),
+                })
+            except asyncio.CancelledError:
+                break
+            except Exception:
+                log.debug("Keepalive ping failed", exc_info=True)
+
+    keepalive_task = asyncio.create_task(_keepalive_ping())
+
     async def _on_shutdown(reason: str = "") -> None:
         log.info("Agent shutting down: %s", reason)
+        keepalive_task.cancel()
+        try:
+            await keepalive_task
+        except asyncio.CancelledError:
+            pass
         if not user_id.startswith("anonymous") and agent._conversation_turns:
             try:
                 await summarize_and_store_session(user_id, agent._conversation_turns)

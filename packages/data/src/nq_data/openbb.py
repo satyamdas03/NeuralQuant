@@ -114,6 +114,9 @@ class OpenBBClient:
         try:
             url = f"{self._base_url}{path}"
             r = self._get_client().get(url, params=params or {})
+            if r.status_code == 400:
+                log.debug("OpenBB %s → 400 (no data for params %s)", path, params)
+                return None
             if r.status_code != 200:
                 body_preview = r.text[:200] if r.text else ""
                 log.warning("OpenBB %s → %d: %s", path, r.status_code, body_preview)

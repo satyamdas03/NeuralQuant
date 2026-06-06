@@ -6,7 +6,7 @@ from fastapi import APIRouter
 import yfinance as yf
 import pandas as pd
 
-from nq_api.data_builder import _get_yf_session, _fetch_yf_info_cached, _IS_RENDER
+from nq_api.data_builder import _get_yf_session, _fetch_yf_info_cached, _IS_RENDER, _reset_yf_session
 from nq_api.universe import UNIVERSE_BY_MARKET
 
 logger = logging.getLogger(__name__)
@@ -56,7 +56,7 @@ _SECTORS = {
 # ─── In-memory caches ──────────────────────────────────────────────────────────
 
 _overview_cache: dict = {}
-_overview_ts: float = 0.0
+_overview_ts: dict[str, float] = {}
 OVERVIEW_TTL = 300  # 5 minutes
 
 _sector_cache: dict = {}
@@ -90,40 +90,52 @@ def _pct_change_from_info(sym: str) -> dict | None:
     return None
 
 
+def _is_yf_crumb_error(exc: Exception) -> bool:
+    """Detect yfinance 'Invalid Crumb' or 401 auth errors."""
+    msg = str(exc).lower()
+    return "crumb" in msg or "401" in msg or "unauthorized" in msg
+
+
 def _batch_pct_change(symbols: list[str]) -> dict[str, dict]:
     """Fetch price and % change for multiple symbols using yf.download (batch).
     This works on Render where individual yf.Ticker().history() calls fail."""
     result = {}
-    try:
-        raw = yf.download(
-            symbols, period="5d", progress=False,
-            auto_adjust=True, threads=False,
-            session=_get_yf_session(),
-        )
-        if raw.empty:
-            return result
-        close = raw["Close"] if isinstance(raw.columns, pd.MultiIndex) else raw[["Close"]]
-        for sym in symbols:
-            try:
-                if isinstance(close, pd.DataFrame) and sym in close.columns:
-                    closes = close[sym].dropna()
-                elif isinstance(close, pd.Series):
-                    closes = close.dropna()
-                else:
+    for attempt in range(2):
+        try:
+            raw = yf.download(
+                symbols, period="5d", progress=False,
+                auto_adjust=True, threads=False,
+                session=_get_yf_session(),
+            )
+            if raw.empty:
+                return result
+            close = raw["Close"] if isinstance(raw.columns, pd.MultiIndex) else raw[["Close"]]
+            for sym in symbols:
+                try:
+                    if isinstance(close, pd.DataFrame) and sym in close.columns:
+                        closes = close[sym].dropna()
+                    elif isinstance(close, pd.Series):
+                        closes = close.dropna()
+                    else:
+                        continue
+                    if len(closes) < 2:
+                        continue
+                    price = float(closes.iloc[-1])
+                    prev = float(closes.iloc[-2])
+                    if prev <= 0:
+                        continue
+                    chg_abs = round(price - prev, 2)
+                    chg_pct = round((chg_abs / prev * 100), 2)
+                    result[sym] = {"price": round(price, 2), "change_pct": chg_pct, "change_abs": chg_abs}
+                except Exception:
                     continue
-                if len(closes) < 2:
-                    continue
-                price = float(closes.iloc[-1])
-                prev = float(closes.iloc[-2])
-                if prev <= 0:
-                    continue
-                chg_abs = round(price - prev, 2)
-                chg_pct = round((chg_abs / prev * 100), 2)
-                result[sym] = {"price": round(price, 2), "change_pct": chg_pct, "change_abs": chg_abs}
-            except Exception:
+            break  # success
+        except Exception as exc:
+            if _is_yf_crumb_error(exc) and attempt == 0:
+                logger.warning("batch_pct_change crumb error, resetting session and retrying")
+                _reset_yf_session()
                 continue
-    except Exception as exc:
-        logger.warning("batch_pct_change failed: %s", exc)
+            logger.warning("batch_pct_change failed: %s", exc)
     return result
 
 
@@ -131,24 +143,23 @@ def _batch_pct_change(symbols: list[str]) -> dict[str, dict]:
 async def market_overview(market: str = "US"):
     global _overview_cache, _overview_ts
     now = time.time()
+    mkt = market.upper()
 
     # Return cached if fresh
-    cached = _overview_cache.get(market.upper())
-    if cached and now - _overview_ts < OVERVIEW_TTL:
+    cached = _overview_cache.get(mkt)
+    if cached and now - _overview_ts.get(mkt, 0) < OVERVIEW_TTL:
         return cached
 
     try:
         data = await asyncio.wait_for(
-            asyncio.to_thread(_market_overview_sync, market.upper()),
+            asyncio.to_thread(_market_overview_sync, mkt),
             timeout=20.0,
         )
     except asyncio.TimeoutError:
-        logger.warning("market_overview: _market_overview_sync timed out for %s", market.upper())
+        logger.warning("market_overview: _market_overview_sync timed out for %s", mkt)
         data = {"indices": [], "futures": []}
-    if _overview_cache is None:
-        _overview_cache = {}
-    _overview_cache[market.upper()] = data
-    _overview_ts = now
+    _overview_cache[mkt] = data
+    _overview_ts[mkt] = now
     return data
 
 
@@ -232,8 +243,19 @@ async def market_news(n: int = 8):
 
 def _market_news_sync(n: int = 8):
     global _news_cache, _news_ts
+    items = []
+    for attempt in range(2):
+        try:
+            items = yf.Ticker("^GSPC", session=_get_yf_session()).news or []
+            break
+        except Exception as exc:
+            if _is_yf_crumb_error(exc) and attempt == 0:
+                logger.warning("market_news crumb error, resetting session and retrying")
+                _reset_yf_session()
+                continue
+            logger.debug("Market news fetch failed: %s", exc)
+            break
     try:
-        items = yf.Ticker("^GSPC", session=_get_yf_session()).news or []
         result = []
         for item in items[:n]:
             content = item.get("content") or {}
@@ -355,12 +377,12 @@ def _market_movers_sync():
             if gainers or losers or actives:
                 def _to_mover(m):
                     price = m.get("price")
-                    # Skip items with missing price or micro-penny stocks (<$1)
+                    # Skip items with missing price or micro-penny stocks (<$0.10)
                     if price is None:
                         return None
                     try:
                         p = float(price)
-                        if p < 1.0:
+                        if p < 0.10:
                             return None  # Sub-dollar stocks are unreliable
                     except (ValueError, TypeError):
                         return None
