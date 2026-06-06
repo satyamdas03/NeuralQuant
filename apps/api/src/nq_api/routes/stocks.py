@@ -240,7 +240,7 @@ def _fetch_chart_yahoo_direct(sym: str, period: str) -> list[dict]:
                 "volume": int(v or 0),
             })
         except Exception as e:
-            logger.debug("Non-critical enrichment failed: %s", e)
+            log.debug("Non-critical enrichment failed: %s", e)
             continue
     return out
 
@@ -608,7 +608,7 @@ def _persist_meta(ticker: str, market: str, data: dict) -> None:
             query={"ticker": f"eq.{ticker}", "market": f"eq.{market}"},
         )
     except Exception as e:
-        logger.debug("Non-critical enrichment failed: %s", e)
+        log.debug("Non-critical enrichment failed: %s", e)
         # Try INSERT if PATCH fails (row doesn't exist yet)
         try:
             _supabase_rest("stock_meta", method="POST", body=[row])

@@ -235,7 +235,14 @@ function EquityChart({ data }: { data: { date: string; equity: number }[] }) {
 
 export default function BacktestPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="animate-pulse flex flex-col items-center gap-4">
+          <div className="h-8 w-48 bg-surface-variant rounded" />
+          <div className="h-4 w-32 bg-surface-variant rounded" />
+        </div>
+      </div>
+    }>
       <BacktestForm />
     </Suspense>
   );

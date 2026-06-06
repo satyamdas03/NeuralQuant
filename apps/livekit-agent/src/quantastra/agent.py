@@ -53,6 +53,12 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 logging.basicConfig(level=getattr(logging, LOG_LEVEL, logging.INFO))
 log.info("quantastra-agent worker starting — LiveKit URL: %s", os.getenv("LIVEKIT_URL", "not set"))
 
+# Fail fast if required env vars are missing — avoids cryptic retry loops
+for key in ("LIVEKIT_URL", "LIVEKIT_API_KEY", "LIVEKIT_API_SECRET"):
+    if not os.getenv(key):
+        log.critical("Missing required env var: %s — worker cannot connect to LiveKit Cloud", key)
+        raise SystemExit(1)
+
 
 async def _publish(participant: LocalParticipant | None, msg: dict) -> None:
     """Publish a JSON message to the frontend via LiveKit data channel."""

@@ -18,20 +18,29 @@ import type {
 // next.config.ts rewrites /api/:path* → NEXT_PUBLIC_API_URL/:path*
 const API_BASE = "/api";
 
+const DEFAULT_TIMEOUT_MS = 15_000; // 15s — prevents infinite loading on cold backend
+
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`API error ${response.status}: ${error}`);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${API_BASE}${path}`, {
+      headers: { "Content-Type": "application/json" },
+      ...options,
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`API error ${response.status}: ${error}`);
+    }
+    return response.json();
+  } finally {
+    clearTimeout(timeout);
   }
-  return response.json();
 }
 
 // Authed variant — attaches Supabase access token for /auth/* and /watchlist/*
-async function authedFetch<T>(path: string, options?: RequestInit & { signal?: AbortSignal }): Promise<T> {
+async function authedFetch<T>(path: string, options?: RequestInit & { signal?: AbortSignal; timeoutMs?: number }): Promise<T> {
   const { createClient } = await import("./supabase/client");
   const supabase = createClient();
   const { data } = await supabase.auth.getSession();
@@ -39,16 +48,30 @@ async function authedFetch<T>(path: string, options?: RequestInit & { signal?: A
   const headers = new Headers(options?.headers || {});
   headers.set("Content-Type", "application/json");
   if (token) headers.set("Authorization", `Bearer ${token}`);
-  const response = await fetch(`${API_BASE}${path}`, { ...options, headers, signal: options?.signal });
-  if (response.status === 401) {
-    throw new Error("auth required");
+
+  // Use caller's AbortController if provided, otherwise create one with a timeout
+  const controller = options?.signal ? null : new AbortController();
+  const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const timeout = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+
+  try {
+    const response = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers,
+      signal: options?.signal || controller?.signal,
+    });
+    if (response.status === 401) {
+      throw new Error("auth required");
+    }
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`API ${response.status}: ${error}`);
+    }
+    if (response.status === 204) return undefined as T;
+    return response.json();
+  } finally {
+    if (timeout) clearTimeout(timeout);
   }
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`API ${response.status}: ${error}`);
-  }
-  if (response.status === 204) return undefined as T;
-  return response.json();
 }
 
 export const authedApi = {
@@ -325,16 +348,23 @@ export const guestBacktest = {
     const token = data.session?.access_token;
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (token) headers["Authorization"] = `Bearer ${token}`;
-    const response = await fetch(`${API_BASE}/backtest`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(body),
-    });
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`API ${response.status}: ${error}`);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 45_000); // 45s for backtest compute
+    try {
+      const response = await fetch(`${API_BASE}/backtest`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`API ${response.status}: ${error}`);
+      }
+      return response.json();
+    } finally {
+      clearTimeout(timeout);
     }
-    return response.json();
   },
   accuracy: async (): Promise<AccuracyResponse> => {
     const controller = new AbortController();

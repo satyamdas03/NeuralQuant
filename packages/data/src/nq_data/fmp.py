@@ -76,7 +76,11 @@ class FMPClient:
 
     def __init__(self, api_key: str | None = None):
         self._api_key = api_key or os.environ.get("FMP_API_KEY", "")
-        self._client = httpx.Client(timeout=20.0, follow_redirects=True)
+        self._client = httpx.Client(
+            timeout=20.0,
+            follow_redirects=True,
+            limits=httpx.Limits(max_connections=20, max_keepalive_connections=5),
+        )
         self._cache: dict[str, tuple[float, Any]] = {}
         self._lock = threading.Lock()
         self._enabled = bool(self._api_key)
@@ -681,6 +685,11 @@ class FMPClient:
         key = f"{category}:{ticker}"
         with self._lock:
             self._cache[key] = (time.monotonic(), data)
+
+    def close(self) -> None:
+        """Close the underlying HTTP client to free connections."""
+        if self._client and not self._client.is_closed:
+            self._client.close()
 
     def clear_cache(self) -> None:
         with self._lock:

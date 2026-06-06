@@ -269,10 +269,11 @@ class OpenBBClient:
             return False
         try:
             # Use a dedicated client with long timeout for cold starts
-            r = httpx.Client(timeout=httpx.Timeout(connect=15.0, read=90.0, write=10.0, pool=10.0)).get(
-                f"{self._base_url}/api/v1/equity/profile",
-                params={"symbol": "AAPL", "provider": "yfinance"},
-            )
+            with httpx.Client(timeout=httpx.Timeout(connect=15.0, read=90.0, write=10.0, pool=10.0)) as client:
+                r = client.get(
+                    f"{self._base_url}/api/v1/equity/profile",
+                    params={"symbol": "AAPL", "provider": "yfinance"},
+                )
             if r.status_code == 200:
                 log.info("OpenBB warmup succeeded")
                 return True
