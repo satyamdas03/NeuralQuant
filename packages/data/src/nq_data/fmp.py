@@ -43,6 +43,7 @@ _TTLS: dict[str, int] = {
     "dividends": 86400,       # 24 hours
     "screener": 3600,         # 1 hour
     "historical_prices": 3600,  # 1 hour
+    "stock_peers": 86400,       # 24 hours — peer lists rarely change
 }
 
 # ── Symbol resolution ────────────────────────────────────────────────────────
@@ -543,6 +544,28 @@ class FMPClient:
             })
         return results if results else None
 
+    def get_stock_peers(self, ticker: str) -> list[str] | None:
+        """Stock peers / competitors. Returns list of peer ticker symbols.
+
+        Uses FMP /stable/stock-peers which returns companies in the same
+        industry and of similar market cap.  Falls back to empty list on error.
+        """
+        sym = self._resolve_symbol(ticker)
+        data = self._fetch("stock_peers", ticker, {"symbol": sym})
+        if not data or not isinstance(data, list) or len(data) == 0:
+            return None
+        # FMP returns a list of dicts with "symbol" keys, or a flat list of symbols
+        peers: list[str] = []
+        for item in data:
+            if isinstance(item, str):
+                # Strip exchange suffixes to normalise (e.g. "AAPL" stays, "RELIANCE.NS" stays)
+                peers.append(item)
+            elif isinstance(item, dict):
+                sym_val = item.get("symbol") or item.get("peerSymbol") or ""
+                if sym_val:
+                    peers.append(sym_val)
+        return peers if peers else None
+
     # ── Internal ──────────────────────────────────────────────────────────────
 
     def _resolve_symbol(self, ticker: str) -> str:
@@ -639,6 +662,7 @@ class FMPClient:
             "dividends": "dividends",
             "screener": "company-screener",
             "historical_prices": "historical-price-eod/full",
+            "stock_peers": "stock-peers",
         }
         return mapping.get(category, category)
 

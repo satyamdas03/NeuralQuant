@@ -512,9 +512,62 @@ def _build_analyst_context(ticker: str, market: str, engine) -> dict:
 
 
 def _inject_peer_fundamentals(context: dict, primary_ticker: str, market: str) -> None:
-    """Fetch top 2 peer fundamentals and inject as peer_1_*/peer_2_* keys."""
-    from nq_api.data_builder import _fetch_one
+    """Fetch top 2-3 peer fundamentals and inject as peer_1_*/peer_2_*/peer_3_* keys.
 
+    Strategy:
+    1. Try FMP stock_peers (industry-based peers) for the most relevant alternatives.
+    2. Fall back to screener-ranked adjacent stocks (rank ±1) for NeuralQuant-scored peers.
+    3. Merge both sources, deduplicating, up to 3 total peers.
+    """
+    from nq_api.data_builder import _fetch_one
+    from nq_data.fmp import get_fmp_client as _get_fmp
+
+    _FUNDAMENTAL_FIELDS = (
+        "current_price", "pe_ttm", "pb_ratio", "beta",
+        "market_cap", "roe", "gross_profit_margin",
+        "forward_pe", "peg_ratio", "profit_margin",
+        "operating_margin", "ev_ebitda", "free_cashflow",
+        "current_ratio", "institutional_ownership",
+    )
+
+    # ── Phase 1: FMP industry-based stock peers ──
+    fmp_peers: list[str] = []
+    try:
+        fmp = _get_fmp_client()
+        if fmp._enabled:
+            raw_peers = fmp.get_stock_peers(primary_ticker)
+            if raw_peers:
+                for p in raw_peers[:5]:
+                    p_clean = p.replace(".NS", "").replace(".BO", "") if market == "IN" else p
+                    if p_clean.upper() != primary_ticker.upper():
+                        fmp_peers.append(p_clean)
+                fmp_peers = fmp_peers[:3]
+    except Exception:
+        log.debug("FMP stock_peers lookup failed for %s in PARA-DEBATE context", primary_ticker)
+
+    injected_tickers: list[str] = []
+    peer_idx = 0
+
+    # Inject FMP industry peers first (highest relevance)
+    for pt in fmp_peers:
+        if peer_idx >= 3:
+            break
+        try:
+            peer_data = _fetch_one(pt, market)
+            if peer_data and not peer_data.get("long_name", "").startswith("Empty"):
+                prefix = f"peer_{peer_idx + 1}"
+                context[f"{prefix}_ticker"] = pt
+                context[f"{prefix}_source"] = "industry_peer"
+                for field in _FUNDAMENTAL_FIELDS:
+                    v = peer_data.get(field)
+                    if v is not None:
+                        context[f"{prefix}_{field}"] = v
+                injected_tickers.append(pt)
+                peer_idx += 1
+        except Exception:
+            pass
+
+    # ── Phase 2: Screener-ranked adjacent peers as fallback ──
     cached_all = score_cache.read_top(market, 50, max_age_seconds=86400)
     if not cached_all:
         cached_all = score_cache.read_top(market, 50, max_age_seconds=999999999)
@@ -525,34 +578,35 @@ def _inject_peer_fundamentals(context: dict, primary_ticker: str, market: str) -
         (i for i, r in enumerate(cached_all) if r.get("ticker") == primary_ticker),
         -1,
     )
-    if primary_rank < 0:
+    if primary_rank < 0 and peer_idx == 0:
         return
 
-    peer_offsets = [primary_rank - 1, primary_rank + 1]
-    peer_idx = 0
-    for offset in peer_offsets:
-        if 0 <= offset < len(cached_all) and peer_idx < 2:
-            peer = cached_all[offset]
-            peer_ticker = peer.get("ticker", "?")
-            try:
-                peer_data = _fetch_one(peer_ticker, market)
-                if peer_data and not peer_data.get("long_name", "").startswith("Empty"):
-                    prefix = f"peer_{peer_idx + 1}"
-                    context[f"{prefix}_ticker"] = peer_ticker
-                    context[f"{prefix}_score"] = int(peer.get("composite_score", 0.5) * 10)
-                    for field in (
-                        "current_price", "pe_ttm", "pb_ratio", "beta",
-                        "market_cap", "roe", "gross_profit_margin",
-                        "forward_pe", "peg_ratio", "profit_margin",
-                        "operating_margin", "ev_ebitda", "free_cashflow",
-                        "current_ratio", "institutional_ownership",
-                    ):
-                        v = peer_data.get(field)
-                        if v is not None:
-                            context[f"{prefix}_{field}"] = v
-                    peer_idx += 1
-            except Exception:
-                pass  # Skip peer on error
+    if primary_rank >= 0:
+        peer_offsets = [primary_rank - 1, primary_rank + 1]
+        for offset in peer_offsets:
+            if peer_idx >= 3:
+                break
+            if 0 <= offset < len(cached_all):
+                peer = cached_all[offset]
+                peer_ticker = peer.get("ticker", "?")
+                # Skip if already injected as FMP peer
+                if peer_ticker in injected_tickers or peer_ticker == primary_ticker:
+                    continue
+                try:
+                    peer_data = _fetch_one(peer_ticker, market)
+                    if peer_data and not peer_data.get("long_name", "").startswith("Empty"):
+                        prefix = f"peer_{peer_idx + 1}"
+                        context[f"{prefix}_ticker"] = peer_ticker
+                        context[f"{prefix}_score"] = int(peer.get("composite_score", 0.5) * 10)
+                        context[f"{prefix}_source"] = "screener_ranked"
+                        for field in _FUNDAMENTAL_FIELDS:
+                            v = peer_data.get(field)
+                            if v is not None:
+                                context[f"{prefix}_{field}"] = v
+                        injected_tickers.append(peer_ticker)
+                        peer_idx += 1
+                except Exception:
+                    pass
 
 
 def _build_context_from_cache(ticker: str, market: str) -> dict | None:
