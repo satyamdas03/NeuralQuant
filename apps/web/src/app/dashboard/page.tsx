@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import type { IndexData, NewsItem, SectorData, AIScore, Mover } from "@/lib/types";
 
 import MarketIndexCard from "@/components/ui/MarketIndexCard";
+import MarketWrapCard from "@/components/ui/MarketWrapCard";
 import SectorHeatmapBlock from "@/components/ui/SectorHeatmapBlock";
 import GhostBorderCard from "@/components/ui/GhostBorderCard";
 import RegimeBadge from "@/components/ui/RegimeBadge";
@@ -323,6 +324,9 @@ export default function DashboardPage() {
         <div className="space-y-5">
           <div id="dashboard-market-movers">
             <MoversPanel gainers={gainers} losers={losers} active={active} loading={moversLoading} />
+          </div>
+          <div id="dashboard-market-wrap">
+            <MarketWrapCard />
           </div>
           <div id="dashboard-social-buzz">
             <SocialBuzzCard />

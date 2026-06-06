@@ -213,3 +213,31 @@ services:
       - key: CRON_SECRET
         sync: false
     plan: starter
+
+  # ── Cron: IN market wrap broadcast (11:00 UTC = 4:30pm IST, weekdays) ──
+  - type: cron
+    name: nq-wrap-in
+    runtime: python
+    pythonVersion: 3.12
+    rootDir: .
+    schedule: "0 11 * * 1-5"
+    buildCommand: pip install uv && uv sync --frozen --no-dev
+    startCommand: uv run python -c "import os, httpx; r = httpx.post('https://neuralquant.onrender.com/cron/market-wrap?market=IN', headers={'X-Cron-Secret': os.environ['CRON_SECRET']}); print(r.status_code, r.text[:200])"
+    envVars:
+      - key: CRON_SECRET
+        sync: false
+    plan: starter
+
+  # ── Cron: US market wrap broadcast (21:30 UTC = 5:30pm ET, weekdays) ──
+  - type: cron
+    name: nq-wrap-us
+    runtime: python
+    pythonVersion: 3.12
+    rootDir: .
+    schedule: "30 21 * * 1-5"
+    buildCommand: pip install uv && uv sync --frozen --no-dev
+    startCommand: uv run python -c "import os, httpx; r = httpx.post('https://neuralquant.onrender.com/cron/market-wrap?market=US', headers={'X-Cron-Secret': os.environ['CRON_SECRET']}); print(r.status_code, r.text[:200])"
+    envVars:
+      - key: CRON_SECRET
+        sync: false
+    plan: starter

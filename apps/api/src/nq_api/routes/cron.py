@@ -3,6 +3,15 @@
 Endpoints:
   POST /cron/nightly-score?market=US|IN|BOTH  — rebuild score_cache
   POST /cron/anjali?market=US|IN|BOTH           — rebuild anjali_enrichment
+  POST /cron/market-refresh                      — refresh market data
+
+In-process scheduler also runs:
+  - US scores:  02:00 UTC
+  - IN scores:  02:30 UTC
+  - Anjali:    20:30 UTC
+  - Onboarding: 09:00 UTC
+  - US wrap broadcast: 21:30 UTC (5:30pm ET, after market close)
+  - IN wrap broadcast: 11:00 UTC (4:30pm IST, after market close)
 
 All endpoints require CRON_SECRET header to prevent unauthorized triggers.
 Jobs run in background threads — endpoints return immediately with status.
@@ -179,6 +188,23 @@ def cron_anjali_status(authorization: str | None = Header(None)):
     return {"running": is_running, "last_result": _anjali_last_result}
 
 
+# ── Market Wrap Broadcast ───────────────────────────────────────────────────
+
+@router.post("/market-wrap")
+def cron_market_wrap(
+    market: str = Query("US", pattern="^(US|IN)$"),
+    authorization: str | None = Header(None),
+):
+    """Manually trigger a market wrap broadcast for all subscribed users.
+
+    Uses the same logic as the scheduled broadcast but triggered on-demand.
+    Requires CRON_SECRET header.
+    """
+    _verify_secret(authorization)
+    threading.Thread(target=_run_market_wrap_broadcast, args=(market,), daemon=True).start()
+    return {"status": "started", "market": market}
+
+
 # ── Onboarding Email Scheduler ───────────────────────────────────────────────────
 
 _EMAIL_WINDOWS = [
@@ -285,6 +311,74 @@ def _run_onboarding_emails():
     log.info("[onboarding-emails] Dispatch complete: %s", sent_counts)
 
 
+def _run_market_wrap_broadcast(market: str):
+    """Send personalized EOD market wrap emails to all subscribed users.
+
+    Runs after market close:
+      - IN: 11:00 UTC (4:30pm IST)
+      - US: 21:30 UTC (5:30pm ET)
+
+    Each email is personalized with the user's watchlist highlights.
+    Skips users who opted out (email_market_wrap=false).
+    """
+    log.info("[market-wrap] Starting %s market wrap broadcast", market)
+    from nq_api.cache.score_cache import _supabase_rest
+
+    supabase_url = os.environ.get("SUPABASE_URL", "")
+    supabase_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+    if not supabase_url or not supabase_key:
+        log.warning("[market-wrap] SUPABASE_URL or SERVICE_ROLE_KEY not set — skipping")
+        return
+
+    # Fetch subscribed users (investor tier and above)
+    try:
+        users = _supabase_rest(
+            "users",
+            "GET",
+            query={"select": "id,email,name,tier", "tier": "gte.investor"},
+        )
+    except Exception:
+        log.exception("[market-wrap] Failed to fetch users")
+        return
+
+    if not users:
+        log.info("[market-wrap] No subscribed users found")
+        return
+
+    # Fetch opt-out list
+    skip_ids: set[str] = set()
+    try:
+        profiles = _supabase_rest(
+            "user_profiles",
+            "GET",
+            query={"select": "user_id", "email_market_wrap": "eq.false"},
+        )
+        if profiles:
+            skip_ids = {p["user_id"] for p in profiles if p.get("user_id")}
+    except Exception:
+        log.debug("[market-wrap] Could not fetch email preferences — sending to all")
+
+    from nq_api.routes.market_wrap import _send_market_wrap
+
+    sent = 0
+    skipped = 0
+    for u in users:
+        uid = u.get("id")
+        email = u.get("email")
+        if not email:
+            continue
+        if uid and uid in skip_ids:
+            skipped += 1
+            continue
+        try:
+            _send_market_wrap(email, u.get("name", ""), market, uid)
+            sent += 1
+        except Exception:
+            log.exception("[market-wrap] Failed to send to %s", email)
+
+    log.info("[market-wrap] %s broadcast complete: %d sent, %d skipped", market, sent, skipped)
+
+
 # ── In-process Scheduler ───────────────────────────────────────────────────────
 
 _SCHEDULED_JOBS_STARTED = False
@@ -314,6 +408,8 @@ async def start_scheduled_jobs():
         _ran_in_today = ""
         _ran_anjali_today = ""
         _ran_email_today = ""
+        _ran_wrap_us_today = ""
+        _ran_wrap_in_today = ""
 
         while True:
             try:
@@ -352,6 +448,18 @@ async def start_scheduled_jobs():
                     _ran_email_today = today
                     log.info("[scheduler] Triggering onboarding email dispatch at %s", now.isoformat())
                     threading.Thread(target=_run_onboarding_emails, daemon=True).start()
+
+                # IN market wrap broadcast at 11:00 UTC (4:30pm IST)
+                if now.hour == 11 and now.minute < 5 and _ran_wrap_in_today != today:
+                    _ran_wrap_in_today = today
+                    log.info("[scheduler] Triggering IN market wrap broadcast at %s", now.isoformat())
+                    threading.Thread(target=_run_market_wrap_broadcast, args=("IN",), daemon=True).start()
+
+                # US market wrap broadcast at 21:30 UTC (5:30pm ET)
+                if now.hour == 21 and now.minute >= 25 and now.minute < 35 and _ran_wrap_us_today != today:
+                    _ran_wrap_us_today = today
+                    log.info("[scheduler] Triggering US market wrap broadcast at %s", now.isoformat())
+                    threading.Thread(target=_run_market_wrap_broadcast, args=("US",), daemon=True).start()
 
             except Exception:
                 log.exception("[scheduler] Error in scheduler loop")
