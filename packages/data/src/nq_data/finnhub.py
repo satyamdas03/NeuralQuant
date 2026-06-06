@@ -489,6 +489,14 @@ class FinnhubClient:
                 log.debug("Finnhub %s/%s returned %d", endpoint, ticker, resp.status_code)
                 return None
 
+            # Guard against empty response body (common on free-tier for
+            # premium endpoints like candle, insider_sentiment, news_sentiment).
+            # Avoids noisy "Expecting value: line 1 column 1" JSONDecodeError logs.
+            body = resp.text
+            if not body or not body.strip():
+                log.debug("Finnhub %s/%s returned empty body (likely free-tier premium endpoint)",
+                           endpoint, ticker)
+                return None
             data = resp.json()
 
             # Only cache non-empty responses.

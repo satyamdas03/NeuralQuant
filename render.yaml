@@ -1,6 +1,7 @@
 services:
   - type: web
     name: nq-api
+    autoDeploy: yes
     runtime: python
     pythonVersion: 3.12
     rootDir: .
