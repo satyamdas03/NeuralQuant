@@ -476,7 +476,12 @@ async def public_quarterly_results():
         if not results:
             return _q1fy27_baseline()
 
-        # Calculate aggregate stats
+        # If results exist but haven't been evaluated yet (no return_pct), return baseline
+        evaluated = [r for r in results if r.get("return_pct") is not None]
+        if not evaluated:
+            return _q1fy27_baseline()
+
+        # Calculate aggregate stats from evaluated results only
         returns = [r["return_pct"] for r in results if r.get("return_pct") is not None]
         benchmark_returns = [r["benchmark_return_pct"] for r in results if r.get("benchmark_return_pct") is not None]
 
