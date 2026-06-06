@@ -71,11 +71,11 @@ const jsonLd = {
 export const metadata: Metadata = {
   metadataBase: new URL("https://neuralquant.co"),
   title: {
-    default: "NeuralQuant — AI Stock Intelligence",
+    default: "NeuralQuant — AI Stock Intelligence for US & India Markets",
     template: "%s | NeuralQuant",
   },
   description:
-    "Institutional-grade AI stock analysis for US and India markets. ForeCast Score, PARA-DEBATE multi-agent analysis, and regime detection.",
+    "Beat the market with IRS% scoring and 7-agent PARA-DEBATE analysis. Institutional-grade AI stock intelligence for US and India markets.",
   keywords: [
     "stock analysis",
     "AI investing",
@@ -93,8 +93,16 @@ export const metadata: Metadata = {
   robots: "index, follow",
   manifest: "/manifest.json",
   icons: {
-    icon: "/icons/icon-512.png",
-    apple: "/icons/icon-192.png",
+    icon: [
+      { url: "/icons/icon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/icons/icon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+      { url: "/icons/icon.svg", sizes: "any", type: "image/svg+xml" },
+    ],
+    apple: [
+      { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
   },
   appleWebApp: {
     capable: true,
@@ -104,17 +112,28 @@ export const metadata: Metadata = {
   openGraph: {
     title: "NeuralQuant — AI Stock Intelligence",
     description:
-      "Institutional-grade AI stock analysis for US and India markets. ForeCast Score, PARA-DEBATE multi-agent analysis, and regime detection.",
-    siteName: "QuantAlpha",
+      "Institutional-grade AI stock analysis for US and India markets. IRS% scoring, PARA-DEBATE 7-agent consensus, and regime detection.",
+    siteName: "NeuralQuant",
     type: "website",
     url: "/",
-    images: ["/og-image.png"],
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "NeuralQuant — AI Stock Intelligence",
+      },
+    ],
+    locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
     title: "NeuralQuant — AI Stock Intelligence",
     description:
-      "Institutional-grade AI stock analysis for US and India markets. ForeCast Score, PARA-DEBATE multi-agent analysis, and regime detection.",
+      "Institutional-grade AI stock analysis for US and India markets. IRS% scoring, PARA-DEBATE 7-agent consensus, and regime detection.",
+    images: ["/og-image.png"],
+    creator: "@neuralquant",
+    site: "@neuralquant",
   },
   alternates: {
     canonical: "https://neuralquant.co",

@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0D1425"/>
+      <stop offset="100%" stop-color="#0A0F1E"/>
+    </linearGradient>
+    <linearGradient id="accent-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00FFB2"/>
+      <stop offset="100%" stop-color="#00C9A7"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect x="0" y="0" width="512" height="512" rx="96" ry="96" fill="url(#bg-grad)"/>
+
+  <!-- Subtle border accent -->
+  <rect x="0" y="0" width="512" height="512" rx="96" ry="96" fill="none" stroke="#00FFB2" stroke-width="3" stroke-opacity="0.3"/>
+
+  <!-- Neural network nodes (decorative) -->
+  <circle cx="120" cy="140" r="4" fill="#00FFB2" opacity="0.15"/>
+  <circle cx="392" cy="140" r="4" fill="#00FFB2" opacity="0.15"/>
+  <circle cx="120" cy="372" r="4" fill="#00FFB2" opacity="0.15"/>
+  <circle cx="392" cy="372" r="4" fill="#00FFB2" opacity="0.15"/>
+
+  <!-- Neural network connections (decorative) -->
+  <line x1="120" y1="140" x2="256" y2="256" stroke="#00FFB2" stroke-width="1" opacity="0.08"/>
+  <line x1="392" y1="140" x2="256" y2="256" stroke="#00FFB2" stroke-width="1" opacity="0.08"/>
+  <line x1="120" y1="372" x2="256" y2="256" stroke="#00FFB2" stroke-width="1" opacity="0.08"/>
+  <line x1="392" y1="372" x2="256" y2="256" stroke="#00FFB2" stroke-width="1" opacity="0.08"/>
+
+  <!-- NQ Monogram -->
+  <text x="256" y="310" font-family="'SF Pro Display', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="240" font-weight="800" fill="url(#accent-grad)" text-anchor="middle" dominant-baseline="central" filter="url(#glow)">NQ</text>
+</svg>
