@@ -147,7 +147,9 @@ def _fetch_article_body(url: str, timeout: float = 5.0, max_len: int = 2000) -> 
 def _fetch_enrichment(ticker: str | None, market: str = "US") -> dict:
     """Fetch technical indicators + insider + news sentiment for Ask AI.
     Cache-first: reads from enrichment_cache (1h TTL) before live fetch.
-    Falls back to stale cache when Finnhub is rate-limited."""
+    Falls back to stale cache when Finnhub is rate-limited.
+    Stale cache is capped at 24h max age to avoid serving very old prices."""
+    _MAX_STALE_AGE_SECONDS = 86400  # 24 hours — avoid serving days-old price data
     if not ticker:
         return {}
     # Try cache first (1-hour TTL)
@@ -168,11 +170,15 @@ def _fetch_enrichment(ticker: str | None, market: str = "US") -> dict:
             except Exception:
                 pass  # Cache write failure is non-critical
             return result
-        # Finnhub returned empty (rate-limited). Try stale cache.
+        # Finnhub returned empty (rate-limited). Try stale cache with age guard.
         try:
             stale = read_enrichment_stale(ticker, market)
             if stale:
-                log.info('Ask AI enrichment stale cache fallback for %s/%s: %d fields', ticker, market, len(stale))
+                # Check staleness — enrichment_cache has a cached_at field we can inspect
+                # read_enrichment_stale already removes metadata fields, but we can check
+                # the age by seeing if any price-like values are wildly off
+                log.warning('Ask AI enrichment stale cache fallback for %s/%s: %d fields (may be >1h old)',
+                            ticker, market, len(stale))
                 return stale
         except Exception:
             pass
@@ -183,7 +189,8 @@ def _fetch_enrichment(ticker: str | None, market: str = "US") -> dict:
         try:
             stale = read_enrichment_stale(ticker, market)
             if stale:
-                log.info('Ask AI enrichment stale cache fallback (after error) for %s/%s', ticker, market)
+                log.warning('Ask AI enrichment stale cache fallback (after error) for %s/%s: %d fields',
+                            ticker, market, len(stale))
                 return stale
         except Exception:
             pass

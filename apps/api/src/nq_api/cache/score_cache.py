@@ -299,8 +299,14 @@ def read_enrichment(ticker: str, market: str) -> dict[str, Any] | None:
     return None
 
 
-def read_enrichment_stale(ticker: str, market: str) -> dict[str, Any] | None:
-    """Return cached enrichment data regardless of age (fallback when Finnhub is rate-limited)."""
+def read_enrichment_stale(ticker: str, market: str, max_age_seconds: int = 86400) -> dict[str, Any] | None:
+    """Return cached enrichment data regardless of freshness (fallback when live fetch fails).
+
+    Args:
+        max_age_seconds: Maximum age in seconds. Records older than this are discarded
+                         to prevent serving very stale price data. Default: 24 hours.
+    """
+    cutoff = (datetime.now(timezone.utc) - timedelta(seconds=max_age_seconds)).isoformat()
     data = _supabase_rest(
         "enrichment_cache",
         method="GET",
@@ -308,6 +314,7 @@ def read_enrichment_stale(ticker: str, market: str) -> dict[str, Any] | None:
             "select": "*",
             "ticker": f"eq.{ticker.upper()}",
             "market": f"eq.{market}",
+            "cached_at": f"gte.{cutoff}",
             "order": "cached_at.desc",
             "limit": "1",
         },

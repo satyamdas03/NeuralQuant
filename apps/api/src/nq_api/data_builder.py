@@ -801,12 +801,58 @@ def _fetch_one(ticker: str, market: str, fast_pe: bool = True) -> dict:
                 info = {"currentPrice": dl_price, "regularMarketPrice": dl_price}
                 log.info("yf.download rescued %s: price=%.2f (info+FMP both failed)", sym, dl_price)
             else:
-                log.warning("yfinance + FMP + yf.download all failed for %s — returning empty row", sym)
-                result = _empty_row(ticker)
-                with _lock:
-                    _fund_cache[cache_key] = result
-                    _fund_ts[cache_key] = now
-                return result
+                # Final FMP direct quote fallback — bypasses _fetch_fmp_info's
+                # profile+metrics+scores pipeline, goes straight to quote endpoint.
+                # This catches cases where FMP profile fails but quote succeeds
+                # (e.g., Indian stocks where profile is Premium-gated but quote is free).
+                try:
+                    from nq_data.fmp import get_fmp_client
+                    fmp = get_fmp_client()
+                    if fmp._enabled:
+                        fmp_quote = fmp.get_quote(sym)
+                        if fmp_quote and fmp_quote.get("price"):
+                            dl_price = float(fmp_quote["price"])
+                            info = {
+                                "currentPrice": dl_price,
+                                "regularMarketPrice": dl_price,
+                            }
+                            if fmp_quote.get("change_pct") is not None:
+                                info["regularMarketChangePercent"] = fmp_quote["change_pct"]
+                            if fmp_quote.get("year_high") is not None:
+                                info["fiftyTwoWeekHigh"] = fmp_quote["year_high"]
+                            if fmp_quote.get("year_low") is not None:
+                                info["fiftyTwoWeekLow"] = fmp_quote["year_low"]
+                            if fmp_quote.get("pe") is not None:
+                                info["trailingPE"] = fmp_quote["pe"]
+                            if fmp_quote.get("eps") is not None:
+                                info["trailingEps"] = fmp_quote["eps"]
+                            log.info("FMP quote fallback rescued %s: price=%.2f (yf+FMP profile failed)", sym, dl_price)
+                        else:
+                            # Also try alternate exchange suffix for Indian stocks
+                            if sym.endswith(".NS"):
+                                alt_sym = sym.replace(".NS", ".BO")
+                            elif sym.endswith(".BO"):
+                                alt_sym = sym.replace(".BO", ".NS")
+                            else:
+                                alt_sym = None
+                            if alt_sym:
+                                fmp_quote_alt = fmp.get_quote(alt_sym)
+                                if fmp_quote_alt and fmp_quote_alt.get("price"):
+                                    dl_price = float(fmp_quote_alt["price"])
+                                    info = {
+                                        "currentPrice": dl_price,
+                                        "regularMarketPrice": dl_price,
+                                    }
+                                    log.info("FMP quote alt-exchange rescued %s (via %s): price=%.2f", sym, alt_sym, dl_price)
+                except Exception as fmp_exc:
+                    log.debug("FMP direct quote fallback also failed for %s: %s", sym, fmp_exc)
+                if not info:
+                    log.warning("yfinance + FMP + yf.download all failed for %s — returning empty row", sym)
+                    result = _empty_row(ticker)
+                    with _lock:
+                        _fund_cache[cache_key] = result
+                        _fund_ts[cache_key] = now
+                    return result
 
     try:
         _missing: set[str] = set()

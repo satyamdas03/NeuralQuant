@@ -122,17 +122,29 @@ def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, plat
             pass
 
     # Fallback tier 2: yf.download direct — bypasses _fetch_one cache, different Yahoo endpoint
+    # Try multiple symbol formats for Indian stocks (.NS, .BO) since either exchange may work.
     if not price and effective_ticker:
         try:
             import yfinance as yf
             from nq_api.data_builder import _get_yf_session, _yf_symbol
             sym = _yf_symbol(effective_ticker, detected_market)
-            hist = yf.download(sym, period="5d", progress=False, auto_adjust=True,
-                               threads=False, session=_get_yf_session())
-            if hist is not None and not hist.empty and "Close" in hist.columns:
-                close_vals = hist["Close"].dropna()
-                if len(close_vals) > 0:
-                    price = float(close_vals.iloc[-1])
+            symbols_to_try = [sym]
+            # For IN stocks, also try the alternate exchange suffix
+            if detected_market == "IN" or sym.endswith(".NS"):
+                alt_sym = sym.replace(".NS", ".BO") if sym.endswith(".NS") else sym.replace(".BO", ".NS")
+                symbols_to_try.append(alt_sym)
+            for try_sym in symbols_to_try:
+                try:
+                    hist = yf.download(try_sym, period="5d", progress=False, auto_adjust=True,
+                                       threads=False, session=_get_yf_session())
+                    if hist is not None and not hist.empty and "Close" in hist.columns:
+                        close_vals = hist["Close"].dropna()
+                        if len(close_vals) > 0:
+                            price = float(close_vals.iloc[-1])
+                            log.info("yf.download fallback price for %s (sym=%s): %.2f", effective_ticker, try_sym, price)
+                            break
+                except Exception:
+                    continue
         except Exception:
             pass
 
@@ -165,29 +177,38 @@ def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, plat
 
     # FMP supplement: DCF valuation, analyst target, insider trading, estimates, earnings
     # Also: direct FMP profile/quote fallback for price (bypasses _fetch_one cache)
+    # For IN stocks, try both .NS and .BO suffixes since either exchange may have data.
     if effective_ticker:
         try:
             from nq_data.fmp import get_fmp_client
             fmp = get_fmp_client()
             if fmp._enabled:
                 fmp_sym = _yf_symbol(effective_ticker, detected_market)
-                # Direct FMP profile/quote fallback for price (bypasses _fetch_one cache)
-                if not price:
-                    fmp_prof = fmp.get_profile(fmp_sym)
-                    if fmp_prof and fmp_prof.get("price"):
-                        price = float(fmp_prof["price"])
-                if not price:
-                    fmp_quote = fmp.get_quote(fmp_sym)
-                    if fmp_quote and fmp_quote.get("price"):
-                        price = float(fmp_quote["price"])
+                fmp_symbols = [fmp_sym]
+                if detected_market == "IN" or fmp_sym.endswith(".NS"):
+                    alt = fmp_sym.replace(".NS", ".BO") if fmp_sym.endswith(".NS") else fmp_sym.replace(".BO", ".NS")
+                    fmp_symbols.append(alt)
+                for try_sym in fmp_symbols:
+                    if not price:
+                        fmp_prof = fmp.get_profile(try_sym)
+                        if fmp_prof and fmp_prof.get("price"):
+                            price = float(fmp_prof["price"])
+                    if not price:
+                        fmp_quote = fmp.get_quote(try_sym)
+                        if fmp_quote and fmp_quote.get("price"):
+                            price = float(fmp_quote["price"])
+                            if change_pct is None and fmp_quote.get("change_pct"):
+                                change_pct = fmp_quote["change_pct"]
+                    if price:
+                        break
                 # DCF valuation
                 if not target:
-                    fmp_target = fmp.get_price_target(fmp_sym)
+                    fmp_target = fmp.get_price_target(fmp_symbols[0])
                     if fmp_target and fmp_target.get("target_avg") is not None:
                         target = round(float(fmp_target["target_avg"]), 2)
                 # Analyst consensus
                 if not rec:
-                    fmp_grades = fmp.get_analyst_grades(fmp_sym)
+                    fmp_grades = fmp.get_analyst_grades(fmp_symbols[0])
                     if fmp_grades and fmp_grades.get("consensus"):
                         rec = fmp_grades["consensus"].lower()
         except Exception:
@@ -207,6 +228,10 @@ def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, plat
 
     # Only return summary if we have at least a price
     if price is None:
+        log.warning("StockSummary: price unavailable for %s/%s — enrichment=%d fields, platform_ctx=%s",
+                     effective_ticker, detected_market,
+                     len(enrichment) if enrichment else 0,
+                     "yes" if platform_ctx else "no")
         return None
 
     # Anjali Value Screener lookup

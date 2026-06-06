@@ -401,13 +401,14 @@ def _fetch_finnhub_data(ticker: str, market: str) -> dict:
     try:
         from nq_api.data_builder import _fetch_one
         fund = _fetch_one(ticker, market, fast_pe=True)
-        if fund and fund.get("_is_real"):
+        if fund:
             local_tech = fund.get("_tech_indicators")
             if local_tech:
                 result.update(local_tech)
                 log.debug("Local indicators for %s: RSI=%s MACD=%s ATR=%s",
                           ticker, local_tech.get("rsi_14"), local_tech.get("macd_line"), local_tech.get("atr_14"))
-            # Carry forward price + fundamental fields (previously discarded)
+            # Carry forward price + fundamental fields even when _is_real=False
+            # (partial data is better than no data for enrichment)
             for key in ("current_price", "change_pct", "pe_ttm", "pb_ratio", "beta",
                         "market_cap", "week52_high", "week52_low", "analyst_target",
                         "analyst_rec", "long_name", "sector", "industry", "eps_ttm",
@@ -418,8 +419,8 @@ def _fetch_finnhub_data(ticker: str, market: str) -> dict:
                 val = fund.get(key)
                 if val is not None and key not in result:
                     result[key] = val
-    except Exception:
-        pass
+    except Exception as exc:
+        log.warning("_fetch_one failed for %s: %s", ticker, exc)
 
     # Finnhub candles fallback (only if local indicators missing)
     if not result.get("rsi_14"):

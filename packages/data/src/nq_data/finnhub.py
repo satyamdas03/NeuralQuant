@@ -36,6 +36,9 @@ class FinnhubClient:
     """Finnhub API client with rate limiting and in-process caching."""
 
     BASE_URL = os.environ.get("FINNHUB_BASE_URL", "https://finnhub.io/api/v1")
+    # Cooldown period (seconds) after a 401/403 before retrying Finnhub.
+    # Prevents permanent disable from a transient auth issue.
+    _AUTH_COOLDOWN = 300  # 5 minutes
 
     def __init__(self, api_key: str | None = None):
         self._api_key = api_key or os.environ.get("FINNHUB_API_KEY", "")
@@ -43,6 +46,7 @@ class FinnhubClient:
         self._cache: dict[str, tuple[float, Any]] = {}
         self._lock = threading.Lock()
         self._enabled = bool(self._api_key)
+        self._disabled_until: float = 0.0  # monotonic timestamp; 0 = not disabled
 
     # ── Public API ──────────────────────────────────────────────────────────
 
@@ -444,7 +448,12 @@ class FinnhubClient:
         params: dict,
         cache_category: str | None = None,
     ) -> Any:
-        """Rate-limited fetch with caching."""
+        """Rate-limited fetch with caching.
+
+        Only caches responses that contain useful data.
+        Empty/error responses are NOT cached to allow immediate retry
+        via fallback paths (yfinance, FMP, etc.).
+        """
         cat = cache_category or endpoint
         cached = self._cache_get(cat, ticker)
         if cached is not None:
@@ -452,6 +461,11 @@ class FinnhubClient:
 
         if not self._enabled:
             log.debug("Finnhub disabled (no API key)")
+            return None
+
+        # Check cooldown instead of permanent disable — allows recovery
+        if self._disabled_until > 0 and time.monotonic() < self._disabled_until:
+            log.debug("Finnhub in cooldown (retry after %.0fs)", self._disabled_until - time.monotonic())
             return None
 
         url = f"{self.BASE_URL}/{endpoint}"
@@ -462,8 +476,11 @@ class FinnhubClient:
                 resp = self._client.get(url, params=params)
 
             if resp.status_code in (401, 403):
-                log.warning("Finnhub API key invalid/expired — disabling all Finnhub calls")
-                self._enabled = False
+                # Cooldown instead of permanent disable — allows recovery after
+                # transient auth issues or key rotation
+                self._disabled_until = time.monotonic() + self._AUTH_COOLDOWN
+                log.warning("Finnhub API key invalid/expired (endpoint=%s) — cooldown %ds",
+                            endpoint, self._AUTH_COOLDOWN)
                 return None
             if resp.status_code == 429:
                 log.warning("Finnhub rate limited for %s/%s", endpoint, ticker)
@@ -473,6 +490,33 @@ class FinnhubClient:
                 return None
 
             data = resp.json()
+
+            # Only cache non-empty responses.
+            # Candles: must have status "ok"
+            if endpoint == "stock/candle" or cat == "candle":
+                if not data or data.get("s") != "ok":
+                    log.debug("Finnhub candle %s returned empty/no-data, not caching", ticker)
+                    return data if data else None
+            # News: must be a non-empty list
+            elif endpoint == "company-news":
+                if not isinstance(data, list) or len(data) == 0:
+                    log.debug("Finnhub news %s returned empty, not caching", ticker)
+                    return data if data else None
+            # Insider sentiment / news sentiment: must have meaningful content
+            elif cat in ("insider", "insider_sentiment"):
+                if not isinstance(data, dict) or not data.get("data"):
+                    log.debug("Finnhub insider %s returned empty, not caching", ticker)
+                    return data if data else None
+            elif cat == "news_sentiment":
+                if not isinstance(data, dict) or (not data.get("buzz") and not data.get("sentiment")):
+                    log.debug("Finnhub news_sentiment %s returned empty, not caching", ticker)
+                    return data if data else None
+            # Quote: must have current price
+            elif endpoint == "quote":
+                if not data or data.get("c") is None or data.get("c") == 0:
+                    log.debug("Finnhub quote %s returned empty/zero price, not caching", ticker)
+                    return data if data else None
+
             self._cache_set(cat, ticker, data)
             return data
         except httpx.TimeoutException:
