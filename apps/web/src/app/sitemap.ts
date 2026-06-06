@@ -32,32 +32,43 @@ const SECTORS = [
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const stockPages = [
+  const now = new Date();
+
+  const corePages: MetadataRoute.Sitemap = [
+    { url: SITE_URL, lastModified: now, changeFrequency: "weekly", priority: 1.0 },
+    { url: `${SITE_URL}/pricing`, lastModified: now, changeFrequency: "monthly", priority: 0.9 },
+    { url: `${SITE_URL}/methodology`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${SITE_URL}/screener`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
+    { url: `${SITE_URL}/compare`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
+    { url: `${SITE_URL}/sources`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
+    { url: `${SITE_URL}/backtest`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
+    { url: `${SITE_URL}/login`, lastModified: now, changeFrequency: "yearly", priority: 0.4 },
+    { url: `${SITE_URL}/signup`, lastModified: now, changeFrequency: "yearly", priority: 0.5 },
+    { url: `${SITE_URL}/privacy`, lastModified: now, changeFrequency: "yearly", priority: 0.2 },
+    { url: `${SITE_URL}/terms`, lastModified: now, changeFrequency: "yearly", priority: 0.2 },
+  ];
+
+  const stockPages: MetadataRoute.Sitemap = [
     ...NSE_TICKERS.map((t) => ({
       url: `${SITE_URL}/stocks/${t}`,
-      lastModified: new Date(),
+      lastModified: now,
       changeFrequency: "daily" as const,
       priority: 0.8,
     })),
     ...US_TICKERS.map((t) => ({
       url: `${SITE_URL}/stocks/${t}`,
-      lastModified: new Date(),
+      lastModified: now,
       changeFrequency: "daily" as const,
       priority: 0.7,
     })),
   ];
 
-  const sectorPages = SECTORS.map((s) => ({
+  const sectorPages: MetadataRoute.Sitemap = SECTORS.map((s) => ({
     url: `${SITE_URL}/best-stocks/${s}`,
-    lastModified: new Date(),
+    lastModified: now,
     changeFrequency: "weekly" as const,
     priority: 0.6,
   }));
-
-  const corePages = [
-    { url: SITE_URL, lastModified: new Date(), changeFrequency: "weekly" as const, priority: 1.0 },
-    { url: `${SITE_URL}/pricing`, lastModified: new Date(), changeFrequency: "monthly" as const, priority: 0.9 },
-  ];
 
   return [...corePages, ...stockPages, ...sectorPages];
 }

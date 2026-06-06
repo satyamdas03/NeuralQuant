@@ -1,20 +1,32 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Backtest Engine — NeuralQuant",
-  description: "Backtest your quant strategies with historical data. Simulate factor-based portfolios, momentum, and value rotations.",
+  title: "Backtest — NeuralQuant",
+  description:
+    "Backtest quant strategies with historical data. Q1FY27 results: all pools beat NIFTY50, 87%+ hit rate. Simulate factor portfolios and momentum rotations.",
   openGraph: {
-    title: "Backtest Engine — NeuralQuant",
-    description: "Backtest your quant strategies with historical data. Simulate factor-based portfolios, momentum, and value rotations.",
+    title: "Backtest Engine — Quant Strategy Results | NeuralQuant",
+    description:
+      "Backtest quant strategies with historical data. Q1FY27: all pools beat NIFTY50, 87%+ hit rate. Factor portfolios and momentum rotations.",
     url: "https://neuralquant.co/backtest",
     siteName: "NeuralQuant",
-    images: ["/og-image.png"],
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "NeuralQuant Backtest Engine",
+      },
+    ],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Backtest Engine — NeuralQuant",
-    description: "Backtest your quant strategies with historical data. Simulate factor-based portfolios, momentum, and value rotations.",
+    title: "Backtest Engine — Quant Strategy Results | NeuralQuant",
+    description:
+      "Backtest quant strategies with historical data. Q1FY27: all pools beat NIFTY50, 87%+ hit rate.",
+    creator: "@neuralquant",
+    site: "@neuralquant",
   },
   alternates: {
     canonical: "https://neuralquant.co/backtest",

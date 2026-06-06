@@ -2,7 +2,26 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Terms of Service — NeuralQuant",
-  description: "NeuralQuant terms of service — usage terms, disclaimers, and limitations.",
+  description:
+    "NeuralQuant terms of service — usage terms, disclaimers, and limitations of liability for AI-powered stock intelligence.",
+  openGraph: {
+    title: "Terms of Service — NeuralQuant",
+    description:
+      "NeuralQuant terms of service — usage terms, disclaimers, and limitations of liability for AI-powered stock intelligence.",
+    url: "https://neuralquant.co/terms",
+    siteName: "NeuralQuant",
+    images: ["/og-image.png"],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Terms of Service — NeuralQuant",
+    description:
+      "NeuralQuant terms of service — usage terms, disclaimers, and limitations of liability for AI-powered stock intelligence.",
+  },
+  alternates: {
+    canonical: "https://neuralquant.co/terms",
+  },
 };
 
 export default function TermsPage() {

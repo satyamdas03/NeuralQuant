@@ -2,7 +2,26 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Privacy Policy — NeuralQuant",
-  description: "NeuralQuant privacy policy — data usage, third parties, GDPR/CCPA rights.",
+  description:
+    "NeuralQuant privacy policy — how we collect, use, and protect your data. GDPR and CCPA rights explained.",
+  openGraph: {
+    title: "Privacy Policy — NeuralQuant",
+    description:
+      "NeuralQuant privacy policy — how we collect, use, and protect your data. GDPR and CCPA rights explained.",
+    url: "https://neuralquant.co/privacy",
+    siteName: "NeuralQuant",
+    images: ["/og-image.png"],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Privacy Policy — NeuralQuant",
+    description:
+      "NeuralQuant privacy policy — how we collect, use, and protect your data. GDPR and CCPA rights explained.",
+  },
+  alternates: {
+    canonical: "https://neuralquant.co/privacy",
+  },
 };
 
 export default function PrivacyPolicyPage() {

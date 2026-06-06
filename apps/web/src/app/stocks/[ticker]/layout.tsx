@@ -16,17 +16,26 @@ export async function generateMetadata({
     title: `${name} Stock Score — NeuralQuant 5-Factor AI Analysis | ${market}`,
     description: `AI-powered ${name} stock analysis with 5-factor quant scoring (quality, momentum, value, low-vol, insider), HMM regime detection, and multi-agent PARA-DEBATE. ${currency} price targets and sector-adjusted ratings.`,
     openGraph: {
-      title: `${name} Stock Score — NeuralQuant`,
+      title: `${name} Stock Score — 5-Factor AI Analysis | NeuralQuant`,
       description: `5-factor AI analysis + multi-agent debate for ${name}. Free stock intelligence.`,
       type: "website",
       url: `https://neuralquant.co/stocks/${ticker}`,
       siteName: "NeuralQuant",
-      images: ["/og-image.png"],
+      images: [
+        {
+          url: "/og-image.png",
+          width: 1200,
+          height: 630,
+          alt: `${name} Stock Analysis — NeuralQuant`,
+        },
+      ],
     },
     twitter: {
       card: "summary_large_image",
-      title: `${name} Stock Score — NeuralQuant`,
+      title: `${name} Stock Score — 5-Factor AI Analysis | NeuralQuant`,
       description: `5-factor AI analysis + multi-agent debate for ${name}. Free stock intelligence.`,
+      creator: "@neuralquant",
+      site: "@neuralquant",
     },
     alternates: {
       canonical: `https://neuralquant.co/stocks/${ticker}`,

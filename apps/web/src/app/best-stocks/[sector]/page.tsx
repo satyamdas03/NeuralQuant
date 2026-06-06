@@ -92,17 +92,26 @@ export async function generateMetadata({
     title: `Best ${data.name} Stocks in India 2026 — NeuralQuant AI Analysis`,
     description: data.description,
     openGraph: {
-      title: `Best ${data.name} Stocks in India 2026 — NeuralQuant AI Analysis`,
+      title: `Best ${data.name} Stocks in India 2026 — NeuralQuant`,
       description: data.description,
       url: `https://neuralquant.co/best-stocks/${sector}`,
       siteName: "NeuralQuant",
-      images: ["/og-image.png"],
+      images: [
+        {
+          url: "/og-image.png",
+          width: 1200,
+          height: 630,
+          alt: `Best ${data.name} Stocks — NeuralQuant`,
+        },
+      ],
       type: "website",
     },
     twitter: {
       card: "summary_large_image",
-      title: `Best ${data.name} Stocks in India 2026 — NeuralQuant AI Analysis`,
+      title: `Best ${data.name} Stocks in India 2026 — NeuralQuant`,
       description: data.description,
+      creator: "@neuralquant",
+      site: "@neuralquant",
     },
     alternates: {
       canonical: `https://neuralquant.co/best-stocks/${sector}`,

@@ -6,9 +6,9 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/api/", "/auth/", "/dashboard", "/watchlist", "/backtest", "/query"],
+        disallow: ["/api/", "/auth/", "/admin/"],
       },
     ],
-    sitemap: "https://neuralquant.vercel.app/sitemap.xml",
+    sitemap: "https://neuralquant.co/sitemap.xml",
   };
 }

@@ -5,7 +5,7 @@ type Props = { params: Promise<{ share_id: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { share_id } = await params;
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://neuralquant.co";
-  const ogImageUrl = `${baseUrl}/api/og/analysis/${share_id}`;
+  const ogImageUrl = `${baseUrl}/analysis/${share_id}/opengraph-image`;
 
   return {
     title: "Stock Analysis | NeuralQuant",
@@ -15,6 +15,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: "7-Agent PARA-DEBATE • Institutional-Grade Research",
       type: "article",
       siteName: "NeuralQuant",
+      url: `https://neuralquant.co/analysis/${share_id}`,
       images: [{ url: ogImageUrl, width: 1200, height: 630, alt: "NeuralQuant AI Stock Analysis" }],
     },
     twitter: {
@@ -22,6 +23,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: "NeuralQuant AI Stock Analysis",
       description: "7-Agent PARA-DEBATE • Institutional-Grade Research",
       images: [ogImageUrl],
+      creator: "@neuralquant",
+      site: "@neuralquant",
+    },
+    alternates: {
+      canonical: `https://neuralquant.co/analysis/${share_id}`,
     },
   };
 }
