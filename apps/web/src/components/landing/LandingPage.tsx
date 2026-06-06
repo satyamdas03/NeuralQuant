@@ -304,7 +304,7 @@ export default function LandingPage() {
             <ul className="mt-8 space-y-3 font-mono text-[12px] text-text-muted flex-1">
               <li>5 watchlists</li>
               <li>50 AI queries/day</li>
-              <li>5 backtests/day</li>
+              <li>20 backtests/day</li>
               <li>Full PARA-DEBATE analysis</li>
               <li>Ask Morgan with conversation memory</li>
               <li>Live technical indicators (RSI, MACD, ATR)</li>

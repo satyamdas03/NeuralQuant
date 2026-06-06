@@ -8,13 +8,13 @@ import { trackEvent, EVENT, trackApiEvent } from "@/lib/analytics";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://neuralquant.onrender.com";
 
 const FEATURE_ROWS = [
-  { feature: "AI Stock Queries", free: "5/day", investor: "100/day", pro: "Unlimited", api: "Unlimited" },
+  { feature: "AI Stock Queries", free: "50/day", investor: "100/day", pro: "1,000/day", api: "100,000/day" },
   { feature: "ForeCast Score", free: "Top 10", investor: "All 100", pro: "All 100", api: "All 100" },
-  { feature: "Ask Morgan Analysis", free: "5/day", investor: "100/day", pro: "Unlimited", api: "Unlimited" },
+  { feature: "Ask Morgan Analysis", free: "50/day", investor: "100/day", pro: "1,000/day", api: "100,000/day" },
   { feature: "Screener Access", free: "Basic", investor: "Full", pro: "Full", api: "Full" },
-  { feature: "Watchlists", free: "1", investor: "10", pro: "50", api: "50" },
+  { feature: "Watchlists", free: "5", investor: "25", pro: "100", api: "1,000" },
   { feature: "Alerts", free: "—", investor: "5", pro: "25", api: "25" },
-  { feature: "Backtests/Day", free: "1", investor: "10", pro: "50", api: "50" },
+  { feature: "Backtests/Day", free: "20", investor: "25", pro: "50", api: "10,000" },
   { feature: "Portfolio Builder", free: "—", investor: "Full", pro: "Full", api: "Full" },
   { feature: "PARA-DEbate Engine", free: "—", investor: "Full", pro: "Full", api: "Full" },
   { feature: "Market Coverage", free: "US only", investor: "US + India", pro: "US + India", api: "US + India" },

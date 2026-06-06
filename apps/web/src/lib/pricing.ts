@@ -21,7 +21,7 @@ export const TIERS: TierInfo[] = [
     usdPrice: 0,
     watchlists: 5,
     queriesPerDay: 50,
-    backtestsPerDay: 5,
+    backtestsPerDay: 20,
   },
   {
     key: "investor",
@@ -49,7 +49,7 @@ export const TIERS: TierInfo[] = [
     usdPrice: 99.99,
     watchlists: 1000,
     queriesPerDay: 100000,
-    backtestsPerDay: 1000,
+    backtestsPerDay: 10000,
   },
 ];
 

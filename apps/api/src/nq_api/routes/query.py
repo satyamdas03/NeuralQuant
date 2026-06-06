@@ -360,7 +360,7 @@ async def run_nl_query_v2(
         _timed(asyncio.to_thread(_build_macro_context, req.question, effective_market_v2, today), 10.0, None),
         _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, effective_market_v2), 45.0, None),
         _timed(asyncio.to_thread(_fetch_finnhub_news_summaries, effective_ticker_v2, effective_market_v2, 5), 8.0, []),
-        _timed(asyncio.to_thread(_fetch_enrichment, effective_ticker_v2, effective_market_v2), 25.0, {}),
+        _timed(asyncio.to_thread(_fetch_enrichment, effective_ticker_v2, effective_market_v2), 45.0, {}),
     )
 
     context_parts = [
