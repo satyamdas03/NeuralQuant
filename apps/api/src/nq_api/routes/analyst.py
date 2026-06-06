@@ -283,6 +283,21 @@ def _build_analyst_context(ticker: str, market: str) -> dict:
         "book_value":                round(_safe_float(fund.get("book_value"), 0.0), 2) if fund.get("book_value") is not None else None,
         "dividend_yield":            round(_safe_float(fund.get("dividend_yield"), 0.0), 2) if fund.get("dividend_yield") is not None else None,
         "payout_ratio":              round(_safe_float(fund.get("payout_ratio"), 0.0), 3) if fund.get("payout_ratio") is not None else None,
+        # ── Expanded analyst enrichment fields (20+ field expansion) ──
+        "analyst_target_high":       fund.get("analyst_target_high"),
+        "analyst_target_low":        fund.get("analyst_target_low"),
+        "roic":                      round(_safe_float(fund.get("roic"), 0.0), 3) if fund.get("roic") is not None else None,
+        "short_ratio":               round(_safe_float(fund.get("short_ratio"), 0.0), 2) if fund.get("short_ratio") is not None else None,
+        "avg_volume":                fund.get("avg_volume"),
+        "institutional_pct":         round(_safe_float(fund.get("institutional_ownership"), 0.0), 3) if fund.get("institutional_ownership") is not None else None,
+        "insider_pct":               round(_safe_float(fund.get("insider_pct"), 0.0), 3) if fund.get("insider_pct") is not None else None,
+        "forward_pe":                round(_safe_float(fund.get("forward_pe"), 0.0), 2) if fund.get("forward_pe") is not None else None,
+        "revenue_per_share":         round(_safe_float(fund.get("revenue_per_share"), 0.0), 2) if fund.get("revenue_per_share") is not None else None,
+        "fifty_day_avg":             round(_safe_float(fund.get("fifty_day_average"), 0.0), 2) if fund.get("fifty_day_average") is not None else None,
+        "two_hundred_day_avg":       round(_safe_float(fund.get("two_hundred_day_average"), 0.0), 2) if fund.get("two_hundred_day_average") is not None else None,
+        "number_of_analyst_opinions": fund.get("number_of_analyst_opinions"),
+        "free_cashflow":             fund.get("free_cashflow"),
+        "revenue_growth_yoy":        round(_safe_float(fund.get("revenue_growth_yoy"), 0.0), 1) if fund.get("revenue_growth_yoy") is not None else None,
     }
 
     # Data quality flags — tell agents which values are reliable vs missing/synthetic
@@ -315,6 +330,21 @@ def _build_analyst_context(ticker: str, market: str) -> dict:
         _data_quality.append("debt_equity is N/A")
     if info.get("revenueGrowth") is None:
         _data_quality.append("revenue_growth is N/A")
+    # ── New field data quality flags (20+ field expansion) ──
+    if fund.get("roic") is None:
+        _data_quality.append("roic is N/A")
+    if fund.get("short_ratio") is None:
+        _data_quality.append("short_ratio is N/A")
+    if fund.get("avg_volume") is None:
+        _data_quality.append("avg_volume is N/A")
+    if fund.get("insider_pct") is None:
+        _data_quality.append("insider_pct is N/A")
+    if fund.get("analyst_target_high") is None:
+        _data_quality.append("analyst_target_high is N/A")
+    if fund.get("analyst_target_low") is None:
+        _data_quality.append("analyst_target_low is N/A")
+    if fund.get("institutional_ownership") is None:
+        _data_quality.append("institutional_pct is N/A")
     if _data_quality:
         context["_data_quality_flags"] = _data_quality
 
@@ -415,7 +445,14 @@ def _fetch_finnhub_data(ticker: str, market: str) -> dict:
                         "dividend_yield", "earnings_date", "roa", "operating_margin",
                         "profit_margin", "earnings_growth_yoy", "ev_revenue", "ev_ebitda",
                         "trailing_peg_ratio", "current_ratio", "quick_ratio",
-                        "forward_eps", "book_value", "payout_ratio"):
+                        "forward_eps", "book_value", "payout_ratio",
+                        # ── Expanded analyst enrichment fields (20+ field expansion) ──
+                        "analyst_target_high", "analyst_target_low", "roic",
+                        "short_ratio", "avg_volume", "insider_pct",
+                        "institutional_ownership", "forward_pe",
+                        "revenue_per_share", "fifty_day_average",
+                        "two_hundred_day_average", "number_of_analyst_opinions",
+                        "free_cashflow", "revenue_growth_yoy", "debt_equity"):
                 val = fund.get(key)
                 if val is not None and key not in result:
                     result[key] = val
@@ -763,6 +800,21 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
             "book_value":                round(_safe_float(fund.get("book_value"), 0.0), 2) if fund.get("book_value") is not None else None,
             "dividend_yield":            round(_safe_float(fund.get("dividend_yield"), 0.0), 2) if fund.get("dividend_yield") is not None else None,
             "payout_ratio":              round(_safe_float(fund.get("payout_ratio"), 0.0), 3) if fund.get("payout_ratio") is not None else None,
+            # ── Expanded analyst enrichment fields (20+ field expansion) ──
+            "analyst_target_high":       fund.get("analyst_target_high"),
+            "analyst_target_low":        fund.get("analyst_target_low"),
+            "roic":                      round(_safe_float(fund.get("roic"), 0.0), 3) if fund.get("roic") is not None else None,
+            "short_ratio":               round(_safe_float(fund.get("short_ratio"), 0.0), 2) if fund.get("short_ratio") is not None else None,
+            "avg_volume":                fund.get("avg_volume"),
+            "institutional_pct":         round(_safe_float(fund.get("institutional_ownership"), 0.0), 3) if fund.get("institutional_ownership") is not None else None,
+            "insider_pct":               round(_safe_float(fund.get("insider_pct"), 0.0), 3) if fund.get("insider_pct") is not None else None,
+            "forward_pe":                round(_safe_float(fund.get("forward_pe"), 0.0), 2) if fund.get("forward_pe") is not None else None,
+            "revenue_per_share":         round(_safe_float(fund.get("revenue_per_share"), 0.0), 2) if fund.get("revenue_per_share") is not None else None,
+            "fifty_day_avg":             round(_safe_float(fund.get("fifty_day_average"), 0.0), 2) if fund.get("fifty_day_average") is not None else None,
+            "two_hundred_day_avg":       round(_safe_float(fund.get("two_hundred_day_average"), 0.0), 2) if fund.get("two_hundred_day_average") is not None else None,
+            "number_of_analyst_opinions": fund.get("number_of_analyst_opinions"),
+            "free_cashflow":             fund.get("free_cashflow"),
+            "revenue_growth_yoy":        round(_safe_float(fund.get("revenue_growth_yoy"), 0.0), 1) if fund.get("revenue_growth_yoy") is not None else None,
         }
 
         # Sector median comparison (for agent context)

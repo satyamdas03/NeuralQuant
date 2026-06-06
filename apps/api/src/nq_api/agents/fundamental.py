@@ -142,6 +142,47 @@ Compare this stock's metrics to the sector median above when making your assessm
             dq_section = "\n⚠ DATA QUALITY WARNINGS (these values are unreliable — treat with low confidence):\n"
             dq_section += "\n".join(f"  • {f}" for f in dq_flags)
 
+        # ── Expanded analyst enrichment fields (20+ field expansion) ──
+        def _fmt_pct(val):
+            """Format a decimal (0.15 = 15%) as percentage string."""
+            if val is not None and val != 'N/A':
+                try:
+                    return f"{float(val) * 100:.1f}%"
+                except (TypeError, ValueError):
+                    return 'N/A'
+            return 'N/A'
+
+        def _fmt_int(val):
+            """Format large numbers with K/M/B suffix."""
+            if val is not None and val != 'N/A':
+                try:
+                    v = int(val)
+                    if v >= 1_000_000_000:
+                        return f"{v/1_000_000_000:.1f}B"
+                    elif v >= 1_000_000:
+                        return f"{v/1_000_000:.1f}M"
+                    elif v >= 1_000:
+                        return f"{v/1_000:.1f}K"
+                    return f"{v:,}"
+                except (TypeError, ValueError):
+                    return 'N/A'
+            return 'N/A'
+
+        roic_display = _fmt(context.get('roic'))
+        short_ratio_display = _fmt(context.get('short_ratio'))
+        avg_volume_display = _fmt_int(context.get('avg_volume'))
+        institutional_pct_display = _fmt_pct(context.get('institutional_pct'))
+        insider_pct_display = _fmt_pct(context.get('insider_pct'))
+        analyst_target_high = _fmt(context.get('analyst_target_high'))
+        analyst_target_low = _fmt(context.get('analyst_target_low'))
+        forward_pe_display = _fmt(context.get('forward_pe'))
+        rev_per_share_display = _fmt(context.get('revenue_per_share'))
+        fcf_display = _fmt(context.get('free_cashflow'), ".0f")
+        num_analysts = context.get('number_of_analyst_opinions', 'N/A')
+        rev_growth_yoy_display = _fmt(context.get('revenue_growth_yoy'), ".1f")
+        fifty_day_avg_display = _fmt(context.get('fifty_day_avg'))
+        two_hundred_day_avg_display = _fmt(context.get('two_hundred_day_avg'))
+
         return f"""Analyse the fundamental investment merit of {ticker}.
 
 IMPORTANT: Every value below marked [VERIFIED] is LIVE data from FMP/yfinance — authoritative. Use ONLY these exact numbers. Never substitute from training data. If a field shows N/A, it is genuinely unavailable — do not fabricate.
@@ -153,6 +194,7 @@ Financial data [VERIFIED] (live as of today):
 - Net profit margin: {npm_display} [VERIFIED]
 - ROE: {roe_display} [VERIFIED]
 - ROA: {roa_display} [VERIFIED]
+- ROIC (Return on Invested Capital): {roic_display} [VERIFIED]
 - Revenue growth YoY: {rev_display} [VERIFIED]
 - Earnings growth YoY: {eg_display}% [VERIFIED]
 - Debt/Equity: {de_display} [VERIFIED]
@@ -160,6 +202,7 @@ Financial data [VERIFIED] (live as of today):
 - Quick ratio: {qr_display} [VERIFIED]
 - Quality composite percentile: {context.get('quality_percentile', 'N/A')} [VERIFIED] (0-1 scale)
 - Trailing P/E ratio: {pe}x [VERIFIED]
+- Forward P/E ratio: {forward_pe_display}x [VERIFIED]
 - Price-to-Book ratio: {pb}x [VERIFIED]
 - PEG ratio (trailing): {peg_display} [VERIFIED]
 - EV/Revenue: {ev_rev_display}x [VERIFIED]
@@ -168,11 +211,23 @@ Financial data [VERIFIED] (live as of today):
 - Accruals ratio: {context.get('accruals_ratio', 'N/A')} [VERIFIED] (lower/negative = better)
 - Market cap: {context.get('market_cap', 'N/A')} [VERIFIED]
 - 52-week range: {context.get('week52_low', 'N/A')} – {context.get('week52_high', 'N/A')} [VERIFIED]
+- 50-day moving average: {fifty_day_avg_display} [VERIFIED]
+- 200-day moving average: {two_hundred_day_avg_display} [VERIFIED]
 - Analyst target mean: {context.get('analyst_target_mean', 'N/A')} [VERIFIED]
+- Analyst target high: {analyst_target_high} [VERIFIED]
+- Analyst target low: {analyst_target_low} [VERIFIED]
+- Number of analysts: {num_analysts} [VERIFIED]
 - Forward EPS: {fwd_eps_display} [VERIFIED]
 - Book value per share: {bv_display} [VERIFIED]
 - Dividend yield: {div_yield_display} [VERIFIED]
 - Payout ratio: {payout_display} [VERIFIED]
+- Short ratio: {short_ratio_display} [VERIFIED] (days to cover)
+- Short interest % of float: {context.get('short_interest_pct', 'N/A')} [VERIFIED]
+- Average volume: {avg_volume_display} [VERIFIED]
+- Institutional ownership: {institutional_pct_display} [VERIFIED]
+- Insider ownership: {insider_pct_display} [VERIFIED]
+- Free cashflow: {fcf_display} [VERIFIED]
+- Revenue per share: {rev_per_share_display} [VERIFIED]
 - AI composite score: {context.get('composite_score', 'N/A')} [VERIFIED] (0-1 scale)
 {sector_section}{dq_section}
 Provide your fundamental stance on {ticker}. Reference the specific numbers above in your key points."""

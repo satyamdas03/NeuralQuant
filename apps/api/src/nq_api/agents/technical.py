@@ -90,6 +90,19 @@ class TechnicalAgent(BaseAnalystAgent):
             index_label = "SPX vs 200MA"
             index_val = context.get("spx_vs_200ma", "N/A")
 
+        # 52-week high/low for range analysis
+        w52h = context.get('week52_high', 'N/A')
+        w52l = context.get('week52_low', 'N/A')
+        # Analyst targets for sentiment context
+        analyst_target = context.get('analyst_target_mean', 'N/A')
+        analyst_target_high = context.get('analyst_target_high', 'N/A')
+        analyst_target_low = context.get('analyst_target_low', 'N/A')
+        # Short interest for squeeze/risk signals
+        short_ratio = context.get('short_ratio', 'N/A')
+        short_pct = context.get('short_interest_pct', 'N/A')
+        # Volume context
+        avg_volume = context.get('avg_volume', 'N/A')
+
         return f"""Analyse the technical setup for {ticker}.
 
 IMPORTANT: Every value below marked [VERIFIED] is LIVE data from FMP/yfinance — authoritative. Use ONLY these exact numbers. Never substitute from training data. If a field shows N/A, it is genuinely unavailable — do not fabricate.
@@ -109,6 +122,13 @@ Technical data [VERIFIED]:
 - Volume today: {context.get('volume_today', 'N/A')} [VERIFIED]
 - Volume 20d avg: {context.get('volume_20d_avg', 'N/A')} [VERIFIED]
 - Volume ratio: {context.get('volume_ratio', 'N/A')} [VERIFIED]
+- Average volume (10-day): {avg_volume} [VERIFIED]
+- Short ratio (days to cover): {short_ratio} [VERIFIED]
+- Short interest % of float: {short_pct} [VERIFIED]
+- 52-week range: {w52l} – {w52h} [VERIFIED]
+- Analyst target mean: {analyst_target} [VERIFIED]
+- Analyst target high: {analyst_target_high} [VERIFIED]
+- Analyst target low: {analyst_target_low} [VERIFIED]
 - Crash protection: {crash_protection}
 - {index_label}: {index_val}
 - Market regime: {context.get('regime_label', 'N/A')}

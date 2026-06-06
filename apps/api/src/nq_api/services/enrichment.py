@@ -15,6 +15,31 @@ logger = logging.getLogger(__name__)
 log = logging.getLogger(__name__)
 
 
+def _fmt_mcap(mcap, market: str) -> str:
+    """Format market cap for display in competitor context."""
+    if mcap is None:
+        return "N/A"
+    cur = "Rs." if market == "IN" else "$"
+    try:
+        mcap = float(mcap)
+    except (TypeError, ValueError):
+        return "N/A"
+    if market == "IN":
+        if mcap >= 1e13:
+            return f"{cur}{mcap/1e13:.1f}L Cr"
+        elif mcap >= 1e11:
+            return f"{cur}{mcap/1e11:.1f}K Cr"
+        else:
+            return f"{cur}{mcap/1e7:.0f} Cr"
+    else:
+        if mcap >= 1e12:
+            return f"{cur}{mcap/1e12:.1f}T"
+        elif mcap >= 1e9:
+            return f"{cur}{mcap/1e9:.1f}B"
+        else:
+            return f"{cur}{mcap/1e6:.0f}M"
+
+
 def _fetch_relevant_news(question: str, ticker: str | None, n: int = 8) -> list[str]:
     """Pull recent headlines from yfinance for context injection."""
     from nq_api.data_builder import _get_yf_session
@@ -606,6 +631,43 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                         else: detail_parts.append(f"Mcap=${mcap/1e6:.0f}M {mcap_marker}")
                 if w52l and w52h: detail_parts.append(f"52wk={cur}{w52l:,.0f}-{cur}{w52h:,.0f} {_marker('week52')}")
                 if target: detail_parts.append(f"AnalystTarget={cur}{target:,.0f}({rec}) {_marker('analyst_target')}")
+                # ── Expanded analyst enrichment fields (20+ field expansion) ──
+                analyst_target_high = fund.get("analyst_target_high")
+                analyst_target_low = fund.get("analyst_target_low")
+                roic = fund.get("roic")
+                short_ratio = fund.get("short_ratio")
+                avg_vol = fund.get("avg_volume")
+                institutional_pct = fund.get("institutional_ownership")
+                insider_pct = fund.get("insider_pct")
+                fwd_pe = fund.get("forward_pe")
+                rev_growth = fund.get("revenue_growth_yoy")
+                profit_margin = fund.get("profit_margin")
+                operating_margin = fund.get("operating_margin")
+                dividend_yield = fund.get("dividend_yield")
+                ev_ebitda = fund.get("ev_ebitda")
+                peg = fund.get("trailing_peg_ratio") or fund.get("peg_ratio")
+                fcf = fund.get("free_cashflow")
+                num_analysts = fund.get("number_of_analyst_opinions")
+                fifty_day_avg = fund.get("fifty_day_average")
+                two_hundred_day_avg = fund.get("two_hundred_day_average")
+                if analyst_target_high: detail_parts.append(f"AnalystTargetHigh={cur}{analyst_target_high:,.0f} {_marker('analyst_target_high')}")
+                if analyst_target_low: detail_parts.append(f"AnalystTargetLow={cur}{analyst_target_low:,.0f} {_marker('analyst_target_low')}")
+                if roic is not None: detail_parts.append(f"ROIC={float(roic)*100:.1f}% {_marker('roic')}")
+                if short_ratio is not None: detail_parts.append(f"ShortRatio={float(short_ratio):.1f} {_marker('short_ratio')}")
+                if avg_vol: detail_parts.append(f"AvgVol={int(avg_vol):,} {_marker('avg_volume')}")
+                if institutional_pct is not None: detail_parts.append(f"Institutional={float(institutional_pct)*100:.0f}% {_marker('institutional_ownership')}")
+                if insider_pct is not None: detail_parts.append(f"Insider={float(insider_pct)*100:.0f}% {_marker('insider_pct')}")
+                if fwd_pe: detail_parts.append(f"FwdP/E={float(fwd_pe):.1f} {_marker('forward_pe')}")
+                if rev_growth is not None: detail_parts.append(f"RevGrowthYoY={float(rev_growth):.1f}% {_marker('revenue_growth_yoy')}")
+                if profit_margin is not None: detail_parts.append(f"NetMargin={float(profit_margin)*100:.1f}% {_marker('profit_margin')}")
+                if operating_margin is not None: detail_parts.append(f"OpMargin={float(operating_margin)*100:.1f}% {_marker('operating_margin')}")
+                if dividend_yield is not None: detail_parts.append(f"DivYield={float(dividend_yield):.2f}% {_marker('dividend_yield')}")
+                if ev_ebitda: detail_parts.append(f"EV/EBITDA={float(ev_ebitda):.1f} {_marker('ev_ebitda')}")
+                if peg: detail_parts.append(f"PEG={float(peg):.2f} {_marker('peg_ratio')}")
+                if fcf: detail_parts.append(f"FCF={int(fcf):,} {_marker('free_cashflow')}")
+                if num_analysts: detail_parts.append(f"NumAnalysts={int(num_analysts)} {_marker('number_of_analyst_opinions')}")
+                if fifty_day_avg: detail_parts.append(f"SMA50={float(fifty_day_avg):,.2f} {_marker('fifty_day_average')}")
+                if two_hundred_day_avg: detail_parts.append(f"SMA200={float(two_hundred_day_avg):,.2f} {_marker('two_hundred_day_average')}")
                 momentum = cached_row.get("momentum_percentile")
                 quality = cached_row.get("quality_percentile")
                 if momentum: detail_parts.append(f"Momentum={momentum:.0%}")
@@ -623,13 +685,17 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
             lines.append("⚠ MANDATORY: ALL values marked [VERIFIED] are REAL live data (FMP primary, yfinance fallback) for TODAY. Fields not shown are unavailable -- do NOT invent them. P/E, Beta, Price, Market Cap change after earnings, splits, and volatility shifts. Your training data is WRONG for these values. ALWAYS quote the EXACT [VERIFIED] values shown above.")
             parts.append("\n".join(lines))
 
-        # Inject competitor comparison with deep fundamentals
+        # Inject competitor comparison with deep fundamentals + FMP peers
         if in_universe_tickers and needs_stock_scores:
             try:
                 from nq_api.data_builder import _fetch_yf_info_cached
                 from nq_api.cache import score_cache as _sc_comp
+                from nq_data.fmp import get_fmp_client as _get_fmp
 
                 comp_lines = ["Competitor deep-dive:"]
+                primary_ticker = in_universe_tickers[0] if in_universe_tickers else None
+
+                # Primary stock sector/industry context
                 for t in in_universe_tickers[:2]:
                     try:
                         info = _fetch_yf_info_cached(t)
@@ -640,7 +706,101 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                                 comp_lines.append(f"  {t} sector: {sector} | industry: {industry}")
                     except Exception:
                         pass
-                # Show nearby alternatives from cache with deep fundamentals
+
+                # ── FMP stock peers: industry-based alternatives ──
+                fmp_peer_tickers: list[str] = []
+                if primary_ticker:
+                    try:
+                        fmp = _get_fmp_client()
+                        if fmp._enabled:
+                            raw_peers = fmp.get_stock_peers(primary_ticker)
+                            if raw_peers:
+                                # Normalise: strip .NS/.BO for IN, keep as-is for US
+                                for p in raw_peers[:5]:
+                                    p_clean = p.replace(".NS", "").replace(".BO", "") if target_market == "IN" else p
+                                    if p_clean.upper() != primary_ticker.upper():
+                                        fmp_peer_tickers.append(p_clean)
+                                fmp_peer_tickers = fmp_peer_tickers[:3]  # max 3 peers
+                    except Exception:
+                        log.debug("FMP stock_peers lookup failed for %s", primary_ticker)
+
+                # Show FMP peers with live metrics + brief comparison
+                if fmp_peer_tickers:
+                    comp_lines.append(f"  Industry peers (FMP): {', '.join(fmp_peer_tickers)}")
+                    # Batch-quote FMP peers for fast price/P/E
+                    fmp_peer_quotes: dict[str, dict] = {}
+                    try:
+                        fmp = _get_fmp_client()
+                        if fmp._enabled and fmp_peer_tickers:
+                            peer_syms = list(fmp_peer_tickers)
+                            if target_market == "IN":
+                                peer_syms = [t if "." in t else f"{t}.NS" for t in peer_syms]
+                            fmp_peer_quotes = fmp.get_batch_quotes(peer_syms) or {}
+                    except Exception:
+                        pass
+                    # Primary stock metrics for comparison
+                    primary_data = None
+                    try:
+                        primary_data = _fetch_one(primary_ticker, target_market)
+                    except Exception:
+                        pass
+                    primary_pe = primary_data.get("pe_ttm") if primary_data else None
+                    primary_mcap = primary_data.get("market_cap") if primary_data else None
+                    primary_price = primary_data.get("current_price") if primary_data else None
+
+                    for pt in fmp_peer_tickers:
+                        peer_metrics = _fetch_one(pt, target_market) if pt not in (in_universe_tickers or []) else None
+                        if not peer_metrics:
+                            # Try FMP batch quotes fallback
+                            fmp_q = (fmp_peer_quotes.get(pt)
+                                     or fmp_peer_quotes.get(f"{pt}.NS")
+                                     or fmp_peer_quotes.get(f"{pt}.BO")
+                                     or {})
+                            if fmp_q.get("price"):
+                                p_price = fmp_q.get("price")
+                                p_pe = fmp_q.get("pe")
+                                p_mcap = fmp_q.get("market_cap")
+                                comparison = ""
+                                cur = "Rs." if target_market == "IN" else "$"
+                                if p_pe and primary_pe:
+                                    comparison = f" vs primary P/E {primary_pe:.1f}" if primary_pe else ""
+                                comp_lines.append(
+                                    f"  {pt}: Price={cur}{p_price:,.2f}"
+                                    f" | P/E={p_pe:.1f if p_pe else 'N/A'}"
+                                    f" | MCap={_fmt_mcap(p_mcap, target_market)}"
+                                    f"{comparison}"
+                                )
+                            continue
+                        # Full metrics from _fetch_one
+                        p_price = peer_metrics.get("current_price")
+                        p_pe = peer_metrics.get("pe_ttm")
+                        p_mcap = peer_metrics.get("market_cap")
+                        p_roe = peer_metrics.get("roe")
+                        p_margin = peer_metrics.get("gross_profit_margin")
+                        cur = "Rs." if target_market == "IN" else "$"
+                        comp_parts = [f"ForeCast=N/A"]
+                        if p_price:
+                            comp_parts.append(f"Price={cur}{p_price:,.2f}")
+                        if p_pe is not None:
+                            comp_parts.append(f"P/E={p_pe:.1f}")
+                        if p_mcap:
+                            comp_parts.append(f"MCap={_fmt_mcap(p_mcap, target_market)}")
+                        if p_roe is not None:
+                            comp_parts.append(f"ROE={p_roe:.1%}" if isinstance(p_roe, float) and p_roe < 1 else f"ROE={p_roe}")
+                        # Brief comparison vs primary
+                        comparisons = []
+                        if p_pe and primary_pe:
+                            pe_diff = p_pe - primary_pe
+                            comparisons.append(f"P/E {'higher' if pe_diff > 0 else 'lower'} by {abs(pe_diff):.1f}")
+                        if p_mcap and primary_mcap:
+                            if primary_mcap > 0:
+                                cap_ratio = p_mcap / primary_mcap
+                                comparisons.append(f"market cap {cap_ratio:.1f}x primary")
+                        if comparisons:
+                            comp_parts.append(f"({', '.join(comparisons)})")
+                        comp_lines.append(f"  {pt}: {' | '.join(comp_parts)} [VERIFIED]")
+
+                # Show nearby alternatives from cache with deep fundamentals (screener-ranked)
                 cached_all = _sc_comp.read_top(target_market, 50, max_age_seconds=300)
                 if not cached_all:
                     cached_all = _sc_comp.read_top(target_market, 50, max_age_seconds=86400)
@@ -648,7 +808,6 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                     cached_all = _sc_comp.read_top(target_market, 50, max_age_seconds=999999999)
                 if cached_all:
                     cache_map = {r.get("ticker"): r for r in cached_all}
-                    primary_ticker = in_universe_tickers[0] if in_universe_tickers else None
                     primary_rank = next((i for i, r in enumerate(cached_all) if r.get("ticker") == primary_ticker), -1)
                     # Pick top 2 peers (rank-1 and rank+1 around the primary)
                     peer_indices = []
@@ -659,6 +818,9 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                     for pi in peer_indices[:2]:
                         peer = cached_all[pi]
                         peer_ticker = peer.get("ticker", "?")
+                        # Skip if already shown as FMP peer
+                        if peer_ticker in fmp_peer_tickers:
+                            continue
                         peer_sc = int(peer.get("composite_score", 0.5) * 10)
                         comp_lines.append(
                             f"  Alternative: {peer_ticker} (ForeCast {peer_sc}/10)"

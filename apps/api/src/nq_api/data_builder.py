@@ -272,6 +272,9 @@ def _overlay_fmp_info(info: dict, ticker: str) -> None:
                 info["priceToSalesTrailing12Months"] = metrics["price_to_sales"]
             if metrics.get("market_cap") is not None and "marketCap" not in info:
                 info["marketCap"] = metrics["market_cap"]
+            # ── Expanded analyst enrichment fields ──
+            if metrics.get("roic") is not None and metrics["roic"] != 0:
+                info["returnOnInvestment"] = metrics["roic"]
 
         ratios = fmp.get_ratios(ticker)
         if ratios:
@@ -305,6 +308,11 @@ def _overlay_fmp_info(info: dict, ticker: str) -> None:
                 info["trailingPE"] = quote["pe"]
             if quote.get("eps") is not None and "trailingEps" not in info:
                 info["trailingEps"] = quote["eps"]
+            # ── Expanded fields from FMP quote ──
+            if quote.get("avg_volume") is not None:
+                info["averageVolume"] = quote["avg_volume"]
+            if quote.get("short_ratio") is not None:
+                info["shortRatio"] = quote["short_ratio"]
 
         # Compute P/E from FMP price + income statement EPS (most accurate)
         if fmp_price and fmp_price > 0:
@@ -713,6 +721,13 @@ def _empty_row(ticker: str) -> dict:
         "trailing_peg_ratio": None,
         "forward_eps": None,
         "book_value": None,
+        # ── New analyst enrichment fields (20+ field expansion) ──
+        "analyst_target_high": None,
+        "analyst_target_low": None,
+        "roic": None,
+        "short_ratio": None,
+        "avg_volume": None,
+        "insider_pct": None,
     }
 
 
@@ -1146,6 +1161,45 @@ def _fetch_one(ticker: str, market: str, fast_pe: bool = True) -> dict:
         forward_eps = _safe(info.get("forwardEps"), None)
         book_value = _safe(info.get("bookValue"), None)
 
+        # ── New analyst enrichment fields (20+ field expansion) ──
+        # ROIC = NOPAT / Invested Capital (yfinance: returnOnInvestment)
+        roic = _safe(info.get("returnOnInvestment"), None)
+        if roic is None:
+            # Compute from ROE and debt ratio if available
+            _roe_raw = info.get("returnOnEquity")
+            _de_raw = info.get("debtToEquity")
+            if _roe_raw is not None and _de_raw is not None:
+                try:
+                    _roe_val = float(_roe_raw)
+                    _de_val = float(_de_raw) / 100.0  # debtToEquity is in %
+                    if _de_val > 0 and _roe_val != 0:
+                        roic = _roe_val / (1 + _de_val)  # ROIC ≈ ROE / (1 + D/E)
+                except (ValueError, ZeroDivisionError):
+                    pass
+        if roic is not None:
+            _missing.discard("roic")
+        elif roic is None:
+            _missing.add("roic")
+
+        # Short ratio = shares short / average daily volume
+        short_ratio = _safe(info.get("shortRatio"), None)
+        if short_ratio is None:
+            _missing.add("short_ratio")
+
+        # Average volume (10-day from yfinance)
+        avg_volume = None
+        avg_vol_raw = info.get("averageVolume") or info.get("averageDailyVolume10Day")
+        if avg_vol_raw is not None:
+            try:
+                avg_volume = int(float(avg_vol_raw))
+            except (TypeError, ValueError):
+                pass
+        if avg_volume is None:
+            _missing.add("avg_volume")
+
+        # Insider ownership percentage
+        insider_pct = _safe(info.get("heldPercentInsiders"), None)
+
         result = {
             "gross_profit_margin": gpm,
             "roe": roe,
@@ -1198,6 +1252,13 @@ def _fetch_one(ticker: str, market: str, fast_pe: bool = True) -> dict:
             "trailing_peg_ratio": trailing_peg_ratio,
             "forward_eps": forward_eps,
             "book_value": book_value,
+            # ── New analyst enrichment fields (20+ field expansion) ──
+            "analyst_target_high": float(target_high_price) if target_high_price else None,
+            "analyst_target_low": float(target_low_price) if target_low_price else None,
+            "roic": roic,
+            "short_ratio": short_ratio,
+            "avg_volume": avg_volume,
+            "insider_pct": insider_pct,
         }
     except Exception as exc:
         log.debug("Fundamental fetch failed for %s: %s — returning empty row", ticker, exc)

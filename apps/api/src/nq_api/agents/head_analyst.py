@@ -32,6 +32,15 @@ CRITICAL RULES:
 5. Quantify your conviction: explain what data would change your mind.
 6. The PANEL CONSENSUS and VERDICT GUIDANCE are computed from agent stances. Your verdict MUST respect the consensus direction. If consensus is negative, you cannot return BUY or STRONG BUY. If consensus is near zero, you should return HOLD.
 
+ALTERNATIVES & COMPETITORS:
+When peer data is available (peer_1_*, peer_2_*, peer_3_* fields in RAW DATA), you MUST:
+- Name at least one concrete alternative stock in your INVESTMENT_THESIS.
+- Compare the primary stock against each available peer on key metrics (P/E, market cap, ROE, margins).
+- Explicitly state why the primary stock is superior OR inferior to the alternative (e.g., "AAPL at P/E 30x vs MSFT at P/E 35x — AAPL offers better value with comparable quality").
+- If a peer is sourced from "industry_peer" (FMP stock peers), note it operates in the same industry — this is a direct competitor.
+- If a peer is sourced from "screener_ranked" (NeuralQuant universe), note it is a top-ranked alternative in our scoring model.
+- If no peer data is available, state "No direct peer data available" rather than inventing comparisons.
+
 DATA INTEGRITY — MOST IMPORTANT RULE:
 7. Use ONLY the exact numeric values provided in the RAW DATA section. Every value is marked [VERIFIED] — it comes from live financial APIs (FMP, yfinance), not from training data. NEVER fabricate, estimate, or substitute values from your training data. If the raw data says P/E=30.8x [VERIFIED], your Risk Factors MUST say 30.8x — NOT 8x. If ROE=10.0% [VERIFIED], your Risk Factors MUST say 10.0% — NOT 0%. Wrong financial data in investment advice causes real losses. Every number in your output must trace directly to a [VERIFIED] raw data value above.
 
@@ -48,7 +57,7 @@ ANTI-BIAS RULE: You must be equally willing to recommend SELL as BUY. A stock wi
 
 Output format — strictly:
 VERDICT: [STRONG BUY|BUY|HOLD|SELL|STRONG SELL]
-INVESTMENT_THESIS: [4-6 sentences synthesising the debate into a clear thesis. Include WHY this stock and WHY NOT the next-best alternative.]
+INVESTMENT_THESIS: [4-6 sentences synthesising the debate into a clear thesis. Include WHY this stock and WHY NOT the next-best alternative. Compare against at least one peer if peer data is available.]
 BULL_CASE: [2-3 sentences on primary upside drivers]
 BEAR_CASE: [2-3 sentences on primary downside risks]
 RISK_FACTORS:
@@ -106,17 +115,28 @@ RISK_FACTORS:
                     "institutional_ownership", "fifty_day_average", "two_hundred_day_average",
                     "target_high_price", "target_low_price", "number_of_analyst_opinions",
                     "payout_ratio",
-                    # Peer deep-dive fields (peer_1_* / peer_2_*)
-                    "peer_1_ticker", "peer_1_score", "peer_1_current_price", "peer_1_pe_ttm",
+                    # ── Expanded analyst enrichment fields (20+ field expansion) ──
+                    "analyst_target_high", "analyst_target_low", "roic",
+                    "short_ratio", "avg_volume", "insider_pct", "institutional_pct",
+                    "fifty_day_avg", "two_hundred_day_avg", "forward_pe",
+                    "revenue_per_share", "free_cashflow", "number_of_analyst_opinions",
+                    "revenue_growth_yoy",
+                    # Peer deep-dive fields (peer_1_* / peer_2_* / peer_3_*)
+                    "peer_1_ticker", "peer_1_score", "peer_1_source", "peer_1_current_price", "peer_1_pe_ttm",
                     "peer_1_pb_ratio", "peer_1_beta", "peer_1_market_cap", "peer_1_roe",
                     "peer_1_gross_profit_margin", "peer_1_forward_pe", "peer_1_peg_ratio",
                     "peer_1_profit_margin", "peer_1_operating_margin", "peer_1_ev_ebitda",
                     "peer_1_free_cashflow", "peer_1_current_ratio", "peer_1_institutional_ownership",
-                    "peer_2_ticker", "peer_2_score", "peer_2_current_price", "peer_2_pe_ttm",
+                    "peer_2_ticker", "peer_2_score", "peer_2_source", "peer_2_current_price", "peer_2_pe_ttm",
                     "peer_2_pb_ratio", "peer_2_beta", "peer_2_market_cap", "peer_2_roe",
                     "peer_2_gross_profit_margin", "peer_2_forward_pe", "peer_2_peg_ratio",
                     "peer_2_profit_margin", "peer_2_operating_margin", "peer_2_ev_ebitda",
                     "peer_2_free_cashflow", "peer_2_current_ratio", "peer_2_institutional_ownership",
+                    "peer_3_ticker", "peer_3_score", "peer_3_source", "peer_3_current_price", "peer_3_pe_ttm",
+                    "peer_3_pb_ratio", "peer_3_beta", "peer_3_market_cap", "peer_3_roe",
+                    "peer_3_gross_profit_margin", "peer_3_forward_pe", "peer_3_peg_ratio",
+                    "peer_3_profit_margin", "peer_3_operating_margin", "peer_3_ev_ebitda",
+                    "peer_3_free_cashflow", "peer_3_current_ratio", "peer_3_institutional_ownership",
                 )
             }
             if raw_fields:

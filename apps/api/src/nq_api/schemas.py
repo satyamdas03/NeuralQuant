@@ -209,6 +209,19 @@ class StockSummary(BaseModel):
     yield_curve_2y: float | None = None
     yield_curve_10y: float | None = None
     yield_curve_spread: float | None = None
+    # ── Expanded analyst enrichment fields (20+ field expansion) ──
+    roic: float | None = None
+    short_ratio: float | None = None
+    avg_volume: int | None = None
+    institutional_pct: float | None = None
+    insider_pct: float | None = None
+    forward_pe: float | None = None
+    revenue_per_share: float | None = None
+    fifty_day_avg: float | None = None
+    two_hundred_day_avg: float | None = None
+    free_cashflow: float | None = None
+    revenue_growth_yoy: float | None = None
+    number_of_analyst_opinions: int | None = None
 
 
 # ── Portfolio Output Models (Phase 1) ────────────────────────────────────────
