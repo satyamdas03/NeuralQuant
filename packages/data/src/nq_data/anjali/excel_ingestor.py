@@ -1,11 +1,11 @@
-"""Anjali Value Screener — Excel-based data ingestor.
+"""QuantFactor Engine — Excel-based data ingestor.
 
-Reads the Anjali Excel workbook (US_Stock_Analysis_Coloured.xlsx) which contains
+Reads the QuantFactor Excel workbook (US_Stock_Analysis_Coloured.xlsx) which contains
 pre-computed quintile scores and raw fundamental data for SP500, SmallMidCap,
 and NSE 100 universes. This replaces the slow yfinance-based collector for
 nightly updates.
 
-The Excel is the source of truth — it's updated by the Anjali repo with fresh
+The Excel is the source of truth — it's updated by the QuantFactor pipeline with fresh
 data, and we read it directly into Supabase.
 
 Usage:
@@ -136,7 +136,7 @@ def read_anjali_sheet(
     sheet: str = "S&P 500 Analysis",
     market: Literal["US", "IN"] = "US",
 ) -> pd.DataFrame:
-    """Read a single sheet from the Anjali Excel workbook.
+    """Read a single sheet from the QuantFactor Excel workbook.
 
     Args:
         path: Path to US_Stock_Analysis_Coloured.xlsx
@@ -148,7 +148,7 @@ def read_anjali_sheet(
     """
     path = Path(path)
     if not path.exists():
-        raise FileNotFoundError(f"Anjali Excel not found: {path}")
+        raise FileNotFoundError(f"QuantFactor Excel not found: {path}")
 
     raw = pd.read_excel(path, sheet_name=sheet, engine="openpyxl")
     logger.info(f"Read {len(raw)} rows from '{sheet}' sheet")
@@ -177,7 +177,7 @@ def read_anjali_sheet(
     else:
         df["loss_profit_qoq"] = False
 
-    # Compute composite Anjali score (sum of 4 quintile scores, -16 to +16)
+    # Compute composite QuantFactor score (sum of 4 quintile scores, -16 to +16)
     score_cols = ["return_score", "growth_score", "valuation_score", "risk_score"]
     if all(c in df.columns for c in score_cols):
         df["composite_anjali_score"] = df[score_cols].sum(axis=1)
@@ -220,7 +220,7 @@ def read_anjali_sheet(
 
 
 def read_anjali_excel(path: str | Path) -> dict[str, pd.DataFrame]:
-    """Read all 3 sheets from the Anjali Excel workbook.
+    """Read all 3 sheets from the QuantFactor Excel workbook.
 
     Returns:
         Dict with keys 'sp500', 'smallmidcap', 'nse100' mapping to DataFrames.
@@ -242,7 +242,7 @@ def read_anjali_excel(path: str | Path) -> dict[str, pd.DataFrame]:
 
 
 def ingest_excel_to_supabase(path: str | Path) -> dict[str, int]:
-    """Read Anjali Excel and upsert all data to Supabase.
+    """Read QuantFactor Excel and upsert all data to Supabase.
 
     Returns:
         Dict with counts per sheet.
@@ -270,7 +270,7 @@ _BATCH_SIZE = 500
 
 
 class ExcelIngestor:
-    """Reads the Anjali Excel and upserts to Supabase anjali_enrichment table.
+    """Reads the QuantFactor Excel and upserts to Supabase anjali_enrichment table.
 
     Uses openpyxl to read both cell values AND fill colors (quintile labels),
     then performs per-market DELETE+INSERT refresh.

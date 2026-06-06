@@ -366,7 +366,7 @@ async def assess_portfolio(
         ticker = h.get("ticker", "").upper()
         market = h.get("market", "US")
 
-        # Look up Anjali data
+        # Look up QuantFactor data
         data = _supabase_rest(
             "anjali_enrichment",
             "GET",

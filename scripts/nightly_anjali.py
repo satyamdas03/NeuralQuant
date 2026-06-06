@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Nightly Anjali enrichment data refresh — GHA / CLI entry point.
+"""Nightly QuantFactor enrichment data refresh — GHA / CLI entry point.
 
 Usage:
     python scripts/nightly_anjali.py [--market US|IN|BOTH] [--universe SP500|SP400|SP600|NIFTY200|ALL]

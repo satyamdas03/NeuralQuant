@@ -139,7 +139,7 @@ def _supabase_rest(table: str, method: str = "GET", query: dict | None = None, b
         resp.raise_for_status()
         return resp.json()
     except Exception as e:
-        logger.debug(f"Anjali Supabase lookup failed: {e}")
+        logger.debug(f"QuantFactor Supabase lookup failed: {e}")
         return None
 
 
@@ -163,7 +163,7 @@ def _load_anjali_cache():
             key = f"{row.get('ticker', '')}:{row.get('market', 'US')}"
             _ANJALI_CACHE[key] = row
         _ANJALI_CACHE_LOADED_AT = now
-        logger.debug(f"Anjali cache loaded: {len(_ANJALI_CACHE)} rows")
+        logger.debug(f"QuantFactor cache loaded: {len(_ANJALI_CACHE)} rows")
 
 
 def get_anjali_enrichment(ticker: str, market: str) -> dict | None:

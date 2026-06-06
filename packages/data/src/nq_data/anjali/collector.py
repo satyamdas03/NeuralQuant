@@ -1,4 +1,4 @@
-"""Anjali Value Screener — data collector.
+"""QuantFactor Engine — data collector.
 
 Ports the anjali-value-stocks collector into the NeuralQuant data pipeline.
 Returns DataFrames instead of writing CSVs. Uses JSON checkpointing for resume.

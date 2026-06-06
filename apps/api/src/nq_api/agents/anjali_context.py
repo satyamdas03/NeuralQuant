@@ -1,4 +1,4 @@
-"""Anjali Value Screener context builder for PARA-DEBATE agents.
+"""QuantFactor Engine context builder for PARA-DEBATE agents.
 
 Injects quintile-scored cross-sectional data into all 7 agent prompts,
 giving them deep fundamental + valuation + growth + risk context
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def build_anjali_context(enrichment: dict | None) -> str:
-    """Build Anjali context string for injection into agent prompts.
+    """Build QuantFactor context string for injection into agent prompts.
 
     Args:
         enrichment: Dict from anjali_enrichment table (via get_anjali_enrichment).

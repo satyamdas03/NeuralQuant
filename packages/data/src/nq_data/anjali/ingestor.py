@@ -1,4 +1,4 @@
-"""Anjali Value Screener — Supabase ingestor.
+"""QuantFactor Engine — Supabase ingestor.
 
 Takes a scored DataFrame and upserts rows into public.anjali_enrichment
 using Supabase PostgREST API (same pattern as score_cache.py).

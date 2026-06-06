@@ -1,4 +1,4 @@
-"""Anjali Value Screener — quintile scoring engine.
+"""QuantFactor Engine — quintile scoring engine.
 
 Implements the exact scoring system from the anjali-value-stocks repo:
 - Growth: ascending quintile (highest growth = best)

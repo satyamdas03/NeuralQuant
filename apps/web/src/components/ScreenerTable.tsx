@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { AIScore } from "@/lib/types";
 import RegimeBadge from "@/components/ui/RegimeBadge";
 
-/** Anjali composite → color class. Scale: -16 to +16 */
+/** QuantFactor composite → color class. Scale: -16 to +16 */
 function anjaliColorClass(composite: number | null | undefined): string {
   if (composite == null) return "text-on-surface-variant";
   if (composite >= 6) return "text-tertiary-fixed-dim";   // strong value
@@ -11,14 +11,14 @@ function anjaliColorClass(composite: number | null | undefined): string {
   return "text-cyber-red";                                  // bearish
 }
 
-/** Anjali composite → short label */
+/** QuantFactor composite → short label */
 function anjaliLabel(composite: number | null | undefined): string {
   if (composite == null) return "—";
   return composite >= 0 ? `+${composite.toFixed(1)}` : composite.toFixed(1);
 }
 
 export function ScreenerTable({ stocks }: { stocks: AIScore[] }) {
-  // Check if ANY stock has Anjali data (to conditionally show column)
+  // Check if ANY stock has QuantFactor data (to conditionally show column)
   const hasAnjali = stocks.some((s) => s.anjali != null);
 
   return (

@@ -111,8 +111,8 @@ def _supabase_rest(table, method="GET", query=None, body=None):
 
 
 def _fetch_anjali_data(market: str) -> list[dict]:
-    """Fetch all Anjali enrichment data for a market."""
-    logger.info("Fetching Anjali data for market=%s", market)
+    """Fetch all QuantFactor enrichment data for a market."""
+    logger.info("Fetching QuantFactor data for market=%s", market)
     all_rows = []
     offset = 0
     limit = 500
@@ -130,7 +130,7 @@ def _fetch_anjali_data(market: str) -> list[dict]:
         if len(data) < limit:
             break
         offset += limit
-    logger.info("Loaded %d stocks from Anjali enrichment", len(all_rows))
+    logger.info("Loaded %d stocks from QuantFactor enrichment", len(all_rows))
     return all_rows
 
 

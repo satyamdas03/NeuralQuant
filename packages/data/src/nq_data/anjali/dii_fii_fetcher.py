@@ -1,4 +1,4 @@
-"""Anjali Value Screener — DII/FII institutional flow data (Phase 3).
+"""QuantFactor Engine — DII/FII institutional flow data (Phase 3).
 
 Fetches aggregate DII/FII market-level flows from NSE India API.
 Uses session cookie acquisition pattern to bypass NSE anti-scraping.

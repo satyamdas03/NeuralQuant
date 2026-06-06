@@ -292,7 +292,7 @@ export const api = {
   getSentiment: (ticker: string, market: Market = "US", limit = 15) =>
     apiFetch<SentimentResponse>(`/sentiment/news/${ticker}?market=${market}&limit=${limit}`),
 
-  // Anjali detail (public, cached)
+  // QuantFactor detail (public, cached)
   getAnjali: (ticker: string, market: Market = "IN") =>
     apiFetch<AnjaliDetailResponse>(`/stocks/${ticker}/anjali?market=${market}`),
 

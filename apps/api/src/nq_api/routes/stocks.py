@@ -1193,6 +1193,6 @@ async def get_anjali_detail(ticker: str, market: str = "US"):
                     )
                     return row
         except Exception as exc:
-            log.warning("Anjali detail fetch failed for %s: %s", t, exc)
+            log.warning("QuantFactor detail fetch failed for %s: %s", t, exc)
 
     raise HTTPException(status_code=404, detail=f"QuantFactor data not found for {ticker}")

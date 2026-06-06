@@ -1,8 +1,8 @@
-"""Anjali Value Screener — quintile-scored cross-sectional enrichment data.
+"""QuantFactor Engine — quintile-scored cross-sectional enrichment data.
 
 Provides collector (yfinance → DataFrame), scorer (quintile ranking),
 ingestor (DataFrame → Supabase), and Excel ingestor (XLSX → Supabase)
-for the Anjali enrichment pipeline.
+for the QuantFactor enrichment pipeline.
 
 Uses lazy imports to avoid loading yfinance/curl_cffi when only the
 Excel ingestor is needed (e.g. in CI workflows).

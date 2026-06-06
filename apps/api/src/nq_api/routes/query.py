@@ -464,7 +464,7 @@ async def run_nl_query_v2(
             if anjali_ctx:
                 context_parts.append(anjali_ctx)
         except Exception as e:
-            logger.debug("Anjali enrichment lookup failed for %s: %s", effective_ticker_v2, e)
+            logger.debug("QuantFactor enrichment lookup failed for %s: %s", effective_ticker_v2, e)
 
     user_msg = "\n".join(context_parts)
 

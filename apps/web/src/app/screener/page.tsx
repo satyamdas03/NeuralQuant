@@ -42,7 +42,7 @@ function ScreenerInner() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activePreset, setActivePreset] = useState<string | null>(null);
-  // Anjali filters
+  // QuantFactor filters
   const [showAnjaliFilters, setShowAnjaliFilters] = useState(false);
   const [minAnjaliComposite, setMinAnjaliComposite] = useState<number>(-16);
   const [valueSweetSpotOnly, setValueSweetSpotOnly] = useState(false);
@@ -105,10 +105,10 @@ function ScreenerInner() {
       }
     }
 
-    // Apply Anjali filters
+    // Apply QuantFactor filters
     if (minAnjaliComposite > -16 || valueSweetSpotOnly || excludeLossMaking) {
       results = results.filter((s) => {
-        // If no Anjali data and filters are active, exclude
+        // If no QuantFactor data and filters are active, exclude
         if (!s.anjali) return false;
         if (s.anjali.composite != null && s.anjali.composite < minAnjaliComposite) return false;
         if (valueSweetSpotOnly && !s.anjali.valuation_sweet_spot) return false;

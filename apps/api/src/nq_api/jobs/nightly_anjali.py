@@ -87,12 +87,12 @@ async def refresh_anjali_data(
             results[uni] = 0
 
     total = sum(results.values())
-    logger.info(f"Anjali nightly refresh complete: {total} total rows upserted")
+    logger.info(f"QuantFactor nightly refresh complete: {total} total rows upserted")
     return results
 
 
 def main():
-    """CLI entry point for nightly Anjali refresh."""
+    """CLI entry point for nightly QuantFactor refresh."""
     import argparse
 
     logging.basicConfig(
@@ -100,7 +100,7 @@ def main():
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
 
-    parser = argparse.ArgumentParser(description="Nightly Anjali enrichment data refresh")
+    parser = argparse.ArgumentParser(description="Nightly QuantFactor enrichment data refresh")
     parser.add_argument(
         "--market",
         choices=["US", "IN", "BOTH"],
@@ -122,7 +122,7 @@ def main():
     result = asyncio.run(refresh_anjali_data(market=market_filter, universe=universe_filter))
 
     total = sum(result.values())
-    print(f"\nAnjali refresh complete: {total} rows upserted")
+    print(f"\nQuantFactor refresh complete: {total} rows upserted")
     for uni, count in result.items():
         print(f"  {uni}: {count} rows")
 
