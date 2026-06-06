@@ -20,7 +20,7 @@ const ROWS: Row[] = [
   { selection: "Selection 6", universe: "MicroCap 250", irs: "88.0", entry: "₹ 215.40", exit: "₹ 281.60", returnPct: "+30.7%", alpha: "+19.4%", status: "BEAT" },
 ];
 
-export default function QuarterlyBreakdownTable() {
+export default function QuarterlyBreakdownTable({ breakdown }: { breakdown?: Array<{ pool: string; count: number; avg_return: number; avg_benchmark: number; alpha: number; hit_rate: number }> | null }) {
   return (
     <div
       className="w-full border"
@@ -119,9 +119,31 @@ export default function QuarterlyBreakdownTable() {
         </table>
       </div>
 
+      {/* Pool-level aggregates from API when available */}
+      {breakdown && breakdown.length > 0 && (
+        <div
+          className="px-6 md:px-8 py-4 border-t"
+          style={{ borderColor: "var(--color-ghost-border)", background: "var(--color-surface-low)" }}
+        >
+          <p className="font-mono text-[10px] font-bold tracking-[0.15em] uppercase text-text-muted mb-3">
+            Pool Performance
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {breakdown.map((pool) => (
+              <div key={pool.pool} className="flex flex-col gap-1">
+                <span className="font-mono text-[11px] font-bold text-text-primary">{pool.pool}</span>
+                <span className="font-mono text-[10px] text-text-muted">
+                  Alpha: <span style={{ color: "var(--color-primary)" }}>+{pool.alpha.toFixed(1)}%</span> · Hit Rate: {pool.hit_rate.toFixed(0)}%
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div
         className="px-6 md:px-8 py-4 border-t font-mono text-[10px] text-text-muted"
-        style={{ borderColor: "var(--color-ghost-border)", background: "var(--color-surface-low)" }}
+        style={{ borderColor: "var(--color-ghost-border)", background: breakdown?.length ? undefined : "var(--color-surface-low)" }}
       >
         Tickers are anonymized for compliance. Full attribution available to verified subscribers.
       </div>

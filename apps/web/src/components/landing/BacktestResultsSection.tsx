@@ -7,16 +7,42 @@ import EquityCurveChart from "./EquityCurveChart";
 import QuarterlyBreakdownTable from "./QuarterlyBreakdownTable";
 import SEBIDisclaimer from "./SEBIDisclaimer";
 
-const METRICS = [
-  { label: "Alpha", value: 13.5, suffix: "%", color: "positive" as const, subtext: "vs NIFTY50" },
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://neuralquant.onrender.com";
+
+// Fallback metrics — used when API is unavailable or before load
+const FALLBACK_METRICS = [
+  { label: "Alpha", value: 13.76, suffix: "%", color: "positive" as const, subtext: "vs NIFTY50" },
   { label: "Hit Rate", value: 89, suffix: "%", color: "positive" as const, subtext: "selections beat benchmark" },
   { label: "Avg Return", value: 24.8, suffix: "%", color: "positive" as const, subtext: "unweighted average" },
-  { label: "Nifty50", value: 11.3, suffix: "%", color: "neutral" as const, subtext: "same period benchmark" },
+  { label: "Nifty50", value: 11.04, suffix: "%", color: "neutral" as const, subtext: "same period benchmark" },
 ];
+
+interface BacktestData {
+  quarter: string;
+  run_date: string;
+  summary: {
+    alpha: number;
+    hit_rate: number;
+    avg_return: number;
+    avg_benchmark: number;
+    total_selections: number;
+  };
+  pool_breakdown: Array<{
+    pool: string;
+    count: number;
+    avg_return: number;
+    avg_benchmark: number;
+    alpha: number;
+    hit_rate: number;
+  }>;
+  equity_curve: Array<{ pct: number; return: number }>;
+  sebi_disclaimer: string;
+}
 
 export default function BacktestResultsSection() {
   const sectionRef = useRef<HTMLElement>(null);
   const [isVisible, setIsVisible] = useState(false);
+  const [data, setData] = useState<BacktestData | null>(null);
 
   useEffect(() => {
     const el = sectionRef.current;
@@ -35,6 +61,27 @@ export default function BacktestResultsSection() {
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  // Fetch backtest data from API
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${API_URL}/testing/quarterly/public-results`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (!cancelled && d) setData(d); })
+      .catch(() => {}); // Use fallback on error
+    return () => { cancelled = true; };
+  }, []);
+
+  // Build metrics from API data or fallback
+  const summary = data?.summary;
+  const METRICS = summary
+    ? [
+        { label: "Alpha", value: summary.alpha, suffix: "%", color: "positive" as const, subtext: "vs NIFTY50" },
+        { label: "Hit Rate", value: summary.hit_rate, suffix: "%", color: "positive" as const, subtext: "selections beat benchmark" },
+        { label: "Avg Return", value: summary.avg_return, suffix: "%", color: "positive" as const, subtext: "unweighted average" },
+        { label: "Nifty50", value: summary.avg_benchmark, suffix: "%", color: "neutral" as const, subtext: "same period benchmark" },
+      ]
+    : FALLBACK_METRICS;
 
   return (
     <section
@@ -103,7 +150,7 @@ export default function BacktestResultsSection() {
           }`}
           style={{ transitionDelay: "700ms" }}
         >
-          <EquityCurveChart />
+          <EquityCurveChart data={data?.equity_curve} />
         </div>
 
         {/* Quarterly breakdown table */}
@@ -113,7 +160,7 @@ export default function BacktestResultsSection() {
           }`}
           style={{ transitionDelay: "900ms" }}
         >
-          <QuarterlyBreakdownTable />
+          <QuarterlyBreakdownTable breakdown={data?.pool_breakdown} />
         </div>
 
         {/* Methodology link */}

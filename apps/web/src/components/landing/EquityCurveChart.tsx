@@ -79,7 +79,7 @@ function CustomTooltip({ active, payload, label }: any) {
   );
 }
 
-export default function EquityCurveChart() {
+export default function EquityCurveChart({ data }: { data?: Array<{ pct: number; return: number }> | null }) {
   return (
     <div
       className="w-full p-6 md:p-8 border"
