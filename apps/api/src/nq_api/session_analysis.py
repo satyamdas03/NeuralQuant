@@ -121,8 +121,13 @@ IMPORTANT RULES:
 - Sound like a thoughtful research assistant, not a robot"""
 
     try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=api_key)
+        from nq_api.services.constants import USE_BEDROCK
+        if USE_BEDROCK:
+            from nq_api.services.bedrock_client import bedrock
+            client = bedrock
+        else:
+            import anthropic
+            client = anthropic.Anthropic(api_key=api_key)
         resp = client.messages.create(
             model="claude-sonnet-4-6",
             max_tokens=1200,

@@ -4,6 +4,7 @@ import os
 import logging
 
 import anthropic
+from botocore.exceptions import ClientError as BotoClientError, ConnectionError as BotoConnectionError
 
 from nq_api.services.constants import MODEL, _CLOUD_MODEL, USE_BEDROCK
 
@@ -39,7 +40,10 @@ def _query_client(api_key: str, timeout: float = 120.0) -> tuple[anthropic.Anthr
 
 
 async def _call_anthropic_with_retry(client, *, model: str, max_tokens: int, system: str, messages: list, tools: list | None = None, tool_choice: dict | None = None, timeout: float = 90.0):
-    """Call Anthropic API with exponential-backoff retry on 5xx / connection / rate-limit errors."""
+    """Call Anthropic API with exponential-backoff retry on 5xx / connection / rate-limit errors.
+
+    Handles both Anthropic SDK exceptions and Bedrock/botocore exceptions.
+    """
     kwargs: dict = dict(model=model, max_tokens=max_tokens, system=system, messages=messages)
     if tools is not None:
         kwargs["tools"] = tools
@@ -65,6 +69,12 @@ async def _call_anthropic_with_retry(client, *, model: str, max_tokens: int, sys
             last_exc = e
             wait = 2 ** attempt
             log.warning("Anthropic connection/rate error (attempt %d/3), retrying in %ds...", attempt + 1, wait)
+            await asyncio.sleep(wait)
+            continue
+        except (BotoClientError, BotoConnectionError) as e:
+            last_exc = e
+            wait = 2 ** attempt
+            log.warning("Bedrock error (attempt %d/3), retrying in %ds... %s", attempt + 1, wait, e)
             await asyncio.sleep(wait)
             continue
     raise last_exc

@@ -62,8 +62,7 @@ def _supabase_rest(
 # ── Admin check ───────────────────────────────────────────────────────
 
 def _require_admin(user: User) -> None:
-    # TEMP: allow free tier for testing during YC growth phase
-    if user.tier not in ("pro", "api", "free"):
+    if user.tier not in ("pro", "api"):
         raise HTTPException(status_code=403, detail="Admin access required")
 
 

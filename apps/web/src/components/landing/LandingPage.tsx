@@ -158,7 +158,7 @@ export default function LandingPage() {
         <div className="relative z-10 max-w-[1400px] mx-auto px-4 lg:px-16 flex flex-col items-center text-center">
           <div className="inline-flex items-center gap-2 border border-primary-fixed/30 bg-surface-container-low px-4 py-2 font-mono text-[11px] font-bold tracking-[0.2em] uppercase text-primary-fixed mb-8">
             <span className="w-2 h-2 rounded-full bg-primary-fixed animate-pulse" />
-            QuantAlpha Engine V2.0 Live
+            QuantAlpha Engine V4.0 Live
           </div>
           <h1 className="font-serif hero-title text-4xl sm:text-5xl md:text-8xl lg:text-[10rem] mb-6">
             <span className="block">Institutional-Grade</span>
@@ -329,9 +329,9 @@ export default function LandingPage() {
             </span>
             <h3 className="font-headline text-xl font-bold">Investor</h3>
             <div className="mt-3 font-headline text-4xl font-bold text-primary-fixed">
-              $9<span className="text-base font-normal text-text-muted">/mo</span>
+              $9.99<span className="text-base font-normal text-text-muted">/mo</span>
             </div>
-            <p className="mt-1 font-mono text-[11px] text-text-muted">or ₹299/mo</p>
+            <p className="mt-1 font-mono text-[11px] text-text-muted">or ₹899/mo</p>
             <ul className="mt-8 space-y-3 font-mono text-[12px] text-text-muted flex-1">
               <li>25 watchlists</li>
               <li>100 AI queries/day</li>
@@ -354,9 +354,9 @@ export default function LandingPage() {
           <div className="relative glass border border-border-glow p-8 flex flex-col">
             <h3 className="font-headline text-xl font-bold">Pro</h3>
             <div className="mt-3 font-headline text-4xl font-bold text-primary-fixed">
-              $29<span className="text-base font-normal text-text-muted">/mo</span>
+              $29.99<span className="text-base font-normal text-text-muted">/mo</span>
             </div>
-            <p className="mt-1 font-mono text-[11px] text-text-muted">or ₹999/mo</p>
+            <p className="mt-1 font-mono text-[11px] text-text-muted">or ₹2,499/mo</p>
             <ul className="mt-8 space-y-3 font-mono text-[12px] text-text-muted flex-1">
               <li>100 watchlists</li>
               <li>1,000 AI queries/day</li>
@@ -494,12 +494,12 @@ export default function LandingPage() {
             >
               Privacy Policy
             </Link>
-            <a
-              href="#"
+            <Link
+              href="https://status.neuralquant.co"
               className="font-mono text-[11px] font-bold tracking-[0.2em] uppercase text-text-muted hover:text-primary-fixed transition-colors"
             >
               System Status
-            </a>
+            </Link>
           </div>
         </div>
       </footer>

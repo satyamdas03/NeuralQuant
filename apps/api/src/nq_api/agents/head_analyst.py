@@ -8,7 +8,11 @@ import re
 import anthropic
 
 from nq_api.agents.base import MODEL, MAX_TOKENS, FAST_MODEL, _is_ollama, _resolve_model
+from nq_api.services.constants import USE_BEDROCK
 from nq_api.schemas import AgentOutput
+
+if USE_BEDROCK:
+    from nq_api.services.bedrock_client import bedrock
 
 logger = logging.getLogger(__name__)
 
@@ -53,15 +57,19 @@ RISK_FACTORS:
 - [Risk 3]"""
 
     def __init__(self):
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
-        if not api_key:
-            raise EnvironmentError(
-                "ANTHROPIC_API_KEY environment variable is not set."
-            )
-        # Longer timeout for Ollama (local models + synthesis of 6+ agents)
-        # Sonnet synthesis needs more time than specialists — 75s orchestrator timeout
-        client_timeout = 120.0 if _is_ollama() else 70.0
-        self._client = anthropic.Anthropic(api_key=api_key, timeout=client_timeout)
+        if USE_BEDROCK:
+            logger.info("HeadAnalystAgent using AWS Bedrock")
+            self._client = bedrock
+        else:
+            api_key = os.environ.get("ANTHROPIC_API_KEY")
+            if not api_key:
+                raise EnvironmentError(
+                    "ANTHROPIC_API_KEY environment variable is not set."
+                )
+            # Longer timeout for Ollama (local models + synthesis of 6+ agents)
+            # Sonnet synthesis needs more time than specialists — 75s orchestrator timeout
+            client_timeout = 120.0 if _is_ollama() else 70.0
+            self._client = anthropic.Anthropic(api_key=api_key, timeout=client_timeout)
         # HEAD ANALYST always uses MODEL (Sonnet) — but validate it
         self._model = _resolve_model(MODEL, MODEL)
 

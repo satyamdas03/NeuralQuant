@@ -278,8 +278,13 @@ def _generate_wrap_narrative(
         )
 
     try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=api_key, timeout=30.0)
+        from nq_api.services.constants import USE_BEDROCK
+        if USE_BEDROCK:
+            from nq_api.services.bedrock_client import bedrock
+            client = bedrock
+        else:
+            import anthropic
+            client = anthropic.Anthropic(api_key=api_key, timeout=30.0)
         response = client.messages.create(
             model=os.environ.get("ANTHROPIC_DEFAULT_SONNET_MODEL", "claude-sonnet-4-6"),
             max_tokens=256,

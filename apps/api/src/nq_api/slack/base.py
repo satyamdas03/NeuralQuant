@@ -35,10 +35,15 @@ class BaseSlackAgent(ABC):
     approval_level: ApprovalLevel = ApprovalLevel.AUTO
 
     def __init__(self):
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
-        if not api_key:
-            raise EnvironmentError("ANTHROPIC_API_KEY not set")
-        self._client = anthropic.Anthropic(api_key=api_key, timeout=60.0)
+        from nq_api.services.constants import USE_BEDROCK
+        if USE_BEDROCK:
+            from nq_api.services.bedrock_client import bedrock
+            self._client = bedrock
+        else:
+            api_key = os.environ.get("ANTHROPIC_API_KEY")
+            if not api_key:
+                raise EnvironmentError("ANTHROPIC_API_KEY not set")
+            self._client = anthropic.Anthropic(api_key=api_key, timeout=60.0)
         config = AGENT_CONFIGS.get(self.agent_name, {})
         self._model = config.get("model", "claude-haiku-4-5-20251001")
 

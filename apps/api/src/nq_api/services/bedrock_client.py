@@ -16,6 +16,7 @@ from typing import AsyncIterator
 
 import boto3
 from botocore.config import Config as BotoConfig
+from botocore.exceptions import ClientError as BotoClientError, ConnectionError as BotoConnectionError
 
 logger = logging.getLogger(__name__)
 
@@ -63,12 +64,92 @@ class _BedrockResponse:
         self.model = raw.get("model", "")
 
 
+class _BedrockMessages:
+    """Adapter that provides .messages.create() interface matching anthropic.Anthropic.
+
+    Every call site in the codebase uses client.messages.create(**kwargs).
+    This adapter bridges the gap so BedrockClient can be a true drop-in replacement.
+    """
+
+    def __init__(self, client: "BedrockClient"):
+        self._client = client
+
+    def create(self, **kwargs) -> _BedrockResponse:
+        """Synchronous create — matches anthropic.Anthropic().messages.create()."""
+        # Extract params from Anthropic SDK keyword args
+        messages = kwargs.get("messages", [])
+        system = kwargs.get("system", "")
+        if isinstance(system, list):
+            # Anthropic SDK sometimes passes system as list of dicts
+            system = "\n".join(s.get("text", "") for s in system if isinstance(s, dict))
+        model = kwargs.get("model", "claude-sonnet-4-6")
+        max_tokens = kwargs.get("max_tokens", 4096)
+        temperature = kwargs.get("temperature", 0.3)
+        # tools/tool_choice not supported yet via Bedrock — log warning
+        if kwargs.get("tools"):
+            logger.warning("Bedrock adapter: tools not yet supported, ignoring")
+        return self._client.create_message(
+            messages=messages,
+            system=system,
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+
+    async def stream(self, **kwargs):
+        """Async streaming — matches anthropic.Anthropic().messages.stream()."""
+        messages = kwargs.get("messages", [])
+        system = kwargs.get("system", "")
+        if isinstance(system, list):
+            system = "\n".join(s.get("text", "") for s in system if isinstance(s, dict))
+        model = kwargs.get("model", "claude-sonnet-4-6")
+        max_tokens = kwargs.get("max_tokens", 4096)
+        temperature = kwargs.get("temperature", 0.3)
+
+        # Run sync stream in thread pool
+        def _sync_stream():
+            body = {
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "messages": messages,
+            }
+            if system:
+                body["system"] = system
+            model_id = self._client._resolve_model(model)
+            response = self._client.client.invoke_model_with_response_stream(
+                modelId=model_id,
+                body=json.dumps(body),
+                contentType="application/json",
+                accept="application/json",
+            )
+            chunks = []
+            for event in response["body"]:
+                chunk = json.loads(event["chunk"]["bytes"])
+                if chunk.get("type") == "content_block_delta":
+                    delta = chunk.get("delta", {})
+                    text = delta.get("text", "")
+                    if text:
+                        chunks.append(text)
+            full_text = "".join(chunks)
+            return _BedrockResponse({
+                "content": [{"text": full_text, "type": "text"}],
+                "usage": {},
+                "stop_reason": "end_turn",
+                "model": model_id,
+            })
+
+        return await asyncio.to_thread(_sync_stream)
+
+
 class BedrockClient:
     """
     Drop-in replacement for anthropic.Anthropic().
 
     All 9 PARA-DEBATE agents + DART routes route through this client
     when USE_BEDROCK=true. Zero other code changes needed.
+
+    Provides .messages.create() interface matching the Anthropic SDK.
     """
 
     def __init__(self):
@@ -82,6 +163,8 @@ class BedrockClient:
                 read_timeout=120,
             ),
         )
+        # Expose .messages.create() for drop-in compatibility with anthropic.Anthropic
+        self.messages = _BedrockMessages(self)
         logger.info(f"BedrockClient initialized in {region}")
 
     def _resolve_model(self, model: str) -> str:
@@ -123,55 +206,26 @@ class BedrockClient:
         model_id = self._resolve_model(model)
         logger.debug(f"Bedrock invoke: model={model_id}, max_tokens={max_tokens}")
 
-        response = self.client.invoke_model(
-            modelId=model_id,
-            body=json.dumps(body),
-            contentType="application/json",
-            accept="application/json",
-        )
-
-        result = json.loads(response["body"].read())
-        return _BedrockResponse(result)
+        try:
+            response = self.client.invoke_model(
+                modelId=model_id,
+                body=json.dumps(body),
+                contentType="application/json",
+                accept="application/json",
+            )
+            result = json.loads(response["body"].read())
+            return _BedrockResponse(result)
+        except BotoClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "Unknown")
+            logger.error(f"Bedrock invoke error: {error_code} — {e}")
+            raise
+        except BotoConnectionError as e:
+            logger.error(f"Bedrock connection error: {e}")
+            raise
 
     async def create_message_async(self, **kwargs) -> _BedrockResponse:
         """Async wrapper using asyncio.to_thread for non-blocking calls."""
         return await asyncio.to_thread(self.create_message, **kwargs)
-
-    def stream_message(
-        self,
-        messages: list[dict],
-        system: str = "",
-        model: str = "claude-sonnet-4-6",
-        max_tokens: int = 4096,
-        temperature: float = 0.3,
-    ) -> AsyncIterator[str]:
-        """
-        Streaming call via Bedrock InvokeModelWithResponseStream.
-        Yields text chunks matching the Anthropic stream format.
-        """
-        body = {
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": max_tokens,
-            "temperature": temperature,
-            "messages": messages,
-        }
-        if system:
-            body["system"] = system
-
-        model_id = self._resolve_model(model)
-
-        response = self.client.invoke_model_with_response_stream(
-            modelId=model_id,
-            body=json.dumps(body),
-            contentType="application/json",
-            accept="application/json",
-        )
-
-        for event in response["body"]:
-            chunk = json.loads(event["chunk"]["bytes"])
-            if chunk.get("type") == "content_block_delta":
-                delta = chunk.get("delta", {})
-                yield delta.get("text", "")
 
 
 # Singleton — imported everywhere

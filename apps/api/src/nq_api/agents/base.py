@@ -7,7 +7,11 @@ from abc import ABC, abstractmethod
 
 import anthropic
 
+from nq_api.services.constants import USE_BEDROCK
 from nq_api.schemas import AgentOutput
+
+if USE_BEDROCK:
+    from nq_api.services.bedrock_client import bedrock
 
 logger = logging.getLogger(__name__)
 MODEL = os.environ.get("ANTHROPIC_DEFAULT_SONNET_MODEL", "claude-sonnet-4-6")
@@ -30,6 +34,11 @@ def _resolve_model(preferred: str, fallback: str) -> str:
     """Return preferred if validated, else fallback. Validates once, caches result."""
     if preferred in _validated_models:
         return preferred if _validated_models[preferred] else fallback
+    # Skip validation when using Bedrock — Bedrock handles model routing
+    if USE_BEDROCK:
+        logger.info("Bedrock active — using model %s without validation", preferred)
+        _validated_models[preferred] = True
+        return preferred
     # One-shot validation: try a minimal completion with the preferred model
     try:
         client = anthropic.Anthropic(
@@ -57,14 +66,19 @@ class BaseAnalystAgent(ABC):
     system_prompt: str
 
     def __init__(self):
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
-        if not api_key:
-            raise EnvironmentError(
-                "ANTHROPIC_API_KEY environment variable is not set. "
-                "Set it before instantiating any agent."
-            )
-        client_timeout = 120.0 if _is_ollama() else 90.0
-        self._client = anthropic.Anthropic(api_key=api_key, timeout=client_timeout)
+        if USE_BEDROCK:
+            # Route through AWS Bedrock — drop-in replacement for anthropic.Anthropic
+            logger.info("BaseAnalystAgent using AWS Bedrock")
+            self._client = bedrock
+        else:
+            api_key = os.environ.get("ANTHROPIC_API_KEY")
+            if not api_key:
+                raise EnvironmentError(
+                    "ANTHROPIC_API_KEY environment variable is not set. "
+                    "Set it before instantiating any agent."
+                )
+            client_timeout = 120.0 if _is_ollama() else 90.0
+            self._client = anthropic.Anthropic(api_key=api_key, timeout=client_timeout)
         # Resolve fast model — fall back to MODEL if preferred model is unavailable
         self._model = _resolve_model(FAST_MODEL, MODEL)
 

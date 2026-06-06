@@ -6,6 +6,7 @@ Auth-optional: guests can share and view. Delete requires creator auth.
 from __future__ import annotations
 
 import logging
+import os
 import secrets
 from datetime import datetime, timezone
 
@@ -202,7 +203,3 @@ async def delete_share(share_id: str, user: User = Depends(get_current_user)):
 
     _supabase_rest("shared_analyses", "DELETE", query={"share_id": f"eq.{share_id}"})
     return None
-
-
-# Make os available at module level (used in create_share)
-import os
