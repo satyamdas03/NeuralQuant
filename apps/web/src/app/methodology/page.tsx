@@ -14,6 +14,14 @@ import {
   Layers,
   Filter,
   Scale,
+  BrainCircuit,
+  Target,
+  Swords,
+  Globe,
+  BarChart2,
+  ShieldCheck,
+  Crown,
+  Microscope,
 } from "lucide-react";
 import GhostBorderCard from "@/components/ui/GhostBorderCard";
 import GlassPanel from "@/components/ui/GlassPanel";
@@ -238,6 +246,7 @@ function ScoreCard({
 export default function MethodologyPage() {
   const hero = useAnimatedSection(0.1);
   const irsSection = useAnimatedSection(0.1);
+  const paraDebate = useAnimatedSection(0.1);
   const backtestSection = useAnimatedSection(0.1);
   const logicSection = useAnimatedSection(0.1);
   const dataSection = useAnimatedSection(0.1);
@@ -466,6 +475,85 @@ export default function MethodologyPage() {
             ))}
           </div>
 
+          {/* Derivation formula */}
+          <GlassPanel strong className="mb-16">
+            <h3 className="font-headline text-xl font-bold mb-6 text-center">
+              IRS% Derivation Formula
+            </h3>
+            <div className="max-w-3xl mx-auto space-y-6">
+              <div
+                className="p-4 border font-mono text-sm leading-relaxed"
+                style={{
+                  borderColor: "rgba(0, 255, 178, 0.2)",
+                  background: "rgba(13, 20, 37, 0.5)",
+                }}
+              >
+                <div className="text-primary-fixed mb-3">{"// Step 1: Component Scores"}</div>
+                <div className="text-text-primary">
+                  g_score = growth_score + return_score + valuation_score
+                </div>
+                <div className="text-text-muted ml-4">
+                  {"// each: sum of 4 quintile-mapped columns → range -12 to +12"}
+                </div>
+                <div className="text-text-primary mt-2">
+                  risk_eff_score = risk_score × 2.0
+                </div>
+                <div className="text-text-muted ml-4">
+                  {"// risk_score: sum of 4 moderate-is-best columns → ×2 → range -8 to +8"}
+                </div>
+                <div className="text-primary-fixed mt-4">{"// Step 2: Raw Composite"}</div>
+                <div className="text-text-primary">
+                  irs_raw = g_score + risk_eff_score
+                </div>
+                <div className="text-text-muted ml-4">
+                  {"// range: -20 to +20"}
+                </div>
+                <div className="text-primary-fixed mt-4">{"// Step 3: Normalize to 0–100"}</div>
+                <div className="text-text-primary text-lg font-bold" style={{ color: "var(--color-primary)" }}>
+                  irs_pct = ((irs_raw + 20) / 40) × 100
+                </div>
+                <div className="text-text-muted ml-4">
+                  {"/* range: 0% to 100% */"}
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div
+                  className="p-4 border"
+                  style={{
+                    borderColor: "rgba(0, 255, 178, 0.15)",
+                    background: "rgba(13, 20, 37, 0.3)",
+                  }}
+                >
+                  <span className="font-mono text-[10px] font-bold tracking-[0.15em] uppercase text-primary-fixed">
+                    Proportional Weighting
+                  </span>
+                  <p className="text-xs text-text-muted mt-2 leading-relaxed">
+                    G Score range (24) / Total range (40) = <strong className="text-text-primary">60%</strong>.
+                    Risk Efficiency range (16) / Total range (40) = <strong className="text-text-primary">40%</strong>.
+                    The additive formula naturally produces a 60/40 weight split.
+                  </p>
+                </div>
+                <div
+                  className="p-4 border"
+                  style={{
+                    borderColor: "rgba(0, 255, 178, 0.15)",
+                    background: "rgba(13, 20, 37, 0.3)",
+                  }}
+                >
+                  <span className="font-mono text-[10px] font-bold tracking-[0.15em] uppercase text-primary-fixed">
+                    Index-Group Relative
+                  </span>
+                  <p className="text-xs text-text-muted mt-2 leading-relaxed">
+                    All quintile scoring is computed within <strong className="text-text-primary">index cohorts</strong>:
+                    SP500 stocks score against SP500 peers; SP400/SP600 against their own groups.
+                    This eliminates size bias — a SmallCap stock is never penalized for being small.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </GlassPanel>
+
           {/* Quintile visual */}
           <GlassPanel strong className="mb-16">
             <h3 className="font-headline text-xl font-bold mb-8 text-center">
@@ -593,6 +681,288 @@ export default function MethodologyPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════════
+          PARA-DEBATE ENGINE
+         ═══════════════════════════════════════════ */}
+      <section
+        ref={paraDebate.ref}
+        className="relative py-20 md:py-28 border-t"
+        style={{ borderColor: "rgba(0, 255, 178, 0.15)" }}
+      >
+        <div
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full blur-[100px] pointer-events-none"
+          style={{ background: "rgba(193, 193, 255, 0.04)" }}
+        />
+        <div className="relative z-10 max-w-[1400px] mx-auto px-4 lg:px-16">
+          <div className="mb-14">
+            <div
+              className={`transition-all duration-700 ${
+                paraDebate.visible
+                  ? "opacity-100 translate-y-0"
+                  : "opacity-0 translate-y-4"
+              }`}
+            >
+              <span className="font-mono text-[11px] font-bold tracking-[0.2em] uppercase text-secondary">
+                Multi-Agent Consensus
+              </span>
+              <h2 className="font-headline text-3xl md:text-5xl font-bold tracking-tight mt-3 mb-4">
+                PARA-DEBATE Engine
+              </h2>
+              <p
+                className="text-lg max-w-2xl leading-relaxed"
+                style={{ color: "var(--color-text-muted)" }}
+              >
+                Six specialist AI agents analyze each stock from independent
+                perspectives. A seventh — the Head Analyst — synthesizes their
+                arguments into a single investment verdict.
+              </p>
+            </div>
+          </div>
+
+          {/* 6 Agent cards */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-12">
+            {[
+              {
+                icon: Microscope,
+                name: "Fundamental",
+                weight: "20%",
+                stance: "Growth · Return · Valuation",
+                desc: "Audited financials, ROE sustainability, P/E and P/B peer comparison, free cash flow conversion.",
+                color: "primary",
+              },
+              {
+                icon: BarChart2,
+                name: "Technical",
+                weight: "16%",
+                stance: "Momentum · Pattern · Positioning",
+                desc: "Price momentum across 3M/6M/1Y/2Y windows, support/resistance levels, relative strength.",
+                color: "secondary",
+              },
+              {
+                icon: BrainCircuit,
+                name: "Sentiment",
+                weight: "12%",
+                stance: "News · Insider · Options Flow",
+                desc: "News sentiment scoring, insider transaction signals, short interest, earnings surprise direction.",
+                color: "tertiary",
+              },
+              {
+                icon: Globe,
+                name: "Macro",
+                weight: "12%",
+                stance: "Rates · Inflation · Cycle",
+                desc: "Interest rate trajectory, CPI trends, sector rotation within the economic cycle.",
+                color: "primary",
+              },
+              {
+                icon: Swords,
+                name: "Adversarial",
+                weight: "20%",
+                stance: "Devil&apos;s Advocate — Default Skeptical",
+                desc: "Stress-tests bullish assumptions. Identifies hidden leverage, governance risks, and bubble signals. Must output BULL only when data overwhelmingly supports it.",
+                color: "error",
+              },
+              {
+                icon: ShieldCheck,
+                name: "Geopolitical",
+                weight: "12%",
+                stance: "Regulation · Sanctions · Systemic Risk",
+                desc: "Regulatory actions, trade sanctions exposure, supply-chain concentration, ESG compliance risks.",
+                color: "secondary",
+              },
+            ].map((agent, i) => {
+              const colorStyles: Record<string, { bg: string; text: string }> = {
+                primary: { bg: "rgba(71, 255, 184, 0.1)", text: "var(--color-primary)" },
+                secondary: { bg: "rgba(193, 193, 255, 0.1)", text: "var(--color-secondary)" },
+                tertiary: { bg: "rgba(255, 209, 102, 0.1)", text: "var(--color-tertiary-fixed)" },
+                error: { bg: "rgba(255, 65, 88, 0.1)", text: "var(--color-cyber-red)" },
+              };
+              const cs = colorStyles[agent.color];
+              return (
+                <div
+                  key={agent.name}
+                  className={`transition-all duration-700 ${
+                    paraDebate.visible
+                      ? "opacity-100 translate-y-0"
+                      : "opacity-0 translate-y-6"
+                  }`}
+                  style={{ transitionDelay: `${150 + i * 80}ms` }}
+                >
+                  <GhostBorderCard hover className="h-full">
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="p-2 shrink-0" style={{ background: cs.bg, color: cs.text }}>
+                        <agent.icon size={18} />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-headline text-sm font-bold text-text-primary">
+                            {agent.name}
+                          </h3>
+                          <span
+                            className="font-mono text-[9px] font-bold tracking-wider uppercase px-1.5 py-0.5"
+                            style={{ background: cs.bg, color: cs.text }}
+                          >
+                            {agent.weight}
+                          </span>
+                        </div>
+                        <span className="font-mono text-[10px] text-text-muted">{agent.stance}</span>
+                      </div>
+                    </div>
+                    <p className="text-xs leading-relaxed" style={{ color: "var(--color-text-muted)" }}>
+                      {agent.desc}
+                    </p>
+                  </GhostBorderCard>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Consensus mechanism */}
+          <div
+            className={`transition-all duration-700 ${
+              paraDebate.visible
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 translate-y-6"
+            }`}
+            style={{ transitionDelay: "600ms" }}
+          >
+            <GlassPanel strong>
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-primary-fixed/10 text-primary-fixed">
+                  <Crown size={20} />
+                </div>
+                <div>
+                  <h3 className="font-headline text-xl font-bold">Consensus Mechanism</h3>
+                  <span className="font-mono text-[10px] text-text-muted">
+                    How the 7 agents reach a verdict
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="font-mono text-[10px] font-bold tracking-[0.15em] uppercase text-primary-fixed mb-3">
+                    Step 1 — Parallel Analysis
+                  </h4>
+                  <p className="text-xs text-text-muted leading-relaxed">
+                    All 6 specialist + adversarial agents run in parallel, each
+                    producing a <strong className="text-text-primary">stance</strong> (BULL / NEUTRAL / BEAR) and
+                    a <strong className="text-text-primary">conviction</strong> level (HIGH / MEDIUM / LOW).
+                  </p>
+
+                  <h4 className="font-mono text-[10px] font-bold tracking-[0.15em] uppercase text-primary-fixed mb-3 mt-5">
+                    Step 2 — Conviction-Weighted Consensus
+                  </h4>
+                  <div className="p-3 border font-mono text-[11px] leading-relaxed" style={{ borderColor: "rgba(0, 255, 178, 0.15)", background: "rgba(13, 20, 37, 0.5)" }}>
+                    <div className="text-text-muted">
+                      {"// Stance → Score mapping"}
+                    </div>
+                    <div className="text-text-primary">BULL = +1.0 · NEUTRAL = 0.0 · BEAR = -1.0</div>
+                    <div className="text-text-muted mt-2">
+                      {"// Conviction multiplier"}
+                    </div>
+                    <div className="text-text-primary">HIGH = ×1.0 · MEDIUM = ×0.7 · LOW = ×0.4</div>
+                    <div className="text-text-muted mt-2">
+                      {"// Weighted average across all 6 agents"}
+                    </div>
+                    <div className="text-primary-fixed font-bold">consensus = Σ(stance × conviction) / Σ(conviction)</div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-mono text-[10px] font-bold tracking-[0.15em] uppercase text-primary-fixed mb-3">
+                    Step 3 — Verdict Guidance
+                  </h4>
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b" style={{ borderColor: "rgba(0, 255, 178, 0.15)" }}>
+                        <th className="text-left py-2 font-mono text-[9px] font-bold tracking-wider uppercase text-text-muted">Consensus</th>
+                        <th className="text-left py-2 font-mono text-[9px] font-bold tracking-wider uppercase text-text-muted">Allowed Verdict</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        ["> +0.5", "BUY or STRONG BUY"],
+                        ["+0.25 to +0.5", "HOLD or BUY"],
+                        ["-0.25 to +0.25", "HOLD"],
+                        ["-0.5 to -0.25", "SELL or HOLD"],
+                        ["< -0.5", "STRONG SELL or SELL"],
+                      ].map(([range, verdict], i) => (
+                        <tr key={i} className="border-b" style={{ borderColor: "rgba(0, 255, 178, 0.08)" }}>
+                          <td className="py-2 font-mono text-text-primary">{range}</td>
+                          <td className="py-2 text-text-muted">{verdict}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  <h4 className="font-mono text-[10px] font-bold tracking-[0.15em] uppercase text-primary-fixed mb-3 mt-5">
+                    Step 4 — Head Analyst Synthesis
+                  </h4>
+                  <p className="text-xs text-text-muted leading-relaxed">
+                    The <strong className="text-text-primary">Head Analyst</strong> receives all 6 agent outputs + verified raw data.
+                    It synthesizes a final verdict (STRONG BUY / BUY / HOLD / SELL / STRONG SELL)
+                    with investment thesis, bull/bear cases, and risk factors.
+                    Verdict is <strong className="text-text-primary">clamped</strong> — cannot deviate more than
+                    1 tier from consensus guidance.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 p-3 border" style={{ borderColor: "rgba(255, 65, 88, 0.15)", background: "rgba(255, 65, 88, 0.05)" }}>
+                <span className="font-mono text-[9px] font-bold tracking-wider uppercase" style={{ color: "var(--color-cyber-red)" }}>
+                  Anti-Bias Guardrails
+                </span>
+                <ul className="mt-2 space-y-1">
+                  <li className="text-xs text-text-muted flex items-start gap-2">
+                    <span style={{ color: "var(--color-cyber-red)" }}>•</span>
+                    Metric hallucination scan — all agent claims validated against verified data (±30% tolerance for agents, ±15% for Head Analyst)
+                  </li>
+                  <li className="text-xs text-text-muted flex items-start gap-2">
+                    <span style={{ color: "var(--color-cyber-red)" }}>•</span>
+                    Severe fundamental flags (e.g. negative ROE) algorithmically override FUNDAMENTAL agent to BEAR
+                  </li>
+                  <li className="text-xs text-text-muted flex items-start gap-2">
+                    <span style={{ color: "var(--color-cyber-red)" }}>•</span>
+                    Head Analyst must explicitly address the Adversarial agent&apos;s challenges — cannot dismiss without rebuttal
+                  </li>
+                </ul>
+              </div>
+            </GlassPanel>
+          </div>
+
+          {/* Regime overlay */}
+          <div
+            className={`mt-6 transition-all duration-700 ${
+              paraDebate.visible
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 translate-y-4"
+            }`}
+            style={{ transitionDelay: "800ms" }}
+          >
+            <GhostBorderCard>
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-secondary/10 text-secondary shrink-0">
+                  <Target size={18} />
+                </div>
+                <div>
+                  <h3 className="font-headline text-sm font-bold text-text-primary mb-2">
+                    Market Regime Overlay <span className="font-mono text-[10px] text-secondary ml-1">8% weight</span>
+                  </h3>
+                  <p className="text-xs text-text-muted leading-relaxed">
+                    A Hidden Markov Model classifies the current market into one of four regimes —{" "}
+                    <strong className="text-text-primary">Risk-On, Late-Cycle, Bear, Recovery</strong>.
+                    This regime label is injected into every agent&apos;s context and weighted 8% in
+                    the Head Analyst&apos;s synthesis. In Bear regimes, the overlay pushes verdicts
+                    conservative; in Risk-On regimes, it allows more aggressive positioning.
+                  </p>
+                </div>
+              </div>
+            </GhostBorderCard>
           </div>
         </div>
       </section>
@@ -775,6 +1145,40 @@ export default function MethodologyPage() {
                 ))}
               </ul>
             </GhostBorderCard>
+          </div>
+
+          {/* Validation methodology */}
+          <div
+            className={`grid md:grid-cols-3 gap-4 mb-14 transition-all duration-700 ${
+              backtestSection.visible
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 translate-y-6"
+            }`}
+            style={{ transitionDelay: "800ms" }}
+          >
+            {[
+              {
+                title: "Walk-Forward Validation",
+                body: "Scores are computed using only data available at the rebalance date. Each month, the IRS% is recalculated on fresh fundamentals — no look-ahead. The model never sees future prices during scoring.",
+              },
+              {
+                title: "Out-of-Sample Discipline",
+                body: "Selection rules (IRS% > 65 threshold, sell triggers) were fixed before the test period began. No parameter was tuned to fit Q1FY27 outcomes. The same rules apply to every subsequent quarter.",
+              },
+              {
+                title: "Survivorship Acknowledgment",
+                body: "The universe is reconstituted quarterly from current index constituents. Delisted stocks are excluded. We acknowledge this inflates returns vs. a true point-in-time backtest and are working toward a survivorship-free dataset.",
+              },
+            ].map((card, i) => (
+              <GhostBorderCard key={card.title} hover>
+                <h3 className="font-headline text-sm font-bold text-text-primary mb-2">
+                  {card.title}
+                </h3>
+                <p className="text-xs leading-relaxed" style={{ color: "var(--color-text-muted)" }}>
+                  {card.body}
+                </p>
+              </GhostBorderCard>
+            ))}
           </div>
 
           {/* SEBI disclaimer */}
@@ -1074,6 +1478,115 @@ export default function MethodologyPage() {
               View Full Data Transparency
             </GradientButton>
           </div>
+
+          {/* Data pipeline flow */}
+          <div
+            className={`mt-10 transition-all duration-700 delay-400 ${
+              dataSection.visible
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 translate-y-6"
+            }`}
+          >
+            <GlassPanel>
+              <h3 className="font-headline text-base font-bold mb-6 text-center">
+                Data Pipeline Architecture
+              </h3>
+              <div className="flex flex-col md:flex-row items-center justify-between gap-2 md:gap-0">
+                {[
+                  "Raw Data\n4 Providers",
+                  "Quintile Score\nIndex-Group Peer",
+                  "G + Risk Score\n-12 to +8",
+                  "IRS% Composite\n0 – 100%",
+                  "PARA-DEBATE\n6+1 Agents",
+                  "Verdict\nBUY / HOLD / SELL",
+                ].map((step, i) => (
+                  <div key={i} className="flex items-center gap-2 md:gap-0">
+                    <div
+                      className="text-center px-4 py-3 border min-w-[110px]"
+                      style={{
+                        borderColor: "rgba(0, 255, 178, 0.2)",
+                        background: "rgba(13, 20, 37, 0.5)",
+                      }}
+                    >
+                      <div className="font-mono text-[10px] font-bold tracking-[0.15em] uppercase text-primary-fixed mb-1">
+                        Stage {i + 1}
+                      </div>
+                      <div className="text-xs text-text-primary whitespace-pre-line leading-snug">
+                        {step}
+                      </div>
+                    </div>
+                    {i < 5 && (
+                      <ChevronRight
+                        size={16}
+                        className="hidden md:block text-text-muted mx-1 shrink-0"
+                      />
+                    )}
+                    {i < 5 && (
+                      <div className="md:hidden text-text-muted my-1">
+                        <ChevronRight size={16} className="rotate-90" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11px] text-text-muted text-center mt-6">
+                FMP feeds fundamentals (profile, ratios, income statements) → yfinance supplies live prices &amp; historical OHLCV → Finnhub adds insider/sentiment → NSE provides Indian equity data. All data is refreshed nightly at 02:00 UTC.
+              </p>
+            </GlassPanel>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════════
+          MODEL GOVERNANCE
+         ═══════════════════════════════════════════ */}
+      <section
+        className="relative py-16 md:py-20 border-t"
+        style={{ borderColor: "rgba(0, 255, 178, 0.15)" }}
+      >
+        <div className="max-w-[1400px] mx-auto px-4 lg:px-16">
+          <div className="mb-10">
+            <span className="font-mono text-[11px] font-bold tracking-[0.2em] uppercase text-primary-fixed">
+              Governance
+            </span>
+            <h2 className="font-headline text-2xl md:text-3xl font-bold tracking-tight mt-3 mb-4">
+              Model Governance &amp; Updates
+            </h2>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              {
+                label: "Score Refresh",
+                value: "Nightly",
+                detail: "IRS% recomputed at 02:00 UTC with latest fundamentals and prices",
+              },
+              {
+                label: "Universe Rebuild",
+                value: "Quarterly",
+                detail: "Index constituents refreshed every quarter; new IPOs/graduations added",
+              },
+              {
+                label: "Model Weights",
+                value: "Fixed",
+                detail: "G Score 60% / Risk 40% weights are not overfitted to any period",
+              },
+              {
+                label: "Agent Prompts",
+                value: "Versioned",
+                detail: "All PARA-DEBATE agent prompts are in git; changes are tracked and auditable",
+              },
+            ].map((item, i) => (
+              <GhostBorderCard key={item.label} hover>
+                <span className="font-mono text-[10px] font-bold tracking-[0.15em] uppercase text-primary-fixed">
+                  {item.label}
+                </span>
+                <div className="font-headline text-xl font-bold text-text-primary mt-2 mb-1">
+                  {item.value}
+                </div>
+                <p className="text-xs text-text-muted leading-relaxed">{item.detail}</p>
+              </GhostBorderCard>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -1135,6 +1648,14 @@ export default function MethodologyPage() {
               {
                 title: "Black Swan Events",
                 body: "Geopolitical shocks, currency crises, or pandemics are inherently unpredictable and not priced into historical backtests.",
+              },
+              {
+                title: "Position Sizing & Stop-Loss",
+                body: "The IRS% system does not prescribe position sizing or stop-loss levels. Portfolio construction and risk management are the investor’s responsibility. Equal-weight backtests assume no capital constraints.",
+              },
+              {
+                title: "Drawdown Limits",
+                body: "There is no maximum drawdown circuit-breaker in the scoring model. A stock with IRS% > 65 can still decline significantly if fundamentals deteriorate between rebalance dates.",
               },
             ].map((item, i) => (
               <div
