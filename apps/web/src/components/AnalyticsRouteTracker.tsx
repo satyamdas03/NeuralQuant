@@ -2,11 +2,11 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
-import { trackEvent, EVENT } from "@/lib/analytics";
+import { trackEvent, EVENT, analytics } from "@/lib/analytics";
 
 /**
  * Mount once in root layout. Tracks pageviews on every route change
- * and sends them to Plausible.
+ * and sends them to both Plausible and the backend analytics pipeline.
  *
  * Plausible auto-tracks pageviews via its script tag, but SPA navigations
  * need an explicit call. This component fires trackEvent on every pathname
@@ -19,6 +19,8 @@ export default function AnalyticsRouteTracker() {
     // Small delay to let title settle
     const t = setTimeout(() => {
       trackEvent(EVENT.PAGEVIEW, { path: pathname });
+      // Also track page_view to backend for analytics dashboard
+      analytics.pageView(pathname).catch(() => {});
     }, 100);
     return () => clearTimeout(t);
   }, [pathname]);

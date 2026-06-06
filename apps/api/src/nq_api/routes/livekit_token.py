@@ -42,6 +42,27 @@ async def generate_token(user=Depends(get_current_user_optional)):
     user_id = user.id if user else f"anonymous-{uuid.uuid4().hex[:8]}"
     room = f"quantastra-{user_id}"
 
+    # Track Astra session start
+    try:
+        from nq_api.routes.analytics_track import router as _ar
+        from nq_api.cache.score_cache import _supabase_rest
+        from datetime import datetime, timezone
+        _supabase_rest(
+            "user_events",
+            "POST",
+            body=[{
+                "user_id": str(user.id) if user else None,
+                "session_id": room,
+                "event_type": "astra_session",
+                "category": "voice",
+                "label": "session_start",
+                "payload": {"room": room, "authenticated": bool(user)},
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }],
+        )
+    except Exception:
+        log.debug("Astra session analytics failed (non-critical)")
+
     if not LIVEKIT_KEY or not LIVEKIT_SECRET:
         return {
             "status": "unavailable",

@@ -60,7 +60,6 @@ type AnalyticsEvent =
   | 'analysis_viewed'
   | 'screener_used'
   | 'morgan_query'
-  | 'mf_overlap_run'
   | 'signup_completed'
   | 'astra_session'
   | 'signup_from_share'

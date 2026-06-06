@@ -48,5 +48,24 @@ export async function GET(request: Request) {
   }
 
   console.log("[auth/callback] Session created for:", data?.user?.email || "unknown");
+
+  // Track signup completion via backend analytics
+  const isNewUser = data?.user?.created_at === data?.user?.confirmed_at;
+  if (isNewUser) {
+    try {
+      await fetch(`${url.origin}/api/analytics/track`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event_type: "signup_completed",
+          properties: {
+            method: data?.user?.app_metadata?.provider || "oauth",
+            user_id: data?.user?.id,
+          },
+        }),
+      });
+    } catch { /* silent fail */ }
+  }
+
   return NextResponse.redirect(new URL(next, url.origin));
 }

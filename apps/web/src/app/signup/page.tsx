@@ -6,7 +6,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import GradientButton from "@/components/ui/GradientButton";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
-import { trackEvent, EVENT } from "@/lib/analytics";
+import { trackEvent, EVENT, analytics } from "@/lib/analytics";
 
 function SignupForm() {
   const router = useRouter();
@@ -46,6 +46,14 @@ function SignupForm() {
     }
     // Fire-and-forget welcome email (backup for Supabase DB trigger)
     if (data.session || data.user) {
+      // Track signup completion
+      const method = "email";
+      analytics.signupCompleted(method).catch(() => {});
+      // If came from a shared analysis, track signup_from_share
+      const shareId = searchParams.get("from_share");
+      if (shareId) {
+        analytics.signupFromShare(shareId).catch(() => {});
+      }
       fetch("/api/auth/welcome", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

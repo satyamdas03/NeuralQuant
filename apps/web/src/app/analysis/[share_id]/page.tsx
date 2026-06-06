@@ -116,7 +116,7 @@ export default function ShareAnalysisPage() {
           <Link href="/" className="font-headline text-lg font-bold tracking-tight">
             <span className="text-accent">Neural</span>Quant
           </Link>
-          <Link href="/pricing" className="text-sm text-on-surface-variant hover:text-accent transition-colors">
+          <Link href={`/signup?from_share=${shareId}`} className="text-sm text-on-surface-variant hover:text-accent transition-colors">
             Sign Up Free
           </Link>
         </div>
