@@ -109,19 +109,47 @@ async def run_backtest(
         )
 
 
-def _run_backtest_sync(req: BacktestRequest) -> BacktestResponse | HTTPException:
-    """Blocking backtest compute — runs in thread pool."""
+def _fetch_backtest_prices(ticker: str, market: str, period: str) -> pd.Series | None:
+    """Fetch closing prices for backtest. Tries FMP first, then yfinance fallback."""
+    # Map period to days
+    period_days = {"1mo": 30, "3mo": 90, "6mo": 180, "1y": 365, "2y": 730, "5y": 1825}
+    days = period_days.get(period, 365)
+
+    # Try FMP first (reliable on Render)
+    try:
+        from nq_data.fmp import get_fmp_client
+        fmp = get_fmp_client()
+        if fmp._enabled:
+            hist = fmp.get_historical_prices(ticker, days=days)
+            if hist:
+                df = pd.DataFrame(hist)
+                df["date"] = pd.to_datetime(df["date"])
+                df = df.set_index("date").sort_index()
+                close = df["close"].dropna()
+                if len(close) >= 50:
+                    return close
+    except Exception:
+        pass
+
+    # Fallback: yfinance
     import yfinance as yf
-
-    yf_symbol = f"{req.ticker.upper()}.NS" if req.market == "IN" else req.ticker.upper()
-    df = yf.download(yf_symbol, period=req.period, progress=False, auto_adjust=True)
+    yf_symbol = f"{ticker.upper()}.NS" if market == "IN" else ticker.upper()
+    try:
+        df = yf.download(yf_symbol, period=period, progress=False, auto_adjust=True, timeout=15)
+    except Exception:
+        df = yf.download(yf_symbol, period=period, progress=False, auto_adjust=True)
     if df is None or df.empty:
-        return HTTPException(status_code=404, detail=f"no price data for {req.ticker}")
-
-    # yfinance may return MultiIndex cols when multiple tickers; flatten.
+        return None
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = [c[0] if isinstance(c, tuple) else c for c in df.columns]
-    close = df["Close"].dropna()
+    return df["Close"].dropna()
+
+
+def _run_backtest_sync(req: BacktestRequest) -> BacktestResponse | HTTPException:
+    """Blocking backtest compute — runs in thread pool."""
+    close = _fetch_backtest_prices(req.ticker, req.market, req.period)
+    if close is None or close.empty:
+        return HTTPException(status_code=404, detail=f"no price data for {req.ticker}")
     if len(close) < req.slow + 10:
         return HTTPException(status_code=400, detail=f"insufficient price history ({len(close)} days)")
 

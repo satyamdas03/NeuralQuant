@@ -101,27 +101,35 @@ async def get_stock_score(
         return row_to_ai_score(df.iloc[0], market, score_1_10_override=_score_1_10_from_cache(cached))
 
     # --- Slow path: live compute with hard timeout (cache miss fallback) ---
-    # On Render, yfinance is rate-limited — skip live compute and return 504 fast.
+    # On Render, yfinance is rate-limited — but single-ticker compute is usually
+    # fast enough. Try a lightweight 15s fallback before giving up.
     import os
-    if os.environ.get("RENDER"):
-        log.warning("score_cache empty for %s/%s on Render, skipping rate-limited live compute", ticker_upper, market)
-        raise HTTPException(
-            status_code=503,
-            detail=f"Score data for {ticker_upper} is being refreshed. Please retry in 1-2 minutes.",
-        )
+    on_render = bool(os.environ.get("RENDER"))
+    timeout_seconds = 15.0 if on_render else 25.0
     try:
         snapshot = await asyncio.wait_for(
             asyncio.to_thread(build_real_snapshot, [ticker_upper], market),
-            timeout=25.0,
+            timeout=timeout_seconds,
         )
     except asyncio.TimeoutError:
-        log.warning("build_real_snapshot timed out for %s", ticker_upper)
+        log.warning("build_real_snapshot timed out for %s (render=%s)", ticker_upper, on_render)
+        if on_render:
+            # On Render: return 503 so frontend retry logic kicks in
+            raise HTTPException(
+                status_code=503,
+                detail=f"Score data for {ticker_upper} is being refreshed. Please retry in 1-2 minutes.",
+            )
         raise HTTPException(
             status_code=504,
             detail=f"Score cache miss for {ticker_upper}; upstream data source is rate-limited. Please retry in ~60s.",
         )
     except Exception as e:
         log.error("build_real_snapshot failed for %s: %s", ticker_upper, e)
+        if on_render:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Score data for {ticker_upper} is being refreshed. Please retry in 1-2 minutes.",
+            )
         raise HTTPException(status_code=504, detail=f"Data fetch failed for {ticker_upper}. Try again in 30s.")
 
     if snapshot is None or snapshot.fundamentals.empty:

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import re
 import time
 from collections import Counter
@@ -266,6 +267,38 @@ def _fetch_yf_news(ticker: str, limit: int = 10) -> list[dict[str, Any]]:
         return []
 
 
+def _fetch_fmp_news(limit: int = 20) -> list[dict[str, Any]]:
+    """Fallback news source using FMP stock_news endpoint.
+    Returns [] if FMP is unavailable or returns no data."""
+    api_key = os.environ.get("FMP_API_KEY", "")
+    if not api_key:
+        return []
+    url = f"https://financialmodelingprep.com/api/v3/stock_news?limit={limit}&apikey={api_key}"
+    try:
+        import httpx
+        resp = httpx.get(url, timeout=10.0)
+        if resp.status_code != 200:
+            return []
+        data = resp.json()
+        if not isinstance(data, list):
+            return []
+        result = []
+        for item in data[:limit]:
+            title = item.get("title", "")
+            if not title:
+                continue
+            result.append({
+                "title": title,
+                "publisher": item.get("site", ""),
+                "url": item.get("url", ""),
+                "time": item.get("publishedDate", ""),
+            })
+        return result
+    except Exception as exc:
+        log.debug("FMP news fallback failed: %s", exc)
+        return []
+
+
 # ---------------------------------------------------------------------------
 # Trending topics
 # ---------------------------------------------------------------------------
@@ -303,6 +336,7 @@ NEWS_TTL = 300  # 5 minutes
 async def _refresh_news_cache() -> None:
     global _news_cache, _news_ts
     sources = ["^GSPC", "RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS"]
+    raw_batches: list[Any] = []
     try:
         raw_batches = await asyncio.wait_for(
             asyncio.gather(
@@ -313,7 +347,14 @@ async def _refresh_news_cache() -> None:
         )
     except asyncio.TimeoutError:
         log.warning("NewsDesk refresh timed out")
-        return
+
+    # If yfinance returns nothing (common on Render), fall back to FMP news
+    yf_has_data = any(isinstance(b, list) and len(b) > 0 for b in raw_batches)
+    if not yf_has_data:
+        log.info("NewsDesk: yfinance empty on Render, trying FMP news fallback")
+        fmp_news = await asyncio.to_thread(_fetch_fmp_news, 20)
+        if fmp_news:
+            raw_batches.append(fmp_news)
 
     seen: set[str] = set()
     enriched: list[dict[str, Any]] = []

@@ -52,7 +52,8 @@ def _sanitize_floats(d: dict) -> dict:
         elif hasattr(v, '__float__') and not isinstance(v, (str, int, bool, type(None))):
             # numpy.float64 etc — convert to Python float for JSON serialization
             try:
-                out[k] = float(v)
+                fv = float(v)
+                out[k] = None if _is_nonfinite(fv) else fv
             except (TypeError, ValueError):
                 out[k] = v
         else:

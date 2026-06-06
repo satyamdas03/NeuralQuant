@@ -362,7 +362,13 @@ async def get_today_market_wrap(
     from nq_api.cache.score_cache import read_top_picks
 
     try:
-        market_data = _market_overview_sync(market)
+        market_data = await asyncio.wait_for(
+            asyncio.to_thread(_market_overview_sync, market),
+            timeout=15.0,
+        )
+    except asyncio.TimeoutError:
+        logger.warning("Market wrap today: _market_overview_sync timed out for %s", market)
+        market_data = {"indices": [], "futures": []}
     except Exception:
         logger.exception("Market wrap today: failed to fetch market data")
         market_data = {"indices": [], "futures": []}

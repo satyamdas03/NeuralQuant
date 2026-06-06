@@ -137,7 +137,14 @@ async def market_overview(market: str = "US"):
     if cached and now - _overview_ts < OVERVIEW_TTL:
         return cached
 
-    data = await asyncio.to_thread(_market_overview_sync, market.upper())
+    try:
+        data = await asyncio.wait_for(
+            asyncio.to_thread(_market_overview_sync, market.upper()),
+            timeout=20.0,
+        )
+    except asyncio.TimeoutError:
+        logger.warning("market_overview: _market_overview_sync timed out for %s", market.upper())
+        data = {"indices": [], "futures": []}
     if _overview_cache is None:
         _overview_cache = {}
     _overview_cache[market.upper()] = data
@@ -189,15 +196,27 @@ def _market_overview_sync(market: str = "US"):
         logger.debug("FMP market overview failed: %s — falling back to yfinance", exc)
 
     if not fmp_ok:
-        # Fallback: yfinance batch download
-        all_syms = list(idx_map.keys()) + list(fut_map.keys())
-        batch_data = _batch_pct_change(all_syms)
+        # Fallback: yfinance batch download (defensive — can hang on Render)
+        try:
+            all_syms = list(idx_map.keys()) + list(fut_map.keys())
+            batch_data = _batch_pct_change(all_syms)
+            for sym, name in idx_map.items():
+                d = batch_data.get(sym) or _pct_change_from_info(sym) or {"price": 0.0, "change_pct": 0.0, "change_abs": 0.0}
+                indices.append({"symbol": sym, "name": name, **d})
+            for sym, name in fut_map.items():
+                d = batch_data.get(sym) or _pct_change_from_info(sym) or {"price": 0.0, "change_pct": 0.0, "change_abs": 0.0}
+                futures.append({"symbol": sym, "name": name, **d})
+        except Exception:
+            logger.exception("market_overview yfinance fallback failed for %s", market)
+
+    # Hard guarantee: if indices/futures are still empty, fill with zero-dict stubs
+    # so frontend never sees "unavailable".
+    if not indices:
         for sym, name in idx_map.items():
-            d = batch_data.get(sym) or _pct_change_from_info(sym) or {"price": 0.0, "change_pct": 0.0, "change_abs": 0.0}
-            indices.append({"symbol": sym, "name": name, **d})
+            indices.append({"symbol": sym, "name": name, "price": 0.0, "change_pct": 0.0, "change_abs": 0.0})
+    if not futures:
         for sym, name in fut_map.items():
-            d = batch_data.get(sym) or _pct_change_from_info(sym) or {"price": 0.0, "change_pct": 0.0, "change_abs": 0.0}
-            futures.append({"symbol": sym, "name": name, **d})
+            futures.append({"symbol": sym, "name": name, "price": 0.0, "change_pct": 0.0, "change_abs": 0.0})
 
     return {"indices": indices, "futures": futures}
 

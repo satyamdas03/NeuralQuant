@@ -75,14 +75,14 @@ async def screener_preview(market: str = "US", n: int = 8) -> ScreenerResponse:
         logger.exception("screener_preview cache read failed for market=%s", market)
     if not rows:
         # Tier 4: live compute (last resort, strict timeout)
-        # On cloud (Render), yfinance is often rate-limited, so skip live compute
-        # entirely and return empty. The background warmup will fill cache instead.
+        # On cloud (Render), yfinance is rate-limited — cap tickers to 5 and
+        # timeout to 15s to keep the request fast. If it fails, return empty.
         import os
-        if os.environ.get("RENDER"):
-            logger.info("screener_preview: cache empty on Render, skipping live compute (rate-limited)")
-            return ScreenerResponse(regime_label="Unknown", regime_id=1, results=[], total=0)
-        logger.info("screener_preview: cache empty, falling back to live compute for market=%s", market)
-        return await _preview_live_fallback(market, n)
+        on_render = bool(os.environ.get("RENDER"))
+        live_n = min(n, 5) if on_render else min(n, 8)
+        timeout_seconds = 15.0 if on_render else 25.0
+        logger.info("screener_preview: cache empty, falling back to live compute for market=%s render=%s tickers=%d timeout=%.0fs", market, on_render, live_n, timeout_seconds)
+        return await _preview_live_fallback(market, live_n, timeout_seconds)
     regime_id = _get_live_regime_id(market)
     ai_scores = _cache_rows_to_ai_scores(rows, market, regime_id)
     return ScreenerResponse(
@@ -93,16 +93,14 @@ async def screener_preview(market: str = "US", n: int = 8) -> ScreenerResponse:
     )
 
 
-async def _preview_live_fallback(market: str, n: int) -> ScreenerResponse:
+async def _preview_live_fallback(market: str, n: int, timeout: float = 25.0) -> ScreenerResponse:
     """Compute top-N scores live when cache is empty. Slower but always returns data."""
     engine = get_signal_engine()
-    # Cap at 8 tickers for live fallback — yfinance rate-limits on cloud IPs
-    n = min(n, 8)
     tickers = UNIVERSE_BY_MARKET.get(market, UNIVERSE_BY_MARKET["US"])[:n]
     try:
         snapshot = await asyncio.wait_for(
             asyncio.to_thread(build_real_snapshot, tickers, market),
-            timeout=25,
+            timeout=timeout,
         )
         if snapshot is None or snapshot.fundamentals.empty:
             return ScreenerResponse(regime_label="Unknown", regime_id=1, results=[], total=0)
@@ -172,6 +170,25 @@ def _apply_preset_filters(scores: list, req: ScreenerRequest) -> list:
     if min_low_vol is not None:
         filtered = [s for s in filtered if s.sub_scores.low_vol * 100 >= min_low_vol]
     return filtered
+
+
+@router.get("", response_model=ScreenerResponse)
+async def run_screener_get(
+    market: str = "US",
+    max_results: int = 20,
+    min_score: float = 5.0,
+    preset: str | None = None,
+    engine: Any = Depends(get_signal_engine),
+    user: User | None = Depends(enforce_guest_quota("screener")),
+) -> ScreenerResponse:
+    """GET wrapper for screener (bots / preloads often hit GET instead of POST)."""
+    req = ScreenerRequest(
+        market=market,
+        max_results=max_results,
+        min_score=min_score,
+        preset=preset,
+    )
+    return await run_screener(req, engine, user)
 
 
 @router.post("", response_model=ScreenerResponse)
