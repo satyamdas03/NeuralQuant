@@ -22,6 +22,7 @@ import asyncio
 import logging
 import os
 import threading
+import time
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Header, HTTPException, Query
@@ -469,15 +470,22 @@ def _run_market_wrap_broadcast(market: str):
 # ── In-process Scheduler ───────────────────────────────────────────────────────
 
 _SCHEDULED_JOBS_STARTED = False
+_last_market_refresh: float = 0  # epoch timestamp of last market_refresh run
+_MARKET_REFRESH_INTERVAL = 1800  # 30 minutes
 
 
 async def start_scheduled_jobs():
-    """Start in-process cron scheduler for nightly jobs.
+    """Start in-process cron scheduler for nightly + periodic jobs.
 
-    Runs at the same times as the GitHub Actions workflows did:
-      - US scores:  02:00 UTC
-      - IN scores:  02:30 UTC
-      - Anjali:    20:30 UTC  (QuantFactor Engine)
+    Scheduled jobs:
+      - Market refresh:  every 30 min during market hours (09:25–20:05 UTC for US+IN)
+      - US scores:       02:00 UTC
+      - IN scores:       02:30 UTC
+      - QuantFactor sync: 03:00 UTC (syncs Excel data → quantfactor_universe)
+      - Anjali:          20:30 UTC (QuantFactor Engine enrichment)
+      - Onboarding:      09:00 UTC
+      - IN market wrap:  11:00 UTC (4:30pm IST)
+      - US market wrap:  21:30 UTC (5:30pm ET)
 
     Uses asyncio loop + threading so it doesn't block API requests.
     Only starts once even if lifespan is called multiple times.
@@ -487,21 +495,38 @@ async def start_scheduled_jobs():
         return
     _SCHEDULED_JOBS_STARTED = True
 
-    log.info("[scheduler] Starting in-process cron scheduler")
+    log.info("[scheduler] Starting in-process cron scheduler (includes market_refresh every 30min)")
 
     # Simple scheduler: check every 60s if it's time to run a job
     async def _scheduler_loop():
+        global _last_market_refresh
         _ran_us_today = ""
         _ran_in_today = ""
         _ran_anjali_today = ""
         _ran_email_today = ""
         _ran_wrap_us_today = ""
         _ran_wrap_in_today = ""
+        _ran_qf_sync_today = ""
 
         while True:
             try:
                 now = datetime.now(timezone.utc)
                 today = now.strftime("%Y-%m-%d")
+
+                # ── Market refresh: every 30 min during market hours ────────────
+                # US market: 09:30–16:00 ET = 13:30–20:00 UTC
+                # IN market: 09:15–15:30 IST = 03:45–10:00 UTC
+                # Combined window: 03:45–20:00 UTC (covers both markets)
+                in_trading_window = (3 <= now.hour < 20) or (now.hour == 20 and now.minute == 0)
+                if in_trading_window:
+                    elapsed_since_refresh = time.time() - _last_market_refresh
+                    if elapsed_since_refresh >= _MARKET_REFRESH_INTERVAL:
+                        if _market_refresh_lock.acquire(blocking=False):
+                            _last_market_refresh = time.time()
+                            log.info("[scheduler] Triggering market refresh at %s (30min interval)", now.isoformat())
+                            threading.Thread(target=_run_market_refresh_bg, args=(None,), daemon=True).start()
+                        else:
+                            log.debug("[scheduler] Market refresh already running, skipping")
 
                 # US scores at 02:00 UTC
                 if now.hour == 2 and now.minute < 5 and _ran_us_today != today:
@@ -520,6 +545,15 @@ async def start_scheduled_jobs():
                         threading.Thread(target=_run_score_bg, args=("IN",), daemon=True).start()
                     else:
                         log.warning("[scheduler] IN score already running, skipping")
+
+                # QuantFactor sync at 03:00 UTC (Excel → quantfactor_universe)
+                if now.hour == 3 and now.minute < 5 and _ran_qf_sync_today != today:
+                    _ran_qf_sync_today = today
+                    log.info("[scheduler] Triggering QuantFactor sync at %s", now.isoformat())
+                    if _qf_sync_lock.acquire(blocking=False):
+                        threading.Thread(target=_run_qf_sync_bg, daemon=True).start()
+                    else:
+                        log.warning("[scheduler] QuantFactor sync already running, skipping")
 
                 # Anjali at 20:30 UTC (QuantFactor Engine)
                 if now.hour == 20 and now.minute >= 25 and now.minute < 35 and _ran_anjali_today != today:

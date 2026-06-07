@@ -123,37 +123,69 @@ def _fetch_fmp_batch(tickers: list[str], market: str) -> dict[str, dict]:
 # ---------------------------------------------------------------------------
 
 def _fetch_yf_batch(tickers: list[str], market: str) -> dict[str, dict]:
-    """Fetch yfinance data for tickers that FMP missed."""
+    """Fetch yfinance data for tickers that FMP missed.
+
+    Uses yf.download for batch price data (1 call) then individual .info
+    for fundamentals with 2s throttle to avoid rate limiting.
+    """
     import yfinance as yf
     from nq_api.data_builder import _get_yf_session
 
     results = {}
     session = _get_yf_session()
 
+    # Phase 1: Batch download for prices (1 API call for all tickers)
+    syms = [_yf_sym(t, market) for t in tickers]
+    try:
+        hist = yf.download(syms, period="5d", progress=False, auto_adjust=True,
+                          threads=False, session=session)
+        if hist is not None and not hist.empty and "Close" in hist.columns:
+            close = hist["Close"]
+            for t, sym in zip(tickers, syms):
+                try:
+                    col = sym if len(syms) > 1 else "Close"
+                    if len(syms) > 1 and sym in close.columns:
+                        vals = close[sym].dropna()
+                    elif len(syms) == 1:
+                        vals = close.dropna()
+                    else:
+                        vals = None
+                    if vals is not None and len(vals) >= 2:
+                        price = float(vals.iloc[-1])
+                        prev = float(vals.iloc[-2])
+                        results.setdefault(t, {})["price"] = price
+                        results.setdefault(t, {})["change_pct"] = round((price - prev) / prev * 100, 2)
+                except Exception:
+                    pass
+    except Exception as e:
+        log.debug("yf.download batch failed: %s", e)
+
+    # Phase 2: Individual .info calls for fundamentals (throttled 2s each)
     for t in tickers:
         sym = _yf_sym(t, market)
         try:
             info = yf.Ticker(sym, session=session).info or {}
-            price = info.get("currentPrice") or info.get("regularMarketPrice")
-            prev = info.get("previousClose")
-            change_pct = None
-            if price is not None and prev and prev > 0:
-                change_pct = round((price - prev) / prev * 100, 2)
-            results[t] = {
-                "price": price,
-                "change_pct": change_pct,
-                "volume": info.get("volume") or info.get("regularMarketVolume"),
-                "market_cap": info.get("marketCap"),
-                "pe": info.get("trailingPE"),
-                "year_high": info.get("fiftyTwoWeekHigh"),
-                "year_low": info.get("fiftyTwoWeekLow"),
-                "name": info.get("longName") or info.get("shortName") or t,
-                "sector": info.get("sector"),
-                "industry": info.get("industry"),
-                "beta": info.get("beta"),
-            }
+            entry = results.setdefault(t, {})
+            # Only fill fields not already set by download
+            if not entry.get("price"):
+                entry["price"] = info.get("currentPrice") or info.get("regularMarketPrice")
+            if not entry.get("change_pct"):
+                prev = info.get("previousClose")
+                price = entry.get("price")
+                if price is not None and prev and prev > 0:
+                    entry["change_pct"] = round((price - prev) / prev * 100, 2)
+            entry["volume"] = info.get("volume") or info.get("regularMarketVolume")
+            entry["market_cap"] = info.get("marketCap")
+            entry["pe"] = info.get("trailingPE")
+            entry["year_high"] = info.get("fiftyTwoWeekHigh")
+            entry["year_low"] = info.get("fiftyTwoWeekLow")
+            entry["name"] = info.get("longName") or info.get("shortName") or t
+            entry["sector"] = info.get("sector")
+            entry["industry"] = info.get("industry")
+            entry["beta"] = info.get("beta")
         except Exception as e:
-            log.debug("yfinance fallback failed for %s: %s", t, e)
+            log.debug("yfinance .info failed for %s: %s", t, e)
+        time.sleep(2)  # Rate limit throttle: 2s between calls
     return results
 
 
