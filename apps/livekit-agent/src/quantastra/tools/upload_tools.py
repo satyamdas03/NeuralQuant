@@ -69,7 +69,7 @@ class UploadToolsMixin:
         if not self._uploaded_files:
             return json.dumps({
                 "status": "unavailable",
-                "reason": "No files uploaded yet. Ask the client to upload a file first — they can upload images, PDFs, spreadsheets, or text documents."
+                "reason": "No files uploaded yet. Ask the client to upload a file first — they can upload images, PDFs, spreadsheets, or text documents.",
             })
 
         api_key = os.getenv("ANTHROPIC_API_KEY", "")
@@ -170,27 +170,36 @@ class UploadToolsMixin:
             return json.dumps({"status": "error", "reason": str(exc)})
 
     @function_tool
-    async def check_uploads_status(self) -> str:
-        """Check what files the user has uploaded so far.
-        Use before calling analyze_upload to confirm files are available."""
+    async def manage_uploads(
+        self,
+        action: str = "status",
+    ) -> str:
+        """Check upload status or clear all uploads.
+
+        Use action='status' before calling analyze_upload to confirm files are available.
+        Use action='clear' when the user wants to start fresh with new uploads.
+
+        Parameters:
+            action: 'status' to check uploads, 'clear' to remove all uploads (default 'status')
+        """
+        if action == "clear":
+            count = len(self._uploaded_files)
+            self._uploaded_files.clear()
+            return json.dumps({"status": "ok", "action": "cleared", "cleared_count": count})
+
+        # action == "status"
         if not self._uploaded_files:
             return json.dumps({
                 "status": "ok",
+                "action": "status",
                 "files_available": 0,
             })
         return json.dumps({
             "status": "ok",
+            "action": "status",
             "files_available": len(self._uploaded_files),
             "files": [
                 {"name": f["file_name"], "type": f["mime_type"], "size": f["size"]}
                 for f in self._uploaded_files[-5:]  # last 5
             ],
         })
-
-    @function_tool
-    async def clear_uploads(self) -> str:
-        """Clear all previously uploaded files. Use when the user wants to
-        start fresh with new uploads. Call close_whiteboard if whiteboard is open."""
-        count = len(self._uploaded_files)
-        self._uploaded_files.clear()
-        return json.dumps({"status": "ok", "cleared": count})

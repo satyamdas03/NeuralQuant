@@ -395,30 +395,72 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
                 meta = _merge_meta(meta, fmp_extra)
         except Exception:
             pass
+        # If key fields still missing after FMP, try yfinance gap-fill
+        _CRITICAL_FIELDS = ("pe_ttm", "pb_ratio", "week_52_high", "week_52_low",
+                            "analyst_target", "analyst_recommendation", "dividend_yield")
+        missing = [f for f in _CRITICAL_FIELDS if meta.get(f) is None]
+        if missing:
+            try:
+                yf_meta = await asyncio.wait_for(
+                    asyncio.to_thread(_fetch_stock_meta, t_up, market),
+                    timeout=5.0,
+                )
+                if isinstance(yf_meta, dict):
+                    for f in missing:
+                        yf_val = yf_meta.get(f)
+                        if yf_val is not None:
+                            meta[f] = yf_val
+                    if meta.get("earnings_date") is None and yf_meta.get("earnings_date"):
+                        meta["earnings_date"] = yf_meta["earnings_date"]
+            except (asyncio.TimeoutError, Exception):
+                log.debug("meta yfinance gap-fill failed for %s (non-critical)", t_up)
         return meta
 
     # ── Phase 2: FMP direct fallback ───────────────────────────────────
+    fmp_meta = None
     try:
         fmp_meta = await asyncio.wait_for(
             asyncio.to_thread(_fetch_stock_meta_fmp, t_up, market),
             timeout=8.0,
         )
         if isinstance(fmp_meta, dict):
+            # Check if key fields are missing — if so, try yfinance to fill gaps
+            _MISSING_FIELDS = ("pe_ttm", "pb_ratio", "week_52_high", "week_52_low",
+                               "analyst_target", "analyst_recommendation", "dividend_yield")
+            missing = [f for f in _MISSING_FIELDS if fmp_meta.get(f) is None]
+            if not missing:
+                return fmp_meta
+            # FMP returned partial data — try yfinance to fill the gaps
+            log.info("meta FMP partial for %s, missing: %s — trying yfinance gap-fill", t_up, missing)
+            try:
+                yf_meta = await asyncio.wait_for(
+                    asyncio.to_thread(_fetch_stock_meta, t_up, market),
+                    timeout=5.0,
+                )
+                if isinstance(yf_meta, dict):
+                    for f in missing:
+                        yf_val = yf_meta.get(f)
+                        if yf_val is not None:
+                            fmp_meta[f] = yf_val
+                    # Also fill earnings_date if missing
+                    if fmp_meta.get("earnings_date") is None and yf_meta.get("earnings_date"):
+                        fmp_meta["earnings_date"] = yf_meta["earnings_date"]
+            except (asyncio.TimeoutError, Exception):
+                log.debug("meta yfinance gap-fill failed for %s (non-critical)", t_up)
             return fmp_meta
     except asyncio.TimeoutError:
         log.warning("meta FMP timed out for %s", t_up)
 
-    # ── Phase 3: yfinance fallback (last resort, IN only) ─────────────
-    if market == "IN":
-        try:
-            yf_meta = await asyncio.wait_for(
-                asyncio.to_thread(_fetch_stock_meta, t_up, market),
-                timeout=5.0,
-            )
-            if isinstance(yf_meta, dict):
-                return yf_meta
-        except asyncio.TimeoutError:
-            log.warning("meta yfinance timed out for %s", t_up)
+    # ── Phase 3: yfinance fallback (last resort, all markets) ─────────
+    try:
+        yf_meta = await asyncio.wait_for(
+            asyncio.to_thread(_fetch_stock_meta, t_up, market),
+            timeout=5.0,
+        )
+        if isinstance(yf_meta, dict):
+            return yf_meta
+    except asyncio.TimeoutError:
+        log.warning("meta yfinance timed out for %s", t_up)
 
     log.error("meta all sources failed for %s", t_up)
     return _empty_meta(t_up)

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 
@@ -20,11 +19,12 @@ class WhiteboardToolsMixin:
         title: str,
         steps: str,
         result: str,
+        action: str = "show",
         description: str = "",
         currency: str = "$",
         disclaimer: str = "This is a projection, not financial advice. Past performance does not guarantee future results.",
     ) -> str:
-        """Show a step-by-step calculation on the QuantAstra whiteboard.
+        """Show a step-by-step calculation on the QuantAstra whiteboard, or close it.
 
         Use this when the client asks ANY question involving math, projections,
         or calculations — investment returns, compounding, SIP growth, CAGR,
@@ -32,6 +32,9 @@ class WhiteboardToolsMixin:
 
         Seeing calculations step-by-step builds trust and shows your work.
         Announce "Let me work this out on the whiteboard" before calling.
+
+        Set action='close' when the client says 'close the whiteboard' or
+        'that's enough' to dismiss it.
 
         Parameters:
             title: Short title for the calculation, e.g. "TCS 5-Year Return Projection"
@@ -42,10 +45,26 @@ class WhiteboardToolsMixin:
                              {"label":"Annual return rate","value":"12%"},
                              {"label":"Year 1 growth","formula":"₹10,00,000 × 1.12","value":"₹11,20,000"}]
             result: Final answer, e.g. "₹17,62,342 — a 76.2% total return over 5 years"
+            action: 'show' to display calculation, 'close' to dismiss the whiteboard (default 'show')
             description: One-line explanation of what we're calculating (optional)
             currency: Currency symbol — "$" for US, "₹" for India (default "$")
             disclaimer: Custom disclaimer or use default
         """
+        # Close action — dismiss whiteboard
+        if action == "close":
+            participant = getattr(self, "_participant", None)
+            if participant:
+                try:
+                    await participant.publish_data(
+                        json.dumps({"type": "whiteboard_update", "action": "close"}),
+                        reliable=True,
+                        topic="quantastra",
+                    )
+                except Exception:
+                    log.debug("Failed to publish whiteboard close", exc_info=True)
+            return json.dumps({"status": "ok", "action": "closed"})
+
+        # Show action — display calculation
         try:
             steps_data = json.loads(steps) if isinstance(steps, str) else steps
         except (json.JSONDecodeError, TypeError):
@@ -75,21 +94,3 @@ class WhiteboardToolsMixin:
                 log.debug("Failed to publish whiteboard update", exc_info=True)
 
         return json.dumps({"status": "ok", "title": title, "steps_count": len(steps_data)})
-
-    @function_tool
-    async def close_whiteboard(self) -> str:
-        """Close/hide the whiteboard when the calculation is complete and
-        the client is ready to move on. Also use when the client says
-        'close the whiteboard' or 'that's enough'."""
-        participant = getattr(self, "_participant", None)
-        if participant:
-            try:
-                await participant.publish_data(
-                    json.dumps({"type": "whiteboard_update", "action": "close"}),
-                    reliable=True,
-                    topic="quantastra",
-                )
-            except Exception:
-                log.debug("Failed to publish whiteboard close", exc_info=True)
-
-        return json.dumps({"status": "ok", "action": "closed"})

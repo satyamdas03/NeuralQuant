@@ -300,68 +300,58 @@ class PortfolioToolsMixin:
             return json.dumps({"status": "error", "reason": str(exc)})
 
     @function_tool
-    async def get_risk_profile(self, user_id: str) -> str:
-        """Get the client's saved risk profile.
+    async def manage_risk_profile(
+        self,
+        user_id: str,
+        action: str = "get",
+        risk_profile: str = "",
+    ) -> str:
+        """Get or set the client's risk profile for portfolio recommendations.
 
-        Returns: 'low', 'high', 'very_high', or None if not set.
-        REQUIRED before making portfolio recommendations.
+        GET: Returns the saved risk profile — 'low', 'high', 'very_high', or None.
+        SET: Saves a risk profile. Must be one of: 'low', 'high', 'very_high'.
+
+        LOW: Conservative — 100% LM250 Alpha (IRS > 65%, large-cap stable)
+        HIGH: Moderate-aggressive — 50% LM250 + 30% SmallCap + 20% MicroCap
+        VERY_HIGH: Aggressive — LM250 + SmallCap + MicroCap + Turnaround plays
+
+        ALWAYS set the risk profile BEFORE making portfolio recommendations.
 
         Parameters:
             user_id: The client's Supabase user ID
+            action: 'get' to read profile, 'set' to save profile (default 'get')
+            risk_profile: Required when action='set'. One of 'low', 'high', 'very_high'
         """
         if not user_id or user_id == "anonymous":
-            return json.dumps({"status": "no_profile", "risk_profile": None})
+            return json.dumps({"status": "no_profile", "message": "Must be signed in to manage risk profile"})
 
         try:
             from nq_api.cache.score_cache import _supabase_rest
 
+            if action == "set":
+                if risk_profile not in ("low", "high", "very_high"):
+                    return json.dumps({
+                        "status": "error",
+                        "reason": f"Invalid risk profile: {risk_profile}. Must be 'low', 'high', or 'very_high'",
+                    })
+
+                from datetime import datetime, timezone
+                _supabase_rest(
+                    f"user_profiles?id=eq.{user_id}",
+                    method="PATCH",
+                    body={"astra_risk_profile": risk_profile, "risk_profile_set_at": datetime.now(timezone.utc).isoformat()},
+                )
+                return json.dumps({"status": "ok", "action": "set", "risk_profile": risk_profile})
+
+            # action == "get"
             result = _supabase_rest(
                 f"user_profiles?id=eq.{user_id}&select=astra_risk_profile",
                 method="GET",
             )
             if result and result[0].get("astra_risk_profile"):
                 profile = result[0]["astra_risk_profile"]
-                return json.dumps({"status": "ok", "risk_profile": profile})
-            return json.dumps({"status": "no_profile", "risk_profile": None})
+                return json.dumps({"status": "ok", "action": "get", "risk_profile": profile})
+            return json.dumps({"status": "no_profile", "action": "get", "risk_profile": None})
         except Exception as exc:
-            log.error("get_risk_profile failed: %s", exc)
-            return json.dumps({"status": "error", "reason": str(exc)})
-
-    @function_tool
-    async def set_risk_profile(
-        self,
-        user_id: str,
-        risk_profile: str,
-    ) -> str:
-        """Save the client's risk profile. Must be one of: 'low', 'high', 'very_high'.
-
-        LOW: Conservative — 100% LM250 Alpha (IRS > 65%, large-cap stable)
-        HIGH: Moderate-aggressive — 50% LM250 + 30% SmallCap + 20% MicroCap
-        VERY_HIGH: Aggressive — LM250 + SmallCap + MicroCap + Turnaround plays
-
-        Save BEFORE making portfolio recommendations.
-
-        Parameters:
-            user_id: The client's Supabase user ID
-            risk_profile: One of 'low', 'high', 'very_high'
-        """
-        if risk_profile not in ("low", "high", "very_high"):
-            return json.dumps({"status": "error", "reason": f"Invalid risk profile: {risk_profile}. Must be 'low', 'high', or 'very_high'"})
-
-        if not user_id or user_id == "anonymous":
-            return json.dumps({"status": "error", "reason": "Must be signed in to save risk profile"})
-
-        try:
-            from nq_api.cache.score_cache import _supabase_rest
-            from datetime import datetime, timezone
-
-            _supabase_rest(
-                f"user_profiles?id=eq.{user_id}",
-                method="PATCH",
-                body={"astra_risk_profile": risk_profile, "risk_profile_set_at": datetime.now(timezone.utc).isoformat()},
-            )
-
-            return json.dumps({"status": "ok", "risk_profile": risk_profile})
-        except Exception as exc:
-            log.error("set_risk_profile failed: %s", exc)
+            log.error("manage_risk_profile failed: %s", exc)
             return json.dumps({"status": "error", "reason": str(exc)})

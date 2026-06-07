@@ -15,9 +15,12 @@ class MacroToolsMixin:
 
     @function_tool
     async def get_macro_context(self) -> str:
-        """Get comprehensive macro context: VIX, yield curve (normal/inverted),
-        10Y and 2Y yields, Fed funds rate, CPI inflation, HY credit spreads,
-        ISM manufacturing PMI, S&P 500 returns. Use for macro backdrop.
+        """Get comprehensive macro context: VIX level + classification, yield curve
+        (normal/inverted), 10Y and 2Y yields, Fed funds rate, CPI inflation,
+        HY credit spreads, ISM manufacturing PMI, S&P 500 returns, and current
+        market regime label (RISK_ON/RISK_OFF/NEUTRAL).
+
+        Use for ALL macro questions — VIX, regime, yield curve, inflation, etc.
 
         VOICE: Tell the macro story conversationally. "The macro picture is
         constructive — VIX is calm at eighteen, the Fed is on hold at four
@@ -27,15 +30,30 @@ class MacroToolsMixin:
         """
         try:
             from nq_api.data_builder import fetch_real_macro
+            from nq_api.cache.score_cache import read_top
 
             macro = fetch_real_macro()
             if not macro:
                 return json.dumps({"status": "unavailable", "reason": "Macro data temporarily unavailable"})
 
+            # Get regime label
+            regime = None
+            try:
+                top = read_top("US", 1)
+                if top and top[0].get("regime_label"):
+                    regime = top[0]["regime_label"]
+            except Exception:
+                pass
+            if not regime:
+                regime = getattr(macro, "regime_label", None) or "UNKNOWN"
+
+            vix_val = getattr(macro, "vix", 0) or 0
             result = {
                 "status": "ok",
                 "vix": getattr(macro, "vix", None),
-                "vix_level": _vix_label(getattr(macro, "vix", 0) or 0),
+                "vix_level": _vix_label(vix_val),
+                "vix_implication": _vix_implication(vix_val),
+                "regime": regime,
                 "spx_return_1m": getattr(macro, "spx_return_1m", None),
                 "spx_vs_200ma": getattr(macro, "spx_vs_200ma", None),
                 "yield_10y": getattr(macro, "yield_10y", None),
@@ -53,60 +71,6 @@ class MacroToolsMixin:
             return json.dumps(result, default=str)
         except Exception as exc:
             log.error("get_macro_context failed: %s", exc)
-            return json.dumps({"status": "error", "reason": str(exc)})
-
-    @function_tool
-    async def get_regime_label(self) -> str:
-        """Get the current market regime label (e.g. RISK_ON, RISK_OFF, NEUTRAL)
-        based on NeuralQuant's HMM model. The regime helps determine appropriate
-        strategy — aggressive in RISK_ON, defensive in RISK_OFF.
-
-        Use when client asks about market conditions or what strategy to use.
-        """
-        try:
-            from nq_api.cache.score_cache import read_top
-
-            top = read_top("US", 1)
-            if top and top[0].get("regime_label"):
-                regime = top[0]["regime_label"]
-            else:
-                from nq_api.data_builder import fetch_real_macro
-                macro = fetch_real_macro()
-                regime = getattr(macro, "regime_label", None) or "UNKNOWN"
-
-            return json.dumps({"status": "ok", "regime": regime})
-        except Exception as exc:
-            log.error("get_regime_label failed: %s", exc)
-            return json.dumps({"status": "error", "reason": str(exc)})
-
-    @function_tool
-    async def get_vix_level(self) -> str:
-        """Get the current VIX (Volatility Index) level with interpretation.
-        Returns VIX value and classification (complacent/low/moderate/elevated/high/extreme).
-
-        Use when client asks about market volatility or fear levels.
-        """
-        try:
-            import asyncio
-            import yfinance as yf
-
-            def _fetch():
-                t = yf.Ticker("^VIX")
-                info = t.fast_info or {}
-                return info.get("lastPrice") or info.get("regularMarketPrice")
-
-            vix = await asyncio.to_thread(_fetch)
-            if not vix:
-                return json.dumps({"status": "unavailable", "reason": "VIX data unavailable"})
-
-            return json.dumps({
-                "status": "ok",
-                "vix": vix,
-                "level": _vix_label(vix),
-                "implication": _vix_implication(vix),
-            })
-        except Exception as exc:
-            log.error("get_vix_level failed: %s", exc)
             return json.dumps({"status": "error", "reason": str(exc)})
 
 

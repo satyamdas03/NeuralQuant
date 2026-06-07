@@ -2,7 +2,7 @@
 import asyncio
 import time
 import logging
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 import yfinance as yf
 import pandas as pd
 
@@ -360,15 +360,23 @@ def _snap_to_mover(snap: dict) -> dict:
 
 
 @router.get("/movers")
-async def market_movers():
+async def market_movers(market: str = Query("US", description="Market filter: US, IN, or ALL")):
+    mkt_filter = market.upper() if market else "US"
     # ── Fast path: stock_snapshot (no external API calls) ────────────────
     try:
         from nq_api.cache.snapshot_cache import read_all_by_market, is_stale
         all_snaps: list[dict] = []
-        for mkt in ("US", "IN"):
+        markets_to_fetch = [mkt_filter] if mkt_filter not in ("ALL", "") else ("US", "IN")
+        for mkt in (markets_to_fetch if isinstance(markets_to_fetch, list) else [markets_to_fetch]):
             snaps = await asyncio.to_thread(read_all_by_market, mkt, limit=500)
             if snaps:
                 all_snaps.extend(snaps)
+        # If specific market had too few results, fall back to both markets
+        if len(all_snaps) < 3 and mkt_filter not in ("ALL", ""):
+            for mkt in ("US", "IN"):
+                snaps = await asyncio.to_thread(read_all_by_market, mkt, limit=500)
+                if snaps:
+                    all_snaps.extend(snaps)
         if all_snaps:
             # Allow change_pct=None (treat as 0) — stale snapshots ok if price exists
             valid = [
@@ -385,12 +393,12 @@ async def market_movers():
                 gainers = [_snap_to_mover(s) for s in sorted_by_change[:5]]
                 losers = [_snap_to_mover(s) for s in list(reversed(sorted_by_change[-5:]))]
                 active = [_snap_to_mover(s) for s in sorted(valid, key=lambda x: x.get("volume") or 0, reverse=True)[:5]]
-                return {"gainers": gainers, "losers": losers, "active": active}
+                return {"gainers": gainers, "losers": losers, "active": active, "market": mkt_filter}
             # Not enough valid snapshots → try to return whatever we have (price only)
             if len(all_snaps) >= 3:
                 by_price = sorted(all_snaps, key=lambda x: x.get("price") or 0, reverse=True)
                 top5 = [_snap_to_mover(s) for s in by_price[:5]]
-                return {"gainers": top5, "losers": list(reversed(top5)), "active": top5}
+                return {"gainers": top5, "losers": list(reversed(top5)), "active": top5, "market": mkt_filter}
     except Exception as exc:
         logger.debug("movers snapshot fast path failed: %s", exc)
 

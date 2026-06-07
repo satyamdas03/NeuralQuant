@@ -81,7 +81,7 @@ class QuantAstraAgent(
     UploadToolsMixin,
     Agent,
 ):
-    """QuantAstra — AI Portfolio Manager with 15 function-calling tools.
+    """QuantAstra — AI Portfolio Manager with 20 function-calling tools.
 
     Overrides transcription_node() to stream agent speech text to the
     frontend in real-time alongside TTS audio playback.
