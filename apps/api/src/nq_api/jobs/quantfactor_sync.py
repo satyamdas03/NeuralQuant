@@ -326,12 +326,24 @@ _ANJALI_REPO_RAW = "https://raw.githubusercontent.com/satyamdas03/anjali-value-s
 
 
 def _download_file(url: str, local_path: str) -> bool:
-    """Download a file from URL to local_path. Returns True on success."""
-    import urllib.request
+    """Download a file from URL to local_path using httpx with User-Agent. Returns True on success."""
+    import httpx
     try:
         log.info("Downloading %s → %s", url, local_path)
-        urllib.request.urlretrieve(url, local_path)
-        return True
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "application/octet-stream,*/*",
+        }
+        with httpx.Client(timeout=30, follow_redirects=True) as client:
+            r = client.get(url, headers=headers)
+            r.raise_for_status()
+            # GitHub raw returns 200 with file content, but sometimes 302 → 200
+            # Write binary content to file
+            with open(local_path, "wb") as f:
+                f.write(r.content)
+            file_size = os.path.getsize(local_path)
+            log.info("Downloaded %s → %s (%s bytes)", url, local_path, file_size)
+            return file_size > 0
     except Exception as e:
         log.warning("Download failed %s: %s", url, e)
         return False
