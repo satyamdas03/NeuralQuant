@@ -103,7 +103,9 @@ def _supabase_rest(
             body = _sanitize_floats(body)
 
     try:
-        with httpx.Client(timeout=15) as client:
+        # Bulk writes need longer timeout (30s) — 123-row upsert can exceed 15s
+        _timeout = 30 if method == "POST" else 15
+        with httpx.Client(timeout=_timeout) as client:
             if method == "GET":
                 r = client.get(endpoint, params=query or {}, headers=headers)
             elif method == "POST":
@@ -116,7 +118,7 @@ def _supabase_rest(
             r.raise_for_status()
             return r.json() if r.content else None
     except Exception as e:
-        logger.debug("Supabase REST call failed for table=%s: %s", table, e)
+        logger.warning("Supabase REST call failed for table=%s method=%s: %s", table, method, e)
         return None
 
 
