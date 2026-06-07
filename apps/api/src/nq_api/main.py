@@ -320,17 +320,15 @@ async def lifespan(app: FastAPI):
     ]
 
     def _warm_stock_meta():
-        """Pre-fetch stock meta for top tickers into in-memory cache."""
+        """Pre-fetch stock meta for top tickers — warms yfinance sessions internally."""
         try:
-            from nq_api.routes.stocks import _fetch_stock_meta, _META_CACHE, _META_CACHE_TTL
-            import time as _time
+            from nq_api.routes.stocks import _fetch_stock_meta
             warmed = 0
             total = len(_TOP_META_TICKERS_US) + len(_TOP_META_TICKERS_IN)
             for ticker in _TOP_META_TICKERS_US:
                 try:
                     data = _fetch_stock_meta(ticker, "US")
                     if isinstance(data, dict):
-                        _META_CACHE[f"{ticker}:US"] = (data, _time.monotonic())
                         warmed += 1
                 except Exception as exc:
                     log.debug("Meta prewarm failed for %s: %s", ticker, exc)
@@ -338,11 +336,10 @@ async def lifespan(app: FastAPI):
                 try:
                     data = _fetch_stock_meta(ticker, "IN")
                     if isinstance(data, dict):
-                        _META_CACHE[f"{ticker}:IN"] = (data, _time.monotonic())
                         warmed += 1
                 except Exception as exc:
                     log.debug("Meta prewarm IN failed for %s: %s", ticker, exc)
-            log.info("Stock meta prewarm complete: %d/%d tickers cached", warmed, total)
+            log.info("Stock meta prewarm complete: %d/%d tickers warmed", warmed, total)
         except Exception as exc:
             log.warning("Stock meta prewarm failed: %s", exc)
 

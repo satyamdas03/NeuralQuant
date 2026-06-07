@@ -361,14 +361,21 @@ def _ensure_us_excel(path: str | None = None) -> str:
     return ""  # signal missing
 
 
-def _ensure_india_csv(path: str | None = None) -> str:
-    """Return path to India CSV, downloading from GitHub if needed."""
+def _ensure_india_excel(path: str | None = None) -> str:
+    """Return path to India Excel, downloading from GitHub if needed.
+
+    The committed Indian data file is stock_analysis_coloured (1).xlsx
+    (Indian_Stock_Data.csv is generated locally by collect_indian_data.py
+    and is not checked into the repo, so it always 404s).
+    """
     if path and os.path.exists(path):
         return path
-    local = "Indian_Stock_Data.csv"
+    local = "stock_analysis_coloured (1).xlsx"
     if os.path.exists(local):
         return local
-    if _download_file(f"{_ANJALI_REPO_RAW}/Indian_Stock_Data.csv", local):
+    # GitHub raw URL: spaces → %20
+    url = f"{_ANJALI_REPO_RAW}/stock_analysis_coloured%20(1).xlsx"
+    if _download_file(url, local):
         return local
     return ""  # signal missing
 
@@ -411,24 +418,66 @@ def _parse_excel_us(path: str) -> list[dict[str, Any]]:
     return rows
 
 
-def _parse_csv_india(path: str) -> list[dict[str, Any]]:
-    """Parse the Indian CSV file (Indian_Stock_Data.csv)."""
+def _parse_excel_india(path: str) -> list[dict[str, Any]]:
+    """Parse the Indian Excel file (stock_analysis_coloured (1).xlsx).
+
+    Tries sheet 0 first. Uses _build_india_row (adds .NS suffix, reads raw scores).
+    Falls back to _build_us_row if _build_india_row returns a row with no scores
+    (indicates the sheet uses quintile colours instead of raw numeric scores).
+    """
     try:
         import pandas as pd
     except ImportError:
-        log.error("pandas not installed — cannot parse CSV")
+        log.error("pandas not installed — cannot parse Excel")
         return []
 
     rows = []
     try:
-        df = pd.read_csv(path)
-        log.info("Indian CSV rows: %s", len(df))
+        df = pd.read_excel(path, sheet_name=0, header=0)
+        log.info("India Excel sheet 0 rows: %s", len(df))
         for _, r in df.iterrows():
-            row = _build_india_row(r.to_dict())
+            d = r.to_dict()
+            # Primary: India builder (adds .NS, reads raw scores)
+            row = _build_india_row(d)
+            # Fallback: if no scores but has quintile colours, use US builder
+            # then patch ticker suffix and index_group
+            if row and row.get("composite_score") is None:
+                alt = _build_us_row(d, "NIFTY200")
+                if alt and alt.get("composite_score") is not None:
+                    ticker = alt["ticker"]
+                    if "." not in ticker:
+                        ticker = ticker + ".NS"
+                    alt["ticker"] = ticker
+                    alt["market"] = "IN"
+                    alt["index_group"] = "NIFTY200"
+                    row = alt
             if row:
                 rows.append(row)
     except Exception as e:
-        log.warning("Failed to parse Indian CSV: %s", e)
+        log.warning("Failed to parse India Excel sheet 0: %s", e)
+
+    # Some Indian workbooks have a second sheet (small-mid cap)
+    try:
+        df2 = pd.read_excel(path, sheet_name=1, header=0)
+        log.info("India Excel sheet 1 rows: %s", len(df2))
+        for _, r in df2.iterrows():
+            d = r.to_dict()
+            row = _build_india_row(d)
+            if row and row.get("composite_score") is None:
+                alt = _build_us_row(d, "NIFTY200")
+                if alt and alt.get("composite_score") is not None:
+                    ticker = alt["ticker"]
+                    if "." not in ticker:
+                        ticker = ticker + ".NS"
+                    alt["ticker"] = ticker
+                    alt["market"] = "IN"
+                    alt["index_group"] = "NIFTY200"
+                    row = alt
+            if row:
+                rows.append(row)
+    except Exception as e:
+        log.debug("India Excel sheet 1 not present or failed: %s", e)
+
     return rows
 
 
@@ -438,14 +487,14 @@ def _parse_csv_india(path: str) -> list[dict[str, Any]]:
 
 def run_quantfactor_sync(
     us_excel_path: str | None = None,
-    india_csv_path: str | None = None,
+    india_excel_path: str | None = None,
 ) -> dict:
     """Run the full QuantFactor sync pipeline.
 
     Auto-downloads files from GitHub raw URLs if not found locally.
     Args:
         us_excel_path: Path to US_Stock_Analysis_Coloured.xlsx (optional)
-        india_csv_path: Path to Indian_Stock_Data.csv (optional)
+        india_excel_path: Path to stock_analysis_coloured (1).xlsx (optional)
 
     Returns:
         Summary dict with counts and timing.
@@ -466,14 +515,14 @@ def run_quantfactor_sync(
     else:
         log.error("US Excel not available (download failed)")
 
-    # 2. Parse India CSV (auto-download from GitHub if missing)
-    in_path = _ensure_india_csv(india_csv_path)
+    # 2. Parse India Excel (auto-download from GitHub if missing)
+    in_path = _ensure_india_excel(india_excel_path)
     if in_path:
-        in_rows = _parse_csv_india(in_path)
-        log.info("Parsed %s India rows from CSV", len(in_rows))
+        in_rows = _parse_excel_india(in_path)
+        log.info("Parsed %s India rows from Excel", len(in_rows))
         all_rows.extend(in_rows)
     else:
-        log.error("India CSV not available (download failed)")
+        log.warning("India Excel not available (download failed) — skipping India universe")
 
     if not all_rows:
         log.error("No rows parsed — aborting")
@@ -516,9 +565,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="QuantFactor sync job")
     parser.add_argument("--us-excel", type=str, default="US_Stock_Analysis_Coloured.xlsx",
                         help="Path to US Excel file")
-    parser.add_argument("--india-csv", type=str, default="Indian_Stock_Data.csv",
-                        help="Path to India CSV file")
+    parser.add_argument("--india-excel", type=str, default="stock_analysis_coloured (1).xlsx",
+                        help="Path to India Excel file")
     args = parser.parse_args()
-    result = run_quantfactor_sync(us_excel_path=args.us_excel, india_csv_path=args.india_csv)
+    result = run_quantfactor_sync(us_excel_path=args.us_excel, india_excel_path=args.india_excel)
     print(result)
     sys.exit(0 if result.get("success") else 1)
