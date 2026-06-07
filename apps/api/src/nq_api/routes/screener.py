@@ -14,6 +14,8 @@ from nq_api.data_builder import build_real_snapshot, fetch_real_macro
 from nq_api.auth.rate_limit import enforce_guest_quota
 from nq_api.auth.models import User, TIER_LIMITS
 from nq_api.cache import score_cache
+from nq_api.cache.snapshot_cache import read_all_by_market, is_stale
+from nq_api.cache.quantfactor_cache import get_quantfactor_scores
 
 logger = logging.getLogger(__name__)
 
@@ -91,8 +93,29 @@ async def screener_preview(market: str = "US", n: int = 8) -> ScreenerResponse:
             return live_result
         logger.warning("screener_preview: live compute failed for market=%s, falling back to old cache", market)
 
+    # Tier 4: stock_snapshot fallback (fast, no API calls to Yahoo)
+    if not rows or cache_age == "very_old":
+        try:
+            snap_rows = await asyncio.to_thread(read_all_by_market, market, limit=200)
+            if snap_rows:
+                # Filter out stale rows
+                snap_rows = [r for r in snap_rows if not is_stale(r, max_age_minutes=35)]
+                if snap_rows:
+                    logger.info("screener_preview: snapshot fallback for market=%s (%s rows)", market, len(snap_rows))
+                    ai_scores = _snapshot_rows_to_ai_scores(snap_rows, market)
+                    ai_scores = ai_scores[:n]
+                    regime_id = _get_live_regime_id(market)
+                    return ScreenerResponse(
+                        regime_label=REGIME_LABELS.get(regime_id, "Unknown"),
+                        regime_id=regime_id,
+                        results=ai_scores,
+                        total=len(ai_scores),
+                    )
+        except Exception as exc:
+            logger.warning("screener_preview snapshot fallback failed for market=%s: %s", market, exc)
+
     if not rows:
-        # Tier 4: live compute (last resort, strict timeout)
+        # Tier 5: live compute (last resort, strict timeout)
         import os
         on_render = bool(os.environ.get("RENDER"))
         live_n = min(n, 5) if on_render else min(n, 8)
@@ -160,6 +183,84 @@ def _cache_rows_to_ai_scores(rows: list[dict], market: str, regime_id: int) -> l
         row_to_ai_score(row, market, score_1_10_override=int(ranked.iloc[i]))
         for i, (_, row) in enumerate(df.iterrows())
     ]
+
+
+def _snapshot_rows_to_ai_scores(snap_rows: list[dict], market: str) -> list:
+    """Build AIScore list from stock_snapshot rows using QuantFactor scores.
+    Orders by IRS% descending, then by price change."""
+    from nq_api.schemas import AIScore, SubScores, FeatureDriver, QuantFactorScores
+    from nq_api.score_builder import _score_to_1_10
+
+    results = []
+    for snap in snap_rows:
+        ticker = snap.get("ticker", "")
+        qf = get_quantfactor_scores(ticker, market) or {}
+
+        # Derive composite from quantfactor composite_score (-16..+16 → 0..1)
+        qf_comp = qf.get("composite_score")
+        if qf_comp is not None:
+            composite = (float(qf_comp) + 16) / 32  # normalize to 0-1
+            composite = max(0, min(1, composite))
+        else:
+            # Fallback: use price change as a weak momentum signal
+            composite = 0.5
+
+        # Map to 1-10
+        score_1_10 = _score_to_1_10(composite)
+
+        # Build QuantFactor scores sub-object
+        qf_scores = None
+        if qf and qf.get("composite_score") is not None:
+            qf_scores = QuantFactorScores(
+                growth_score=qf.get("growth_score"),
+                return_score=qf.get("return_score"),
+                valuation_score=qf.get("valuation_score"),
+                risk_score=qf.get("risk_score"),
+                composite=qf.get("composite_score"),
+                g_score=qf.get("g_score"),
+                risk_eff_score=qf.get("risk_eff_score"),
+                irs_raw=qf.get("irs_raw"),
+                irs_pct=qf.get("irs_pct"),
+                is_loss_making=bool(
+                    qf.get("loss_profit_yoy") or qf.get("loss_profit_ttm") or qf.get("loss_profit_qoq")
+                ),
+                valuation_sweet_spot=0.5 <= (qf.get("valuation_score") or 0) <= 1.5,
+            )
+
+        # Build sub-scores (simplified — no engine compute needed)
+        sub = SubScores(
+            quality=0.5,
+            momentum=min(1.0, max(0.0, 0.5 + (snap.get("change_pct") or 0) / 20)),
+            value=min(1.0, max(0.0, 0.5 - (snap.get("pe_ttm") or 15) / 30)),
+            low_vol=0.5,
+            growth=0.5,
+            short_interest=0.5,
+            insider=0.5,
+        )
+
+        results.append(AIScore(
+            ticker=ticker,
+            market=market,
+            composite_score=composite,
+            score_1_10=score_1_10,
+            regime_id=1,
+            regime_label="Risk-On",
+            sub_scores=sub,
+            top_drivers=[FeatureDriver(name="Price Change", contribution=(snap.get("change_pct") or 0)/10, value=f"{snap.get('change_pct') or 0:.1f}%", direction="positive" if (snap.get('change_pct') or 0) > 0 else "negative")],
+            confidence="medium",
+            quantfactor=qf_scores,
+            current_price=snap.get("price"),
+            market_cap=snap.get("market_cap"),
+            pe_ttm=snap.get("pe_ttm"),
+            sector=snap.get("sector"),
+        ))
+
+    # Sort by IRS% desc, then by change_pct desc
+    results.sort(key=lambda s: (
+        -(s.quantfactor.irs_pct or 0) if s.quantfactor else 0,
+        -(s.sub_scores.momentum or 0),
+    ))
+    return results
 
 
 def _apply_preset_filters(scores: list, req: ScreenerRequest) -> list:

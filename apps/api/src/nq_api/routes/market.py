@@ -348,8 +348,35 @@ _MOVERS_UNIVERSE = [
 ]
 
 
+def _snap_to_mover(snap: dict) -> dict:
+    return {
+        "ticker": snap.get("ticker", ""),
+        "name": snap.get("company_name") or snap.get("ticker", ""),
+        "price": snap.get("price"),
+        "change_pct": snap.get("change_pct"),
+        "change_abs": None,
+        "volume": snap.get("volume"),
+    }
+
+
 @router.get("/movers")
 async def market_movers():
+    # ── Fast path: stock_snapshot (no external API calls) ────────────────
+    try:
+        from nq_api.cache.snapshot_cache import read_all_by_market, is_stale
+        snaps = await asyncio.to_thread(read_all_by_market, "US", limit=500)
+        if snaps:
+            valid = [s for s in snaps if s.get("price") is not None and s.get("change_pct") is not None and not is_stale(s, 35)]
+            if len(valid) >= 10:
+                sorted_by_change = sorted(valid, key=lambda x: x.get("change_pct") or 0, reverse=True)
+                gainers = [_snap_to_mover(s) for s in sorted_by_change[:5]]
+                losers = [_snap_to_mover(s) for s in list(reversed(sorted_by_change[-5:]))]
+                active = [_snap_to_mover(s) for s in sorted(valid, key=lambda x: x.get("volume") or 0, reverse=True)[:5]]
+                return {"gainers": gainers, "losers": losers, "active": active}
+    except Exception as exc:
+        logger.debug("movers snapshot fast path failed: %s", exc)
+
+    # ── Fallback: existing FMP + yfinance logic ─────────────────────────
     global _movers_cache, _movers_ts
     if _movers_cache and time.time() - _movers_ts < MOVERS_TTL:
         return _movers_cache

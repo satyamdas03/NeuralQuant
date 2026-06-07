@@ -1,0 +1,45 @@
+name: QuantFactor Sync
+
+on:
+  schedule:
+    - cron: "0 2 * * 0"  # Every Sunday at 02:00 UTC
+  workflow_dispatch:
+
+jobs:
+  sync:
+    name: Sync Excel → quantfactor_universe
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: neuralquant
+
+      - uses: actions/checkout@v4
+        with:
+          repository: satyamdas03/anjali-value-stocks
+          path: anjali-repo
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-local-path: .uv-cache
+
+      - name: Install Python dependencies
+        run: |
+          cd neuralquant
+          uv sync --frozen
+
+      - name: Run QuantFactor sync
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          cd neuralquant
+          uv run python apps/api/src/nq_api/jobs/quantfactor_sync.py \
+            --us-excel "../anjali-repo/US_Stock_Analysis_Coloured.xlsx" \
+            --india-csv "../anjali-repo/Indian_Stock_Data.csv"

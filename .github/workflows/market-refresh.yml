@@ -1,0 +1,43 @@
+name: Market Refresh
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"  # Every 30 minutes
+  workflow_dispatch:
+    inputs:
+      market:
+        description: "Market filter (US, IN, or leave blank for all)"
+        required: false
+        default: ""
+
+jobs:
+  refresh:
+    name: Refresh stock_snapshot
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-local-path: .uv-cache
+
+      - name: Install Python dependencies
+        run: uv sync --frozen
+
+      - name: Run market refresh
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
+          FMP_BASE_URL: ${{ secrets.FMP_BASE_URL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+        run: |
+          uv run python apps/api/src/nq_api/jobs/market_refresh.py \
+            --market "${{ github.event.inputs.market || '' }}"

@@ -19,10 +19,11 @@ from nq_api.score_builder import row_to_ai_score, rank_scores_in_universe
 from nq_api.universe import UNIVERSE_BY_MARKET
 from nq_api.data_builder import build_real_snapshot, _fund_cache, fetch_real_macro, _get_yf_session
 from nq_api.cache import score_cache
+from nq_api.cache.snapshot_cache import read_snapshot as _read_stock_snapshot, is_stale
+from nq_api.cache.quantfactor_cache import get_quantfactor_scores
 
-# In-memory TTL cache for stock meta — serves stale data when Yahoo rate-limits
-_META_CACHE: dict[str, tuple[dict, float]] = {}
-_META_CACHE_TTL = 3600  # 1 hour — balance between API calls and freshness
+# REMOVED: _META_CACHE in-memory dict — replaced by Supabase stock_snapshot table
+# All live stock meta now reads from stock_snapshot (30-min TTL, populated by GHA)
 
 router = APIRouter()
 
@@ -364,162 +365,94 @@ _META_TIMEOUT = 15  # seconds — hard cap for meta enrichment; return partial o
 
 @router.get("/{ticker}/meta")
 async def get_stock_meta(ticker: str, market: str = Query("US")):
+    """Return stock metadata. Reads from stock_snapshot (30-min TTL) first.
+    On miss/stale, falls back to FMP direct with 5s timeout."""
     t_up = _normalize_ticker(ticker, market)
-    cache_key = f"{t_up}:{market}"
 
-    # Serve from in-memory cache if fresh AND complete
-    cached = _META_CACHE.get(cache_key)
-    if cached and (time.monotonic() - cached[1]) < _META_CACHE_TTL:
-        if not _has_null_fields(cached[0]):
-            return cached[0]
-        # Cached data has nulls — fall through to refetch
+    # ── Phase 1: stock_snapshot fast path ────────────────────────────────
+    snap = None
+    try:
+        snap = await asyncio.wait_for(
+            asyncio.to_thread(_read_stock_snapshot, t_up, market),
+            timeout=3.0,
+        )
+    except Exception:
+        pass
 
-    # Try Supabase persistent cache — but only serve if fresh AND complete
-    from nq_api.cache.score_cache import _supabase_rest
-    supa_row = None
-    supa = await asyncio.wait_for(
-        asyncio.to_thread(_supabase_rest,
-            "stock_meta",
-            method="GET",
-            query={
-                "select": "data,fetched_at",
-                "ticker": f"eq.{t_up}",
-                "market": f"eq.{market}",
-                "order": "fetched_at.desc",
-                "limit": "1",
-            },
-        ),
-        timeout=5.0,
-    )
-    if isinstance(supa, list) and supa:
-        import json as _json
+    if snap and not is_stale(snap, max_age_minutes=35):
+        # Convert snapshot row to legacy meta shape for frontend compatibility
+        meta = _snapshot_to_meta(snap)
+        # Fill enrichment from FMP if budget remains (earnings_date, analyst_target, etc.)
         try:
-            meta = _json.loads(supa[0]["data"]) if isinstance(supa[0]["data"], str) else supa[0]["data"]
-            fetched_at = supa[0].get("fetched_at", "")
-            # Only serve from cache if fresh (< 6h) AND has no null critical fields
-            age_hours = 999
-            if fetched_at:
-                try:
-                    from datetime import datetime as _dt, timezone as _tz
-                    fa = _dt.fromisoformat(fetched_at.replace("Z", "+00:00"))
-                    age_hours = (_dt.now(_tz.utc) - fa).total_seconds() / 3600
-                except Exception:
-                    pass
-            if age_hours < 6 and not _has_null_fields(meta):
-                _META_CACHE[cache_key] = (meta, time.monotonic())
-                return meta
-            supa_row = meta  # keep for merging later
+            fmp_extra = await asyncio.wait_for(
+                asyncio.to_thread(_fetch_stock_meta_fmp_light, t_up, market),
+                timeout=5.0,
+            )
+            if isinstance(fmp_extra, dict):
+                meta = _merge_meta(meta, fmp_extra)
         except Exception:
-            log.warning("meta Supabase cache parse failed for %s", t_up)
+            pass
+        return meta
 
-    # ── Enrichment with hard 15s timeout ──
-    # Each step gets a slice of the budget. On timeout, return whatever we have.
-    meta_start = time.monotonic()
-
-    def _remaining() -> float:
-        """Seconds left before the 15s budget expires."""
-        return max(0.5, _META_TIMEOUT - (time.monotonic() - meta_start))
-
-    def _partial_or_empty(data, label: str) -> dict:
-        """Return partial data merged with any cache, or empty meta."""
-        if isinstance(data, dict):
-            merged = _merge_meta(data, supa_row) if supa_row else data
-            if _has_null_fields(merged):
-                sc = _read_score_cache(t_up, market)
-                if sc:
-                    merged = _merge_meta(merged, sc)
-            return merged
-        log.warning("meta %s returned exception for %s: %s", label, t_up, data)
-        if supa_row:
-            return supa_row
-        sc = _read_score_cache(t_up, market)
-        if sc:
-            return _merge_meta(_empty_meta(t_up), sc)
-        return _empty_meta(t_up)
-
-    # Primary: FMP (Financial Modeling Prep) — reliable, no Yahoo 401
-    fmp_meta = None
+    # ── Phase 2: FMP direct fallback ───────────────────────────────────
     try:
         fmp_meta = await asyncio.wait_for(
             asyncio.to_thread(_fetch_stock_meta_fmp, t_up, market),
-            timeout=min(8.0, _remaining()),
+            timeout=8.0,
         )
+        if isinstance(fmp_meta, dict):
+            return fmp_meta
     except asyncio.TimeoutError:
-        log.warning("meta FMP timed out for %s after %.1fs", t_up, time.monotonic() - meta_start)
+        log.warning("meta FMP timed out for %s", t_up)
 
-    if isinstance(fmp_meta, dict) and not _has_null_fields(fmp_meta):
-        _META_CACHE[cache_key] = (fmp_meta, time.monotonic())
-        _persist_meta(t_up, market, fmp_meta)
-        return fmp_meta
-
-    # FMP partial or failed — try yfinance, Yahoo direct with remaining budget
-    fmp_partial = fmp_meta if isinstance(fmp_meta, dict) else None
-    merged = fmp_partial or (supa_row or _empty_meta(t_up))
-    if supa_row and fmp_partial:
-        merged = _merge_meta(fmp_partial, supa_row)
-    if _has_null_fields(merged):
-        sc = _read_score_cache(t_up, market)
-        if sc:
-            merged = _merge_meta(merged, sc)
-
-    # yfinance attempt — only if budget remaining
-    if _remaining() > 1.0:
-        yf_result = None
+    # ── Phase 3: yfinance fallback (last resort) ──────────────────────
+    if market == "IN":
         try:
-            yf_result = await asyncio.wait_for(
+            yf_meta = await asyncio.wait_for(
                 asyncio.to_thread(_fetch_stock_meta, t_up, market),
-                timeout=min(5.0, _remaining()),
+                timeout=5.0,
             )
+            if isinstance(yf_meta, dict):
+                return yf_meta
         except asyncio.TimeoutError:
-            log.warning("meta yfinance timed out for %s after %.1fs total", t_up, time.monotonic() - meta_start)
-        if isinstance(yf_result, dict):
-            merged = _merge_meta(merged, yf_result)
-            # For P/E and current_price, prefer yfinance fresh data over stale cache
-            if yf_result.get("pe_ttm") and merged.get("pe_ttm") != yf_result["pe_ttm"]:
-                merged["pe_ttm"] = yf_result["pe_ttm"]
-            if yf_result.get("current_price") and merged.get("current_price") != yf_result["current_price"]:
-                merged["current_price"] = yf_result["current_price"]
-        elif isinstance(yf_result, Exception):
-            # yfinance failed — try Yahoo direct fallback if budget remains
-            if _remaining() > 1.0:
-                fallback = None
-                try:
-                    fallback = await asyncio.wait_for(
-                        asyncio.to_thread(_fetch_stock_meta_yahoo_direct, t_up, market),
-                        timeout=min(5.0, _remaining()),
-                    )
-                except asyncio.TimeoutError:
-                    log.warning("meta Yahoo direct timed out for %s after %.1fs total", t_up, time.monotonic() - meta_start)
-                if isinstance(fallback, dict):
-                    merged = _merge_meta(merged, fallback)
+            log.warning("meta yfinance timed out for %s", t_up)
 
-    # Return whatever we have — even if partial, better than timeout
-    if not _has_null_fields(merged) or merged.get("ticker"):
-        _META_CACHE[cache_key] = (merged, time.monotonic())
-        _persist_meta(t_up, market, merged)
-        elapsed = time.monotonic() - meta_start
-        if elapsed > 10:
-            log.warning("meta slow response for %s: %.1fs (partial=%s)", t_up, elapsed, _has_null_fields(merged))
-        return merged
+    # ── Phase 4: serve partial snapshot or empty ────────────────────────
+    if snap:
+        log.info("meta: serving stale snapshot for %s", t_up)
+        return _snapshot_to_meta(snap)
 
-    # Last resort: merge Supabase cache + score_cache
-    sc = _read_score_cache(t_up, market)
-    if supa_row or sc:
-        base = supa_row or _build_from_score_cache(t_up, market, sc) or _empty_meta(t_up)
-        merged_last = base
-        if sc:
-            merged_last = _merge_meta(merged_last, sc)
-        _META_CACHE[cache_key] = (merged_last, time.monotonic())
-        log.info("meta: serving merged cache for %s", t_up)
-        return merged_last
-
-    # Both failed — serve stale cache if available, else minimal response
-    if cached:
-        log.warning("meta both paths failed for %s — serving stale cache", t_up)
-        return cached[0]
-
-    log.error("meta all sources failed for %s and no cache", t_up)
+    log.error("meta all sources failed for %s", t_up)
     return _empty_meta(t_up)
+
+
+def _snapshot_to_meta(snap: dict) -> dict:
+    """Convert a stock_snapshot row to the legacy meta dict shape."""
+    mc = snap.get("market_cap")
+    price = snap.get("price")
+    return {
+        "ticker": snap.get("ticker", ""),
+        "name": snap.get("company_name") or snap.get("ticker", ""),
+        "market_cap": mc,
+        "market_cap_fmt": _fmt_mcap(float(mc), snap.get("market", "US")) if mc else None,
+        "pe_ttm": round(float(snap["pe_ttm"]), 1) if snap.get("pe_ttm") is not None else None,
+        "pb_ratio": round(float(snap["pb_ratio"]), 2) if snap.get("pb_ratio") is not None else None,
+        "beta": round(float(snap["beta"]), 2) if snap.get("beta") is not None else None,
+        "week_52_high": snap.get("week_52_high"),
+        "week_52_low": snap.get("week_52_low"),
+        "earnings_date": snap.get("earnings_date"),
+        "analyst_target": snap.get("analyst_target"),
+        "analyst_recommendation": snap.get("recommendation"),
+        "sector": snap.get("sector"),
+        "industry": snap.get("sub_sector"),
+        "dividend_yield": None,  # not in snapshot yet
+        "current_price": price,
+        "change_pct": snap.get("change_pct"),
+        "volume": snap.get("volume"),
+        "rsi_14d": snap.get("rsi_14d"),
+        "cached_at": snap.get("cached_at"),
+        "stale": snap.get("stale", False),
+    }
 
 
 def _read_score_cache(ticker: str, market: str) -> dict | None:
@@ -1042,6 +975,56 @@ def _fetch_stock_meta(ticker: str, market: str) -> dict | Exception:
         return exc
 
 
+def _fetch_stock_meta_fmp_light(ticker: str, market: str) -> dict | None:
+    """Lightweight FMP fetch for fields NOT in stock_snapshot.
+    Returns dict with earnings_date, analyst_target, recommendation, dividend_yield.
+    Returns None on failure (non-critical)."""
+    try:
+        from nq_data.fmp import get_fmp_client
+        from datetime import date as _date, timedelta as _td
+        fmp = get_fmp_client()
+        if not fmp._enabled:
+            return None
+        sym = _yf_sym(ticker, market)
+        extras = {}
+
+        # Analyst target
+        tgt = fmp.get_price_target(sym)
+        if tgt and tgt.get("target_avg") is not None:
+            extras["analyst_target"] = round(float(tgt["target_avg"]), 2)
+
+        # Analyst consensus
+        grades = fmp.get_analyst_grades(sym)
+        if grades and grades.get("consensus"):
+            extras["analyst_recommendation"] = grades["consensus"]
+
+        # Earnings date (next 30 days)
+        today = _date.today()
+        earnings = fmp.get_earnings_calendar(today.isoformat(), (today + _td(days=30)).isoformat())
+        if earnings and isinstance(earnings, list):
+            ticker_earnings = [
+                e for e in earnings
+                if e.get("ticker", "").upper() == ticker.upper()
+                or e.get("ticker", "").upper() == sym.upper()
+            ]
+            if ticker_earnings and ticker_earnings[0].get("date"):
+                extras["earnings_date"] = ticker_earnings[0]["date"]
+
+        # Dividend history (latest 4)
+        divs = fmp.get_dividends(sym)
+        if divs and isinstance(divs, list) and divs:
+            extras["dividend_history"] = divs[:4]
+
+        # DCF valuation
+        dcf = fmp.get_dcf(sym)
+        if dcf and dcf.get("dcf_value") is not None:
+            extras["dcf_value"] = round(float(dcf["dcf_value"]), 2)
+
+        return extras
+    except Exception:
+        return None
+
+
 @router.get("/{ticker}/stream")
 async def stream_stock_score(
     ticker: str,
@@ -1132,70 +1115,45 @@ async def get_yield_curve():
 
 @router.get("/{ticker}/quantfactor")
 async def get_quantfactor_detail(ticker: str, market: str = "US"):
-    """Full QuantFactor enrichment row including IRS scores for a single ticker."""
-    import os as _os
-    import httpx as _hx
+    """Full QuantFactor enrichment row including IRS scores for a single ticker.
+    Reads from quantfactor_universe via in-memory cache (O(1) lookup)."""
+    t_up = _normalize_ticker(ticker, market)
 
-    url = _os.environ.get("SUPABASE_URL", "")
-    key = _os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
-    if not url or not key:
-        raise HTTPException(status_code=500, detail="Supabase not configured")
+    # Use the in-memory cache for sub-50ms response
+    row = get_quantfactor_scores(t_up, market)
 
-    # Try bare ticker first (for Indian stocks without .NS suffix)
-    bare_ticker = ticker.replace(".NS", "").replace(".BO", "").upper()
+    # Fallback: bare ticker for Indian stocks
+    if not row:
+        bare = t_up.replace(".NS", "").replace(".BO", "")
+        row = get_quantfactor_scores(bare, market)
 
-    endpoint = f"{url}/rest/v1/anjali_enrichment"
-    headers = {
-        "apikey": key,
-        "Authorization": f"Bearer {key}",
-    }
+    if not row:
+        raise HTTPException(status_code=404, detail=f"QuantFactor data not found for {ticker}")
 
-    # Try original ticker first, then bare
-    for t in [ticker.upper(), bare_ticker]:
-        try:
-            with _hx.Client(timeout=10) as client:
-                r = client.get(
-                    endpoint,
-                    params={
-                        "select": "*",
-                        "ticker": f"eq.{t}",
-                        "market": f"eq.{market}",
-                        "limit": "1",
-                    },
-                    headers=headers,
-                )
-                r.raise_for_status()
-                data = r.json()
-                if data and isinstance(data, list) and len(data) > 0:
-                    row = data[0]
-                    # Add IRS interpretation
-                    irs_pct = row.get("irs_pct")
-                    g_score = row.get("g_score")
-                    risk_eff = row.get("risk_eff_score")
-                    interpretation = "N/A"
-                    if irs_pct is not None:
-                        if irs_pct > 65:
-                            interpretation = "STRONG BUY"
-                        elif irs_pct >= 45:
-                            interpretation = "MODERATE"
-                        elif irs_pct >= 30:
-                            interpretation = "WEAK"
-                        else:
-                            interpretation = "VERY WEAK"
-                    if g_score is not None and g_score < -0.5:
-                        interpretation = "NEUTRAL ZONE"
-                    if g_score is not None and g_score < -4:
-                        interpretation = "SELL (G Score)"
-                    if risk_eff is not None and risk_eff < -3.5:
-                        interpretation = "SELL (Risk)"
+    # Add IRS interpretation
+    irs_pct = row.get("irs_pct")
+    g_score = row.get("g_score")
+    risk_eff = row.get("risk_eff_score")
+    interpretation = "N/A"
+    if irs_pct is not None:
+        if irs_pct > 65:
+            interpretation = "STRONG BUY"
+        elif irs_pct >= 45:
+            interpretation = "MODERATE"
+        elif irs_pct >= 30:
+            interpretation = "WEAK"
+        else:
+            interpretation = "VERY WEAK"
+    if g_score is not None and g_score < -0.5:
+        interpretation = "NEUTRAL ZONE"
+    if g_score is not None and g_score < -4:
+        interpretation = "SELL (G Score)"
+    if risk_eff is not None and risk_eff < -3.5:
+        interpretation = "SELL (Risk)"
 
-                    row["irs_interpretation"] = interpretation
-                    row["sebi_disclaimer"] = (
-                        "QuantAlpha is a research tool, not a SEBI-registered investment advisor. "
-                        "Please consult a qualified financial advisor before investing."
-                    )
-                    return row
-        except Exception as exc:
-            log.warning("QuantFactor detail fetch failed for %s: %s", t, exc)
-
-    raise HTTPException(status_code=404, detail=f"QuantFactor data not found for {ticker}")
+    row["irs_interpretation"] = interpretation
+    row["sebi_disclaimer"] = (
+        "QuantAlpha is a research tool, not a SEBI-registered investment advisor. "
+        "Please consult a qualified financial advisor before investing."
+    )
+    return row
