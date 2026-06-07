@@ -116,11 +116,6 @@ def _fetch_anjali_pool(
         "limit": str(limit * 3),  # over-fetch, then filter
     }
 
-    if index_groups:
-        # PostgREST OR for index_group
-        or_parts = ",".join(f"index_group.eq.{ig}" for ig in index_groups)
-        query["or"] = f"({or_parts})"
-
     data = _supabase_rest("anjali_enrichment", "GET", query=query)
     if not data or not isinstance(data, list):
         return []
@@ -130,6 +125,12 @@ def _fetch_anjali_pool(
         # Mining & Metals exclusion
         if _is_mining_metals(row.get("sector")):
             continue
+
+        # Index group filter (client-side — avoids PostgREST or= syntax issues)
+        if index_groups:
+            row_ig = row.get("index_group")
+            if row_ig not in index_groups:
+                continue
 
         g = row.get("g_score")
         risk = row.get("risk_score")

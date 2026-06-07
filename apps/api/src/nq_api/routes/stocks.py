@@ -416,7 +416,7 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
     # Each step gets a slice of the budget. On timeout, return whatever we have.
     meta_start = time.monotonic()
 
-    async def _remaining() -> float:
+    def _remaining() -> float:
         """Seconds left before the 15s budget expires."""
         return max(0.5, _META_TIMEOUT - (time.monotonic() - meta_start))
 

@@ -7,7 +7,6 @@ import {
   ScanSearch,
   MessageSquareText,
   Newspaper,
-  TrendingUp,
   PieChart,
   Menu,
 } from "lucide-react";
@@ -18,7 +17,6 @@ const NAV = [
   { href: "/screener", label: "Screener", icon: ScanSearch },
   { href: "/query", label: "Ask Morgan", icon: MessageSquareText, center: true },
   { href: "/portfolio", label: "Portfolio", icon: PieChart },
-  { href: "/trade", label: "Trade", icon: TrendingUp, beta: true },
 ];
 
 export default function BottomMobileNav({ onOpenDrawer }: { onOpenDrawer: () => void }) {
@@ -27,7 +25,7 @@ export default function BottomMobileNav({ onOpenDrawer }: { onOpenDrawer: () => 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 glass border-t border-border-glow lg:hidden safe-area-pb">
       <div className="flex h-16 items-center justify-around">
-        {NAV.map(({ href, label, icon: Icon, center, beta }) => {
+        {NAV.map(({ href, label, icon: Icon, center }) => {
           const active = pathname.startsWith(href);
 
           if (center) {
@@ -58,11 +56,6 @@ export default function BottomMobileNav({ onOpenDrawer }: { onOpenDrawer: () => 
                 }`}
               >
                 {label}
-                {beta && (
-                  <span className="text-[7px] font-medium px-0.5 bg-amber-500/15 text-amber-400 border border-amber-500/25 leading-none">
-                    BETA
-                  </span>
-                )}
               </span>
             </Link>
           );
