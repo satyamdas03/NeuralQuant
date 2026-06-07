@@ -178,7 +178,7 @@ export default function StockPage() {
 
       {/* IRS + QuantFactor Section */}
       {score.anjali && (score.anjali.irs_pct != null || score.anjali.g_score != null) && (
-        <IRSZoneBadge anjali={score.anjali} ticker={ticker} market={market} />
+        <IRSZoneBadge scores={score.anjali} ticker={ticker} market={market} />
       )}
 
       {/* ForeCast Score Cards */}

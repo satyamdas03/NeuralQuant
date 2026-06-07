@@ -3,7 +3,7 @@ import type { AIScore } from "@/lib/types";
 import RegimeBadge from "@/components/ui/RegimeBadge";
 
 /** QuantFactor composite → color class. Scale: -16 to +16 */
-function anjaliColorClass(composite: number | null | undefined): string {
+function qfColorClass(composite: number | null | undefined): string {
   if (composite == null) return "text-on-surface-variant";
   if (composite >= 6) return "text-tertiary-fixed-dim";   // strong value
   if (composite >= 2) return "text-primary-fixed";        // moderate value
@@ -12,14 +12,14 @@ function anjaliColorClass(composite: number | null | undefined): string {
 }
 
 /** QuantFactor composite → short label */
-function anjaliLabel(composite: number | null | undefined): string {
+function qfLabel(composite: number | null | undefined): string {
   if (composite == null) return "—";
   return composite >= 0 ? `+${composite.toFixed(1)}` : composite.toFixed(1);
 }
 
 export function ScreenerTable({ stocks }: { stocks: AIScore[] }) {
   // Check if ANY stock has QuantFactor data (to conditionally show column)
-  const hasAnjali = stocks.some((s) => s.anjali != null);
+  const hasQF = stocks.some((s) => s.anjali != null);
 
   return (
     <div className="overflow-hidden glass border border-border-glow">
@@ -29,7 +29,7 @@ export function ScreenerTable({ stocks }: { stocks: AIScore[] }) {
             <tr>
               <th className="px-4 py-3 text-left">Ticker</th>
               <th className="px-4 py-3 text-center">Score</th>
-              {hasAnjali && <th className="px-4 py-3 text-center">QF Score</th>}
+              {hasQF && <th className="px-4 py-3 text-center">QF Score</th>}
               <th className="px-4 py-3 text-center">Quality</th>
               <th className="px-4 py-3 text-center">Momentum</th>
               <th className="px-4 py-3 text-center">Regime</th>
@@ -75,10 +75,10 @@ export function ScreenerTable({ stocks }: { stocks: AIScore[] }) {
                   </span>
                   <span className="font-mono text-[11px] text-text-muted">/10</span>
                 </td>
-                {hasAnjali && (
+                {hasQF && (
                   <td className="px-4 py-3 text-center">
-                    <span className={`font-mono font-semibold ${anjaliColorClass(s.anjali?.composite)}`}>
-                      {anjaliLabel(s.anjali?.composite)}
+                    <span className={`font-mono font-semibold ${qfColorClass(s.anjali?.composite)}`}>
+                      {qfLabel(s.anjali?.composite)}
                     </span>
                   </td>
                 )}

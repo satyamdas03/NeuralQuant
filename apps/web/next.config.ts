@@ -14,6 +14,11 @@ const nextConfig: NextConfig = {
         permanent: true,
       },
       {
+        source: "/stocks/:ticker/anjali",
+        destination: "/stocks/:ticker/quantfactor",
+        permanent: true,
+      },
+      {
         source: "/team/:path*",
         destination: `${TEAM_HUB_URL}/:path*`,
         permanent: true,

@@ -21,7 +21,7 @@ export interface SubScores {
   insider?: number;
 }
 
-export interface AnjaliScores {
+export interface QuantFactorScores {
   growth_score: number | null;        // -4 to +4 vs index peers
   return_score: number | null;        // -4 to +4
   valuation_score: number | null;     // -4 to +4 (Q2=+1 sweet spot)
@@ -46,7 +46,7 @@ export interface AIScore {
   top_drivers: FeatureDriver[];
   confidence: ConfidenceLevel;
   last_updated: string;
-  anjali?: AnjaliScores | null;  // QuantFactor Engine scores (null if not available)
+  anjali?: QuantFactorScores | null;  // QuantFactor Engine scores (null if not available)
 }
 
 export interface AgentOutput {
@@ -458,7 +458,7 @@ export interface StockSummary {
   yield_curve_2y: number | null;
   yield_curve_10y: number | null;
   yield_curve_spread: number | null;
-  anjali?: AnjaliScores | null;  // QuantFactor Engine scores
+  anjali?: QuantFactorScores | null;  // QuantFactor Engine scores
 }
 
 // ── Portfolio Output Types (Phase 1) ──────────────────────────────────────────
@@ -796,7 +796,7 @@ export interface AstraGeopoliticalScanResponse {
   sebi_disclaimer: string;
 }
 
-export interface AnjaliDetailResponse {
+export interface QuantFactorDetailResponse {
   ticker: string;
   market: string;
   name?: string;

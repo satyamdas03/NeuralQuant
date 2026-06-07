@@ -1,10 +1,10 @@
 "use client";
 
-import type { AnjaliScores } from "@/lib/types";
+import type { QuantFactorScores } from "@/lib/types";
 import Link from "next/link";
 
 interface IRSZoneBadgeProps {
-  anjali: AnjaliScores;
+  scores: QuantFactorScores;
   ticker: string;
   market?: string;
   /** Compact mode: just IRS% + zone label (for cards). Full mode: IRS% + bars + breakdown */
@@ -51,10 +51,10 @@ function riskEffColor(r: number): string {
   return "text-cyber-red";
 }
 
-export default function IRSZoneBadge({ anjali, ticker, market = "US", compact = false }: IRSZoneBadgeProps) {
-  const irsPct = anjali.irs_pct ?? null;
-  const gScore = anjali.g_score ?? null;
-  const riskEff = anjali.risk_eff_score ?? null;
+export default function IRSZoneBadge({ scores, ticker, market = "US", compact = false }: IRSZoneBadgeProps) {
+  const irsPct = scores.irs_pct ?? null;
+  const gScore = scores.g_score ?? null;
+  const riskEff = scores.risk_eff_score ?? null;
   const zone = irsZone(irsPct);
 
   if (compact) {
@@ -78,7 +78,7 @@ export default function IRSZoneBadge({ anjali, ticker, market = "US", compact = 
           Investment Readiness Score
         </h3>
         <Link
-          href={`/stocks/${ticker}/anjali?market=${market}`}
+          href={`/stocks/${ticker}/quantfactor?market=${market}`}
           className="text-[10px] font-mono text-primary-fixed hover:underline"
         >
           Full Breakdown →
@@ -104,10 +104,10 @@ export default function IRSZoneBadge({ anjali, ticker, market = "US", compact = 
       {/* Sub-scores grid */}
       <div className="grid grid-cols-4 gap-x-2 gap-y-1 pt-2 border-t border-outline-variant/20">
         {[
-          { label: "Growth", value: anjali.growth_score },
-          { label: "Return", value: anjali.return_score },
-          { label: "Value", value: anjali.valuation_score },
-          { label: "Risk", value: anjali.risk_score },
+          { label: "Growth", value: scores.growth_score },
+          { label: "Return", value: scores.return_score },
+          { label: "Value", value: scores.valuation_score },
+          { label: "Risk", value: scores.risk_score },
         ].map(({ label, value }) => (
           <div key={label}>
             <span className="text-[9px] text-on-surface-variant">{label}</span>
@@ -124,12 +124,12 @@ export default function IRSZoneBadge({ anjali, ticker, market = "US", compact = 
 
       {/* Tags */}
       <div className="flex gap-1.5">
-        {anjali.valuation_sweet_spot && (
+        {scores.valuation_sweet_spot && (
           <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-tertiary/15 text-tertiary border border-tertiary/30">
             VALUE SWEET SPOT
           </span>
         )}
-        {anjali.is_loss_making && (
+        {scores.is_loss_making && (
           <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-error/15 text-error border border-error/30">
             LOSS-MAKING
           </span>

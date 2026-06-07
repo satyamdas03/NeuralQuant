@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import type { AnjaliDetailResponse, Market } from "@/lib/types";
+import type { QuantFactorDetailResponse, Market } from "@/lib/types";
 import GhostBorderCard from "@/components/ui/GhostBorderCard";
 import { ArrowLeft, Loader2, AlertTriangle } from "lucide-react";
 
@@ -45,18 +45,18 @@ function irsZone(pct: number): { label: string; color: string; bg: string } {
   return { label: "AVOID", color: "text-red-400", bg: "bg-red-500/15" };
 }
 
-export default function AnjaliDetailPage() {
+export default function QuantFactorDetailPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const ticker = (params.ticker as string) ?? "";
   const market = (searchParams.get("market") ?? "IN") as Market;
 
-  const [data, setData] = useState<AnjaliDetailResponse | null>(null);
+  const [data, setData] = useState<QuantFactorDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.getAnjali(ticker, market)
+    api.getQuantFactor(ticker, market)
       .then(setData)
       .catch((e) => setError(e instanceof Error ? e.message : "Failed to load QuantFactor data"))
       .finally(() => setLoading(false));

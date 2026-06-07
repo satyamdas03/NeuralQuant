@@ -20,6 +20,6 @@ export const metadata: Metadata = {
   },
 };
 
-export default function AnjaliLayout({ children }: { children: React.ReactNode }) {
+export default function QuantFactorLayout({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }

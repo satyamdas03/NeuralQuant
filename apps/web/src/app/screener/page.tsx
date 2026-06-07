@@ -43,8 +43,8 @@ function ScreenerInner() {
   const [error, setError] = useState<string | null>(null);
   const [activePreset, setActivePreset] = useState<string | null>(null);
   // QuantFactor filters
-  const [showAnjaliFilters, setShowAnjaliFilters] = useState(false);
-  const [minAnjaliComposite, setMinAnjaliComposite] = useState<number>(-16);
+  const [showQFFilters, setShowQFFilters] = useState(false);
+  const [minQFComposite, setMinQFComposite] = useState<number>(-16);
   const [valueSweetSpotOnly, setValueSweetSpotOnly] = useState(false);
   const [excludeLossMaking, setExcludeLossMaking] = useState(false);
 
@@ -74,12 +74,12 @@ function ScreenerInner() {
     if (!data) return;
     const filters = JSON.stringify({
       preset: activePreset,
-      min_composite: minAnjaliComposite,
+      min_composite: minQFComposite,
       value_sweet_spot: valueSweetSpotOnly,
       exclude_loss_making: excludeLossMaking,
     });
     trackApiEvent("screener_used", { market, filters }).catch(() => {});
-  }, [activePreset, minAnjaliComposite, valueSweetSpotOnly, excludeLossMaking, market, data]);
+  }, [activePreset, minQFComposite, valueSweetSpotOnly, excludeLossMaking, market, data]);
 
   const handlePresetSelect = (preset: ScreenerPreset | null) => {
     setActivePreset(preset?.id ?? null);
@@ -106,11 +106,11 @@ function ScreenerInner() {
     }
 
     // Apply QuantFactor filters
-    if (minAnjaliComposite > -16 || valueSweetSpotOnly || excludeLossMaking) {
+    if (minQFComposite > -16 || valueSweetSpotOnly || excludeLossMaking) {
       results = results.filter((s) => {
         // If no QuantFactor data and filters are active, exclude
         if (!s.anjali) return false;
-        if (s.anjali.composite != null && s.anjali.composite < minAnjaliComposite) return false;
+        if (s.anjali.composite != null && s.anjali.composite < minQFComposite) return false;
         if (valueSweetSpotOnly && !s.anjali.valuation_sweet_spot) return false;
         if (excludeLossMaking && s.anjali.is_loss_making) return false;
         return true;
@@ -126,7 +126,7 @@ function ScreenerInner() {
     load(m);
   };
 
-  const hasAnjali = data?.results.some((s) => s.anjali != null) ?? false;
+  const hasQF = data?.results.some((s) => s.anjali != null) ?? false;
 
   return (
     <div className="space-y-5 p-4 lg:p-6">
@@ -159,11 +159,11 @@ function ScreenerInner() {
             </button>
           ))}
         </div>
-        {hasAnjali && (
+        {hasQF && (
           <button
-            onClick={() => setShowAnjaliFilters(!showAnjaliFilters)}
+            onClick={() => setShowQFFilters(!showQFFilters)}
             className={`ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors rounded ${
-              showAnjaliFilters || minAnjaliComposite > -16 || valueSweetSpotOnly || excludeLossMaking
+              showQFFilters || minQFComposite > -16 || valueSweetSpotOnly || excludeLossMaking
                 ? "bg-primary/20 text-primary border border-primary/30"
                 : "bg-surface-high text-on-surface-variant hover:bg-surface-highest"
             }`}
@@ -174,7 +174,7 @@ function ScreenerInner() {
         )}
       </div>
 
-      {showAnjaliFilters && hasAnjali && (
+      {showQFFilters && hasQF && (
         <div className="glass border border-border-glow p-4 space-y-3">
           <div className="flex items-center gap-2 text-xs font-mono text-primary">
             <Filter size={14} />
@@ -190,12 +190,12 @@ function ScreenerInner() {
                 min={-16}
                 max={16}
                 step={1}
-                value={minAnjaliComposite}
-                onChange={(e) => setMinAnjaliComposite(Number(e.target.value))}
+                value={minQFComposite}
+                onChange={(e) => setMinQFComposite(Number(e.target.value))}
                 className="w-full accent-primary"
               />
               <div className="text-xs text-on-surface-variant mt-1 font-mono">
-                {minAnjaliComposite >= 0 ? `+${minAnjaliComposite}` : minAnjaliComposite} / 16
+                {minQFComposite >= 0 ? `+${minQFComposite}` : minQFComposite} / 16
               </div>
             </div>
             <div className="flex flex-col justify-end">

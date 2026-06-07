@@ -1130,8 +1130,8 @@ async def get_yield_curve():
         return {"enabled": True, "data": {}, "error": str(exc)}
 
 
-@router.get("/{ticker}/anjali")
-async def get_anjali_detail(ticker: str, market: str = "US"):
+@router.get("/{ticker}/quantfactor")
+async def get_quantfactor_detail(ticker: str, market: str = "US"):
     """Full QuantFactor enrichment row including IRS scores for a single ticker."""
     import os as _os
     import httpx as _hx

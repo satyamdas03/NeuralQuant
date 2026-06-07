@@ -11,7 +11,7 @@ import type {
   TradeSignalsResponse, TradeStrategy, CalibrationReport, RiskProfileConfig,
   BacktestResponse,
   AstraRiskProfile, AstraRecommendResponse, AstraSellSignalsResponse,
-  AstraGeopoliticalScanResponse, AnjaliDetailResponse,
+  AstraGeopoliticalScanResponse, QuantFactorDetailResponse,
 } from "./types";
 
 // Route all requests through Next.js /api/ rewrite proxy to avoid CORS issues.
@@ -316,8 +316,8 @@ export const api = {
     apiFetch<SentimentResponse>(`/sentiment/news/${ticker}?market=${market}&limit=${limit}`),
 
   // QuantFactor detail (public, cached)
-  getAnjali: (ticker: string, market: Market = "IN") =>
-    apiFetch<AnjaliDetailResponse>(`/stocks/${ticker}/anjali?market=${market}`),
+  getQuantFactor: (ticker: string, market: Market = "IN") =>
+    apiFetch<QuantFactorDetailResponse>(`/stocks/${ticker}/quantfactor?market=${market}`),
 
   // ── Share API (public, no auth required) ─────────────────────────────────
   createShareAnalysis: (body: {
