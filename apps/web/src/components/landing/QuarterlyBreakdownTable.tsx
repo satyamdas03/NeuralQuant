@@ -1,26 +1,30 @@
 "use client";
 
-interface Row {
-  selection: string;
-  universe: string;
-  irs: string;
-  entry: string;
-  exit: string;
-  returnPct: string;
-  alpha: string;
-  status: "BEAT" | "MISSED";
+interface PoolRow {
+  pool: string;
+  count: number;
+  avg_return: number;
+  avg_benchmark: number;
+  alpha: number;
+  hit_rate: number;
 }
 
-const ROWS: Row[] = [
-  { selection: "Selection 1", universe: "SmallCap 250", irs: "94.2", entry: "₹ 342.50", exit: "₹ 441.20", returnPct: "+28.8%", alpha: "+17.5%", status: "BEAT" },
-  { selection: "Selection 2", universe: "MicroCap 250", irs: "91.7", entry: "₹ 128.00", exit: "₹ 168.40", returnPct: "+31.6%", alpha: "+20.3%", status: "BEAT" },
-  { selection: "Selection 3", universe: "SmallCap 250", irs: "89.4", entry: "₹ 1,845.00", exit: "₹ 2,210.50", returnPct: "+19.8%", alpha: "+8.5%", status: "BEAT" },
-  { selection: "Selection 4", universe: "MicroCap 250", irs: "87.1", entry: "₹ 56.30", exit: "₹ 62.10", returnPct: "+10.3%", alpha: "-1.0%", status: "MISSED" },
-  { selection: "Selection 5", universe: "SmallCap 250", irs: "93.5", entry: "₹ 678.00", exit: "₹ 892.50", returnPct: "+31.6%", alpha: "+20.3%", status: "BEAT" },
-  { selection: "Selection 6", universe: "MicroCap 250", irs: "88.0", entry: "₹ 215.40", exit: "₹ 281.60", returnPct: "+30.7%", alpha: "+19.4%", status: "BEAT" },
-];
+function EmptyState() {
+  return (
+    <div className="w-full border flex flex-col items-center justify-center gap-3 py-12" style={{ background: "var(--color-surface)", borderColor: "var(--color-ghost-border)" }}>
+      <div className="h-2 w-24 bg-surface-high rounded animate-pulse" />
+      <p className="font-mono text-[11px] text-text-muted">Quarterly breakdown loading…</p>
+    </div>
+  );
+}
 
-export default function QuarterlyBreakdownTable({ breakdown }: { breakdown?: Array<{ pool: string; count: number; avg_return: number; avg_benchmark: number; alpha: number; hit_rate: number }> | null }) {
+export default function QuarterlyBreakdownTable({
+  breakdown,
+}: {
+  breakdown?: Array<PoolRow> | null;
+}) {
+  const hasData = breakdown && breakdown.length > 0;
+
   return (
     <div
       className="w-full border"
@@ -36,116 +40,95 @@ export default function QuarterlyBreakdownTable({ breakdown }: { breakdown?: Arr
           Quarterly Breakdown
         </h3>
         <p className="mt-1 font-mono text-[11px] text-text-muted">
-          Anonymized selections from Q1 FY2027 (Apr–Jun 2026)
+          Pool-level results from Q1 FY2027 (Apr–Jun 2026)
         </p>
       </div>
 
-      <div className="overflow-x-auto hide-scrollbar">
-        <table className="w-full min-w-[720px]">
-          <thead>
-            <tr
-              className="font-mono text-[10px] font-bold tracking-[0.15em] uppercase"
-              style={{ color: "var(--color-text-muted)", background: "var(--color-surface-low)" }}
-            >
-              <th className="text-left px-6 py-4">Selection</th>
-              <th className="text-left px-6 py-4">Universe</th>
-              <th className="text-right px-6 py-4">IRS%</th>
-              <th className="text-right px-6 py-4">Entry Price</th>
-              <th className="text-right px-6 py-4">Exit Price</th>
-              <th className="text-right px-6 py-4">Return</th>
-              <th className="text-right px-6 py-4">Alpha</th>
-              <th className="text-center px-6 py-4">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ROWS.map((row, i) => (
+      {!hasData ? (
+        <EmptyState />
+      ) : (
+        <div className="overflow-x-auto hide-scrollbar">
+          <table className="w-full min-w-[640px]">
+            <thead>
               <tr
-                key={row.selection}
-                className="border-t transition-colors duration-200"
-                style={{
-                  borderColor: "var(--color-ghost-border)",
-                  background: i % 2 === 0 ? "var(--color-surface)" : "var(--color-surface-low)",
-                }}
+                className="font-mono text-[10px] font-bold tracking-[0.15em] uppercase"
+                style={{ color: "var(--color-text-muted)", background: "var(--color-surface-low)" }}
               >
-                <td className="px-6 py-4 font-mono text-[12px] text-text-primary font-bold">
-                  {row.selection}
-                </td>
-                <td className="px-6 py-4 font-mono text-[12px] text-text-muted">
-                  {row.universe}
-                </td>
-                <td className="px-6 py-4 font-mono text-[12px] text-primary text-right tabular-nums">
-                  {row.irs}%
-                </td>
-                <td className="px-6 py-4 font-mono text-[12px] text-text-muted text-right tabular-nums">
-                  {row.entry}
-                </td>
-                <td className="px-6 py-4 font-mono text-[12px] text-text-muted text-right tabular-nums">
-                  {row.exit}
-                </td>
-                <td
-                  className="px-6 py-4 font-mono text-[12px] font-bold text-right tabular-nums"
-                  style={{ color: "var(--color-primary)" }}
-                >
-                  {row.returnPct}
-                </td>
-                <td
-                  className="px-6 py-4 font-mono text-[12px] font-bold text-right tabular-nums"
-                  style={{
-                    color: row.status === "BEAT"
-                      ? "var(--color-primary)"
-                      : "var(--color-cyber-red)",
-                  }}
-                >
-                  {row.alpha}
-                </td>
-                <td className="px-6 py-4 text-center">
-                  <span
-                    className="inline-block px-3 py-1 font-mono text-[10px] font-bold tracking-[0.1em] uppercase"
+                <th className="text-left px-6 py-4">Pool</th>
+                <th className="text-right px-6 py-4">Selections</th>
+                <th className="text-right px-6 py-4">Avg Return</th>
+                <th className="text-right px-6 py-4">Benchmark</th>
+                <th className="text-right px-6 py-4">Alpha</th>
+                <th className="text-right px-6 py-4">Hit Rate</th>
+                <th className="text-center px-6 py-4">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {breakdown!.map((row, i) => {
+                const status = row.alpha > 0 ? "BEAT" : "MISSED";
+                return (
+                  <tr
+                    key={row.pool}
+                    className="border-t transition-colors duration-200"
                     style={{
-                      background: row.status === "BEAT"
-                        ? "rgba(0, 255, 178, 0.1)"
-                        : "rgba(255, 65, 88, 0.1)",
-                      color: row.status === "BEAT"
-                        ? "var(--color-primary)"
-                        : "var(--color-cyber-red)",
+                      borderColor: "var(--color-ghost-border)",
+                      background: i % 2 === 0 ? "var(--color-surface)" : "var(--color-surface-low)",
                     }}
                   >
-                    {row.status}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Pool-level aggregates from API when available */}
-      {breakdown && breakdown.length > 0 && (
-        <div
-          className="px-6 md:px-8 py-4 border-t"
-          style={{ borderColor: "var(--color-ghost-border)", background: "var(--color-surface-low)" }}
-        >
-          <p className="font-mono text-[10px] font-bold tracking-[0.15em] uppercase text-text-muted mb-3">
-            Pool Performance
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {breakdown.map((pool) => (
-              <div key={pool.pool} className="flex flex-col gap-1">
-                <span className="font-mono text-[11px] font-bold text-text-primary">{pool.pool}</span>
-                <span className="font-mono text-[10px] text-text-muted">
-                  Alpha: <span style={{ color: "var(--color-primary)" }}>+{pool.alpha.toFixed(1)}%</span> · Hit Rate: {pool.hit_rate.toFixed(0)}%
-                </span>
-              </div>
-            ))}
-          </div>
+                    <td className="px-6 py-4 font-mono text-[12px] text-text-primary font-bold">
+                      {row.pool}
+                    </td>
+                    <td className="px-6 py-4 font-mono text-[12px] text-text-muted text-right tabular-nums">
+                      {row.count}
+                    </td>
+                    <td
+                      className="px-6 py-4 font-mono text-[12px] font-bold text-right tabular-nums"
+                      style={{ color: "var(--color-primary)" }}
+                    >
+                      +{row.avg_return.toFixed(1)}%
+                    </td>
+                    <td className="px-6 py-4 font-mono text-[12px] text-text-muted text-right tabular-nums">
+                      +{row.avg_benchmark.toFixed(1)}%
+                    </td>
+                    <td
+                      className="px-6 py-4 font-mono text-[12px] font-bold text-right tabular-nums"
+                      style={{
+                        color: row.alpha >= 0 ? "var(--color-primary)" : "var(--color-cyber-red)",
+                      }}
+                    >
+                      {row.alpha >= 0 ? "+" : ""}{row.alpha.toFixed(1)}%
+                    </td>
+                    <td className="px-6 py-4 font-mono text-[12px] text-text-muted text-right tabular-nums">
+                      {row.hit_rate.toFixed(0)}%
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span
+                        className="inline-block px-3 py-1 font-mono text-[10px] font-bold tracking-[0.1em] uppercase"
+                        style={{
+                          background: status === "BEAT"
+                            ? "rgba(0, 255, 178, 0.1)"
+                            : "rgba(255, 65, 88, 0.1)",
+                          color: status === "BEAT"
+                            ? "var(--color-primary)"
+                            : "var(--color-cyber-red)",
+                        }}
+                      >
+                        {status}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 
       <div
         className="px-6 md:px-8 py-4 border-t font-mono text-[10px] text-text-muted"
-        style={{ borderColor: "var(--color-ghost-border)", background: breakdown?.length ? undefined : "var(--color-surface-low)" }}
+        style={{ borderColor: "var(--color-ghost-border)", background: "var(--color-surface-low)" }}
       >
-        Tickers are anonymized for compliance. Full attribution available to verified subscribers.
+        Results are anonymized at the pool level for compliance. Individual attribution available to verified subscribers.
       </div>
     </div>
   );

@@ -9,13 +9,15 @@ import SEBIDisclaimer from "./SEBIDisclaimer";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://neuralquant.onrender.com";
 
-// Fallback metrics — used when API is unavailable or before load
-const FALLBACK_METRICS = [
-  { label: "Alpha", value: 13.76, suffix: "%", color: "positive" as const, subtext: "vs NIFTY50" },
-  { label: "Hit Rate", value: 89, suffix: "%", color: "positive" as const, subtext: "selections beat benchmark" },
-  { label: "Avg Return", value: 24.8, suffix: "%", color: "positive" as const, subtext: "unweighted average" },
-  { label: "Nifty50", value: 11.04, suffix: "%", color: "neutral" as const, subtext: "same period benchmark" },
-];
+function MetricSkeleton() {
+  return (
+    <div className="border p-4 md:p-5 flex flex-col gap-2" style={{ background: "var(--color-surface)", borderColor: "var(--color-ghost-border)" }}>
+      <div className="h-3 w-16 bg-surface-high rounded animate-pulse" />
+      <div className="h-8 w-20 bg-surface-high rounded animate-pulse mt-1" />
+      <div className="h-3 w-24 bg-surface-high rounded animate-pulse" />
+    </div>
+  );
+}
 
 interface BacktestData {
   quarter: string;
@@ -63,25 +65,30 @@ export default function BacktestResultsSection() {
   }, []);
 
   // Fetch backtest data from API
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     let cancelled = false;
     fetch(`${API_URL}/testing/quarterly/public-results`)
       .then((r) => r.ok ? r.json() : null)
-      .then((d) => { if (!cancelled && d) setData(d); })
-      .catch(() => {}); // Use fallback on error
+      .then((d) => {
+        if (!cancelled) {
+          if (d) setData(d);
+          setLoading(false);
+        }
+      })
+      .catch(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
 
-  // Build metrics from API data or fallback
   const summary = data?.summary;
-  const METRICS = summary
+  const metrics = summary
     ? [
         { label: "Alpha", value: summary.alpha, suffix: "%", color: "positive" as const, subtext: "vs NIFTY50" },
         { label: "Hit Rate", value: summary.hit_rate, suffix: "%", color: "positive" as const, subtext: "selections beat benchmark" },
         { label: "Avg Return", value: summary.avg_return, suffix: "%", color: "positive" as const, subtext: "unweighted average" },
         { label: "Nifty50", value: summary.avg_benchmark, suffix: "%", color: "neutral" as const, subtext: "same period benchmark" },
       ]
-    : FALLBACK_METRICS;
+    : null;
 
   return (
     <section
@@ -123,24 +130,36 @@ export default function BacktestResultsSection() {
 
         {/* Metric cards grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-16">
-          {METRICS.map((m, i) => (
-            <div
-              key={m.label}
-              className={`transition-all duration-700 ${
-                isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
-              }`}
-              style={{ transitionDelay: `${300 + i * 100}ms` }}
-            >
-              <AlphaCounterCard
-                label={m.label}
-                value={m.value}
-                suffix={m.suffix}
-                color={m.color}
-                animate={isVisible}
-                subtext={m.subtext}
-              />
-            </div>
-          ))}
+          {loading || !metrics
+            ? [...Array(4)].map((_, i) => (
+                <div
+                  key={i}
+                  className={`transition-all duration-700 ${
+                    isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+                  }`}
+                  style={{ transitionDelay: `${300 + i * 100}ms` }}
+                >
+                  <MetricSkeleton />
+                </div>
+              ))
+            : metrics.map((m, i) => (
+                <div
+                  key={m.label}
+                  className={`transition-all duration-700 ${
+                    isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+                  }`}
+                  style={{ transitionDelay: `${300 + i * 100}ms` }}
+                >
+                  <AlphaCounterCard
+                    label={m.label}
+                    value={m.value}
+                    suffix={m.suffix}
+                    color={m.color}
+                    animate={isVisible}
+                    subtext={m.subtext}
+                  />
+                </div>
+              ))}
         </div>
 
         {/* Equity curve chart */}
@@ -150,7 +169,7 @@ export default function BacktestResultsSection() {
           }`}
           style={{ transitionDelay: "700ms" }}
         >
-          <EquityCurveChart data={data?.equity_curve} />
+          <EquityCurveChart data={data?.equity_curve} benchmark={data?.summary?.avg_benchmark} />
         </div>
 
         {/* Quarterly breakdown table */}

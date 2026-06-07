@@ -105,7 +105,7 @@ def _select_stocks(test_type: str, top_n: int = 10) -> list[dict]:
             "limit": str(top_n * 3),
         }
 
-    data = _supabase_rest("anjali_enrichment", "GET", query=query)
+    data = _supabase_rest("quantfactor_universe", "GET", query=query)
     if not data or not isinstance(data, list):
         return []
 
@@ -545,31 +545,16 @@ async def public_quarterly_results():
 
 
 def _q1fy27_baseline() -> dict:
-    """Hardcoded Q1FY27 baseline — used when DB is empty or on error.
+    """Empty fallback when DB has no quarterly test data.
 
-    These are the verified results from the April-June 2026 quarterly test.
-    Source: Session 74 quarterly test run (commit c5d25bf).
+    Frontend shows skeleton loaders when fields are empty/null.
+    Real data is fetched from Supabase quarterly_test_runs / quarterly_test_results.
     """
     return {
         "quarter": "Q1FY27",
-        "run_date": "2026-04-01",
-        "summary": {
-            "alpha": 13.76,
-            "hit_rate": 89.0,
-            "avg_return": 24.8,
-            "avg_benchmark": 11.04,
-            "total_selections": 30,
-        },
-        "pool_breakdown": [
-            {"pool": "MicroCap", "count": 10, "avg_return": 25.8, "avg_benchmark": 11.04, "alpha": 14.76, "hit_rate": 90.0},
-            {"pool": "SmallCap", "count": 10, "avg_return": 23.8, "avg_benchmark": 11.04, "alpha": 12.76, "hit_rate": 88.0},
-            {"pool": "Value", "count": 10, "avg_return": 24.9, "avg_benchmark": 11.04, "alpha": 13.86, "hit_rate": 89.0},
-        ],
-        "equity_curve": [
-            {"pct": 10, "return": -2.1}, {"pct": 20, "return": 1.3}, {"pct": 30, "return": 5.8},
-            {"pct": 40, "return": 10.2}, {"pct": 50, "return": 15.7}, {"pct": 60, "return": 20.1},
-            {"pct": 70, "return": 26.5}, {"pct": 80, "return": 32.8}, {"pct": 90, "return": 40.1},
-            {"pct": 100, "return": 48.3},
-        ],
+        "run_date": None,
+        "summary": None,
+        "pool_breakdown": [],
+        "equity_curve": [],
         "sebi_disclaimer": SEBI_DISCLAIMER,
     }

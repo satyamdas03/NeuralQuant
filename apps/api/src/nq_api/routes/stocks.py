@@ -366,23 +366,26 @@ _META_TIMEOUT = 15  # seconds — hard cap for meta enrichment; return partial o
 @router.get("/{ticker}/meta")
 async def get_stock_meta(ticker: str, market: str = Query("US")):
     """Return stock metadata. Reads from stock_snapshot (30-min TTL) first.
-    On miss/stale, falls back to FMP direct with 5s timeout."""
+    On miss/stale, falls back to FMP direct with 8s timeout."""
     t_up = _normalize_ticker(ticker, market)
 
-    # ── Phase 1: stock_snapshot fast path ────────────────────────────────
+    # ── Phase 1: stock_snapshot (serve even if stale — partial data > no data) ──
     snap = None
     try:
         snap = await asyncio.wait_for(
             asyncio.to_thread(_read_stock_snapshot, t_up, market),
-            timeout=3.0,
+            timeout=8.0,
         )
     except Exception:
         pass
 
-    if snap and not is_stale(snap, max_age_minutes=35):
-        # Convert snapshot row to legacy meta shape for frontend compatibility
-        meta = _snapshot_to_meta(snap)
-        # Fill enrichment from FMP if budget remains (earnings_date, analyst_target, etc.)
+    if snap:
+        try:
+            meta = _snapshot_to_meta(snap)
+        except Exception as e:
+            log.warning("_snapshot_to_meta failed for %s: %s", t_up, e)
+            meta = _empty_meta(t_up)
+        # Attempt enrichment from FMP (non-critical)
         try:
             fmp_extra = await asyncio.wait_for(
                 asyncio.to_thread(_fetch_stock_meta_fmp_light, t_up, market),
@@ -405,7 +408,7 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
     except asyncio.TimeoutError:
         log.warning("meta FMP timed out for %s", t_up)
 
-    # ── Phase 3: yfinance fallback (last resort) ──────────────────────
+    # ── Phase 3: yfinance fallback (last resort, IN only) ─────────────
     if market == "IN":
         try:
             yf_meta = await asyncio.wait_for(
@@ -417,13 +420,17 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
         except asyncio.TimeoutError:
             log.warning("meta yfinance timed out for %s", t_up)
 
-    # ── Phase 4: serve partial snapshot or empty ────────────────────────
-    if snap:
-        log.info("meta: serving stale snapshot for %s", t_up)
-        return _snapshot_to_meta(snap)
-
     log.error("meta all sources failed for %s", t_up)
     return _empty_meta(t_up)
+
+
+def _safe_round(v, decimals: int) -> float | None:
+    if v is None:
+        return None
+    try:
+        return round(float(v), decimals)
+    except (TypeError, ValueError):
+        return None
 
 
 def _snapshot_to_meta(snap: dict) -> dict:
@@ -435,21 +442,21 @@ def _snapshot_to_meta(snap: dict) -> dict:
         "name": snap.get("company_name") or snap.get("ticker", ""),
         "market_cap": mc,
         "market_cap_fmt": _fmt_mcap(float(mc), snap.get("market", "US")) if mc else None,
-        "pe_ttm": round(float(snap["pe_ttm"]), 1) if snap.get("pe_ttm") is not None else None,
-        "pb_ratio": round(float(snap["pb_ratio"]), 2) if snap.get("pb_ratio") is not None else None,
-        "beta": round(float(snap["beta"]), 2) if snap.get("beta") is not None else None,
-        "week_52_high": snap.get("week_52_high"),
-        "week_52_low": snap.get("week_52_low"),
+        "pe_ttm": _safe_round(snap.get("pe_ttm"), 1),
+        "pb_ratio": _safe_round(snap.get("pb_ratio"), 2),
+        "beta": _safe_round(snap.get("beta"), 2),
+        "week_52_high": _safe_round(snap.get("week_52_high"), 2),
+        "week_52_low": _safe_round(snap.get("week_52_low"), 2),
         "earnings_date": snap.get("earnings_date"),
-        "analyst_target": snap.get("analyst_target"),
+        "analyst_target": _safe_round(snap.get("analyst_target"), 2),
         "analyst_recommendation": snap.get("recommendation"),
         "sector": snap.get("sector"),
         "industry": snap.get("sub_sector"),
         "dividend_yield": None,  # not in snapshot yet
-        "current_price": price,
-        "change_pct": snap.get("change_pct"),
+        "current_price": _safe_round(price, 2),
+        "change_pct": _safe_round(snap.get("change_pct"), 2),
         "volume": snap.get("volume"),
-        "rsi_14d": snap.get("rsi_14d"),
+        "rsi_14d": _safe_round(snap.get("rsi_14d"), 1),
         "cached_at": snap.get("cached_at"),
         "stale": snap.get("stale", False),
     }

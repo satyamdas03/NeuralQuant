@@ -131,7 +131,7 @@ async def run_nl_query(
         _timed(asyncio.to_thread(_fetch_enrichment, effective_ticker, req.market or 'US'), 15.0, {}),
         _timed(asyncio.to_thread(_fetch_relevant_news, req.question, req.ticker, 5), 8.0, []),
         _timed(asyncio.to_thread(_build_macro_context, req.question, req.market or "US", today), 10.0, None),
-        _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, req.market or "US"), 15.0, None),
+        _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, req.market or "US"), 45.0, None),
         _timed(asyncio.to_thread(_fetch_finnhub_news_summaries, req.ticker, req.market or "US", 5), 8.0, []),
     )
 
@@ -358,7 +358,7 @@ async def run_nl_query_v2(
     headlines, macro_ctx, platform_ctx, finnhub_news, enrichment = await asyncio.gather(
         _timed(asyncio.to_thread(_fetch_relevant_news, req.question, effective_ticker_v2, 5), 8.0, []),
         _timed(asyncio.to_thread(_build_macro_context, req.question, effective_market_v2, today), 10.0, None),
-        _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, effective_market_v2), 15.0, None),
+        _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, effective_market_v2), 45.0, None),
         _timed(asyncio.to_thread(_fetch_finnhub_news_summaries, effective_ticker_v2, effective_market_v2, 5), 8.0, []),
         _timed(asyncio.to_thread(_fetch_enrichment, effective_ticker_v2, effective_market_v2), 15.0, {}),
     )
@@ -457,9 +457,9 @@ async def run_nl_query_v2(
     # QuantFactor Engine context injection
     if effective_ticker_v2:
         try:
-            from nq_api.score_builder import get_anjali_enrichment
+            from nq_api.cache.quantfactor_cache import get_quantfactor_scores
             from nq_api.agents.anjali_context import build_anjali_context
-            anjali_data = get_anjali_enrichment(effective_ticker_v2, effective_market_v2)
+            anjali_data = get_quantfactor_scores(effective_ticker_v2, effective_market_v2)
             anjali_ctx = build_anjali_context(anjali_data)
             if anjali_ctx:
                 context_parts.append(anjali_ctx)
@@ -872,7 +872,7 @@ async def run_nl_query_v2_stream(
             headlines, macro_ctx, platform_ctx, finnhub_news, enrichment = await asyncio.gather(
                 _timed(asyncio.to_thread(_fetch_relevant_news, req.question, stream_ticker, 5), 8.0, []),
                 _timed(asyncio.to_thread(_build_macro_context, req.question, stream_market, today), 10.0, None),
-                _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, stream_market), 15.0, None),
+                _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, stream_market), 45.0, None),
                 _timed(asyncio.to_thread(_fetch_finnhub_news_summaries, stream_ticker, stream_market, 5), 8.0, []),
                 _timed(asyncio.to_thread(_fetch_enrichment, stream_ticker, stream_market), 15.0, {}),
             )
@@ -928,9 +928,9 @@ async def run_nl_query_v2_stream(
             # QuantFactor Engine context injection (streaming endpoint)
             if stream_ticker:
                 try:
-                    from nq_api.score_builder import get_anjali_enrichment
+                    from nq_api.cache.quantfactor_cache import get_quantfactor_scores
                     from nq_api.agents.anjali_context import build_anjali_context
-                    anjali_data = get_anjali_enrichment(stream_ticker, stream_market)
+                    anjali_data = get_quantfactor_scores(stream_ticker, stream_market)
                     anjali_ctx = build_anjali_context(anjali_data)
                     if anjali_ctx:
                         context_parts.append(anjali_ctx)

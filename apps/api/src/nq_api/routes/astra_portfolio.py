@@ -91,9 +91,44 @@ def _is_mining_metals(sector: str | None) -> bool:
     return sector.lower().strip() in MINING_METALS_SECTORS
 
 
+def _lookup_quantfactor_ticker(ticker: str, market: str) -> dict | None:
+    """Look up a single ticker in quantfactor_universe, handling .NS suffix for India."""
+    data = _supabase_rest(
+        "quantfactor_universe",
+        "GET",
+        query={
+            "select": "ticker,market,index_group,sector,g_score,risk_eff_score,irs_raw,irs_pct,"
+                      "growth_score,return_score,valuation_score,risk_score,"
+                      "dii_quarter,fii_quarter,future_pe,ttm_peg,qtr_beta,yr_beta",
+            "ticker": f"eq.{ticker}",
+            "market": f"eq.{market}",
+            "limit": "1",
+        },
+    )
+    if data and isinstance(data, list) and len(data) > 0:
+        return data[0]
+    # Try .NS suffix for Indian stocks
+    if market == "IN" and "." not in ticker:
+        data = _supabase_rest(
+            "quantfactor_universe",
+            "GET",
+            query={
+                "select": "ticker,market,index_group,sector,g_score,risk_eff_score,irs_raw,irs_pct,"
+                          "growth_score,return_score,valuation_score,risk_score,"
+                          "dii_quarter,fii_quarter,future_pe,ttm_peg,qtr_beta,yr_beta",
+                "ticker": f"eq.{ticker}.NS",
+                "market": f"eq.{market}",
+                "limit": "1",
+            },
+        )
+        if data and isinstance(data, list) and len(data) > 0:
+            return data[0]
+    return None
+
+
 # ── Selection pools ────────────────────────────────────────────────────
 
-def _fetch_anjali_pool(
+def _fetch_quantfactor_pool(
     market: str,
     index_groups: list[str] | None = None,
     min_g_score: float | None = None,
@@ -105,7 +140,7 @@ def _fetch_anjali_pool(
     require_risk_strict: float | None = None,
     limit: int = 50,
 ) -> list[dict]:
-    """Fetch stocks from anjali_enrichment matching selection criteria."""
+    """Fetch stocks from quantfactor_universe matching selection criteria."""
     query: dict[str, Any] = {
         "select": "ticker,market,index_group,sector,g_score,risk_eff_score,irs_raw,irs_pct,"
                    "growth_score,return_score,valuation_score,risk_score,"
@@ -116,7 +151,7 @@ def _fetch_anjali_pool(
         "limit": str(limit * 3),  # over-fetch, then filter
     }
 
-    data = _supabase_rest("anjali_enrichment", "GET", query=query)
+    data = _supabase_rest("quantfactor_universe", "GET", query=query)
     if not data or not isinstance(data, list):
         return []
 
@@ -204,7 +239,7 @@ async def recommend_portfolio(
         if market in ("IN", "BOTH"):
             # Pool A: LM250 Alpha (Large & MidCap)
             lm250 = await asyncio.wait_for(
-                asyncio.to_thread(_fetch_anjali_pool,
+                asyncio.to_thread(_fetch_quantfactor_pool,
                     market="IN",
                     index_groups=["NSE250", "NIFTY200", "NIFTY100"],
                     min_g_score=0,
@@ -218,7 +253,7 @@ async def recommend_portfolio(
 
             # Pool B: SmallCap High Growth
             smallcap = await asyncio.wait_for(
-                asyncio.to_thread(_fetch_anjali_pool,
+                asyncio.to_thread(_fetch_quantfactor_pool,
                     market="IN",
                     index_groups=["NSE250"],
                     min_g_score=0,
@@ -235,7 +270,7 @@ async def recommend_portfolio(
 
             # Pool C: MicroCap (stricter risk)
             microcap = await asyncio.wait_for(
-                asyncio.to_thread(_fetch_anjali_pool,
+                asyncio.to_thread(_fetch_quantfactor_pool,
                     market="IN",
                     index_groups=["NSE250"],
                     min_g_score=0,
@@ -252,7 +287,7 @@ async def recommend_portfolio(
 
             # Pool D: Turnaround (Very High Risk only)
             turnaround = await asyncio.wait_for(
-                asyncio.to_thread(_fetch_anjali_pool,
+                asyncio.to_thread(_fetch_quantfactor_pool,
                     market="IN",
                     index_groups=["NSE250"],
                     require_holding_positive=True,
@@ -267,7 +302,7 @@ async def recommend_portfolio(
 
         if market in ("US", "BOTH"):
             us_pool = await asyncio.wait_for(
-                asyncio.to_thread(_fetch_anjali_pool,
+                asyncio.to_thread(_fetch_quantfactor_pool,
                     market="US",
                     index_groups=["SP500", "SP400", "SP400+SP600"],
                     min_g_score=0,
@@ -398,18 +433,8 @@ async def assess_portfolio(
         market = h.get("market", "US")
 
         # Look up QuantFactor data
-        data = _supabase_rest(
-            "anjali_enrichment",
-            "GET",
-            query={
-                "select": "ticker,g_score,risk_eff_score,irs_raw,irs_pct,risk_score,sector",
-                "ticker": f"eq.{ticker}",
-                "market": f"eq.{market}",
-                "limit": "1",
-            },
-        )
-        if data and isinstance(data, list) and len(data) > 0:
-            row = data[0]
+        row = _lookup_quantfactor_ticker(ticker, market)
+        if row:
             irs = row.get("irs_pct")
             g = row.get("g_score")
             risk = row.get("risk_eff_score")
@@ -492,20 +517,10 @@ async def get_sell_signals(
         ticker = w.get("ticker", "").upper()
         market = w.get("market", "US")
 
-        data = _supabase_rest(
-            "anjali_enrichment",
-            "GET",
-            query={
-                "select": "ticker,g_score,risk_score,irs_pct,sector",
-                "ticker": f"eq.{ticker}",
-                "market": f"eq.{market}",
-                "limit": "1",
-            },
-        )
-        if not data or not isinstance(data, list) or len(data) == 0:
+        row = _lookup_quantfactor_ticker(ticker, market)
+        if not row:
             continue
 
-        row = data[0]
         g = row.get("g_score")
         risk = row.get("risk_score")
 
@@ -649,20 +664,10 @@ async def geopolitical_scan(
         ticker = w.get("ticker", "").upper()
         market = w.get("market", "US")
 
-        data = _supabase_rest(
-            "anjali_enrichment",
-            "GET",
-            query={
-                "select": "ticker,sector,qtr_beta,yr_beta,irs_pct",
-                "ticker": f"eq.{ticker}",
-                "market": f"eq.{market}",
-                "limit": "1",
-            },
-        )
-        if not data or not isinstance(data, list) or len(data) == 0:
+        row = _lookup_quantfactor_ticker(ticker, market)
+        if not row:
             continue
 
-        row = data[0]
         sector = (row.get("sector") or "").lower()
 
         if sector in geo_sensitive:

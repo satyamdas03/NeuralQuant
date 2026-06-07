@@ -364,15 +364,33 @@ async def market_movers():
     # ── Fast path: stock_snapshot (no external API calls) ────────────────
     try:
         from nq_api.cache.snapshot_cache import read_all_by_market, is_stale
-        snaps = await asyncio.to_thread(read_all_by_market, "US", limit=500)
-        if snaps:
-            valid = [s for s in snaps if s.get("price") is not None and s.get("change_pct") is not None and not is_stale(s, 35)]
-            if len(valid) >= 10:
-                sorted_by_change = sorted(valid, key=lambda x: x.get("change_pct") or 0, reverse=True)
+        all_snaps: list[dict] = []
+        for mkt in ("US", "IN"):
+            snaps = await asyncio.to_thread(read_all_by_market, mkt, limit=500)
+            if snaps:
+                all_snaps.extend(snaps)
+        if all_snaps:
+            # Allow change_pct=None (treat as 0) — stale snapshots ok if price exists
+            valid = [
+                s for s in all_snaps
+                if s.get("price") is not None
+                and not is_stale(s, 120)  # 2-hour grace for weekend/off-hours
+            ]
+            if len(valid) >= 3:
+                sorted_by_change = sorted(
+                    valid,
+                    key=lambda x: x.get("change_pct") if x.get("change_pct") is not None else 0,
+                    reverse=True,
+                )
                 gainers = [_snap_to_mover(s) for s in sorted_by_change[:5]]
                 losers = [_snap_to_mover(s) for s in list(reversed(sorted_by_change[-5:]))]
                 active = [_snap_to_mover(s) for s in sorted(valid, key=lambda x: x.get("volume") or 0, reverse=True)[:5]]
                 return {"gainers": gainers, "losers": losers, "active": active}
+            # Not enough valid snapshots → try to return whatever we have (price only)
+            if len(all_snaps) >= 3:
+                by_price = sorted(all_snaps, key=lambda x: x.get("price") or 0, reverse=True)
+                top5 = [_snap_to_mover(s) for s in by_price[:5]]
+                return {"gainers": top5, "losers": list(reversed(top5)), "active": top5}
     except Exception as exc:
         logger.debug("movers snapshot fast path failed: %s", exc)
 
@@ -513,7 +531,25 @@ def _market_movers_sync():
         return result
     logger.warning("FMP movers universe fallback returned 0 valid rows")
 
-    # Last resort: return stale cache if available, otherwise error
+    # ── Last resort: read from stock_snapshot directly ────────────────
+    try:
+        from nq_api.cache.snapshot_cache import read_all_by_market
+        for mkt in ("US", "IN"):
+            snaps = read_all_by_market(mkt, limit=200)
+            if snaps:
+                priced = [s for s in snaps if s.get("price") is not None]
+                if len(priced) >= 3:
+                    by_price = sorted(priced, key=lambda x: x.get("price") or 0, reverse=True)
+                    top5 = [_snap_to_mover(s) for s in by_price[:5]]
+                    result = {"gainers": top5, "losers": list(reversed(top5)), "active": top5, "stale": True}
+                    _movers_cache = result
+                    _movers_ts = time.time()
+                    logger.info("Movers: served from snapshot last-resort (%s market, %d rows)", mkt, len(priced))
+                    return result
+    except Exception as exc:
+        logger.debug("movers snapshot last-resort failed: %s", exc)
+
+    # ── Return stale cache if available, otherwise error ────────────────
     if _movers_cache:
         result = {**_movers_cache, "stale": True}
         if _fmp_partial and _fmp_partial.get("active"):
@@ -585,7 +621,7 @@ async def trending_tickers(
     if not url or not key:
         return {"trending": [], "market": market}
 
-    endpoint = f"{url}/rest/v1/anjali_enrichment"
+    endpoint = f"{url}/rest/v1/quantfactor_universe"
     headers = {
         "apikey": key,
         "Authorization": f"Bearer {key}",

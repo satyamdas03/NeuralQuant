@@ -381,13 +381,13 @@ def _run_screener_sync(req: ScreenerRequest, engine: Any) -> ScreenerResponse:
 
     # QuantFactor Engine filters
     if req.min_anjali_composite is not None or req.valuation_sweet_spot or req.loss_making is not None:
-        from nq_api.score_builder import get_anjali_enrichment
+        from nq_api.cache.quantfactor_cache import get_quantfactor_scores
         anjali_pass = []
         for _, row in filtered.iterrows():
-            a = get_anjali_enrichment(str(row["ticker"]), req.market)
+            a = get_quantfactor_scores(str(row["ticker"]), req.market)
             if a is None:
                 continue  # No QuantFactor data — skip if filters active
-            comp = a.get("composite_anjali_score")
+            comp = a.get("composite_score")
             if req.min_anjali_composite is not None and (comp is None or comp < req.min_anjali_composite):
                 continue
             if req.valuation_sweet_spot:
