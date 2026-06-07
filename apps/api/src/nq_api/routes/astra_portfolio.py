@@ -335,27 +335,50 @@ async def recommend_portfolio(
                 "risk_score": r,
             })
 
-    # Format recommendation output
-    formatted = {}
+    # Pool name mapping + allocation percentages (must match frontend AstraRecommendResponse)
+    POOL_META = {
+        "lm250": ("LM250 Alpha", 50),
+        "smallcap": ("SmallCap High Growth", 30),
+        "microcap": ("MicroCap", 20),
+        "turnaround": ("Turnaround Plays", 20),
+        "us_sp500": ("S&P 500 Alpha", 100),
+    }
+
+    pools = []
+    all_selected_irs = []
     for pool_name, stocks in recommended.items():
-        formatted[pool_name] = [
-            {
+        if not stocks:
+            continue
+        name, alloc_pct = POOL_META.get(pool_name, (pool_name.replace("_", " ").title(), 0))
+        pool_stocks = []
+        for s in stocks:
+            irs = s.get("irs_pct")
+            if irs is not None:
+                all_selected_irs.append(irs)
+            pool_stocks.append({
                 "ticker": s["ticker"],
-                "irs_pct": s.get("irs_pct"),
+                "name": s.get("name") or s["ticker"],
+                "sector": s.get("sector"),
+                "irs_pct": irs,
                 "g_score": s.get("g_score"),
                 "risk_eff_score": s.get("risk_eff_score"),
-                "sector": s.get("sector"),
-            }
-            for s in stocks
-        ]
+                "composite": s.get("composite"),
+                "pool": pool_name,
+                "allocation_pct": round(alloc_pct / len(stocks), 1) if stocks else 0,
+            })
+        pools.append({
+            "name": name,
+            "allocation_pct": alloc_pct,
+            "stocks": pool_stocks,
+        })
+
+    avg_irs_pct = round(sum(all_selected_irs) / len(all_selected_irs), 1) if all_selected_irs else None
 
     return {
         "risk_profile": risk_profile,
-        "market": market,
+        "pools": pools,
         "total_stocks": total,
-        "allocation": {k: len(v) for k, v in recommended.items()},
-        "recommendations": formatted,
-        "sell_signals": sell_list,
+        "avg_irs_pct": avg_irs_pct,
         "sebi_disclaimer": SEBI_DISCLAIMER,
     }
 
