@@ -188,6 +188,92 @@ def cron_anjali_status(authorization: str | None = Header(None)):
     return {"running": is_running, "last_result": _anjali_last_result}
 
 
+# ── Market Refresh (stock_snapshot) ─────────────────────────────────────────────
+
+_market_refresh_lock = threading.Lock()
+_market_refresh_last_result: dict = {}
+
+
+def _run_market_refresh_bg(market_filter: str | None):
+    """Background thread wrapper for market_refresh."""
+    global _market_refresh_last_result
+    try:
+        log.info("[cron] Starting market refresh (market_filter=%s)", market_filter)
+        from nq_api.jobs.market_refresh import run_market_refresh
+        result = run_market_refresh(market_filter=market_filter)
+        _market_refresh_last_result = result
+        log.info("[cron] Market refresh complete: %s", result)
+    except Exception:
+        log.exception("[cron] Market refresh failed")
+        _market_refresh_last_result = {"error": "unexpected failure", "completed": datetime.now(timezone.utc).isoformat()}
+    finally:
+        _market_refresh_lock.release()
+
+
+@router.post("/market-refresh")
+def cron_market_refresh(
+    market: str | None = Query(None, description="Filter to one market (US or IN), or leave blank for all"),
+    authorization: str | None = Header(None),
+):
+    """Trigger stock_snapshot refresh. Protected by CRON_SECRET.
+    Runs in background thread — returns immediately."""
+    _verify_secret(authorization)
+    if not _market_refresh_lock.acquire(blocking=False):
+        return {"status": "already_running", "message": "Market refresh is already running. Use GET /cron/market-refresh/status to check progress."}
+    mkt = market if market in ("US", "IN") else None
+    threading.Thread(target=_run_market_refresh_bg, args=(mkt,), daemon=True).start()
+    return {"status": "started", "market": mkt or "ALL", "message": "Market refresh started in background. Use GET /cron/market-refresh/status to check progress."}
+
+
+@router.get("/market-refresh/status")
+def cron_market_refresh_status(authorization: str | None = Header(None)):
+    """Check status of last market refresh run."""
+    _verify_secret(authorization)
+    is_running = _market_refresh_lock.locked()
+    return {"running": is_running, "last_result": _market_refresh_last_result}
+
+
+# ── QuantFactor Sync (quantfactor_universe) ─────────────────────────────────────
+
+_qf_sync_lock = threading.Lock()
+_qf_sync_last_result: dict = {}
+
+
+def _run_qf_sync_bg():
+    """Background thread wrapper for quantfactor_sync."""
+    global _qf_sync_last_result
+    try:
+        log.info("[cron] Starting QuantFactor sync")
+        from nq_api.jobs.quantfactor_sync import run_quantfactor_sync
+        result = run_quantfactor_sync()
+        _qf_sync_last_result = result
+        log.info("[cron] QuantFactor sync complete: %s", result)
+    except Exception:
+        log.exception("[cron] QuantFactor sync failed")
+        _qf_sync_last_result = {"error": "unexpected failure", "completed": datetime.now(timezone.utc).isoformat()}
+    finally:
+        _qf_sync_lock.release()
+
+
+@router.post("/quantfactor-sync")
+def cron_quantfactor_sync(authorization: str | None = Header(None)):
+    """Trigger quantfactor_universe sync. Protected by CRON_SECRET.
+    Runs in background thread — returns immediately."""
+    _verify_secret(authorization)
+    if not _qf_sync_lock.acquire(blocking=False):
+        return {"status": "already_running", "message": "QuantFactor sync is already running. Use GET /cron/quantfactor-sync/status to check progress."}
+    threading.Thread(target=_run_qf_sync_bg, daemon=True).start()
+    return {"status": "started", "message": "QuantFactor sync started in background. Use GET /cron/quantfactor-sync/status to check progress."}
+
+
+@router.get("/quantfactor-sync/status")
+def cron_quantfactor_sync_status(authorization: str | None = Header(None)):
+    """Check status of last QuantFactor sync run."""
+    _verify_secret(authorization)
+    is_running = _qf_sync_lock.locked()
+    return {"running": is_running, "last_result": _qf_sync_last_result}
+
+
 # ── Market Wrap Broadcast ───────────────────────────────────────────────────
 
 @router.post("/market-wrap")
