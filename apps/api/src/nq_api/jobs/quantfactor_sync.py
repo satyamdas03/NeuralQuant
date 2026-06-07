@@ -660,38 +660,82 @@ def run_quantfactor_sync(
         return {"success": False, "error": "No rows parsed", "elapsed_seconds": 0}
 
     # 3. Bulk upsert into quantfactor_universe
-    # PostgREST batch size limit — split into chunks of 500
-    # If a chunk fails, retry with smaller chunks (100) before giving up.
-    def _upsert_chunk(rows: list[dict], size: int) -> int:
-        written = 0
-        for j in range(0, len(rows), size):
-            sub = rows[j:j + size]
-            result = _supabase_rest(
-                "quantfactor_universe",
-                method="POST",
-                body=sub,
-            )
-            if result is not None:
-                written += len(sub)
-                log.info("Upserted sub-chunk %s/%s (size=%s)", j + len(sub), len(rows), size)
-            else:
-                log.error("Upsert failed sub-chunk %s-%s (size=%s)", j, j + len(sub), size)
-        return written
+    # Recursive bisection: if a chunk fails with 400, split in half repeatedly
+    # until we isolate individual bad rows, skip them, and log for diagnosis.
+    import json as _json
 
-    total_written = 0
-    for i in range(0, len(all_rows), 500):
-        chunk = all_rows[i:i + 500]
+    def _row_sanitized(row: dict) -> dict:
+        """Extra sanitization: convert any numpy/pandas types to plain Python."""
+        clean: dict[str, Any] = {}
+        for k, v in row.items():
+            if v is None or v is True or v is False or isinstance(v, (str, int, float)):
+                # Check for NaN/inf on floats
+                if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+                    clean[k] = None
+                else:
+                    clean[k] = v
+            else:
+                # numpy/pandas scalar → Python native
+                try:
+                    import numpy as np
+                    if isinstance(v, np.generic):
+                        if np.isnan(v) or np.isinf(v):
+                            clean[k] = None
+                        else:
+                            clean[k] = v.item()
+                        continue
+                except Exception:
+                    pass
+                try:
+                    import pandas as pd
+                    if pd.isna(v):
+                        clean[k] = None
+                        continue
+                except Exception:
+                    pass
+                # Fallback: try string conversion for anything else
+                try:
+                    _json.dumps({k: v})
+                    clean[k] = v
+                except (TypeError, ValueError):
+                    log.warning("Non-serializable field %s=%r (%s) for ticker %s — dropping",
+                                k, v, type(v).__name__, row.get("ticker"))
+                    clean[k] = None
+        return clean
+
+    def _upsert_chunk(rows: list[dict]) -> int:
+        """Upsert a chunk. On 400, recursively bisect to isolate bad rows."""
+        if not rows:
+            return 0
+        # Sanitize every row before sending
+        sanitized = [_row_sanitized(r) for r in rows]
         result = _supabase_rest(
             "quantfactor_universe",
             method="POST",
-            body=chunk,
+            body=sanitized,
         )
         if result is not None:
-            total_written += len(chunk)
-            log.info("Upserted chunk %s/%s", i + len(chunk), len(all_rows))
-        else:
-            log.warning("Chunk %s-%s failed — retrying with size=100", i, i + len(chunk))
-            total_written += _upsert_chunk(chunk, 100)
+            log.info("Upserted chunk of %s rows", len(rows))
+            return len(rows)
+
+        # Failed — bisect if more than 1 row
+        if len(rows) == 1:
+            bad = rows[0]
+            log.error("PERMANENTLY BAD row ticker=%s market=%s — skipping. "
+                      "Sector=%r sub_sector=%r pe=%r beta=%r",
+                      bad.get("ticker"), bad.get("market"),
+                      bad.get("sector"), bad.get("sub_sector"),
+                      bad.get("pe_ratio"), bad.get("beta"))
+            # Also log full row at debug level for deep investigation
+            log.debug("Full bad row: %s", bad)
+            return 0
+
+        mid = len(rows) // 2
+        left = _upsert_chunk(rows[:mid])
+        right = _upsert_chunk(rows[mid:])
+        return left + right
+
+    total_written = _upsert_chunk(all_rows)
 
     if total_written < len(all_rows):
         log.warning("Partial write: %s/%s rows written", total_written, len(all_rows))
