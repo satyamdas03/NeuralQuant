@@ -8,6 +8,7 @@ The email content is built from live market data + score_cache.
 A GitHub Actions cron or scheduled task can call /market-wrap/broadcast daily.
 """
 from __future__ import annotations
+import asyncio
 import logging
 import os
 from datetime import datetime, timezone

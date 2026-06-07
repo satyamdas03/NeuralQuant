@@ -56,6 +56,7 @@ def _get_live_regime_id(market: str = "US") -> int:
 async def screener_preview(market: str = "US", n: int = 8) -> ScreenerResponse:
     """Public, cache-only top-N. No auth, no quota. Used by dashboard preview."""
     rows = []
+    cache_age = "fresh"
     try:
         # Tier 1: fresh cache (≤5 min)
         rows = await asyncio.to_thread(score_cache.read_top, market, n=n, max_age_seconds=300)
@@ -63,26 +64,42 @@ async def screener_preview(market: str = "US", n: int = 8) -> ScreenerResponse:
             # Tier 2: stale cache (≤24 h) — nightly GHA data, better than timeout
             rows = await asyncio.to_thread(score_cache.read_top, market, n=n, max_age_seconds=86400)
             if rows:
+                cache_age = "stale"
                 logger.info("screener_preview: serving stale cache (>%5min) for market=%s", market)
         if not rows:
             # Tier 3: any age — better than empty response
             rows = await asyncio.to_thread(score_cache.read_top, market, n=n, max_age_seconds=999999999)
             if rows:
+                cache_age = "very_old"
                 logger.warning("screener_preview: serving very old cache for market=%s", market)
         if rows:
             logger.info("screener_preview: %d rows from cache for market=%s", len(rows), market)
     except Exception as exc:
         logger.exception("screener_preview cache read failed for market=%s", market)
+
+    # If cache is very old (>24h), try live compute first before serving stale data.
+    # On success we get fresh scores; on failure we fall back to the old cache.
+    if cache_age == "very_old" and rows:
+        import os
+        on_render = bool(os.environ.get("RENDER"))
+        live_n = min(n, 5) if on_render else min(n, 8)
+        timeout_seconds = 15.0 if on_render else 25.0
+        logger.info("screener_preview: cache very old, attempting live compute for market=%s render=%s tickers=%d timeout=%.0fs", market, on_render, live_n, timeout_seconds)
+        live_result = await _preview_live_fallback(market, live_n, timeout_seconds)
+        if live_result and live_result.total > 0:
+            logger.info("screener_preview: live compute succeeded for market=%s, returning fresh data", market)
+            return live_result
+        logger.warning("screener_preview: live compute failed for market=%s, falling back to old cache", market)
+
     if not rows:
         # Tier 4: live compute (last resort, strict timeout)
-        # On cloud (Render), yfinance is rate-limited — cap tickers to 5 and
-        # timeout to 15s to keep the request fast. If it fails, return empty.
         import os
         on_render = bool(os.environ.get("RENDER"))
         live_n = min(n, 5) if on_render else min(n, 8)
         timeout_seconds = 15.0 if on_render else 25.0
         logger.info("screener_preview: cache empty, falling back to live compute for market=%s render=%s tickers=%d timeout=%.0fs", market, on_render, live_n, timeout_seconds)
         return await _preview_live_fallback(market, live_n, timeout_seconds)
+
     regime_id = _get_live_regime_id(market)
     ai_scores = _cache_rows_to_ai_scores(rows, market, regime_id)
     return ScreenerResponse(

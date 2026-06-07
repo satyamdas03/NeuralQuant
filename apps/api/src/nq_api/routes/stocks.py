@@ -137,15 +137,6 @@ async def get_stock_score(
 
     result_df = await asyncio.to_thread(engine.compute, snapshot)
 
-    # BUG-001 fix: reject tickers that yfinance couldn't find
-    fund_data = _fund_cache.get(f"{ticker_upper}:{market}", {})
-    if not fund_data.get("_is_real") and ticker_upper not in UNIVERSE_BY_MARKET.get(market, UNIVERSE_BY_MARKET["US"]):
-        raise HTTPException(
-            status_code=404,
-            detail=f"Ticker '{ticker_upper}' not found in {market} market. "
-                   "Check the ticker symbol and market parameter."
-        )
-
     matching = result_df[result_df["ticker"] == ticker_upper]
     if matching.empty:
         raise HTTPException(status_code=404, detail=f"No data for {ticker}")
@@ -342,13 +333,17 @@ def _is_nullish(meta: dict, key: str) -> bool:
 
 def _has_null_fields(meta: dict) -> bool:
     """Check if critical fields are null (or 0-sentinel) in a meta dict.
-    Also treats pre-enrichment cached data (missing or None enrichment fields) as incomplete."""
+    Only requires enrichment fields when the data explicitly claims to be enriched
+    (e.g., from the enrichment pipeline). Score_cache rows don't have these,
+    but are still valid if core fields are present."""
     if any(_is_nullish(meta, k) for k in _NULL_FIELDS):
         return True
-    # Enrichment fields must be present AND have at least one non-None value
-    enrichment_values = [meta.get(k) for k in _ENRICHMENT_FIELDS if k in meta]
-    if not enrichment_values or all(v is None for v in enrichment_values):
-        return True
+    # Only require enrichment fields if the data explicitly contains them
+    has_enrichment_claim = any(k in meta for k in _ENRICHMENT_FIELDS)
+    if has_enrichment_claim:
+        enrichment_values = [meta.get(k) for k in _ENRICHMENT_FIELDS if k in meta]
+        if not enrichment_values or all(v is None for v in enrichment_values):
+            return True
     return False
 
 

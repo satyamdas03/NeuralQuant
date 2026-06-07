@@ -13,6 +13,7 @@ from typing import Any, Literal
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 
 from nq_api.auth.deps import get_current_user
 from nq_api.auth.models import User
@@ -175,14 +176,20 @@ def _fetch_anjali_pool(
     return results[:limit]
 
 
+class _RecommendBody(BaseModel):
+    risk_profile: Literal["low", "high", "very_high"]
+    market: Literal["IN", "US", "BOTH"] = "IN"
+
+
 # ── Endpoints ──────────────────────────────────────────────────────────
 
 @router.post("/recommend")
 async def recommend_portfolio(
-    risk_profile: Literal["low", "high", "very_high"] = Query(...),
-    market: Literal["IN", "US", "BOTH"] = Query("IN"),
+    body: _RecommendBody,
     user: User = Depends(get_current_user),
 ):
+    risk_profile = body.risk_profile
+    market = body.market
     """Recommend 20-25 stock portfolio based on risk profile and IRS scores.
 
     India selection pools:
@@ -517,9 +524,13 @@ async def get_sell_signals(
     }
 
 
+class _RiskProfileBody(BaseModel):
+    risk_profile: Literal["low", "high", "very_high"]
+
+
 @router.post("/risk-profile")
 async def set_risk_profile(
-    risk_profile: Literal["low", "high", "very_high"] = Query(...),
+    body: _RiskProfileBody,
     user: User = Depends(get_current_user),
 ):
     """Save user's QuantAstra risk profile.
@@ -528,6 +539,7 @@ async def set_risk_profile(
     High: 50% LM250 + 30% SmallCap + 20% MicroCap, alpha above index
     Very High: LM250 + SmallCap + MicroCap + Turnaround, highest potential/volatility
     """
+    risk_profile = body.risk_profile
     now_iso = datetime.now(timezone.utc).isoformat()
 
     result = _supabase_rest(
@@ -561,6 +573,23 @@ async def set_risk_profile(
             "very_high": "LM250 + SmallCap + MicroCap + Turnaround. Highest potential, highest volatility.",
         }[risk_profile],
     }
+
+
+@router.get("/risk-profile")
+async def get_risk_profile(user: User = Depends(get_current_user)):
+    """Return user's saved QuantAstra risk profile."""
+    data = _supabase_rest(
+        "user_profiles",
+        "GET",
+        query={
+            "select": "astra_risk_profile",
+            "user_id": f"eq.{user.id}",
+            "limit": "1",
+        },
+    )
+    if isinstance(data, list) and data:
+        return {"risk_profile": data[0].get("astra_risk_profile")}
+    return {"risk_profile": None}
 
 
 @router.get("/geopolitical-scan")
