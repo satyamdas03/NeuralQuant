@@ -319,6 +319,49 @@ def _build_india_row(df_row: dict) -> dict[str, Any] | None:
 
 
 # ---------------------------------------------------------------------------
+# GitHub raw download helpers
+# ---------------------------------------------------------------------------
+
+_ANJALI_REPO_RAW = "https://raw.githubusercontent.com/satyamdas03/anjali-value-stocks/main"
+
+
+def _download_file(url: str, local_path: str) -> bool:
+    """Download a file from URL to local_path. Returns True on success."""
+    import urllib.request
+    try:
+        log.info("Downloading %s → %s", url, local_path)
+        urllib.request.urlretrieve(url, local_path)
+        return True
+    except Exception as e:
+        log.warning("Download failed %s: %s", url, e)
+        return False
+
+
+def _ensure_us_excel(path: str | None = None) -> str:
+    """Return path to US Excel, downloading from GitHub if needed."""
+    if path and os.path.exists(path):
+        return path
+    local = "US_Stock_Analysis_Coloured.xlsx"
+    if os.path.exists(local):
+        return local
+    if _download_file(f"{_ANJALI_REPO_RAW}/US_Stock_Analysis_Coloured.xlsx", local):
+        return local
+    return ""  # signal missing
+
+
+def _ensure_india_csv(path: str | None = None) -> str:
+    """Return path to India CSV, downloading from GitHub if needed."""
+    if path and os.path.exists(path):
+        return path
+    local = "Indian_Stock_Data.csv"
+    if os.path.exists(local):
+        return local
+    if _download_file(f"{_ANJALI_REPO_RAW}/Indian_Stock_Data.csv", local):
+        return local
+    return ""  # signal missing
+
+
+# ---------------------------------------------------------------------------
 # Excel / CSV parsers
 # ---------------------------------------------------------------------------
 
@@ -387,9 +430,10 @@ def run_quantfactor_sync(
 ) -> dict:
     """Run the full QuantFactor sync pipeline.
 
+    Auto-downloads files from GitHub raw URLs if not found locally.
     Args:
-        us_excel_path: Path to US_Stock_Analysis_Coloured.xlsx
-        india_csv_path: Path to Indian_Stock_Data.csv
+        us_excel_path: Path to US_Stock_Analysis_Coloured.xlsx (optional)
+        india_csv_path: Path to Indian_Stock_Data.csv (optional)
 
     Returns:
         Summary dict with counts and timing.
@@ -401,21 +445,23 @@ def run_quantfactor_sync(
 
     all_rows: list[dict] = []
 
-    # 1. Parse US Excel
-    if us_excel_path and os.path.exists(us_excel_path):
-        us_rows = _parse_excel_us(us_excel_path)
+    # 1. Parse US Excel (auto-download from GitHub if missing)
+    us_path = _ensure_us_excel(us_excel_path)
+    if us_path:
+        us_rows = _parse_excel_us(us_path)
         log.info("Parsed %s US rows from Excel", len(us_rows))
         all_rows.extend(us_rows)
     else:
-        log.warning("US Excel not found at %s", us_excel_path)
+        log.error("US Excel not available (download failed)")
 
-    # 2. Parse India CSV
-    if india_csv_path and os.path.exists(india_csv_path):
-        in_rows = _parse_csv_india(india_csv_path)
+    # 2. Parse India CSV (auto-download from GitHub if missing)
+    in_path = _ensure_india_csv(india_csv_path)
+    if in_path:
+        in_rows = _parse_csv_india(in_path)
         log.info("Parsed %s India rows from CSV", len(in_rows))
         all_rows.extend(in_rows)
     else:
-        log.warning("India CSV not found at %s", india_csv_path)
+        log.error("India CSV not available (download failed)")
 
     if not all_rows:
         log.error("No rows parsed — aborting")
