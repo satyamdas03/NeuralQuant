@@ -11,7 +11,7 @@ interface ToolResult {
 const TOOL_ICONS: Record<string, React.ReactNode> = {
   get_stock_price: <TrendingUp className="size-3.5" />,
   get_market_overview: <BarChart3 className="size-3.5" />,
-  get_market_movers: <Activity className="size-3.5" />,
+  get_market_movers: <TrendingUp className="size-3.5" />,
   get_top_scores: <BarChart3 className="size-3.5" />,
   lookup_portfolio: <PieChart className="size-3.5" />,
   run_screener: <BarChart3 className="size-3.5" />,
@@ -20,7 +20,7 @@ const TOOL_ICONS: Record<string, React.ReactNode> = {
 const TOOL_LABELS: Record<string, string> = {
   get_stock_price: "Stock Price",
   get_market_overview: "Market Overview",
-  get_market_movers: "Movers",
+  get_market_movers: "Market Activity",
   get_top_scores: "Top Scores",
   get_indices: "Indices",
   get_sector_performance: "Sectors",

@@ -3,11 +3,11 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Dashboard — NeuralQuant",
   description:
-    "Live markets dashboard with AI stock scores, portfolio overview, top movers, and sector performance for S&P 500 and NIFTY 500.",
+    "Live markets dashboard with AI stock scores, portfolio overview, and sector performance for S&P 500 and NIFTY 500.",
   openGraph: {
     title: "Markets Dashboard — Live AI Scores | NeuralQuant",
     description:
-      "Live markets dashboard with AI stock scores, portfolio overview, top movers, and sector performance for S&P 500 and NIFTY 500.",
+      "Live markets dashboard with AI stock scores, portfolio overview, and sector performance for S&P 500 and NIFTY 500.",
     url: "https://neuralquant.co/dashboard",
     siteName: "NeuralQuant",
     images: [
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Markets Dashboard — Live AI Scores | NeuralQuant",
     description:
-      "Live markets dashboard with AI stock scores, portfolio overview, top movers, and sector performance.",
+      "Live markets dashboard with AI stock scores, portfolio overview, and sector performance.",
     creator: "@neuralquant",
     site: "@neuralquant",
   },

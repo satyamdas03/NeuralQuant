@@ -39,12 +39,6 @@ const TOUR_STEPS: Step[] = [
     placement: "left",
   },
   {
-    target: "#dashboard-market-movers",
-    title: "Market Movers",
-    content: "Top gainers, losers, and most active stocks by volume. Find what's spiking on unusual activity — often the first signal of breaking news or institutional accumulation.",
-    placement: "left",
-  },
-  {
     target: "#dashboard-forecast-picks",
     title: "Top ForeCast Picks",
     content: "QuantAlpha's AI composite scores ranking the highest-conviction stocks. Each score blends fundamentals, technicals, sentiment, and macro fit into a single 1-10 rating.",
