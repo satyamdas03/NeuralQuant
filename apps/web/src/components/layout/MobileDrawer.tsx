@@ -12,7 +12,6 @@ import {
   Bell,
   Newspaper,
   LogIn,
-  Terminal,
   X,
 } from "lucide-react";
 
@@ -22,7 +21,6 @@ const NAV = [
   { href: "/screener", label: "Screener", icon: ScanSearch },
   { href: "/query", label: "Ask Morgan", icon: MessageSquareText },
   { href: "/backtest", label: "Strategy", icon: FlaskConical },
-  { href: "/terminal", label: "Terminal", icon: Terminal, beta: true },
   { href: "/watchlist", label: "Watchlist", icon: Star },
   { href: "/alerts", label: "Alerts", icon: Bell },
 ];

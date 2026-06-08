@@ -99,7 +99,7 @@ const TOUR_STEPS: Step[] = [
   {
     target: "#sidebar-nav",
     title: "Navigation Hub",
-    content: "Your command center. Dashboard for market overview, Ask Morgan for questions, Screener for stock discovery, Stocks for deep dives, Terminal for direct data access, Performance for methodology, and Trade for strategy automation.",
+    content: "Your command center. Dashboard for market overview, Ask Morgan for questions, Screener for stock discovery, Stocks for deep dives, Performance for methodology, and Trade for strategy automation.",
     placement: "right",
   },
 ];
