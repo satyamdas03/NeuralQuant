@@ -277,11 +277,6 @@ def warm_stock_meta(market: str = "US") -> int:
     ticker_syms = [r["ticker"] if isinstance(r, dict) else str(r) for r in tickers]
     log.info("[%s] warming stock_meta for %d tickers (parallel 8 workers)", market, len(ticker_syms))
 
-    # Skip on Render to avoid yfinance timeouts
-    if os.environ.get("RENDER"):
-        log.info("[%s] Skipping stock_meta warm on Render (yfinance rate-limits)", market)
-        return 0
-
     written = 0
     for i in range(0, len(ticker_syms), 50):
         batch = ticker_syms[i : i + 50]
@@ -309,9 +304,90 @@ def warm_stock_meta(market: str = "US") -> int:
 
 
 def _warm_one_ticker(sym: str, market: str) -> dict | None:
-    """Fetch stock_meta row for a single ticker."""
+    """Fetch stock_meta row for a single ticker — FMP primary, yfinance fallback."""
     import json as _json
-    from datetime import datetime, timezone
+    from datetime import datetime, timezone, timedelta
+
+    # ── FMP primary path ──────────────────────────────────────────────────
+    try:
+        from nq_data.fmp import get_fmp_client
+        fmp = get_fmp_client()
+    except Exception:
+        fmp = None
+
+    if fmp and fmp._enabled:
+        profile = None
+        quote = None
+        earnings_date = None
+        try:
+            profile = fmp.get_profile(sym)
+        except Exception as exc:
+            log.debug("[%s] FMP profile failed for %s: %s", market, sym, exc)
+        try:
+            quote = fmp.get_quote(sym)
+        except Exception as exc:
+            log.debug("[%s] FMP quote failed for %s: %s", market, sym, exc)
+        try:
+            today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            end_dt = (datetime.now(timezone.utc) + timedelta(days=90)).strftime("%Y-%m-%d")
+            cal = fmp.get_earnings_calendar(today, end_dt)
+            if cal:
+                for item in cal:
+                    if (item.get("ticker") or "").upper() == sym.upper():
+                        earnings_date = item.get("date")
+                        break
+        except Exception:
+            pass
+
+        # Accept FMP result if profile or quote returned useful data
+        if profile or quote:
+            mc = (profile or {}).get("market_cap") or (quote or {}).get("market_cap")
+            price_now = (quote or {}).get("price") or (profile or {}).get("price")
+            pe_val = (quote or {}).get("pe")
+            beta_val = (profile or {}).get("beta")
+            year_high = (quote or {}).get("year_high")
+            year_low = (quote or {}).get("year_low")
+
+            # Dividend yield from profile last_dividend + quote price
+            div_pct = None
+            last_div = (profile or {}).get("last_dividend")
+            if last_div and price_now:
+                try:
+                    v = float(last_div) / float(price_now) * 100
+                    if 0 < v < 20:
+                        div_pct = round(v, 2)
+                except Exception:
+                    pass
+
+            name = (profile or {}).get("name") or sym
+            sector = (profile or {}).get("sector")
+            industry = (profile or {}).get("industry")
+
+            return {
+                "ticker": sym,
+                "market": market,
+                "data": _json.dumps({
+                    "ticker": sym,
+                    "name": name,
+                    "market_cap": mc,
+                    "market_cap_fmt": _fmt_mcap(float(mc), market) if mc else None,
+                    "pe_ttm": round(float(pe_val), 1) if pe_val else None,
+                    "pb_ratio": None,  # not in FMP profile/quote
+                    "beta": round(float(beta_val), 2) if beta_val else None,
+                    "week_52_high": year_high,
+                    "week_52_low": year_low,
+                    "earnings_date": earnings_date,
+                    "analyst_target": None,  # not in FMP profile/quote
+                    "analyst_recommendation": None,  # not in FMP profile/quote
+                    "sector": sector,
+                    "industry": industry,
+                    "dividend_yield": div_pct,
+                    "current_price": price_now,
+                }),
+                "fetched_at": datetime.now(timezone.utc).isoformat(),
+            }
+
+    # ── yfinance fallback path ─────────────────────────────────────────────
     import yfinance as yf
 
     yf_sym = sym + ".NS" if market == "IN" and "." not in sym else sym

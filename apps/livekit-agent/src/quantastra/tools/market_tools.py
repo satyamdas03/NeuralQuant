@@ -253,34 +253,116 @@ class MarketToolsMixin:
         """
         try:
             import asyncio
-            import yfinance as yf
 
-            symbols = ["^GSPC", "^IXIC", "^DJI", "^NSEI", "^VIX", "INR=X"]
+            name_map = {
+                "^GSPC": "S&P 500", "^IXIC": "NASDAQ", "^DJI": "Dow Jones",
+                "^NSEI": "Nifty 50", "^VIX": "VIX", "INR=X": "INR/USD",
+            }
+            us_symbols = ["^GSPC", "^IXIC", "^DJI", "^VIX"]
+            in_symbols = ["^NSEI", "INR=X"]
             indices = []
 
-            def _fetch():
-                results = []
-                for sym in symbols:
+            # --- US indices: try FMP batch quotes first ---
+            us_ok = False
+            try:
+                from nq_data.fmp import get_fmp_client
+
+                fmp = get_fmp_client()
+                if fmp._enabled:
+                    # FMP uses tickers like SPY, QQQ, DIA for index ETFs;
+                    # for direct indices use get_quote with ^GSPC etc.
+                    batch = await asyncio.to_thread(fmp.get_batch_quotes, us_symbols)
+                    if batch:
+                        for sym in us_symbols:
+                            q = batch.get(sym) or batch.get(sym.replace("^", ""))
+                            if q and q.get("price"):
+                                change_pct = q.get("change_pct") or q.get("changesPercentage")
+                                indices.append({
+                                    "symbol": name_map.get(sym, sym),
+                                    "price": q["price"],
+                                    "change_pct": change_pct,
+                                })
+                        if len(indices) == len(us_symbols):
+                            us_ok = True
+                        elif indices:
+                            # Partial FMP — keep what we got, note we still need rest
+                            us_ok = True
+            except Exception as exc:
+                log.debug("FMP indices failed, falling back to yfinance: %s", exc)
+
+            # FMP fallback: try individual get_quote for each missing US index
+            if not us_ok:
+                fmp_had = {i["symbol"] for i in indices}
+                try:
+                    from nq_data.fmp import get_fmp_client
+                    fmp = get_fmp_client()
+                    if fmp._enabled:
+                        for sym in us_symbols:
+                            if name_map.get(sym) in fmp_had:
+                                continue
+                            q = await asyncio.to_thread(fmp.get_quote, sym)
+                            if q and q.get("price"):
+                                change_pct = q.get("change_pct") or q.get("changesPercentage")
+                                indices.append({
+                                    "symbol": name_map.get(sym, sym),
+                                    "price": q["price"],
+                                    "change_pct": change_pct,
+                                })
+                        us_ok = any(name_map.get(s) in {i["symbol"] for i in indices} for s in us_symbols)
+                except Exception as exc:
+                    log.debug("FMP individual quote indices fallback failed: %s", exc)
+
+            # yfinance fallback for any US indices still missing
+            fetched_us = {i["symbol"] for i in indices}
+            missing_us = [s for s in us_symbols if name_map.get(s) not in fetched_us]
+            if missing_us:
+                import yfinance as yf
+
+                def _yf_fetch(syms):
+                    out = []
+                    for sym in syms:
+                        try:
+                            t = yf.Ticker(sym)
+                            info = t.fast_info or {}
+                            price = info.get("lastPrice") or info.get("regularMarketPrice") or info.get("previousClose")
+                            change = info.get("regularMarketChangePercent") or 0
+                            if price:
+                                out.append({
+                                    "symbol": name_map.get(sym, sym),
+                                    "price": price,
+                                    "change_pct": change,
+                                })
+                        except Exception:
+                            pass
+                    return out
+
+                yf_us = await asyncio.to_thread(_yf_fetch, missing_us)
+                indices.extend(yf_us)
+
+            # --- India indices: always use yfinance (FMP may not cover them) ---
+            import yfinance as yf
+
+            def _yf_fetch_in(syms):
+                out = []
+                for sym in syms:
                     try:
                         t = yf.Ticker(sym)
                         info = t.fast_info or {}
                         price = info.get("lastPrice") or info.get("regularMarketPrice") or info.get("previousClose")
                         change = info.get("regularMarketChangePercent") or 0
-                        name_map = {
-                            "^GSPC": "S&P 500", "^IXIC": "NASDAQ", "^DJI": "Dow Jones",
-                            "^NSEI": "Nifty 50", "^VIX": "VIX", "INR=X": "INR/USD",
-                        }
                         if price:
-                            results.append({
+                            out.append({
                                 "symbol": name_map.get(sym, sym),
                                 "price": price,
                                 "change_pct": change,
                             })
                     except Exception:
                         pass
-                return results
+                return out
 
-            indices = await asyncio.to_thread(_fetch)
+            in_indices = await asyncio.to_thread(_yf_fetch_in, in_symbols)
+            indices.extend(in_indices)
+
             return json.dumps({"status": "ok", "indices": indices}, default=str)
         except Exception as exc:
             log.error("get_indices failed: %s", exc)
@@ -295,6 +377,55 @@ class MarketToolsMixin:
         """
         try:
             import asyncio
+
+            # --- Tier 1: FMP sector performance API (primary) ---
+            sectors = []
+            try:
+                from nq_data.fmp import get_fmp_client
+
+                fmp = get_fmp_client()
+                if fmp._enabled:
+                    fmp_sectors = await asyncio.to_thread(fmp.get_sector_performance)
+                    if fmp_sectors:
+                        # Map FMP sector names to our canonical names
+                        name_normalise = {
+                            "technology": "Technology",
+                            "financials": "Financials",
+                            "financial": "Financials",
+                            "healthcare": "Healthcare",
+                            "health care": "Healthcare",
+                            "consumer discretionary": "Consumer Discretionary",
+                            "communication services": "Communication Services",
+                            "industrials": "Industrials",
+                            "industrial": "Industrials",
+                            "energy": "Energy",
+                            "consumer staples": "Consumer Staples",
+                            "utilities": "Utilities",
+                            "real estate": "Real Estate",
+                            "materials": "Materials",
+                            "basic materials": "Materials",
+                        }
+                        for s in fmp_sectors:
+                            raw_name = s.get("sector", "")
+                            norm_name = name_normalise.get(raw_name.lower().strip(), raw_name.strip())
+                            chg = s.get("change_pct")
+                            if chg is None:
+                                # FMP may return changesPercentage or averageChange
+                                chg = s.get("changesPercentage") or s.get("averageChange")
+                                if chg is not None:
+                                    chg = round(float(chg), 2)
+                            sectors.append({
+                                "sector": norm_name,
+                                "etf": s.get("etf", ""),
+                                "change_pct": chg,
+                            })
+                        if sectors:
+                            sectors.sort(key=lambda s: s["change_pct"] if s["change_pct"] is not None else -999, reverse=True)
+                            return json.dumps({"status": "ok", "sectors": sectors}, default=str)
+            except Exception as exc:
+                log.debug("FMP sector performance failed, falling back to yfinance: %s", exc)
+
+            # --- Tier 2: yfinance ETF fallback ---
             import yfinance as yf
 
             sector_etfs = {

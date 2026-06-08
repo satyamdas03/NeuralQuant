@@ -36,6 +36,18 @@ _PERIOD_MAP = {
     "5y":  ("5y",  "1wk"),
 }
 
+# Period → approximate calendar days for FMP historical-price-eod lookback.
+# FMP only returns daily (EOD) bars, so 1d/5d intraday periods get a small
+# lookback that the frontend can downsample from.
+_FMP_DAYS_MAP = {
+    "1d":  5,
+    "5d":  10,
+    "1mo": 35,
+    "3mo": 95,
+    "1y":  370,
+    "5y":  1850,
+}
+
 
 def _yf_sym(ticker: str, market: str) -> str:
     if market == "IN" and "." not in ticker:
@@ -178,6 +190,63 @@ def _fmt_chart_date(ts_epoch: int, period: str) -> str:
     return dt.strftime("%b %d")
 
 
+def _fetch_chart_fmp(sym: str, period: str, market: str) -> list[dict]:
+    """Try FMP historical-price-eod as the primary chart data source.
+    Returns [] on any failure (caller should fall back to yfinance)."""
+    try:
+        from nq_data.fmp import get_fmp_client
+        fmp = get_fmp_client()
+        if not fmp._enabled:
+            return []
+
+        days = _FMP_DAYS_MAP.get(period, 35)
+        fmp_data = fmp.get_historical_prices(sym, days=days)
+        if not fmp_data or not isinstance(fmp_data, list) or len(fmp_data) == 0:
+            return []
+
+        # FMP returns daily bars — for intraday periods (1d, 5d) we still
+        # serve daily bars (frontend gracefully handles this).  Convert to
+        # the chart dict format expected by the frontend.
+        out: list[dict] = []
+        for row in fmp_data:
+            try:
+                dt_str = row.get("date")
+                if not dt_str:
+                    continue
+                # FMP date format: "2024-01-15" → format to "Jan 15"
+                import datetime as _dt
+                dt = _dt.datetime.strptime(str(dt_str)[:10], "%Y-%m-%d")
+                if period in ("1d", "5d"):
+                    date_str = dt.strftime("%m/%d %H:%M")
+                else:
+                    date_str = dt.strftime("%b %d")
+
+                close = row.get("close")
+                open_ = row.get("open")
+                high = row.get("high")
+                low = row.get("low")
+                vol = row.get("volume", 0)
+
+                if close is None or open_ is None:
+                    continue
+
+                out.append({
+                    "date":   date_str,
+                    "close":  round(float(close), 2),
+                    "open":   round(float(open_), 2),
+                    "high":   round(float(high), 2) if high is not None else round(float(close), 2),
+                    "low":    round(float(low), 2) if low is not None else round(float(close), 2),
+                    "volume": int(vol) if vol else 0,
+                })
+            except Exception as row_exc:
+                log.debug("FMP chart row parse failed for %s: %s", sym, row_exc)
+                continue
+        return out
+    except Exception as exc:
+        log.warning("FMP chart fetch failed for %s (%s): %s", sym, period, exc)
+        return []
+
+
 def _fetch_chart_yahoo_direct(sym: str, period: str) -> list[dict]:
     """Hit Yahoo's chart API directly (v8) — works when yfinance's scraping path fails
     in cloud environments (Render, etc.). Returns [] on any error."""
@@ -247,37 +316,43 @@ async def get_stock_chart(
     sym = _yf_sym(ticker.upper(), market)
     data: list[dict] = []
 
-    # Primary path: yfinance (offloaded to thread pool)
-    def _fetch_chart():
-        d: list[dict] = []
-        try:
-            hist = yf.Ticker(sym, session=_get_yf_session()).history(period=yf_period, interval=interval, auto_adjust=True)
-            if hist is not None and not hist.empty:
-                for idx, row in hist.iterrows():
-                    try:
-                        if period in ("1d", "5d"):
-                            date_str = idx.strftime("%m/%d %H:%M")
-                        else:
-                            date_str = idx.strftime("%b %d")
-                        d.append({
-                            "date":   date_str,
-                            "close":  round(float(row["Close"]), 2),
-                            "open":   round(float(row["Open"]),  2),
-                            "high":   round(float(row["High"]),  2),
-                            "low":    round(float(row["Low"]),   2),
-                            "volume": int(row.get("Volume") or 0),
-                        })
-                    except Exception as row_exc:
-                        log.debug("chart row parse failed for %s: %s", sym, row_exc)
-                        continue
-        except Exception as exc:
-            log.warning("yfinance chart failed for %s (%s) — will try Yahoo direct: %s",
-                        sym, period, exc)
-        return d
+    # ── Primary path: FMP historical-price-eod (fast, reliable, cloud-friendly) ──
+    data = await asyncio.to_thread(_fetch_chart_fmp, sym, period, market)
 
-    data = await asyncio.to_thread(_fetch_chart)
+    # ── Fallback 1: yfinance (offloaded to thread pool) ──
+    if not data:
+        log.info("chart fallback: yfinance for %s (%s)", sym, period)
 
-    # Fallback: hit Yahoo chart API directly.
+        def _fetch_chart():
+            d: list[dict] = []
+            try:
+                hist = yf.Ticker(sym, session=_get_yf_session()).history(period=yf_period, interval=interval, auto_adjust=True)
+                if hist is not None and not hist.empty:
+                    for idx, row in hist.iterrows():
+                        try:
+                            if period in ("1d", "5d"):
+                                date_str = idx.strftime("%m/%d %H:%M")
+                            else:
+                                date_str = idx.strftime("%b %d")
+                            d.append({
+                                "date":   date_str,
+                                "close":  round(float(row["Close"]), 2),
+                                "open":   round(float(row["Open"]),  2),
+                                "high":   round(float(row["High"]),  2),
+                                "low":    round(float(row["Low"]),   2),
+                                "volume": int(row.get("Volume") or 0),
+                            })
+                        except Exception as row_exc:
+                            log.debug("chart row parse failed for %s: %s", sym, row_exc)
+                            continue
+            except Exception as exc:
+                log.warning("yfinance chart failed for %s (%s) — will try Yahoo direct: %s",
+                            sym, period, exc)
+            return d
+
+        data = await asyncio.to_thread(_fetch_chart)
+
+    # ── Fallback 2: Yahoo chart API directly (last resort) ──
     if not data:
         log.info("chart fallback: yahoo-direct for %s (%s)", sym, period)
         data = await asyncio.to_thread(_fetch_chart_yahoo_direct, sym, period)

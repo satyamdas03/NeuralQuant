@@ -52,14 +52,12 @@ def _fmt_mcap(mcap, market: str) -> str:
 
 
 def _fetch_relevant_news(question: str, ticker: str | None, n: int = 8) -> list[str]:
-    """Pull recent headlines from yfinance for context injection."""
-    from nq_api.data_builder import _get_yf_session
+    """Pull recent headlines for context injection.
+    FMP get_market_news() is tried FIRST for each candidate symbol.
+    yfinance t.news is the fallback, skipped entirely on Render (cloud IPs).
+    """
     import os as _os
     _is_render = bool(_os.environ.get("RENDER"))
-
-    # On Render: yfinance hangs on cloud IPs — skip entirely, use Finnhub news instead
-    if _is_render:
-        return []
 
     priority: list[str] = ["^GSPC", "SPY"]
     if ticker:
@@ -81,24 +79,52 @@ def _fetch_relevant_news(question: str, ticker: str | None, n: int = 8) -> list[
     candidates = priority + extra
     headlines: list[str] = []
     seen: set[str] = set()
-    for sym in candidates[:8]:
-        try:
-            items = yf.Ticker(sym, session=_get_yf_session()).news or []
-            for item in items[:3]:
-                content = item.get("content") or {}
-                title = content.get("title") or item.get("title", "")
-                publisher = (
-                    (content.get("provider") or {}).get("displayName")
-                    or item.get("publisher", "")
-                )
-                if title and title not in seen:
-                    seen.add(title)
-                    label = f"[{publisher}] {title}" if publisher else title
-                    headlines.append(label)
-        except Exception:
-            pass
-        if len(headlines) >= n:
-            break
+
+    # ── FMP primary path ────────────────────────────────────────────────────
+    try:
+        from nq_data.fmp import get_fmp_client
+        fmp = get_fmp_client()
+        if fmp._enabled:
+            for sym in candidates[:8]:
+                try:
+                    articles = fmp.get_market_news(sym, limit=3) or []
+                    for a in articles:
+                        title = a.get("title", "")
+                        publisher = a.get("site", "") or a.get("source", "")
+                        if title and title not in seen:
+                            seen.add(title)
+                            label = f"[{publisher}] {title}" if publisher else title
+                            headlines.append(label)
+                except Exception:
+                    pass
+                if len(headlines) >= n:
+                    break
+    except Exception:
+        pass
+
+    # ── yfinance fallback (skipped on Render — hangs on cloud IPs) ─────────
+    if len(headlines) < n and not _is_render:
+        from nq_api.data_builder import _get_yf_session
+        remaining = n - len(headlines)
+        for sym in candidates[:8]:
+            try:
+                items = yf.Ticker(sym, session=_get_yf_session()).news or []
+                for item in items[:3]:
+                    content = item.get("content") or {}
+                    title = content.get("title") or item.get("title", "")
+                    publisher = (
+                        (content.get("provider") or {}).get("displayName")
+                        or item.get("publisher", "")
+                    )
+                    if title and title not in seen:
+                        seen.add(title)
+                        label = f"[{publisher}] {title}" if publisher else title
+                        headlines.append(label)
+            except Exception:
+                pass
+            if len(headlines) >= n:
+                break
+
     return headlines[:n]
 
 
@@ -364,22 +390,19 @@ def _fetch_dynamic_nse_stock(word: str) -> dict | None:
     Try to fetch live data for an NSE stock not in our screener universe.
     word: uppercase stock name/ticker from user query.
     Returns a dict with price, fundamentals, or None if not found.
-    Tries yfinance first, falls back to FMP for price data.
+    FMP get_quote() is tried FIRST; yfinance t.info is the fallback.
     """
     from nq_api.services.constants import _NSE_NAME_MAP
-    from nq_api.data_builder import _get_yf_session
 
     nse_sym = _NSE_NAME_MAP.get(word)
     if not nse_sym:
         nse_sym = f"{word}.NS"
 
-    def _try_fmp() -> dict | None:
-        """FMP fallback for price when yfinance fails."""
-        try:
-            from nq_data.fmp import get_fmp_client
-            fmp = get_fmp_client()
-            if not fmp._enabled:
-                return None
+    # ── FMP primary path ────────────────────────────────────────────────────
+    try:
+        from nq_data.fmp import get_fmp_client
+        fmp = get_fmp_client()
+        if fmp._enabled:
             quote = fmp.get_quote(nse_sym)
             if quote and quote.get("price"):
                 return {
@@ -401,16 +424,17 @@ def _fetch_dynamic_nse_stock(word: str) -> dict | None:
                     "sector": "",
                     "longName": word,
                 }
-        except Exception:
-            pass
-        return None
+    except Exception:
+        pass
 
+    # ── yfinance fallback ───────────────────────────────────────────────────
     try:
+        from nq_api.data_builder import _get_yf_session
         t = yf.Ticker(nse_sym, session=_get_yf_session())
         info = t.info
         price = info.get("currentPrice") or info.get("regularMarketPrice")
         if not price:
-            return _try_fmp()  # yfinance got no price, try FMP
+            return None
 
         return {
             "symbol": nse_sym,
@@ -432,8 +456,9 @@ def _fetch_dynamic_nse_stock(word: str) -> dict | None:
             "longName": info.get("longName", word),
         }
     except Exception as e:
-        logger.debug("Non-critical enrichment failed: %s", e)
-        return _try_fmp()  # yfinance exception, try FMP
+        logger.debug("Non-critical enrichment (yfinance fallback) failed: %s", e)
+
+    return None
 
 
 def _enrich_with_platform_data(question: str, market: str) -> str | None:

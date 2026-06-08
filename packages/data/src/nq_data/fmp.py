@@ -20,6 +20,8 @@ from .broker import broker
 log = logging.getLogger(__name__)
 
 # ── TTLs (seconds) ──────────────────────────────────────────────────────────
+_NEGATIVE_CACHE_TTL = 3600  # 1 hour — cache 404/empty responses to avoid re-hammering
+
 _TTLS: dict[str, int] = {
     "profile": 3600,          # 1 hour
     "quote": 300,             # 5 min
@@ -83,6 +85,7 @@ class FMPClient:
             limits=httpx.Limits(max_connections=20, max_keepalive_connections=5),
         )
         self._cache: dict[str, tuple[float, Any]] = {}
+        self._negative_cache: dict[str, float] = {}  # key → monotonic timestamp of failure
         self._lock = threading.Lock()
         self._enabled = bool(self._api_key)
 
@@ -672,6 +675,17 @@ class FMPClient:
         if cached is not None:
             return cached
 
+        # ── Negative cache: skip tickers that recently returned 404/empty ──
+        neg_key = f"{cat}:{ticker}"
+        with self._lock:
+            neg_ts = self._negative_cache.get(neg_key)
+            if neg_ts is not None and (time.monotonic() - neg_ts) < _NEGATIVE_CACHE_TTL:
+                log.debug("FMP negative-cache hit for %s — skipping", neg_key)
+                return None
+            # Expired entry — prune
+            if neg_ts is not None:
+                del self._negative_cache[neg_key]
+
         if not self._enabled:
             log.debug("FMP disabled (no API key)")
             return None
@@ -694,9 +708,20 @@ class FMPClient:
                     return None
                 if resp.status_code != 200:
                     log.debug("FMP %s/%s returned %d", endpoint, ticker, resp.status_code)
+                    # ── Negative cache: 404 means ticker not supported by FMP ──
+                    if resp.status_code == 404:
+                        with self._lock:
+                            self._negative_cache[neg_key] = time.monotonic()
+                        log.debug("FMP 404 for %s — cached as negative for %ds", neg_key, _NEGATIVE_CACHE_TTL)
                     return None
 
                 data = resp.json()
+                # ── Negative cache: empty arrays mean Premium gating or no data ──
+                if isinstance(data, list) and len(data) == 0:
+                    with self._lock:
+                        self._negative_cache[neg_key] = time.monotonic()
+                    log.debug("FMP empty array for %s — cached as negative for %ds", neg_key, _NEGATIVE_CACHE_TTL)
+                    return None
                 self._cache_set(cat, ticker, data)
                 return data
             except httpx.TimeoutException:
@@ -764,6 +789,7 @@ class FMPClient:
     def clear_cache(self) -> None:
         with self._lock:
             self._cache.clear()
+            self._negative_cache.clear()
 
 
 # ── Singleton ─────────────────────────────────────────────────────────────────

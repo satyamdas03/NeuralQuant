@@ -433,11 +433,13 @@ class _LiveMacro:
 
 @dataclass
 class _LiveMacroIN:
-    """India macro indicators — yfinance-sourced."""
+    """India macro indicators — FMP-first, yfinance fallback."""
     india_vix: float = 15.0
+    india_vix_20d_chg: float = 0.0
     nifty_vs_200ma: float = 0.02
     nifty_return_1m: float = 0.01
     inr_usd: float = 83.0
+    inr_usd_1m_chg: float = 0.0
     rbi_repo_rate: float = 6.50
     sensex_close: float = 72000.0
 
@@ -655,7 +657,7 @@ def fetch_real_macro() -> _LiveMacro:
 # ─── India Macro fetch ────────────────────────────────────────────────────────
 
 def fetch_real_macro_in() -> _LiveMacroIN:
-    """Fetch India-specific macro indicators from yfinance."""
+    """Fetch India-specific macro indicators — FMP first, yfinance fallback."""
     global _macro_in_cache, _macro_in_ts
     with _lock:
         if _macro_in_cache is not None and time.time() - _macro_in_ts < MACRO_TTL:
@@ -664,13 +666,53 @@ def fetch_real_macro_in() -> _LiveMacroIN:
     m = _LiveMacroIN()
 
     _on_gha = bool(os.environ.get("GITHUB_ACTIONS"))
+    _on_render = bool(os.environ.get("RENDER"))
+    _skip_yf = _on_gha or _on_render
 
-    # India VIX
-    if not _on_gha:
+    # ── FMP helpers ──────────────────────────────────────────────────────────
+    _fmp = None
+    try:
+        from nq_data.fmp import get_fmp_client
+        _fmp = get_fmp_client()
+        if not _fmp._enabled:
+            _fmp = None
+    except Exception:
+        _fmp = None
+
+    # ── India VIX ───────────────────────────────────────────────────────────
+    # FMP path first (works on Render/GHA where yfinance is unreliable)
+    _vix_fetched = False
+    if _fmp:
+        try:
+            q = _fmp.get_quote("^INDIAVIX")
+            if q and q.get("price") is not None:
+                m.india_vix = float(q["price"])
+                _vix_fetched = True
+        except Exception:
+            pass
+        # India VIX 20-day change from FMP historical
+        if _fmp:
+            try:
+                from datetime import date as _dt_date, timedelta as _td
+                bars = _fmp.get_historical_prices(
+                    "^INDIAVIX",
+                    from_date=(_dt_date.today() - _td(days=30)).strftime("%Y-%m-%d"),
+                    to_date=_dt_date.today().strftime("%Y-%m-%d"),
+                )
+                if bars and len(bars) >= 21:
+                    _latest = float(bars[-1]["close"])
+                    _past = float(bars[-21]["close"])
+                    if _past > 0:
+                        m.india_vix_20d_chg = round((_latest / _past - 1) * 100, 2)
+            except Exception:
+                pass
+
+    if not _vix_fetched and not _skip_yf:
         try:
             h = yf.Ticker("^INDIAVIX", session=_get_yf_session()).history(period="5d", auto_adjust=True)
             if not h.empty:
                 m.india_vix = float(h["Close"].iloc[-1])
+                _vix_fetched = True
         except Exception as _ivix_exc:
             if _is_yf_crumb_error(_ivix_exc):
                 _reset_yf_session()
@@ -678,11 +720,28 @@ def fetch_real_macro_in() -> _LiveMacroIN:
                     h = yf.Ticker("^INDIAVIX", session=_get_yf_session()).history(period="5d", auto_adjust=True)
                     if not h.empty:
                         m.india_vix = float(h["Close"].iloc[-1])
+                        _vix_fetched = True
                 except Exception:
                     pass
 
-    # Nifty 50 — 200-day MA + 1-month return
-    if not _on_gha:
+    # ── Nifty 50 — 200-day MA + 1-month return ────────────────────────────
+    _nifty_fetched = False
+    if _fmp:
+        try:
+            bars = _fmp.get_historical_prices("^NSEI", days=370)
+            if bars and len(bars) >= 200:
+                closes = [float(b["close"]) for b in bars]
+                last = closes[-1]
+                ma200 = sum(closes[-200:]) / 200
+                m.nifty_vs_200ma = (last - ma200) / ma200
+                if len(closes) >= 22:
+                    m.nifty_return_1m = last / closes[-22] - 1
+                m.sensex_close = last
+                _nifty_fetched = True
+        except Exception:
+            pass
+
+    if not _nifty_fetched and not _skip_yf:
         try:
             nifty = yf.Ticker("^NSEI", session=_get_yf_session()).history(period="252d", auto_adjust=True)
             if len(nifty) >= 200:
@@ -694,6 +753,7 @@ def fetch_real_macro_in() -> _LiveMacroIN:
                     float(nifty["Close"].iloc[-1]) / float(nifty["Close"].iloc[-22]) - 1
                 )
                 m.sensex_close = last
+            _nifty_fetched = True
         except Exception as _nifty_exc:
             if _is_yf_crumb_error(_nifty_exc):
                 _reset_yf_session()
@@ -708,16 +768,44 @@ def fetch_real_macro_in() -> _LiveMacroIN:
                             float(nifty["Close"].iloc[-1]) / float(nifty["Close"].iloc[-22]) - 1
                         )
                         m.sensex_close = last
+                    _nifty_fetched = True
                 except Exception:
                     pass
 
-    # USD/INR — use USDINR=X which returns ~83.5 (INR per USD).
-    # INRUSD=X returns ~0.012 (USD per INR) which is confusing for agents.
-    if not _on_gha:
+    # ── USD/INR ─────────────────────────────────────────────────────────────
+    # USDINR=X returns ~83.5 (INR per USD). INRUSD=X returns ~0.012 (confusing).
+    _fx_fetched = False
+    if _fmp:
+        try:
+            q = _fmp.get_quote("USDINR=X")
+            if q and q.get("price") is not None:
+                m.inr_usd = round(float(q["price"]), 2)
+                _fx_fetched = True
+        except Exception:
+            pass
+        # USD/INR 1-month change from FMP historical
+        if _fmp:
+            try:
+                from datetime import date as _dt_date, timedelta as _td
+                fxbars = _fmp.get_historical_prices(
+                    "USDINR=X",
+                    from_date=(_dt_date.today() - _td(days=40)).strftime("%Y-%m-%d"),
+                    to_date=_dt_date.today().strftime("%Y-%m-%d"),
+                )
+                if fxbars and len(fxbars) >= 22:
+                    _latest_fx = float(fxbars[-1]["close"])
+                    _past_fx = float(fxbars[-22]["close"])
+                    if _past_fx > 0:
+                        m.inr_usd_1m_chg = round((_latest_fx / _past_fx - 1) * 100, 2)
+            except Exception:
+                pass
+
+    if not _fx_fetched and not _skip_yf:
         try:
             usdinr = yf.Ticker("USDINR=X", session=_get_yf_session()).history(period="5d", auto_adjust=True)
             if not usdinr.empty:
                 m.inr_usd = round(float(usdinr["Close"].iloc[-1]), 2)
+                _fx_fetched = True
         except Exception as _fx_exc:
             if _is_yf_crumb_error(_fx_exc):
                 _reset_yf_session()
@@ -725,6 +813,7 @@ def fetch_real_macro_in() -> _LiveMacroIN:
                     usdinr = yf.Ticker("USDINR=X", session=_get_yf_session()).history(period="5d", auto_adjust=True)
                     if not usdinr.empty:
                         m.inr_usd = round(float(usdinr["Close"].iloc[-1]), 2)
+                        _fx_fetched = True
                 except Exception:
                     pass
             else:
@@ -733,19 +822,24 @@ def fetch_real_macro_in() -> _LiveMacroIN:
                     inrusd = yf.Ticker("INRUSD=X", session=_get_yf_session()).history(period="5d", auto_adjust=True)
                     if not inrusd.empty:
                         m.inr_usd = round(1.0 / float(inrusd["Close"].iloc[-1]), 2)
+                        _fx_fetched = True
                 except Exception:
                     pass
 
     if _on_gha:
         log.info("GHA detected — India yfinance macro calls skipped")
+    if _on_render:
+        log.info("Render detected — India yfinance macro calls skipped, using FMP")
 
-    # RBI repo rate — not available via yfinance; use known current value
-    # Updated manually or via a future RBI API connector
+    # RBI repo rate — not available via yfinance or FMP; use known current value
     m.rbi_repo_rate = float(os.environ.get("NQ_RBI_REPO_RATE", "6.50"))
 
     log.info(
-        "IN macro loaded: IndiaVIX=%.1f Nifty200MA=%.2f%% 1m=%.2f%% INR/USD=%.2f RBI=%.2f%%",
-        m.india_vix, m.nifty_vs_200ma * 100, m.nifty_return_1m * 100, m.inr_usd, m.rbi_repo_rate,
+        "IN macro loaded: IndiaVIX=%.1f VIX20d=%.1f%% Nifty200MA=%.2f%% 1m=%.2f%% "
+        "INR/USD=%.2f INR1m=%.1f%% RBI=%.2f%% src=%s",
+        m.india_vix, m.india_vix_20d_chg, m.nifty_vs_200ma * 100, m.nifty_return_1m * 100,
+        m.inr_usd, m.inr_usd_1m_chg, m.rbi_repo_rate,
+        "fmp" if not _skip_yf or _fmp else "yf",
     )
 
     with _lock:
@@ -1197,16 +1291,43 @@ def _fetch_one(ticker: str, market: str, fast_pe: bool = True) -> dict:
             if current_price is None:
                 _missing.add("current_price")
 
-        # Earnings date (yfinance-only)
+        # Earnings date — try FMP first, fall back to yfinance
         earnings_date = None
         try:
-            cal = t.calendar
-            if isinstance(cal, dict):
-                ed = cal.get("Earnings Date")
-                if ed and len(ed) > 0:
-                    earnings_date = str(ed[0].date())
-        except Exception:
-            pass
+            from nq_data.fmp import get_fmp_client
+            _fmp_ec = get_fmp_client()
+            if _fmp_ec._enabled:
+                from datetime import date as _date, timedelta as _td
+                _today = _date.today()
+                _cal = _fmp_ec.get_earnings_calendar(
+                    _today.strftime("%Y-%m-%d"),
+                    (_today + _td(days=90)).strftime("%Y-%m-%d"),
+                )
+                if _cal:
+                    _matches = [
+                        e for e in _cal
+                        if e.get("ticker", "").upper() == ticker.upper()
+                    ]
+                    if _matches:
+                        _nearest = min(
+                            _matches,
+                            key=lambda e: abs(
+                                (_date.fromisoformat(e["date"]) - _today).days
+                            ) if e.get("date") else 9999,
+                        )
+                        earnings_date = _nearest.get("date")
+        except Exception as _ec_exc:
+            log.debug("FMP earnings calendar failed for %s: %s", ticker, _ec_exc)
+
+        if earnings_date is None:
+            try:
+                cal = t.calendar
+                if isinstance(cal, dict):
+                    ed = cal.get("Earnings Date")
+                    if ed and len(ed) > 0:
+                        earnings_date = str(ed[0].date())
+            except Exception:
+                pass
 
         # Dividend yield
         div_pct = None
