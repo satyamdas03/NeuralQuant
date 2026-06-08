@@ -8,6 +8,7 @@ from __future__ import annotations
 import logging
 import math
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -86,9 +87,21 @@ def _run_market_from_quantfactor(market: str) -> int:
             log.warning("[%s] FMP batch quotes failed: %s", market, exc)
 
     # 3. Build score_cache rows from quantfactor + FMP
+    # Skip garbage tickers (legend rows from Excel like "LIGHT GREEN (+0.5)")
+    _INVALID = re.compile(
+        r"(?:LIGHT\s*GREEN|DARK\s*GREEN|LIGHT\s*RED|DARK\s*RED|WHITE|COLOR|SCORING|"
+        r"GROWTH|RETURN|VALUATION|RISK|RATIOS|SOURCE|FUTURE|BENCHMARK|HIERARCH|"
+        r"MATCHED|WORST|BEST|CHEAPEST|EXPENSIVE|SAFEST|RISKIEST|SWEET\s*SPOT|"
+        r"UNCOLORED|LOSS.MAKING|NETPROFIT|EXCLUDED|YFINANCE|YOY|TTM|QOQ|"
+        r"PERIOD|MARKET\s*CAP|REVENUE|DII|FII|PB|EV/|SUM|Q\d+\(|^[A-Z]{1,2}$)",
+        re.IGNORECASE,
+    )
+
     all_results = []
     for r in qf_rows:
         t = r.get("ticker", "")
+        if not t or len(t) > 8 or len(t) < 2 or _INVALID.search(t):
+            continue
         # FMP live price
         price = 0.0
         if fmp_prices:

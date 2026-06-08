@@ -1,106 +1,113 @@
 {
-  "timestamp": "2026-06-08T01:53:45Z",
+  "timestamp": "2026-06-08T02:36:29Z",
   "api": "https://neuralquant.onrender.com",
-  "total": 14,
-  "passed": 14,
-  "failed": 0,
+  "total": 15,
+  "passed": 8,
+  "failed": 7,
   "results": [
     {
       "name": "GET /health",
       "ok": true,
       "status": 200,
-      "latency_ms": 811,
+      "latency_ms": 473,
       "note": "{'status': 'ok', 'version': '4.0.0'}"
     },
     {
       "name": "GET /health/score-cache",
       "ok": true,
       "status": 200,
-      "latency_ms": 1530,
-      "note": "age=4050300s"
+      "latency_ms": 1261,
+      "note": "age=303s"
     },
     {
       "name": "GET /health/smoke",
-      "ok": true,
-      "status": 200,
-      "latency_ms": 3531,
-      "note": "degraded \u00b7 7/9 checks passed"
+      "ok": false,
+      "status": 0,
+      "latency_ms": 20315,
+      "note": "HTTPSConnectionPool(host='neuralquant.onrender.com', port=443): Read timed out. "
     },
     {
       "name": "GET /market/overview",
       "ok": true,
       "status": 200,
-      "latency_ms": 1021,
+      "latency_ms": 8363,
       "note": "4 indices"
     },
     {
       "name": "GET /stocks/AAPL/meta",
       "ok": true,
       "status": 200,
-      "latency_ms": 1084,
+      "latency_ms": 11566,
       "note": "price=307.34"
     },
     {
       "name": "GET /stocks/TCS/meta",
       "ok": true,
       "status": 200,
-      "latency_ms": 1476,
+      "latency_ms": 12650,
       "note": "pe_ttm=16.1"
     },
     {
       "name": "GET /stocks/AAPL/chart",
-      "ok": true,
-      "status": 200,
-      "latency_ms": 1019,
-      "note": "22 bars"
+      "ok": false,
+      "status": 0,
+      "latency_ms": 16165,
+      "note": "0 bars"
     },
     {
       "name": "GET /stocks/AAPL",
-      "ok": true,
-      "status": 200,
-      "latency_ms": 1330,
-      "note": "score=6"
+      "ok": false,
+      "status": 0,
+      "latency_ms": 31076,
+      "note": "score=?"
     },
     {
       "name": "GET /screener/preview US",
-      "ok": true,
-      "status": 200,
-      "latency_ms": 26316,
-      "note": "8 results"
+      "ok": false,
+      "status": 0,
+      "latency_ms": 45570,
+      "note": "0 results"
     },
     {
       "name": "GET /market-wrap/today",
-      "ok": true,
-      "status": 200,
-      "latency_ms": 1728,
-      "note": "indices=yes"
+      "ok": false,
+      "status": 0,
+      "latency_ms": 21007,
+      "note": "indices=no"
     },
     {
       "name": "GET /market/news",
       "ok": true,
       "status": 200,
-      "latency_ms": 1439,
+      "latency_ms": 3005,
       "note": "3 headlines"
     },
     {
       "name": "GET /market/sectors",
       "ok": true,
       "status": 200,
-      "latency_ms": 1634,
+      "latency_ms": 2057,
       "note": "11 sectors"
     },
     {
       "name": "POST /query/v2",
-      "ok": true,
+      "ok": false,
+      "status": 0,
+      "latency_ms": 61051,
+      "note": "HTTPSConnectionPool(host='neuralquant.onrender.com', port=44"
+    },
+    {
+      "name": "POST /analyst/stream (SSE)",
+      "ok": false,
       "status": 200,
-      "latency_ms": 52016,
-      "note": ""
+      "latency_ms": 120210,
+      "note": "SSE stream ended without result"
     },
     {
       "name": "GET /auth/me",
       "ok": true,
       "status": 200,
-      "latency_ms": 1552,
+      "latency_ms": 1180,
       "note": "smoke-test@neuralquant.internal"
     }
   ]

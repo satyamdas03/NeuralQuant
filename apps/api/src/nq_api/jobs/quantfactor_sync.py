@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 import math
 import os
+import re
 import sys
 import time
 from datetime import datetime, timezone
@@ -109,10 +110,37 @@ def _safe_bool(v) -> bool:
 # Row builders
 # ---------------------------------------------------------------------------
 
+# Patterns that indicate a legend/key row, not a real stock ticker
+_LEGEND_PATTERNS = re.compile(
+    r"(?:LIGHT\s*GREEN|DARK\s*GREEN|LIGHT\s*RED|DARK\s*RED|WHITE|COLOR|SCORING|"
+    r"GROWTH|RETURN|VALUATION|RISK|RATIOS|SOURCE|FUTURE|BENCHMARK|HIERARCH|"
+    r"MATCHED|WORST|BEST|CHEAPEST|EXPENSIVE|SAFEST|RISKIEST|SWEET\s*SPOT|"
+    r"UNCOLORED|LOSS.MAKING|NETPROFIT|EXCLUDED|YFINANCE|YOY|TTM|QOQ|"
+    r"PERIOD|MARKET\s*CAP|REVENUE|DII|FII|PB|EV/|SUM|Q\d+\(|^[A-Z]{1,2}$)",
+    re.IGNORECASE,
+)
+
+
+def _is_valid_ticker(ticker: str) -> bool:
+    """Return True if ticker looks like a real stock symbol, not a legend row."""
+    if not ticker or len(ticker) > 8 or len(ticker) < 2:
+        return False
+    # Must be mostly alphabetic (allow . - $ for NSE/BSE/INDEX tickers)
+    alpha_count = sum(1 for c in ticker if c.isalpha())
+    if alpha_count < 2:
+        return False
+    if _LEGEND_PATTERNS.search(ticker):
+        return False
+    # Must contain at least one letter
+    if not any(c.isalpha() for c in ticker):
+        return False
+    return True
+
+
 def _build_us_row(df_row: dict, index_group: str) -> dict[str, Any]:
     """Build a quantfactor_universe row from a US Excel sheet row."""
     ticker = str(df_row.get("Ticker", "")).strip().upper()
-    if not ticker:
+    if not _is_valid_ticker(ticker):
         return None
 
     # Compute composite scores from quintiles if the SCORE columns are empty
@@ -240,7 +268,7 @@ def _build_india_row(df_row: dict, computed_scores: dict | None = None) -> dict[
     Pass computed_scores={ticker: {...}} to inject percentile-based scores.
     """
     ticker = str(df_row.get("Ticker", df_row.get("NseCode", ""))).strip().upper()
-    if not ticker:
+    if not _is_valid_ticker(ticker.replace(".NS", "").replace(".BO", "")):
         return None
     if "." not in ticker:
         ticker = ticker + ".NS"
