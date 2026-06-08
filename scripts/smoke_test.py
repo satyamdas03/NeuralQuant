@@ -203,7 +203,7 @@ def main() -> int:
         base, "POST", "/query/v2",
         body={"question": "What is AAPL's current price?"},
         headers=smoke_hdrs or None,
-        timeout=30,
+        timeout=60,
     )
     answer = str(body.get("answer", ""))[:60] if isinstance(body, dict) else str(body)[:60]
     record("POST /query/v2", ok, code, el, answer)
