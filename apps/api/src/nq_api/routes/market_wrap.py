@@ -365,11 +365,27 @@ async def get_today_market_wrap(
     try:
         market_data = await asyncio.wait_for(
             asyncio.to_thread(_market_overview_sync, market),
-            timeout=15.0,
+            timeout=20.0,
         )
     except asyncio.TimeoutError:
         logger.warning("Market wrap today: _market_overview_sync timed out for %s", market)
-        market_data = {"indices": [], "futures": []}
+        # Return stub indices so frontend never shows "unavailable"
+        if market == "IN":
+            market_data = {
+                "indices": [
+                    {"symbol": "^NSEI", "name": "Nifty 50", "price": 0.0, "change_pct": 0.0, "change_abs": 0.0},
+                    {"symbol": "^BSESN", "name": "Sensex", "price": 0.0, "change_pct": 0.0, "change_abs": 0.0},
+                ],
+                "futures": [],
+            }
+        else:
+            market_data = {
+                "indices": [
+                    {"symbol": "^GSPC", "name": "S&P 500", "price": 0.0, "change_pct": 0.0, "change_abs": 0.0},
+                    {"symbol": "^IXIC", "name": "NASDAQ", "price": 0.0, "change_pct": 0.0, "change_abs": 0.0},
+                ],
+                "futures": [],
+            }
     except Exception:
         logger.exception("Market wrap today: failed to fetch market data")
         market_data = {"indices": [], "futures": []}

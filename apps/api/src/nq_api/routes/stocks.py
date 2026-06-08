@@ -389,7 +389,7 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
         try:
             fmp_extra = await asyncio.wait_for(
                 asyncio.to_thread(_fetch_stock_meta_fmp_light, t_up, market),
-                timeout=5.0,
+                timeout=8.0,
             )
             if isinstance(fmp_extra, dict):
                 meta = _merge_meta(meta, fmp_extra)
@@ -403,7 +403,7 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
             try:
                 yf_meta = await asyncio.wait_for(
                     asyncio.to_thread(_fetch_stock_meta, t_up, market),
-                    timeout=5.0,
+                    timeout=10.0,
                 )
                 if isinstance(yf_meta, dict):
                     for f in missing:
@@ -421,7 +421,7 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
     try:
         fmp_meta = await asyncio.wait_for(
             asyncio.to_thread(_fetch_stock_meta_fmp, t_up, market),
-            timeout=8.0,
+            timeout=15.0,
         )
         if isinstance(fmp_meta, dict):
             # Check if key fields are missing — if so, try yfinance to fill gaps
@@ -435,7 +435,7 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
             try:
                 yf_meta = await asyncio.wait_for(
                     asyncio.to_thread(_fetch_stock_meta, t_up, market),
-                    timeout=5.0,
+                    timeout=10.0,
                 )
                 if isinstance(yf_meta, dict):
                     for f in missing:
@@ -455,7 +455,7 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
     try:
         yf_meta = await asyncio.wait_for(
             asyncio.to_thread(_fetch_stock_meta, t_up, market),
-            timeout=5.0,
+            timeout=10.0,
         )
         if isinstance(yf_meta, dict):
             return yf_meta
@@ -833,21 +833,51 @@ def _fetch_stock_meta_fmp(ticker: str, market: str) -> dict | Exception:
         }
 
         # Post-build FMP enrichment: analyst target, grades, earnings, dividends, insider
+        # Run independent enrichment calls IN PARALLEL to reduce latency from ~16s → ~3s
         try:
-            # Analyst price target
-            tgt = fmp.get_price_target(sym)
-            if tgt and tgt.get("target_avg") is not None:
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+            from datetime import date as _date, timedelta as _td
+
+            today = _date.today()
+            enrichment_results: dict[str, Any] = {}
+
+            def _safe_call(key: str, fn, *args, **kwargs):
+                """Run an FMP call, return (key, result) on success, (key, None) on failure."""
+                try:
+                    return (key, fn(*args, **kwargs))
+                except Exception:
+                    return (key, None)
+
+            with ThreadPoolExecutor(max_workers=6) as pool:
+                futures = {
+                    pool.submit(_safe_call, "target", fmp.get_price_target, sym): "target",
+                    pool.submit(_safe_call, "grades", fmp.get_analyst_grades, sym): "grades",
+                    pool.submit(_safe_call, "earnings", fmp.get_earnings_calendar,
+                                today.isoformat(), (today + _td(days=30)).isoformat()): "earnings",
+                    pool.submit(_safe_call, "divs", fmp.get_dividends, sym): "divs",
+                    pool.submit(_safe_call, "estimates", fmp.get_analyst_estimates, sym): "estimates",
+                    pool.submit(_safe_call, "scores", fmp.get_financial_scores, sym): "scores",
+                    pool.submit(_safe_call, "insider", fmp.get_insider_trading, sym): "insider",
+                    pool.submit(_safe_call, "dcf", fmp.get_dcf, sym): "dcf",
+                }
+                for future in as_completed(futures, timeout=10.0):
+                    key = futures[future]
+                    try:
+                        _, result = future.result()
+                        enrichment_results[key] = result
+                    except Exception:
+                        enrichment_results[key] = None
+
+            # Apply results to meta dict
+            tgt = enrichment_results.get("target")
+            if tgt and isinstance(tgt, dict) and tgt.get("target_avg") is not None:
                 meta["analyst_target"] = round(float(tgt["target_avg"]), 2)
 
-            # Analyst consensus grade
-            grades = fmp.get_analyst_grades(sym)
-            if grades and grades.get("consensus"):
+            grades = enrichment_results.get("grades")
+            if grades and isinstance(grades, dict) and grades.get("consensus"):
                 meta["analyst_recommendation"] = grades["consensus"]
 
-            # Upcoming earnings date
-            from datetime import date as _date, timedelta as _td
-            today = _date.today()
-            earnings = fmp.get_earnings_calendar(today.isoformat(), (today + _td(days=30)).isoformat())
+            earnings = enrichment_results.get("earnings")
             if earnings and isinstance(earnings, list):
                 ticker_earnings = [
                     e for e in earnings
@@ -857,38 +887,33 @@ def _fetch_stock_meta_fmp(ticker: str, market: str) -> dict | Exception:
                 if ticker_earnings and ticker_earnings[0].get("date"):
                     meta["earnings_date"] = ticker_earnings[0]["date"]
 
-            # Dividend history (latest 4)
-            divs = fmp.get_dividends(sym)
+            divs = enrichment_results.get("divs")
             if divs and isinstance(divs, list) and divs:
                 meta["dividend_history"] = divs[:4]
 
-            # Analyst estimates (revenue + EPS consensus)
-            estimates = fmp.get_analyst_estimates(sym)
-            if estimates:
+            estimates = enrichment_results.get("estimates")
+            if estimates and isinstance(estimates, dict):
                 if estimates.get("revenue_estimate") is not None:
                     meta["analyst_revenue_est"] = float(estimates["revenue_estimate"])
                 if estimates.get("eps_estimate") is not None:
                     meta["analyst_eps_est"] = float(estimates["eps_estimate"])
 
-            # Financial scores (Altman Z, Piotroski)
-            scores = fmp.get_financial_scores(sym)
-            if scores:
+            scores = enrichment_results.get("scores")
+            if scores and isinstance(scores, dict):
                 if scores.get("altman_z_score") is not None:
                     meta["altman_z_score"] = round(float(scores["altman_z_score"]), 2)
                 if scores.get("piotroski_score") is not None:
                     meta["piotroski_score"] = int(scores["piotroski_score"])
 
-            # Insider trading summary
-            insider = fmp.get_insider_trading(sym)
+            insider = enrichment_results.get("insider")
             if insider and isinstance(insider, list):
                 buys = sum(1 for t in insider if "Buy" in str(t.get("transaction_type", "")))
                 sells = sum(1 for t in insider if "Sell" in str(t.get("transaction_type", "")))
                 meta["insider_buys"] = buys
                 meta["insider_sells"] = sells
 
-            # DCF valuation
-            dcf = fmp.get_dcf(sym)
-            if dcf and dcf.get("dcf_value") is not None:
+            dcf = enrichment_results.get("dcf")
+            if dcf and isinstance(dcf, dict) and dcf.get("dcf_value") is not None:
                 meta["dcf_value"] = round(float(dcf["dcf_value"]), 2)
                 if dcf.get("stock_price") is not None:
                     meta["dcf_stock_price"] = round(float(dcf["stock_price"]), 2)
@@ -900,7 +925,7 @@ def _fetch_stock_meta_fmp(ticker: str, market: str) -> dict | Exception:
             from nq_data.openbb import get_openbb_client
             obb = get_openbb_client()
             if obb.enabled:
-                obb_sym = _yf_symbol(ticker, market) if market == "IN" else ticker
+                obb_sym = _yf_sym(ticker, market) if market == "IN" else ticker
 
                 # Dividend history — calculate trailing yield from recent dividends
                 divs = obb.get_dividends(obb_sym)

@@ -3,14 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import type { IndexData, NewsItem, SectorData, AIScore, Mover } from "@/lib/types";
+import type { IndexData, NewsItem, SectorData, AIScore } from "@/lib/types";
 
 import MarketIndexCard from "@/components/ui/MarketIndexCard";
 import MarketWrapCard from "@/components/ui/MarketWrapCard";
 import SectorHeatmapBlock from "@/components/ui/SectorHeatmapBlock";
 import GhostBorderCard from "@/components/ui/GhostBorderCard";
 import RegimeBadge from "@/components/ui/RegimeBadge";
-import { ArrowUpRight, ArrowDownRight, TrendingUp, Newspaper } from "lucide-react";
+import { TrendingUp, Newspaper } from "lucide-react";
 import SocialBuzzCard from "@/components/ui/SocialBuzzCard";
 import QuantAstraFAB from "@/components/quantastra/QuantAstraFAB";
 import WelcomeModal from "@/components/onboarding/WelcomeModal";
@@ -100,80 +100,6 @@ function NewsPanel({ news, loading }: { news: NewsItem[]; loading: boolean }) {
   );
 }
 
-// ─── Market Movers ──────────────────────────────────────────────────────────────
-
-function MoversPanel({ gainers, losers, active, loading }: {
-  gainers: Mover[]; losers: Mover[]; active: Mover[]; loading: boolean;
-}) {
-  const [tab, setTab] = useState<"gainers" | "losers" | "active">("gainers");
-  const rows = tab === "gainers" ? gainers : tab === "losers" ? losers : active;
-  const hasStale = rows.some((m) => m.stale);
-
-  return (
-    <GhostBorderCard>
-      <div className="flex border-b border-ghost-border">
-        {(["gainers", "losers", "active"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`flex-1 py-2 text-xs font-semibold uppercase tracking-wide transition-colors ${
-              tab === t
-                ? "text-secondary border-b-2 border-secondary"
-                : "text-on-surface-variant hover:text-on-surface"
-            }`}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
-
-      {hasStale && (
-        <div className="px-4 py-1.5 text-[10px] text-on-surface-variant bg-surface-high/50 border-b border-ghost-border/30">
-          Prices may be stale &mdash; market is currently closed
-        </div>
-      )}
-
-      {loading && !rows.length ? (
-        <div className="space-y-3 p-4">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="flex justify-between">
-              <div className="h-4 w-16 bg-surface-high rounded animate-pulse" />
-              <div className="h-4 w-12 bg-surface-high rounded animate-pulse" />
-            </div>
-          ))}
-        </div>
-      ) : !rows.length ? (
-        <p className="py-6 text-center text-xs text-on-surface-variant">Data unavailable</p>
-      ) : (
-        <div className="divide-y divide-ghost-border/50">
-          {rows.map((m) => (
-            <Link
-              key={m.ticker}
-              href={`/stocks/${m.ticker}`}
-              className="flex items-center justify-between px-4 py-2.5 hover:bg-surface-high transition-colors"
-            >
-              <div>
-                <div className="text-sm font-semibold text-on-surface">{m.ticker}</div>
-                <div className="tabular-nums text-xs text-on-surface-variant">
-                  ${m.price?.toLocaleString() ?? "N/A"}
-                </div>
-              </div>
-              <span
-                className={`flex items-center gap-1 tabular-nums text-sm font-bold ${
-                  m.change_pct >= 0 ? "text-tertiary" : "text-error"
-                }`}
-              >
-                {m.change_pct >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-                {m.change_pct >= 0 ? "+" : ""}{m.change_pct.toFixed(2)}%
-              </span>
-            </Link>
-          ))}
-        </div>
-      )}
-    </GhostBorderCard>
-  );
-}
-
 // ─── Top AI Picks ───────────────────────────────────────────────────────────────
 
 function TopAIPicks({ stocks, regime, loading }: { stocks: AIScore[]; regime: string; loading: boolean }) {
@@ -245,14 +171,10 @@ export default function DashboardPage() {
   const [sectors, setSectors] = useState<SectorData[]>([]);
   const [topStocks, setTopStocks] = useState<AIScore[]>([]);
   const [regime, setRegime] = useState("");
-  const [gainers, setGainers] = useState<Mover[]>([]);
-  const [losers, setLosers] = useState<Mover[]>([]);
-  const [active, setActive] = useState<Mover[]>([]);
   const [indicesLoading, setIndicesLoading] = useState(true);
   const [newsLoading, setNewsLoading] = useState(true);
   const [sectorsLoading, setSectorsLoading] = useState(true);
   const [stocksLoading, setStocksLoading] = useState(true);
-  const [moversLoading, setMoversLoading] = useState(true);
   const [showWelcome, setShowWelcome] = useState(() => {
     if (typeof window === "undefined") return false;
     return !localStorage.getItem("nq_onboarding_seen");
@@ -278,11 +200,6 @@ export default function DashboardPage() {
       .then((d) => { setTopStocks(d.results); setRegime(d.regime_label); })
       .catch((e) => console.error("screener/preview failed:", e))
       .finally(() => setStocksLoading(false));
-
-    api.getMarketMovers()
-      .then((d) => { setGainers(d.gainers); setLosers(d.losers); setActive(d.active); })
-      .catch((e) => console.error("market/movers failed:", e))
-      .finally(() => setMoversLoading(false));
   }, []);
 
   return (
@@ -329,9 +246,6 @@ export default function DashboardPage() {
 
         {/* Right sidebar */}
         <div className="space-y-5">
-          <div id="dashboard-market-movers">
-            <MoversPanel gainers={gainers} losers={losers} active={active} loading={moversLoading} />
-          </div>
           <div id="dashboard-market-wrap">
             <MarketWrapCard />
           </div>

@@ -235,87 +235,77 @@ async def recommend_portfolio(
     """
     portfolios: dict[str, list] = {}
 
+    async def _fetch_pool(name: str, coro):
+        """Fetch a single pool with timeout, returning (name, results)."""
+        try:
+            result = await asyncio.wait_for(coro, timeout=8.0)
+            return (name, result)
+        except asyncio.TimeoutError:
+            logger.warning("recommend_portfolio: pool %s timed out", name)
+            return (name, [])
+        except Exception as exc:
+            logger.warning("recommend_portfolio: pool %s failed: %s", name, exc)
+            return (name, [])
+
+    # Build pool tasks based on market
+    pool_tasks = []
+    if market in ("IN", "BOTH"):
+        pool_tasks.append(_fetch_pool("lm250", asyncio.to_thread(_fetch_quantfactor_pool,
+            market="IN",
+            index_groups=["NSE250", "NIFTY200", "NIFTY100"],
+            min_g_score=0,
+            min_risk_score=0,
+            min_irs_pct=65,
+            limit=25,
+        )))
+        pool_tasks.append(_fetch_pool("smallcap", asyncio.to_thread(_fetch_quantfactor_pool,
+            market="IN",
+            index_groups=["NSE250"],
+            min_g_score=0,
+            require_all_growth_positive=True,
+            require_holding_positive=True,
+            require_fii_quarter_positive=True,
+            min_risk_score=0,
+            min_irs_pct=50,
+            limit=15,
+        )))
+        pool_tasks.append(_fetch_pool("microcap", asyncio.to_thread(_fetch_quantfactor_pool,
+            market="IN",
+            index_groups=["NSE250"],
+            min_g_score=0,
+            require_all_growth_positive=True,
+            require_holding_positive=True,
+            require_fii_quarter_positive=True,
+            require_risk_strict=1.0,
+            min_irs_pct=50,
+            limit=10,
+        )))
+        pool_tasks.append(_fetch_pool("turnaround", asyncio.to_thread(_fetch_quantfactor_pool,
+            market="IN",
+            index_groups=["NSE250"],
+            require_holding_positive=True,
+            require_all_growth_positive=True,
+            min_risk_score=0,
+            min_irs_pct=40,
+            limit=10,
+        )))
+    if market in ("US", "BOTH"):
+        pool_tasks.append(_fetch_pool("us_sp500", asyncio.to_thread(_fetch_quantfactor_pool,
+            market="US",
+            index_groups=["SP500", "SP400", "SP400+SP600"],
+            min_g_score=0,
+            min_risk_score=0,
+            min_irs_pct=65,
+            limit=25,
+        )))
+
+    # Run all pool fetches in parallel — worst case 8s (limited by slowest pool)
     try:
-        if market in ("IN", "BOTH"):
-            # Pool A: LM250 Alpha (Large & MidCap)
-            lm250 = await asyncio.wait_for(
-                asyncio.to_thread(_fetch_quantfactor_pool,
-                    market="IN",
-                    index_groups=["NSE250", "NIFTY200", "NIFTY100"],
-                    min_g_score=0,
-                    min_risk_score=0,
-                    min_irs_pct=65,
-                    limit=25,
-                ),
-                timeout=10.0,
-            )
-            portfolios["lm250"] = lm250
-
-            # Pool B: SmallCap High Growth
-            smallcap = await asyncio.wait_for(
-                asyncio.to_thread(_fetch_quantfactor_pool,
-                    market="IN",
-                    index_groups=["NSE250"],
-                    min_g_score=0,
-                    require_all_growth_positive=True,
-                    require_holding_positive=True,
-                    require_fii_quarter_positive=True,
-                    min_risk_score=0,
-                    min_irs_pct=50,
-                    limit=15,
-                ),
-                timeout=10.0,
-            )
-            portfolios["smallcap"] = smallcap
-
-            # Pool C: MicroCap (stricter risk)
-            microcap = await asyncio.wait_for(
-                asyncio.to_thread(_fetch_quantfactor_pool,
-                    market="IN",
-                    index_groups=["NSE250"],
-                    min_g_score=0,
-                    require_all_growth_positive=True,
-                    require_holding_positive=True,
-                    require_fii_quarter_positive=True,
-                    require_risk_strict=1.0,  # Risk Score > 1.0 for MicroCap
-                    min_irs_pct=50,
-                    limit=10,
-                ),
-                timeout=10.0,
-            )
-            portfolios["microcap"] = microcap
-
-            # Pool D: Turnaround (Very High Risk only)
-            turnaround = await asyncio.wait_for(
-                asyncio.to_thread(_fetch_quantfactor_pool,
-                    market="IN",
-                    index_groups=["NSE250"],
-                    require_holding_positive=True,
-                    require_all_growth_positive=True,
-                    min_risk_score=0,
-                    min_irs_pct=40,
-                    limit=10,
-                ),
-                timeout=10.0,
-            )
-            portfolios["turnaround"] = turnaround
-
-        if market in ("US", "BOTH"):
-            us_pool = await asyncio.wait_for(
-                asyncio.to_thread(_fetch_quantfactor_pool,
-                    market="US",
-                    index_groups=["SP500", "SP400", "SP400+SP600"],
-                    min_g_score=0,
-                    min_risk_score=0,
-                    min_irs_pct=65,
-                    limit=25,
-                ),
-                timeout=10.0,
-            )
-            portfolios["us_sp500"] = us_pool
-    except asyncio.TimeoutError:
-        logger.warning("recommend_portfolio: pool fetch timed out, returning partial data")
-        # Continue with whatever pools we got before timeout
+        results = await asyncio.gather(*pool_tasks)
+        for name, pool_data in results:
+            portfolios[name] = pool_data
+    except Exception as exc:
+        logger.warning("recommend_portfolio: parallel pool fetch failed: %s", exc)
 
     # Build allocation based on risk profile
     if risk_profile == "low":

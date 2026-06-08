@@ -22,7 +22,7 @@ const DEFAULT_TIMEOUT_MS = 15_000; // 15s — prevents infinite loading on cold 
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(new DOMException("Request timeout", "TimeoutError")), DEFAULT_TIMEOUT_MS);
   try {
     const response = await fetch(`${API_BASE}${path}`, {
       headers: { "Content-Type": "application/json" },
@@ -52,7 +52,7 @@ async function authedFetch<T>(path: string, options?: RequestInit & { signal?: A
   // Use caller's AbortController if provided, otherwise create one with a timeout
   const controller = options?.signal ? null : new AbortController();
   const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-  const timeout = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+  const timeout = controller ? setTimeout(() => controller.abort(new DOMException(`Request timeout (${timeoutMs}ms)`, "TimeoutError")), timeoutMs) : null;
 
   try {
     const response = await fetch(`${API_BASE}${path}`, {
@@ -122,6 +122,7 @@ export const authedApi = {
     authedFetch<AstraRecommendResponse>("/astra/recommend", {
       method: "POST",
       body: JSON.stringify({ risk_profile: riskProfile, market }),
+      timeoutMs: 60_000,  // 60s for portfolio compute (parallel pool fetches)
     }),
 
   getAstraSellSignals: (market: Market = "IN") =>

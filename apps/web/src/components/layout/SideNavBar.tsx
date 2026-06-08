@@ -11,7 +11,6 @@ import {
   Bell,
   Newspaper,
   LogIn,
-  Terminal,
   PieChart,
 } from "lucide-react";
 
@@ -21,7 +20,6 @@ const NAV = [
   { href: "/screener", label: "Screener", icon: ScanSearch },
   { href: "/query", label: "Ask Morgan", icon: MessageSquareText },
   { href: "/backtest", label: "Strategy", icon: FlaskConical },
-  { href: "/terminal", label: "Terminal", icon: Terminal, beta: true },
   { href: "/portfolio", label: "Portfolio", icon: PieChart },
   { href: "/watchlist", label: "Watchlist", icon: Star },
   { href: "/alerts", label: "Alerts", icon: Bell },
@@ -45,7 +43,7 @@ export default function SideNavBar() {
       </div>
 
       <nav className="flex-1 flex flex-col gap-1 px-0">
-        {NAV.map(({ href, label, icon: Icon, beta }) => {
+        {NAV.map(({ href, label, icon: Icon }) => {
           const active = pathname.startsWith(href);
           return (
             <Link
@@ -61,11 +59,6 @@ export default function SideNavBar() {
               <span className="font-mono text-[11px] font-bold tracking-[0.2em] uppercase">
                 {label}
               </span>
-              {beta && (
-                <span className="text-[9px] font-medium px-1 py-0.5 bg-amber-500/15 text-amber-400 border border-amber-500/25 leading-none font-mono">
-                  BETA
-                </span>
-              )}
             </Link>
           );
         })}

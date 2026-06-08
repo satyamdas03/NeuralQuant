@@ -131,7 +131,7 @@ async def run_nl_query(
         _timed(asyncio.to_thread(_fetch_enrichment, effective_ticker, req.market or 'US'), 15.0, {}),
         _timed(asyncio.to_thread(_fetch_relevant_news, req.question, req.ticker, 5), 8.0, []),
         _timed(asyncio.to_thread(_build_macro_context, req.question, req.market or "US", today), 10.0, None),
-        _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, req.market or "US"), 45.0, None),
+        _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, req.market or "US"), 20.0, None),
         _timed(asyncio.to_thread(_fetch_finnhub_news_summaries, req.ticker, req.market or "US", 5), 8.0, []),
     )
 

@@ -429,6 +429,11 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
     from nq_api.cache import score_cache
     from nq_api.services.parsing import _detect_tickers_in_question
 
+    # On Render cloud, _fetch_one uses yfinance internally which is frequently
+    # rate-limited on cloud IPs. Skip it and rely on FMP batch quotes only.
+    import os as _os
+    _is_render = bool(_os.environ.get("RENDER"))
+
     q_upper = question.upper()
     parts: list[str] = []
     target_market = "IN" if any(k in q_upper for k in _INDIA_KEYWORDS) else market
@@ -514,14 +519,15 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                             if fmp_fb.get("price"):
                                 price = fmp_fb["price"]
                                 chg = fmp_fb.get("change_pct", 0) or 0
-                            if not price:
+                            if not price and not _is_render:
                                 fund = _fetch_one(t, target_market, fast_pe=True)
                                 price = fund.get("current_price")
                                 chg = fund.get("change_pct") or 0
                         else:
-                            fund = _fetch_one(t, target_market, fast_pe=False)
-                            price = fund.get("current_price")
-                            chg = fund.get("change_pct") or 0
+                            if not _is_render:
+                                fund = _fetch_one(t, target_market, fast_pe=False)
+                                price = fund.get("current_price")
+                                chg = fund.get("change_pct") or 0
                             # FMP batch-quote fallback
                             if not price:
                                 fmp_fb = (fmp_prices.get(t) or {})
@@ -548,7 +554,17 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                 top_tickers = UNIVERSE_BY_MARKET.get(target_market, UNIVERSE_BY_MARKET["US"])[:5]
                 lines = [f"NeuralQuant {target_market} -- Quick scan (live prices):"]
                 for t in top_tickers:
-                    fund = _fetch_one(t, target_market, fast_pe=False)
+                    if _is_render:
+                        # On Render: skip _fetch_one (yfinance rate-limited), use FMP batch quotes
+                        fmp_fb = (fmp_prices.get(t)
+                                  or fmp_prices.get(f"{t}.NS")
+                                  or fmp_prices.get(f"{t}.BO")
+                                  or {})
+                        price = fmp_fb.get("price")
+                        chg = fmp_fb.get("change_pct", 0) or 0
+                        fund = {"current_price": price, "change_pct": chg, "_is_real": bool(price)}
+                    else:
+                        fund = _fetch_one(t, target_market, fast_pe=False)
                     if fund.get("_is_real"):
                         price = fund.get("current_price")
                         chg = fund.get("change_pct") or 0
@@ -581,7 +597,15 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                 cached_all = score_cache.read_top(target_market, 50, max_age_seconds=999999999)
             cache_map = {r.get("ticker"): r for r in cached_all} if cached_all else {}
             for t in in_universe_tickers[:10]:
-                fund = _fetch_one(t, target_market, fast_pe=False)
+                if _is_render:
+                    # On Render: use FMP batch quotes only, skip _fetch_one (yfinance)
+                    fmp_fb = (fmp_prices.get(t)
+                              or fmp_prices.get(f"{t}.NS")
+                              or fmp_prices.get(f"{t}.BO")
+                              or {})
+                    fund = {"current_price": fmp_fb.get("price"), "change_pct": fmp_fb.get("change_pct", 0) or 0, "pe_ttm": None, "_is_real": bool(fmp_fb.get("price"))}
+                else:
+                    fund = _fetch_one(t, target_market, fast_pe=False)
                 cached_row = cache_map.get(t, {})
                 sc = int(cached_row.get("composite_score", 0.5) * 10) if cached_row else "N/A"
                 price = fund.get("current_price")
@@ -741,15 +765,27 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                     # Primary stock metrics for comparison
                     primary_data = None
                     try:
-                        primary_data = _fetch_one(primary_ticker, target_market)
+                        if not _is_render:
+                            primary_data = _fetch_one(primary_ticker, target_market)
                     except Exception:
                         pass
+                    # On Render: use FMP batch quotes for primary stock data
+                    if not primary_data:
+                        fmp_q = (fmp_prices.get(primary_ticker)
+                                 or fmp_prices.get(f"{primary_ticker}.NS")
+                                 or fmp_peer_quotes.get(primary_ticker)
+                                 or {})
+                        if fmp_q.get("price"):
+                            primary_data = {"current_price": fmp_q["price"], "pe_ttm": fmp_q.get("pe"), "market_cap": fmp_q.get("market_cap")}
                     primary_pe = primary_data.get("pe_ttm") if primary_data else None
                     primary_mcap = primary_data.get("market_cap") if primary_data else None
                     primary_price = primary_data.get("current_price") if primary_data else None
 
                     for pt in fmp_peer_tickers:
-                        peer_metrics = _fetch_one(pt, target_market) if pt not in (in_universe_tickers or []) else None
+                        if _is_render:
+                            peer_metrics = None  # skip _fetch_one on Render
+                        else:
+                            peer_metrics = _fetch_one(pt, target_market) if pt not in (in_universe_tickers or []) else None
                         if not peer_metrics:
                             # Try FMP batch quotes fallback
                             fmp_q = (fmp_peer_quotes.get(pt)

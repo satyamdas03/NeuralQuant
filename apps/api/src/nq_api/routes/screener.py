@@ -85,7 +85,7 @@ async def screener_preview(market: str = "US", n: int = 8) -> ScreenerResponse:
         import os
         on_render = bool(os.environ.get("RENDER"))
         live_n = min(n, 5) if on_render else min(n, 8)
-        timeout_seconds = 15.0 if on_render else 25.0
+        timeout_seconds = 25.0 if on_render else 25.0
         logger.info("screener_preview: cache very old, attempting live compute for market=%s render=%s tickers=%d timeout=%.0fs", market, on_render, live_n, timeout_seconds)
         live_result = await _preview_live_fallback(market, live_n, timeout_seconds)
         if live_result and live_result.total > 0:
@@ -119,7 +119,7 @@ async def screener_preview(market: str = "US", n: int = 8) -> ScreenerResponse:
         import os
         on_render = bool(os.environ.get("RENDER"))
         live_n = min(n, 5) if on_render else min(n, 8)
-        timeout_seconds = 15.0 if on_render else 25.0
+        timeout_seconds = 25.0 if on_render else 25.0
         logger.info("screener_preview: cache empty, falling back to live compute for market=%s render=%s tickers=%d timeout=%.0fs", market, on_render, live_n, timeout_seconds)
         return await _preview_live_fallback(market, live_n, timeout_seconds)
 

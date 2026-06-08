@@ -52,8 +52,7 @@ function CustomTooltip({ active, payload, label }: any) {
 function EmptyState() {
   return (
     <div className="w-full p-6 md:p-8 border flex flex-col items-center justify-center gap-3" style={{ background: "var(--color-surface)", borderColor: "var(--color-ghost-border)" }}>
-      <div className="h-2 w-24 bg-surface-high rounded animate-pulse" />
-      <p className="font-mono text-[11px] text-text-muted">Backtest results loading…</p>
+      <p className="font-mono text-[11px] text-text-muted">Backtest results available after first quarter evaluation</p>
     </div>
   );
 }

@@ -12,8 +12,7 @@ interface PoolRow {
 function EmptyState() {
   return (
     <div className="w-full border flex flex-col items-center justify-center gap-3 py-12" style={{ background: "var(--color-surface)", borderColor: "var(--color-ghost-border)" }}>
-      <div className="h-2 w-24 bg-surface-high rounded animate-pulse" />
-      <p className="font-mono text-[11px] text-text-muted">Quarterly breakdown loading…</p>
+      <p className="font-mono text-[11px] text-text-muted">Quarterly breakdown available after evaluation</p>
     </div>
   );
 }
