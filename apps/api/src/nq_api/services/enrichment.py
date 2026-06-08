@@ -441,15 +441,34 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
     Fetch NeuralQuant's own stock scores + live prices when the question needs them.
     Uses score_cache (instant) + _fetch_one (2-5s per stock) instead of
     build_real_snapshot (30-120s for full universe).
+
+    Results are cached in-memory for 10 minutes per (ticker_hint, market) to
+    avoid re-running expensive enrichment on conversation follow-ups.
     """
     from nq_api.data_builder import _fetch_one
     from nq_api.cache import score_cache
     from nq_api.services.parsing import _detect_tickers_in_question
 
+    # ── In-memory cache check ──────────────────────────────────────────────
+    # Build a cache key from the question's detected tickers + market.
+    # This avoids re-running expensive _fetch_one / FMP calls for the same
+    # stock within a 10-minute window (e.g., conversation follow-ups).
+    _cache_tickers, _ = _detect_tickers_in_question(question, market)
+    _cache_key = f"{','.join(sorted(_cache_tickers))}:{market}:{question[:60].upper()}"
+    with _PLATFORM_CACHE_LOCK:
+        if _cache_key in _PLATFORM_CACHE:
+            _ts, _cached_result = _PLATFORM_CACHE[_cache_key]
+            if time.time() - _ts < _PLATFORM_CACHE_TTL:
+                log.info("Platform data cache HIT for key=%s (age=%ds)", _cache_key[:40], int(time.time() - _ts))
+                return _cached_result
+
     # On Render cloud, _fetch_one uses yfinance internally which is frequently
     # rate-limited on cloud IPs. Skip it and rely on FMP batch quotes only.
     import os as _os
     _is_render = bool(_os.environ.get("RENDER"))
+
+    # ── Timing instrumentation ──────────────────────────────────────────────
+    _t0 = time.monotonic()
 
     q_upper = question.upper()
     parts: list[str] = []
@@ -890,9 +909,26 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                             f" -- Quality {peer.get('quality_percentile', 0):.0%}"
                             f" Momentum {peer.get('momentum_percentile', 0):.0%}"
                         )
-                        # Deep fundamentals for peer
+                        # Deep fundamentals for peer (skip _fetch_one on Render — use FMP batch quotes instead)
                         try:
-                            peer_data = _fetch_one(peer_ticker, target_market)
+                            if _is_render:
+                                # On Render: skip _fetch_one, use FMP batch quotes
+                                fmp_fb_peer = (fmp_prices.get(peer_ticker)
+                                               or fmp_prices.get(f"{peer_ticker}.NS")
+                                               or fmp_prices.get(f"{peer_ticker}.BO")
+                                               or {})
+                                if fmp_fb_peer.get("price"):
+                                    peer_data = {
+                                        "current_price": fmp_fb_peer.get("price"),
+                                        "pe_ttm": fmp_fb_peer.get("pe"),
+                                        "pb_ratio": None, "beta": None,
+                                        "market_cap": fmp_fb_peer.get("market_cap"),
+                                        "roe": None, "gross_profit_margin": None,
+                                    }
+                                else:
+                                    peer_data = None
+                            else:
+                                peer_data = _fetch_one(peer_ticker, target_market)
                             if peer_data and not peer_data.get("long_name", "").startswith("Empty"):
                                 comp_lines.append(
                                     f"    {peer_ticker} deep: "
@@ -934,11 +970,21 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
         return f"[Platform data unavailable: {exc}]"
 
     result = "\n\n".join(parts) if parts else None
+    _elapsed = time.monotonic() - _t0
     if result:
-        log.info("PLATFORM_CTX length=%d chars, parts=%d", len(result), len(parts))
-        log.info("PLATFORM_CTX preview: %s", result[:500])
+        log.info("PLATFORM_CTX length=%d chars, parts=%d, elapsed=%.1fs", len(result), len(parts), _elapsed)
     else:
-        log.warning("PLATFORM_CTX is EMPTY/NONE — parts=%d", len(parts))
+        log.warning("PLATFORM_CTX is EMPTY/NONE — parts=%d, elapsed=%.1fs", len(parts), _elapsed)
+
+    # ── Store in-memory cache ──────────────────────────────────────────────
+    if result:
+        with _PLATFORM_CACHE_LOCK:
+            _PLATFORM_CACHE[_cache_key] = (time.time(), result)
+            # Evict oldest entries if cache is too large
+            if len(_PLATFORM_CACHE) > _PLATFORM_CACHE_MAX:
+                oldest_key = min(_PLATFORM_CACHE, key=lambda k: _PLATFORM_CACHE[k][0])
+                del _PLATFORM_CACHE[oldest_key]
+
     return result
 
 

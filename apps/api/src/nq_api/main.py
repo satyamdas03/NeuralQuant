@@ -57,6 +57,25 @@ async def lifespan(app: FastAPI):
     # Run pending DB migrations before warming caches
     await _run_pending_migrations()
 
+    # ── Warm Anthropic connection on startup ────────────────────────────────
+    # The first Anthropic API call incurs TCP+TLS handshake overhead (2-5s).
+    # By sending a tiny warmup request on startup, we eliminate this latency
+    # from the first user query. Non-blocking: runs in a daemon thread.
+    def _warm_anthropic():
+        try:
+            api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+            if api_key and not os.environ.get("USE_BEDROCK", "").lower() == "true":
+                from nq_api.services.anthropic_helpers import _query_client
+                client, model = _query_client(api_key)
+                # The _query_client already fires a warmup ping in a daemon thread
+                log.info("Anthropic client prewarm initiated (model=%s)", model)
+            else:
+                log.info("Anthropic prewarm skipped (no API key or using Bedrock)")
+        except Exception as exc:
+            log.warning("Anthropic prewarm failed (non-fatal): %s", exc)
+
+    threading.Thread(target=_warm_anthropic, daemon=True, name="anthropic-startup-warmup").start()
+
     # Lightweight prewarm: fetch macro data (2 yfinance calls) even on Render
     # so first analyst request isn't slow. Full universe prewarm is still skipped.
     def _warm_macro():
@@ -258,6 +277,19 @@ async def lifespan(app: FastAPI):
             log.warning("Enrichment prewarm failed: %s", exc)
 
     threading.Timer(45.0, lambda: threading.Thread(target=_warm_enrichment, daemon=True).start()).start()
+
+    # Pre-warm quantfactor cache (Supabase REST call, ~500ms, avoids cold-start latency)
+    def _warm_quantfactor():
+        try:
+            from nq_api.cache.quantfactor_cache import get_quantfactor_scores
+            # Load both US and IN markets by querying a known ticker from each
+            get_quantfactor_scores("AAPL", "US")
+            get_quantfactor_scores("RELIANCE", "IN")
+            log.info("QuantFactor cache prewarm complete")
+        except Exception as exc:
+            log.warning("QuantFactor cache prewarm failed (non-fatal): %s", exc)
+
+    threading.Thread(target=_warm_quantfactor, daemon=True, name="quantfactor-warmup").start()
 
     # Pre-warm stock_meta for top tickers so first request after cold start is fast
     _TOP_META_TICKERS_US = [

@@ -114,7 +114,7 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
       setMessages((prev) => [...prev, ph]);
     }
     setLoading(true);
-    slowTimer.current = setTimeout(() => setSlowLoad(true), 12000);
+    slowTimer.current = setTimeout(() => setSlowLoad(true), 8000);
 
     const history: ConversationMessage[] = messages
       .filter((m) => !m.loading)
@@ -177,7 +177,7 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
     } catch (err) {
       const msg = err instanceof DOMException && err.name === "AbortError"
         ? "Query timed out after 5 minutes. Try a shorter question or retry."
-        : "Query failed — backend may be warming up. Retry in 30s.";
+        : "Query failed — please try again. If this persists, try a shorter question.";
       setMessages((prev) =>
         prev.map((m) =>
           m.id === phId ? { ...m, content: msg, loading: false } : m
@@ -226,7 +226,7 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
     <GlassPanel strong className="flex flex-col space-y-4">
       {slowLoad && (
         <div className="bg-primary/10 px-3 py-2 text-xs text-primary border border-primary/20">
-          Backend warming up — may take 30–60s. Please wait…
+          Gathering real-time market data — this is faster on repeat queries. Please wait…
         </div>
       )}
 

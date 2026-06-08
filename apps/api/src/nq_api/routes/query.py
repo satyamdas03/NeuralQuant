@@ -355,13 +355,17 @@ async def run_nl_query_v2(
         except (asyncio.TimeoutError, Exception):
             return default
 
+    _v2_t0 = time.monotonic()
     headlines, macro_ctx, platform_ctx, finnhub_news, enrichment = await asyncio.gather(
         _timed(asyncio.to_thread(_fetch_relevant_news, req.question, effective_ticker_v2, 5), 8.0, []),
         _timed(asyncio.to_thread(_build_macro_context, req.question, effective_market_v2, today), 10.0, None),
-        _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, effective_market_v2), 45.0, None),
+        _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, effective_market_v2), 25.0, None),
         _timed(asyncio.to_thread(_fetch_finnhub_news_summaries, effective_ticker_v2, effective_market_v2, 5), 8.0, []),
         _timed(asyncio.to_thread(_fetch_enrichment, effective_ticker_v2, effective_market_v2), 15.0, {}),
     )
+    log.info("v2 context gather: %.1fs (platform=%s, enrichment=%d fields)",
+             time.monotonic() - _v2_t0, "present" if platform_ctx else "absent",
+             len(enrichment) if enrichment else 0)
 
     context_parts = [
         f"Today's date: {today}",
@@ -869,13 +873,17 @@ async def run_nl_query_v2_stream(
                 except (asyncio.TimeoutError, Exception):
                     return default
 
+            _gc_t0 = time.monotonic()
             headlines, macro_ctx, platform_ctx, finnhub_news, enrichment = await asyncio.gather(
                 _timed(asyncio.to_thread(_fetch_relevant_news, req.question, stream_ticker, 5), 8.0, []),
                 _timed(asyncio.to_thread(_build_macro_context, req.question, stream_market, today), 10.0, None),
-                _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, stream_market), 45.0, None),
+                _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, stream_market), 25.0, None),
                 _timed(asyncio.to_thread(_fetch_finnhub_news_summaries, stream_ticker, stream_market, 5), 8.0, []),
                 _timed(asyncio.to_thread(_fetch_enrichment, stream_ticker, stream_market), 15.0, {}),
             )
+            log.info("Context gather completed in %.1fs (platform_ctx=%s, enrichment=%d fields)",
+                     time.monotonic() - _gc_t0, "present" if platform_ctx else "absent",
+                     len(enrichment) if enrichment else 0)
             context_parts = [f"Today's date: {today}", f"User question: {req.question}"]
             if macro_ctx:
                 context_parts.append(macro_ctx)
@@ -949,7 +957,7 @@ async def run_nl_query_v2_stream(
         while not context_done.is_set():
             yield 'data: {"status":"running"}\n\n'
             elapsed = time.monotonic() - ctx_start
-            if elapsed > 25:                       # 25s: must be >= max inner timeout (15s) + buffer
+            if elapsed > 30:                       # 30s: must be >= max inner timeout (25s) + buffer
                 context_task.cancel()
                 result_holder.setdefault("error", "Context gathering timed out")
                 break
