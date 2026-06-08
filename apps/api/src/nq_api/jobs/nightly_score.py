@@ -106,17 +106,27 @@ def _run_market_from_quantfactor(market: str) -> int:
             except (TypeError, ValueError):
                 return 0.5
 
+        # Derive score_1_10 from composite_score (0-10 scale → 1-10 integer)
+        score_1_10 = max(1, min(10, round(composite_score)))
+        # Derive regime from composite_score thresholds
+        regime_id = 1 if composite_score >= 6 else (2 if composite_score >= 4 else 3)
+        regime_label = {1: "Risk-On", 2: "Neutral", 3: "Bear"}[regime_id]
+
         all_results.append({
             "ticker": t,
             "market": market,
             "sector": r.get("sector", "Unknown") or "Unknown",
             "composite_score": composite_score,
+            "score_1_10": score_1_10,
+            "regime_id": regime_id,
+            "regime_label": regime_label,
             "value_percentile": _pct(r.get("valuation_score")),
             "momentum_percentile": _pct(r.get("return_score")),  # return ≈ momentum
             "quality_percentile": _pct(r.get("growth_score")),  # growth ≈ quality
             "low_vol_percentile": _pct(r.get("risk_score"), 4.0),  # risk ≈ low_vol inverse
             "growth_percentile": _pct(r.get("growth_score")),
             "short_interest_percentile": 0.5,
+            "insider_percentile": 0.5,
             "current_price": price,
             "analyst_target": 0.0,
             "pe_ttm": float(r.get("pe_ttm") or 0),

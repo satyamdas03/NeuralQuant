@@ -179,75 +179,27 @@ async def lifespan(app: FastAPI):
 
         threading.Timer(30.0, _refresh_score_cache).start()
     else:
-        # On Render: background cache refresh with small subset (avoid OOM/timeout)
+        # On Render: use quantfactor fast path (no yfinance)
         def _render_cache_refresh():
             try:
-                from nq_api.cache.score_cache import read_top, upsert_scores, age_seconds
+                from nq_api.cache.score_cache import age_seconds
+                from nq_api.jobs.nightly_score import run_market
                 age_us = age_seconds("US")
                 age_in = age_seconds("IN")
-                # Skip refresh if BOTH markets are fresh (< 1 hour)
                 us_fresh = age_us is not None and age_us < 3600
                 in_fresh = age_in is not None and age_in < 3600
                 if us_fresh and in_fresh:
                     log.info("Render: score_cache fresh (US %d min, IN %d min), skipping",
                              age_us // 60 if age_us else 0, age_in // 60 if age_in else 0)
                     return
-                log.info("Render: score_cache stale (US age=%s, IN age=%s), refreshing top-50...", age_us, age_in)
-                from nq_api.data_builder import build_real_snapshot
-                from nq_api.universe import UNIVERSE_BY_MARKET
-                from nq_api.deps import get_signal_engine
-                import pandas as pd
+                log.info("Render: score_cache stale (US age=%s, IN age=%s), rebuilding via quantfactor...", age_us, age_in)
                 for mkt in ("US", "IN"):
-                    # Skip markets that are already fresh
                     mkt_age = age_us if mkt == "US" else age_in
                     if mkt_age is not None and mkt_age < 3600:
                         log.info("Render: %s score_cache fresh (%d min), skipping", mkt, mkt_age // 60)
                         continue
-                    all_tickers = UNIVERSE_BY_MARKET.get(mkt, UNIVERSE_BY_MARKET["US"])
-                    # Take top 50 to cover popular tickers (was 20 — missed mid-cap India)
-                    tickers = all_tickers[:50]
-                    try:
-                        snapshot = build_real_snapshot(tickers, mkt)
-                    except Exception as e:
-                        log.warning("Render: build_real_snapshot failed for %s: %s", mkt, e)
-                        continue
-                    if snapshot is None or snapshot.fundamentals.empty:
-                        continue
-                    engine = get_signal_engine()
-                    result_df = engine.compute(snapshot)
-                    if result_df is None or result_df.empty:
-                        continue
-                    rows = []
-                    for _, row in result_df.iterrows():
-                        rows.append({
-                            "ticker": row.get("ticker", ""),
-                            "market": mkt,
-                            "sector": row.get("sector", ""),
-                            "composite_score": float(row.get("composite_score", 0)),
-                            "rank_score": int(row.get("rank_score", 0)),
-                            "value_percentile": float(row.get("value_percentile", 0.5)),
-                            "momentum_percentile": float(row.get("momentum_percentile", 0.5)),
-                            "quality_percentile": float(row.get("quality_percentile", 0.5)),
-                            "low_vol_percentile": float(row.get("low_vol_percentile", 0.5)),
-                            "short_interest_percentile": float(row.get("short_interest_percentile", 0.5)),
-                            "pe_ttm": float(row.get("pe_ttm", 0)) if pd.notna(row.get("pe_ttm")) else 0,
-                            "market_cap": float(row.get("market_cap", 0)) if pd.notna(row.get("market_cap")) else 0,
-                            "current_price": float(row.get("current_price", 0)) if pd.notna(row.get("current_price")) else 0,
-                            "analyst_target": float(row.get("analyst_target", 0)) if pd.notna(row.get("analyst_target")) else 0,
-                            "momentum_raw": float(row.get("momentum_raw", 0)) if pd.notna(row.get("momentum_raw")) else 0,
-                            "gross_profit_margin": float(row.get("gross_profit_margin", 0)) if pd.notna(row.get("gross_profit_margin")) else 0,
-                            "piotroski": float(row.get("piotroski", 0)) if pd.notna(row.get("piotroski")) else 0,
-                            "pb_ratio": float(row.get("pb_ratio", 0)) if pd.notna(row.get("pb_ratio")) else 0,
-                            "beta": float(row.get("beta", 0)) if pd.notna(row.get("beta")) else 0,
-                            "realized_vol_1y": float(row.get("realized_vol_1y", 0)) if pd.notna(row.get("realized_vol_1y")) else 0,
-                            "short_interest_pct": float(row.get("short_interest_pct", 0)) if pd.notna(row.get("short_interest_pct")) else 0,
-                            "insider_cluster_score": float(row.get("insider_cluster_score", 0)) if pd.notna(row.get("insider_cluster_score")) else 0,
-                            "accruals_ratio": float(row.get("accruals_ratio", 0)) if pd.notna(row.get("accruals_ratio")) else 0,
-                            "revenue_growth_yoy": float(row.get("revenue_growth_yoy", 0)) if pd.notna(row.get("revenue_growth_yoy")) else 0,
-                            "debt_equity": float(row.get("debt_equity", 0)) if pd.notna(row.get("debt_equity")) else 0,
-                        })
-                    count = upsert_scores(rows)
-                    log.info("Render: score_cache refreshed for %s: %d rows", mkt, count)
+                    count = run_market(mkt)
+                    log.info("Render: score_cache rebuilt for %s via quantfactor: %d rows", mkt, count)
             except Exception as exc:
                 log.warning("Render: score_cache refresh failed: %s", exc)
 

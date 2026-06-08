@@ -114,11 +114,13 @@ def _supabase_rest(
             body = _sanitize_floats(body)
 
     try:
-        with httpx.Client(timeout=10) as client:
+        _timeout = 30 if method == "POST" else 10
+        with httpx.Client(timeout=_timeout) as client:
             if method == "GET":
                 r = client.get(endpoint, params=query or {}, headers=headers)
             elif method == "POST":
-                r = client.post(endpoint, json=body, headers=headers)
+                upsert_headers = {**headers, "Prefer": "resolution=merge-duplicates,return=representation"}
+                r = client.post(endpoint, json=body, headers=upsert_headers)
             elif method == "PATCH":
                 r = client.patch(endpoint, json=body, params=query or {}, headers=headers)
             else:
@@ -433,9 +435,10 @@ def write_enrichment(ticker: str, market: str, data: dict[str, Any]) -> bool:
         "Prefer": "return=representation,resolution=merge-duplicates",
     }
     try:
-        with httpx.Client(timeout=10) as client:
+        with httpx.Client(timeout=15) as client:
             # Try upsert first (POST with resolution=merge-duplicates)
-            r = client.post(endpoint, json=row, headers=headers)
+            upsert_headers = {**headers, "Prefer": "resolution=merge-duplicates,return=representation"}
+            r = client.post(endpoint, json=row, headers=upsert_headers)
             if r.status_code == 409:
                 # Conflict — row exists. PATCH instead.
                 patch_headers = {**headers, "Prefer": "return=representation"}
