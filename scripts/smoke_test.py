@@ -164,8 +164,8 @@ def main() -> int:
 
     # ── 6. Stock meta TCS ───────────────────────────────────────────────
     ok, code, body, el = _hit(base, "GET", "/stocks/TCS/meta?market=IN", timeout=15)
-    price = body.get("current_price", "?") if isinstance(body, dict) else "?"
-    record("GET /stocks/TCS/meta", ok, code, el, f"price={price}")
+    pe = body.get("pe_ttm", "?") if isinstance(body, dict) else "?"
+    record("GET /stocks/TCS/meta", ok, code, el, f"pe_ttm={pe}")
 
     # ── 7. Stock chart AAPL ─────────────────────────────────────────────
     ok, code, body, el = _hit(base, "GET", "/stocks/AAPL/chart?period=1mo&market=US", timeout=15)
