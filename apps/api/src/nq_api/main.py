@@ -362,7 +362,7 @@ async def lifespan(app: FastAPI):
         log.warning("Slack agent system shutdown error (non-fatal): %s", exc)
 
 
-app = FastAPI(title="NeuralQuant API", version="4.0.0", lifespan=lifespan)
+app = FastAPI(title="NeuralQuant API", version="4.0.1", lifespan=lifespan)
 
 # Log validation errors for debugging
 from fastapi.exceptions import RequestValidationError
@@ -457,7 +457,7 @@ app.include_router(testing_router)
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "version": "4.0.0"}
+    return {"status": "ok", "version": "4.0.1"}
 
 
 @app.get("/health/smoke")
