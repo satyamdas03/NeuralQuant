@@ -92,7 +92,8 @@ export default function MobileDrawer({ open, onClose }: MobileDrawerProps) {
 
         {/* Nav items */}
         <nav className="flex-1 flex flex-col gap-1 overflow-y-auto">
-          {NAV.map(({ href, label, icon: Icon, beta }) => {
+          {NAV.map(({ href, label, icon: Icon, ...rest }) => {
+            const beta = (rest as Record<string, unknown>).beta as boolean | undefined;
             const active = pathname.startsWith(href);
             return (
               <Link
