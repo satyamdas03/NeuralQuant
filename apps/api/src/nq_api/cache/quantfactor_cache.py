@@ -176,13 +176,17 @@ def _load_qf_universe():
         )
         for row in data:
             t = str(row.get("ticker", "")).strip().upper()
-            if not t or len(t) > 8 or len(t) < 2:
+            mkt = row.get("market", "US")
+            # Normalize Indian tickers: strip exchange suffix for consistent lookup
+            if mkt == "IN":
+                t = t.replace(".NS", "").replace(".BO", "")
+            if not t or len(t) > 12 or len(t) < 2:
                 continue
             if _GARBAGE.search(t):
                 continue
             if not any(c.isalpha() for c in t):
                 continue
-            key = f"{t}:{row.get('market', 'US')}"
+            key = f"{t}:{mkt}"
             _QF_UNIVERSE[key] = row
         _QF_CACHE_LOADED_AT = now
         logger.info("QuantFactor universe loaded: %s rows (filtered from %s)", len(_QF_UNIVERSE), len(data))
@@ -202,6 +206,12 @@ def get_quantfactor_scores(ticker: str, market: str) -> dict | None:
         # Try bare ticker (without .NS suffix for Indian stocks)
         bare = ticker.replace(".NS", "").replace(".BO", "")
         row = _QF_UNIVERSE.get(f"{bare}:{market}")
+    if not row and market == "IN":
+        # Safety-net: try with exchange suffixes
+        for suffix in (".NS", ".BO"):
+            row = _QF_UNIVERSE.get(f"{ticker}{suffix}:{market}")
+            if row:
+                break
     return row if row else None
 
 

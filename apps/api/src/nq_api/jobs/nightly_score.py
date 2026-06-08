@@ -107,7 +107,10 @@ def _run_market_from_quantfactor(market: str) -> int:
     all_results = []
     for r in qf_rows:
         t = r.get("ticker", "")
-        if not t or len(t) > 8 or len(t) < 2 or _INVALID.search(t):
+        # Normalize Indian tickers: strip exchange suffix for consistent lookup
+        if market == "IN":
+            t = t.replace(".NS", "").replace(".BO", "")
+        if not t or len(t) > 12 or len(t) < 2 or _INVALID.search(t):
             continue
         # FMP live price
         price = 0.0
