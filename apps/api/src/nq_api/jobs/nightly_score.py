@@ -47,8 +47,127 @@ def _f(v, default: float = 0.0) -> float:
         return float(default)
 
 
+def _run_market_from_quantfactor(market: str) -> int:
+    """Build score_cache from quantfactor_universe + FMP batch quotes.
+    Fast-path for Render cloud where yfinance is rate-limited.
+    Uses Anjali Excel data (growth/return/valuation/risk/composite/irs_pct)
+    + FMP live prices instead of expensive build_real_snapshot pipeline."""
+    from nq_api.cache.quantfactor_cache import _supabase_rest as _qf_rest
+    try:
+        from nq_data.fmp import get_fmp_client
+        fmp = get_fmp_client()
+    except Exception:
+        fmp = None
+
+    # 1. Read quantfactor_universe rows for this market
+    qf_rows = _qf_rest(
+        "quantfactor_universe", "GET",
+        {"select": "*", "market": f"eq.{market}", "limit": "500"},
+    )
+    if not qf_rows:
+        log.warning("[%s] No quantfactor_universe rows — falling back to full pipeline", market)
+        return 0
+
+    log.info("[%s] quantfactor_universe: %d rows", market, len(qf_rows))
+
+    # 2. Batch FMP quotes for live prices
+    fmp_prices: dict[str, dict] = {}
+    if fmp and fmp._enabled:
+        try:
+            all_syms = [r.get("ticker", "") for r in qf_rows if r.get("ticker")]
+            if market == "IN":
+                all_syms = [t if "." in t else f"{t}.NS" for t in all_syms]
+            # Batch in chunks of 50 (FMP limit)
+            for i in range(0, len(all_syms), 50):
+                chunk = all_syms[i:i+50]
+                batch = fmp.get_batch_quotes(chunk) or {}
+                fmp_prices.update(batch)
+        except Exception as exc:
+            log.warning("[%s] FMP batch quotes failed: %s", market, exc)
+
+    # 3. Build score_cache rows from quantfactor + FMP
+    all_results = []
+    for r in qf_rows:
+        t = r.get("ticker", "")
+        # FMP live price
+        price = 0.0
+        if fmp_prices:
+            fb = (fmp_prices.get(t) or fmp_prices.get(f"{t}.NS") or fmp_prices.get(f"{t}.BO") or {})
+            price = float(fb.get("price") or 0)
+
+        # Derive composite_score from quantfactor composite (scale 0-1 → 0-10)
+        qf_composite = r.get("composite")
+        composite_score = float(qf_composite) * 10 if qf_composite is not None else 5.0
+
+        # Derive percentiles from quantfactor scores (scale 0-4 → 0-1)
+        def _pct(val, max_val=4.0):
+            try:
+                return min(1.0, max(0.0, float(val) / max_val)) if val is not None else 0.5
+            except (TypeError, ValueError):
+                return 0.5
+
+        all_results.append({
+            "ticker": t,
+            "market": market,
+            "sector": r.get("sector", "Unknown") or "Unknown",
+            "composite_score": composite_score,
+            "value_percentile": _pct(r.get("valuation_score")),
+            "momentum_percentile": _pct(r.get("return_score")),  # return ≈ momentum
+            "quality_percentile": _pct(r.get("growth_score")),  # growth ≈ quality
+            "low_vol_percentile": _pct(r.get("risk_score"), 4.0),  # risk ≈ low_vol inverse
+            "growth_percentile": _pct(r.get("growth_score")),
+            "short_interest_percentile": 0.5,
+            "current_price": price,
+            "analyst_target": 0.0,
+            "pe_ttm": float(r.get("pe_ttm") or 0),
+            "market_cap": float(r.get("market_cap") or 0),
+            "week52_high": float(r.get("week52_high") or 0),
+            "week52_low": float(r.get("week52_low") or 0),
+            "momentum_raw": 0.0,
+            "gross_profit_margin": 0.0,
+            "piotroski": 5,
+            "pb_ratio": float(r.get("pb_ratio") or 0),
+            "beta": float(r.get("beta") or 0),
+            "realized_vol_1y": 0.0,
+            "short_interest_pct": 0.0,
+            "insider_cluster_score": 0.5,
+            "accruals_ratio": 0.0,
+            "revenue_growth_yoy": 0.0,
+            "debt_equity": 0.0,
+            "roe": float(r.get("roe") or 0),
+            "fcf_yield": 0.0,
+            "long_name": r.get("name", "") or t,
+            "industry": r.get("industry", "") or "",
+            "analyst_rec": r.get("analyst_rec", "") or "",
+            "earnings_date": "",
+            "dividend_yield": float(r.get("dividend_yield") or 0),
+        })
+
+    if not all_results:
+        return 0
+
+    # Rank within market
+    all_results.sort(key=lambda r: r["composite_score"], reverse=True)
+    for rank, r in enumerate(all_results, start=1):
+        r["rank_score"] = rank
+
+    written = 0
+    for i in range(0, len(all_results), 100):
+        batch = all_results[i:i+100]
+        written += score_cache.upsert_scores(batch)
+    log.info("[%s] quantfactor path: upserted %d rows", market, written)
+    return written
+
+
 def run_market(market: str) -> int:
     """Build scores for one market and upsert to Supabase. Returns row count."""
+    # On Render: use fast path from quantfactor_universe + FMP (no yfinance)
+    if os.environ.get("RENDER"):
+        count = _run_market_from_quantfactor(market)
+        if count > 0:
+            return count
+        log.warning("[%s] quantfactor fast path returned 0 — falling back to full pipeline", market)
+
     rows = UNIVERSE_FULL.get(market, [])
     tickers = [r["ticker"] for r in rows]
     log.info("[%s] universe size: %d", market, len(tickers))
