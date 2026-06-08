@@ -123,6 +123,8 @@ def _supabase_rest(
                 r = client.post(endpoint, json=body, headers=upsert_headers)
             elif method == "PATCH":
                 r = client.patch(endpoint, json=body, params=query or {}, headers=headers)
+            elif method == "DELETE":
+                r = client.delete(endpoint, params=query or {}, headers=headers)
             else:
                 return None
             r.raise_for_status()

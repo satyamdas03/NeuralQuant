@@ -687,7 +687,19 @@ def run_quantfactor_sync(
         log.error("No rows parsed — aborting")
         return {"success": False, "error": "No rows parsed", "elapsed_seconds": 0}
 
-    # 3. Bulk upsert into quantfactor_universe
+    # 3. Delete existing data to remove stale/garbage rows before re-insert
+    # Strategy: DELETE all rows, then INSERT fresh (avoids garbage legend rows persisting)
+    for mkt in ("US", "IN"):
+        try:
+            deleted = _supabase_rest(
+                "quantfactor_universe", method="DELETE",
+                query={"market": f"eq.{mkt}"},
+            )
+            log.info("Deleted existing %s rows from quantfactor_universe", mkt)
+        except Exception as e:
+            log.warning("Failed to delete %s rows from quantfactor_universe: %s", mkt, e)
+
+    # 4. Bulk upsert into quantfactor_universe
     # Recursive bisection: if a chunk fails with 400, split in half repeatedly
     # until we isolate individual bad rows, skip them, and log for diagnosis.
     import json as _json

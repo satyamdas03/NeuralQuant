@@ -60,10 +60,17 @@ def _run_market_from_quantfactor(market: str) -> int:
     except Exception:
         fmp = None
 
+    # 0. Delete stale/garbage rows from score_cache for this market before rebuilding
+    try:
+        _qf_rest("score_cache", method="DELETE", query={"market": f"eq.{market}"})
+        log.info("[%s] Deleted existing score_cache rows before rebuild", market)
+    except Exception as e:
+        log.warning("[%s] Failed to delete existing score_cache rows: %s", market, e)
+
     # 1. Read quantfactor_universe rows for this market
     qf_rows = _qf_rest(
         "quantfactor_universe", "GET",
-        {"select": "*", "market": f"eq.{market}", "limit": "500"},
+        {"select": "*", "market": f"eq.{market}", "limit": "1500"},
     )
     if not qf_rows:
         log.warning("[%s] No quantfactor_universe rows — falling back to full pipeline", market)
