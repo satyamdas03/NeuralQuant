@@ -59,6 +59,13 @@ class IndiaRegimeWrapper:
         X = latest_row[self._feature_cols].fillna(0).values
         X_scaled = self._scaler.transform(X)
         raw = self._hmm.predict_proba(X_scaled)
+
+        # Detect broken / collapsed model: if every input maps to the same state
+        # with >99% probability, the HMM is degenerate. Fall back to rule-based.
+        max_prob = float(raw[0].max())
+        if max_prob > 0.99:
+            return self._rule_based_india(latest_row)
+
         reordered = np.zeros_like(raw)
         for hmm_state, semantic_id in self._regime_map.items():
             reordered[:, semantic_id - 1] = raw[:, hmm_state]
@@ -69,6 +76,63 @@ class IndiaRegimeWrapper:
             label=REGIME_LABELS[regime_id],
             confidence=float(reordered[0][idx]),
             posteriors=reordered[0],
+            factor_weights=REGIME_WEIGHTS[regime_id],
+        )
+
+    def _rule_based_india(self, latest_row: pd.DataFrame) -> RegimeState:
+        """Rule-based India regime fallback when HMM is degenerate.
+
+        Uses intuitive thresholds on raw macro indicators:
+          - Low VIX + positive trend/momentum = Risk-On / Recovery
+          - High VIX + negative trend = Bear
+          - Everything else = Late-Cycle
+        """
+        def _val(col: str, default: float) -> float:
+            if col in latest_row.columns:
+                v = latest_row[col].iloc[0]
+                try:
+                    return float(v) if v is not None else default
+                except (TypeError, ValueError):
+                    return default
+            return default
+
+        vix = _val("india_vix", 15.0)
+        vix_chg = _val("india_vix_20d_chg", 0.0)
+        ma = _val("nifty_vs_200ma", 0.02)
+        ret = _val("nifty_1m_return", 0.01)
+
+        # Stress indicators (binary flags)
+        high_vix = vix > 20.0
+        falling_trend = ma < -0.03
+        high_vol_rising = vix > 16.0 and vix_chg > 1.0
+        negative_momentum = ret < -0.03
+
+        # Bull indicators
+        low_vix = vix < 14.0
+        strong_trend = ma > 0.05
+        positive_momentum = ret > 0.02
+
+        stress_count = sum([high_vix, falling_trend, high_vol_rising, negative_momentum])
+        bull_count = sum([low_vix, strong_trend, positive_momentum])
+
+        if stress_count >= 2:
+            regime_id = 3  # Bear
+        elif bull_count >= 2:
+            regime_id = 1  # Risk-On
+        elif positive_momentum or strong_trend:
+            regime_id = 4  # Recovery
+        else:
+            regime_id = 2  # Late-Cycle
+
+        posteriors = np.ones(4) * 0.15
+        posteriors[regime_id - 1] = 0.55
+        posteriors = posteriors / posteriors.sum()
+
+        return RegimeState(
+            regime_id=regime_id,
+            label=REGIME_LABELS[regime_id],
+            confidence=float(posteriors[regime_id - 1]),
+            posteriors=posteriors,
             factor_weights=REGIME_WEIGHTS[regime_id],
         )
 
@@ -189,6 +253,10 @@ class RegimeDetector:
             # Still useful as a rough signal but confidence will be lower
             posteriors = self.predict_proba(latest_row)[0]
 
+        # Detect broken / collapsed model (same guard as India wrapper)
+        if float(posteriors.max()) > 0.99:
+            return self._rule_based_us(latest_row)
+
         regime_idx = int(np.argmax(posteriors))  # 0-indexed
         regime_id = regime_idx + 1
         confidence = float(posteriors[regime_idx])
@@ -196,6 +264,58 @@ class RegimeDetector:
             regime_id=regime_id,
             label=REGIME_LABELS[regime_id],
             confidence=confidence,
+            posteriors=posteriors,
+            factor_weights=REGIME_WEIGHTS[regime_id],
+        )
+
+    def _rule_based_us(self, latest_row: pd.DataFrame) -> RegimeState:
+        """Rule-based US regime fallback when HMM is degenerate."""
+        def _val(col: str, default: float) -> float:
+            if col in latest_row.columns:
+                v = latest_row[col].iloc[0]
+                try:
+                    return float(v) if v is not None else default
+                except (TypeError, ValueError):
+                    return default
+            return default
+
+        vix = _val("vix", 15.0)
+        vix_chg = _val("vix_20d_change", 0.0)
+        ma = _val("spx_vs_200ma", 0.02)
+        hy = _val("hy_spread_oas", 350.0)
+        pmi = _val("ism_pmi", 50.0)
+
+        stress_count = sum([
+            vix > 22,
+            vix_chg > 3,
+            ma < -0.05,
+            hy > 500,
+            pmi < 47,
+        ])
+        bull_count = sum([
+            vix < 14,
+            ma > 0.05,
+            pmi > 52,
+            hy < 300,
+        ])
+
+        if stress_count >= 2:
+            regime_id = 3  # Bear
+        elif bull_count >= 2:
+            regime_id = 1  # Risk-On
+        elif pmi > 50 or ma > 0.02:
+            regime_id = 4  # Recovery
+        else:
+            regime_id = 2  # Late-Cycle
+
+        posteriors = np.ones(4) * 0.15
+        posteriors[regime_id - 1] = 0.55
+        posteriors = posteriors / posteriors.sum()
+
+        return RegimeState(
+            regime_id=regime_id,
+            label=REGIME_LABELS[regime_id],
+            confidence=float(posteriors[regime_id - 1]),
             posteriors=posteriors,
             factor_weights=REGIME_WEIGHTS[regime_id],
         )
