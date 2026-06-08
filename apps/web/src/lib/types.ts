@@ -134,6 +134,9 @@ export interface NewsItem {
   publisher: string;
   url: string;
   time: string;
+  summary?: string;
+  symbol?: string;
+  source?: string;
 }
 
 export interface SectorData {
@@ -149,6 +152,7 @@ export interface MarketOverview {
 
 export interface MarketNews {
   news: NewsItem[];
+  source?: string;
 }
 
 export interface MarketSectors {

@@ -1,6 +1,8 @@
 """Data enrichment -- macro context, news, technical indicators, platform data."""
 import logging
 import re
+import threading
+import time
 from datetime import date as _date
 
 import yfinance as yf
@@ -13,6 +15,15 @@ from nq_api.services.constants import (
 
 logger = logging.getLogger(__name__)
 log = logging.getLogger(__name__)
+
+# ── In-memory platform data cache ────────────────────────────────────────────
+# Caches _enrich_with_platform_data results for 10 minutes per (ticker_hint, market).
+# This avoids re-running expensive _fetch_one / FMP calls for repeated queries
+# about the same stock within a short window (e.g., conversation follow-ups).
+_PLATFORM_CACHE: dict[str, tuple[float, str]] = {}  # key -> (timestamp, result_str)
+_PLATFORM_CACHE_TTL = 600  # 10 minutes
+_PLATFORM_CACHE_LOCK = threading.Lock()
+_PLATFORM_CACHE_MAX = 200  # max entries to prevent unbounded growth
 
 
 def _fmt_mcap(mcap, market: str) -> str:

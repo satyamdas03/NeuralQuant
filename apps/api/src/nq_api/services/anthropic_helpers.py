@@ -2,6 +2,8 @@
 import asyncio
 import os
 import logging
+import threading
+import time
 
 import anthropic
 from botocore.exceptions import ClientError as BotoClientError, ConnectionError as BotoConnectionError
@@ -13,6 +15,13 @@ if USE_BEDROCK:
 
 log = logging.getLogger(__name__)
 
+# ── Singleton client pool ───────────────────────────────────────────────────
+# Reuse a single Anthropic client across requests to avoid TCP/TLS handshake
+# overhead on every call. The SDK is thread-safe after creation.
+_client_cache: dict[str, anthropic.Anthropic] = {}
+_client_lock = threading.Lock()
+_warmup_done = False
+
 
 def _is_ollama_proxy() -> bool:
     url = os.environ.get("ANTHROPIC_BASE_URL", "")
@@ -20,23 +29,65 @@ def _is_ollama_proxy() -> bool:
 
 
 def _query_client(api_key: str, timeout: float = 120.0) -> tuple[anthropic.Anthropic, str]:
-    """Create Anthropic client for Ask AI -- bypasses Ollama proxy for speed.
+    """Return a shared Anthropic client for Ask AI -- bypasses Ollama proxy for speed.
 
+    Reuses a singleton client per api_key to avoid repeated TCP/TLS handshakes.
     Returns (client, model_name) tuple.
     """
+    global _warmup_done
+
     if USE_BEDROCK:
-        # Route through AWS Bedrock — zero other code changes needed
         log.info("Using AWS Bedrock for inference")
         return bedrock, _CLOUD_MODEL
+
+    model = _CLOUD_MODEL if _is_ollama_proxy() else MODEL
+
+    cache_key = f"{api_key[:8]}:{timeout}"
+    with _client_lock:
+        if cache_key in _client_cache:
+            return _client_cache[cache_key], model
+
+    # Create client (handle Ollama proxy bypass)
+    saved = None
     if _is_ollama_proxy():
         saved = os.environ.pop("ANTHROPIC_BASE_URL", None)
+    try:
+        c = anthropic.Anthropic(api_key=api_key, timeout=timeout)
+    finally:
+        if saved:
+            os.environ["ANTHROPIC_BASE_URL"] = saved
+
+    with _client_lock:
+        _client_cache[cache_key] = c
+
+    # Fire-and-forget warmup request on first call to establish the connection
+    if not _warmup_done:
+        _warmup_done = True
+        _warm_client_async(c, model)
+
+    return c, model
+
+
+def _warm_client_async(client: anthropic.Anthropic, model: str):
+    """Send a tiny request to warm the Anthropic connection (TCP/TLS handshake).
+
+    This eliminates the 2-5s cold-start penalty on the first real query.
+    Runs in a daemon thread so it doesn't block the caller.
+    """
+    def _do_warmup():
         try:
-            c = anthropic.Anthropic(api_key=api_key, timeout=timeout)
-        finally:
-            if saved:
-                os.environ["ANTHROPIC_BASE_URL"] = saved
-        return c, _CLOUD_MODEL
-    return anthropic.Anthropic(api_key=api_key, timeout=timeout), MODEL
+            t0 = time.monotonic()
+            client.messages.create(
+                model=model,
+                max_tokens=1,
+                messages=[{"role": "user", "content": "hi"}],
+            )
+            elapsed = time.monotonic() - t0
+            log.info("Anthropic warmup complete in %.1fs", elapsed)
+        except Exception as exc:
+            log.debug("Anthropic warmup ping failed (non-fatal): %s", exc)
+
+    threading.Thread(target=_do_warmup, daemon=True, name="anthropic-warmup").start()
 
 
 async def _call_anthropic_with_retry(client, *, model: str, max_tokens: int, system: str, messages: list, tools: list | None = None, tool_choice: dict | None = None, timeout: float = 90.0):

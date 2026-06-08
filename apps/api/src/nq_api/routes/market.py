@@ -243,42 +243,133 @@ async def market_news(n: int = 8):
 
 def _market_news_sync(n: int = 8):
     global _news_cache, _news_ts
-    items = []
-    for attempt in range(2):
-        try:
-            items = yf.Ticker("^GSPC", session=_get_yf_session()).news or []
-            break
-        except Exception as exc:
-            if _is_yf_crumb_error(exc) and attempt == 0:
-                logger.warning("market_news crumb error, resetting session and retrying")
-                _reset_yf_session()
-                continue
-            logger.debug("Market news fetch failed: %s", exc)
-            break
+    result = []
+    source_used = None
+
+    # ── Source 1: FMP market news (primary — works on Render) ──────────────
     try:
-        result = []
-        for item in items[:n]:
-            content = item.get("content") or {}
-            title = content.get("title") or item.get("title", "")
-            publisher = (
-                (content.get("provider") or {}).get("displayName")
-                or item.get("publisher", "")
-            )
-            url = (
-                (content.get("canonicalUrl") or {}).get("url")
-                or item.get("link", "")
-            )
-            pub_date = content.get("pubDate") or str(item.get("providerPublishTime", ""))
-            if title:
+        from nq_data.fmp import get_fmp_client
+        fmp = get_fmp_client()
+        if fmp._enabled:
+            fmp_news = fmp.get_market_news(limit=n + 2)  # fetch extra in case some are duds
+            if fmp_news and len(fmp_news) >= 3:
+                for item in fmp_news[:n]:
+                    if item.get("title"):
+                        result.append({
+                            "title": item["title"],
+                            "publisher": item.get("source", ""),
+                            "url": item.get("url", ""),
+                            "time": item.get("time", ""),
+                            "summary": item.get("summary", ""),
+                            "symbol": item.get("symbol", ""),
+                        })
+                source_used = "fmp"
+                logger.debug("Market news: got %d items from FMP", len(result))
+    except Exception as exc:
+        logger.debug("FMP market news failed: %s", exc)
+
+    # ── Source 2: Finnhub general news (if FMP returned < 5 items) ──────────
+    if len(result) < 5:
+        try:
+            from nq_data.finnhub import get_finnhub_client
+            import httpx as _httpx
+            from datetime import datetime as _dt, timezone as _tz
+            fh = get_finnhub_client()
+            if fh._enabled:
+                # Finnhub general market news: GET /api/v1/news?category=general
+                from_ts = int(time.time()) - 7 * 86400
+                to_ts = int(time.time())
+                params = {
+                    "category": "general",
+                    "token": fh._api_key,
+                    "from": from_ts,
+                    "to": to_ts,
+                }
+                from nq_data.broker import broker as _broker
+                with _broker.acquire("finnhub"):
+                    resp = _httpx.Client(timeout=10.0).get(
+                        "https://finnhub.io/api/v1/news", params=params
+                    )
+                if resp.status_code == 200:
+                    fh_news = resp.json()
+                    if fh_news and isinstance(fh_news, list):
+                        for item in fh_news:
+                            if len(result) >= n:
+                                break
+                            title = item.get("headline", "")
+                            if not title:
+                                continue
+                            # Avoid duplicates by title
+                            existing_titles = {r["title"] for r in result}
+                            if title in existing_titles:
+                                continue
+                            pub_ts = item.get("datetime", 0)
+                            pub_date = ""
+                            if pub_ts:
+                                try:
+                                    pub_date = _dt.fromtimestamp(int(pub_ts), tz=_tz.utc).isoformat()
+                                except (ValueError, OSError):
+                                    pub_date = str(pub_ts)
+                            result.append({
+                                "title": title,
+                                "publisher": item.get("source", ""),
+                                "url": item.get("url", ""),
+                                "time": pub_date,
+                                "summary": item.get("summary", ""),
+                                "symbol": item.get("related", ""),
+                            })
+                        source_used = source_used or "finnhub"
+                        logger.debug("Market news: supplemented to %d items with Finnhub", len(result))
+        except Exception as exc:
+            logger.debug("Finnhub market news failed: %s", exc)
+
+    # ── Source 3: yfinance (only on non-Render, as last resort) ─────────────
+    if len(result) < 5 and not _IS_RENDER:
+        items = []
+        for attempt in range(2):
+            try:
+                items = yf.Ticker("^GSPC", session=_get_yf_session()).news or []
+                break
+            except Exception as exc:
+                if _is_yf_crumb_error(exc) and attempt == 0:
+                    logger.warning("market_news crumb error, resetting session and retrying")
+                    _reset_yf_session()
+                    continue
+                logger.debug("Market news yfinance fetch failed: %s", exc)
+                break
+        try:
+            for item in items:
+                if len(result) >= n:
+                    break
+                content = item.get("content") or {}
+                title = content.get("title") or item.get("title", "")
+                if not title:
+                    continue
+                # Avoid duplicates
+                existing_titles = {r["title"] for r in result}
+                if title in existing_titles:
+                    continue
+                publisher = (
+                    (content.get("provider") or {}).get("displayName")
+                    or item.get("publisher", "")
+                )
+                url = (
+                    (content.get("canonicalUrl") or {}).get("url")
+                    or item.get("link", "")
+                )
+                pub_date = content.get("pubDate") or str(item.get("providerPublishTime", ""))
                 result.append(
                     {"title": title, "publisher": publisher, "url": url, "time": pub_date}
                 )
-        _news_cache = {"news": result}
-        _news_ts = time.time()
-        return {"news": result}
-    except Exception as exc:
-        logger.debug("Market news fetch failed: %s", exc)
-        return {"news": [], "error": str(exc)}
+            source_used = source_used or "yfinance"
+            logger.debug("Market news: supplemented to %d items with yfinance", len(result))
+        except Exception as exc:
+            logger.debug("Market news yfinance parse failed: %s", exc)
+
+    # ── Return results ──────────────────────────────────────────────────────
+    _news_cache = {"news": result}
+    _news_ts = time.time()
+    return {"news": result, "source": source_used}
 
 
 @router.get("/sectors")

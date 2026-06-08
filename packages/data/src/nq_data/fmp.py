@@ -44,6 +44,7 @@ _TTLS: dict[str, int] = {
     "screener": 3600,         # 1 hour
     "historical_prices": 3600,  # 1 hour
     "stock_peers": 86400,       # 24 hours — peer lists rarely change
+    "news": 600,                # 10 minutes
 }
 
 # ── Symbol resolution ────────────────────────────────────────────────────────
@@ -548,6 +549,74 @@ class FMPClient:
             })
         return results if results else None
 
+    def get_market_news(self, limit: int = 10, tickers: str | None = None) -> list[dict] | None:
+        """General market news or per-ticker news from FMP.
+
+        Uses /stable/news/stock-latest for general market news
+        (no ticker filter) or /stable/news/stock for ticker-specific news.
+
+        Returns list of dicts with title, summary, url, source, time, symbol.
+        """
+        if not self._enabled:
+            return None
+
+        if tickers:
+            # Per-ticker news
+            cache_key = f"news:tickers:{tickers}:{limit}"
+            params = {"symbols": tickers, "limit": str(limit)}
+            endpoint_path = "news/stock"
+        else:
+            # General market news
+            cache_key = f"news:market:{limit}"
+            params = {"limit": str(limit)}
+            endpoint_path = "news/stock-latest"
+
+        cached = self._cache_get("news", cache_key)
+        if cached is not None:
+            return cached
+
+        url = f"{self.BASE_URL}/{endpoint_path}"
+        params["apikey"] = self._api_key
+
+        try:
+            with broker.acquire("fmp"):
+                resp = self._client.get(url, params=params)
+            if resp.status_code == 429:
+                log.warning("FMP rate limited for market news")
+                return None
+            if resp.status_code != 200:
+                log.debug("FMP market news returned %d", resp.status_code)
+                return None
+
+            data = resp.json()
+            if not data or not isinstance(data, list):
+                return None
+
+            results = []
+            for item in data[:limit]:
+                title = item.get("title", "")
+                if not title:
+                    continue
+                results.append({
+                    "title": title,
+                    "summary": item.get("text", "")[:500] if item.get("text") else "",
+                    "url": item.get("url", ""),
+                    "source": item.get("site", "") or item.get("source", ""),
+                    "time": item.get("publishedDate", "") or item.get("date", ""),
+                    "symbol": item.get("symbol", ""),
+                    "image": item.get("image", ""),
+                })
+            if not results:
+                return None
+            self._cache_set("news", cache_key, results)
+            return results
+        except httpx.TimeoutException:
+            log.warning("FMP timeout for market news")
+            return None
+        except Exception as exc:
+            log.warning("FMP error market news: %s", exc)
+            return None
+
     def get_stock_peers(self, ticker: str) -> list[str] | None:
         """Stock peers / competitors. Returns list of peer ticker symbols.
 
@@ -667,6 +736,7 @@ class FMPClient:
             "screener": "company-screener",
             "historical_prices": "historical-price-eod/full",
             "stock_peers": "stock-peers",
+            "news": "news/stock-latest",  # overridden in get_market_news
         }
         return mapping.get(category, category)
 
