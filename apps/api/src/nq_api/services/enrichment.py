@@ -43,6 +43,12 @@ def _fmt_mcap(mcap, market: str) -> str:
 def _fetch_relevant_news(question: str, ticker: str | None, n: int = 8) -> list[str]:
     """Pull recent headlines from yfinance for context injection."""
     from nq_api.data_builder import _get_yf_session
+    import os as _os
+    _is_render = bool(_os.environ.get("RENDER"))
+
+    # On Render: yfinance hangs on cloud IPs — skip entirely, use Finnhub news instead
+    if _is_render:
+        return []
 
     priority: list[str] = ["^GSPC", "SPY"]
     if ticker:
@@ -721,6 +727,16 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
 
                 # Primary stock sector/industry context
                 for t in in_universe_tickers[:2]:
+                    if _is_render:
+                        # On Render: skip _fetch_yf_info_cached (yfinance hangs on cloud IPs)
+                        # Use FMP profile data already in fmp_prices
+                        fmp_fb = (fmp_prices.get(t)
+                                  or fmp_prices.get(f"{t}.NS")
+                                  or fmp_prices.get(f"{t}.BO")
+                                  or {})
+                        if fmp_fb.get("sector"):
+                            comp_lines.append(f"  {t} sector: {fmp_fb.get('sector', '')} | industry: {fmp_fb.get('industry', '')}")
+                        continue
                     try:
                         info = _fetch_yf_info_cached(t)
                         if info.get("_cached_ok"):

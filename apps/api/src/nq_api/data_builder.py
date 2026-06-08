@@ -873,10 +873,10 @@ def _fetch_one(ticker: str, market: str, fast_pe: bool = True) -> dict:
         raw_info = {"_cached_ok": True, "_fmp_piotroski": fmp_info.get("_fmp_piotroski")}
 
     if not info:
-        # On GHA, skip yfinance entirely — cloud IPs are rate-limited.
+        # On GHA or Render, skip yfinance entirely — cloud IPs are rate-limited.
         # FMP is the sole data source. If FMP doesn't have the ticker,
         # return empty row rather than hang for minutes on yfinance.
-        if os.environ.get("GITHUB_ACTIONS"):
+        if os.environ.get("GITHUB_ACTIONS") or os.environ.get("RENDER"):
             log.warning("FMP failed for %s on GHA — returning empty row (yfinance blocked)", sym)
             result = _empty_row(ticker)
             with _lock:

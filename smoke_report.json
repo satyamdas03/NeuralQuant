@@ -1,0 +1,107 @@
+{
+  "timestamp": "2026-06-08T01:53:45Z",
+  "api": "https://neuralquant.onrender.com",
+  "total": 14,
+  "passed": 14,
+  "failed": 0,
+  "results": [
+    {
+      "name": "GET /health",
+      "ok": true,
+      "status": 200,
+      "latency_ms": 811,
+      "note": "{'status': 'ok', 'version': '4.0.0'}"
+    },
+    {
+      "name": "GET /health/score-cache",
+      "ok": true,
+      "status": 200,
+      "latency_ms": 1530,
+      "note": "age=4050300s"
+    },
+    {
+      "name": "GET /health/smoke",
+      "ok": true,
+      "status": 200,
+      "latency_ms": 3531,
+      "note": "degraded \u00b7 7/9 checks passed"
+    },
+    {
+      "name": "GET /market/overview",
+      "ok": true,
+      "status": 200,
+      "latency_ms": 1021,
+      "note": "4 indices"
+    },
+    {
+      "name": "GET /stocks/AAPL/meta",
+      "ok": true,
+      "status": 200,
+      "latency_ms": 1084,
+      "note": "price=307.34"
+    },
+    {
+      "name": "GET /stocks/TCS/meta",
+      "ok": true,
+      "status": 200,
+      "latency_ms": 1476,
+      "note": "pe_ttm=16.1"
+    },
+    {
+      "name": "GET /stocks/AAPL/chart",
+      "ok": true,
+      "status": 200,
+      "latency_ms": 1019,
+      "note": "22 bars"
+    },
+    {
+      "name": "GET /stocks/AAPL",
+      "ok": true,
+      "status": 200,
+      "latency_ms": 1330,
+      "note": "score=6"
+    },
+    {
+      "name": "GET /screener/preview US",
+      "ok": true,
+      "status": 200,
+      "latency_ms": 26316,
+      "note": "8 results"
+    },
+    {
+      "name": "GET /market-wrap/today",
+      "ok": true,
+      "status": 200,
+      "latency_ms": 1728,
+      "note": "indices=yes"
+    },
+    {
+      "name": "GET /market/news",
+      "ok": true,
+      "status": 200,
+      "latency_ms": 1439,
+      "note": "3 headlines"
+    },
+    {
+      "name": "GET /market/sectors",
+      "ok": true,
+      "status": 200,
+      "latency_ms": 1634,
+      "note": "11 sectors"
+    },
+    {
+      "name": "POST /query/v2",
+      "ok": true,
+      "status": 200,
+      "latency_ms": 52016,
+      "note": ""
+    },
+    {
+      "name": "GET /auth/me",
+      "ok": true,
+      "status": 200,
+      "latency_ms": 1552,
+      "note": "smoke-test@neuralquant.internal"
+    }
+  ]
+}
