@@ -198,32 +198,27 @@ async def lifespan(app: FastAPI):
 
         threading.Timer(30.0, _refresh_score_cache).start()
     else:
-        # On Render: use quantfactor fast path (no yfinance)
+        # On Render: use quantfactor fast path (no yfinance).
+        # Always rebuild on cold start — a fresh cache from a previous deploy
+        # may contain buggy data that the new code would fix. The quantfactor
+        # path takes ~30s and runs in a delayed thread so it won't block requests.
         def _render_cache_refresh():
             try:
                 from nq_api.cache.score_cache import age_seconds
                 from nq_api.jobs.nightly_score import run_market
                 age_us = age_seconds("US")
                 age_in = age_seconds("IN")
-                us_fresh = age_us is not None and age_us < 3600
-                in_fresh = age_in is not None and age_in < 3600
-                if us_fresh and in_fresh:
-                    log.info("Render: score_cache fresh (US %d min, IN %d min), skipping",
-                             age_us // 60 if age_us else 0, age_in // 60 if age_in else 0)
-                    return
-                log.info("Render: score_cache stale (US age=%s, IN age=%s), rebuilding via quantfactor...", age_us, age_in)
+                log.info("Render: cold-start score_cache rebuild (US age=%s, IN age=%s)",
+                         f"{age_us // 60}min" if age_us else "none",
+                         f"{age_in // 60}min" if age_in else "none")
                 for mkt in ("US", "IN"):
-                    mkt_age = age_us if mkt == "US" else age_in
-                    if mkt_age is not None and mkt_age < 3600:
-                        log.info("Render: %s score_cache fresh (%d min), skipping", mkt, mkt_age // 60)
-                        continue
                     count = run_market(mkt)
-                    log.info("Render: score_cache rebuilt for %s via quantfactor: %d rows", mkt, count)
+                    log.info("Render: score_cache rebuilt for %s: %d rows", mkt, count)
             except Exception as exc:
                 log.warning("Render: score_cache refresh failed: %s", exc)
 
         threading.Timer(30.0, _render_cache_refresh).start()
-        log.info("Render detected — score_cache refresh scheduled (top-50 per market)")
+        log.info("Render detected — score_cache cold-start rebuild scheduled (top-50 per market)")
 
     # Pre-warm enrichment cache for top tickers (RSI/MACD/ATR/insider/news)
     # Runs after 45s delay to avoid conflicting with score_cache refresh

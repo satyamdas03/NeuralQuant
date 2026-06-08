@@ -102,7 +102,7 @@ def cron_nightly_score(
     _verify_secret(authorization)
     if not _score_lock.acquire(blocking=False):
         return {"status": "already_running", "market": market, "message": "Score rebuild is already running. Use GET /cron/nightly-score/status to check progress."}
-    threading.Thread(target=_run_score_bg, args=(market,), daemon=True).start()
+    threading.Thread(target=_run_score_bg, args=(market,), daemon=False).start()
     return {"status": "started", "market": market, "message": "Score rebuild started in background. Use GET /cron/nightly-score/status to check progress."}
 
 
