@@ -27,73 +27,9 @@ class SocialItem:
 
 def fetch_stocktwits_public(ticker: str) -> SocialItem | None:
     """
-    Fetch sentiment from StockTwits public API.
-    Completely free, no API key required.
-    Rate limit: ~200 req/hr from same IP.
+    StockTwits public API — DISABLED (returns 403 for all symbols as of 2025).
     """
-    try:
-        _stocktwits_base = os.environ.get("STOCKTWITS_URL", "https://api.stocktwits.com/api/2/streams/symbol/{ticker}.json")
-        url = _stocktwits_base.format(ticker=ticker)
-        resp = httpx.get(url, timeout=8.0)
-        if resp.status_code != 200:
-            return None
-
-        data = resp.json()
-        symbol_data = data.get("symbol", {})
-        messages = data.get("messages", [])
-
-        if not messages:
-            return SocialItem(
-                ticker=ticker.upper(),
-                source="stocktwits",
-                bullish_pct=None,
-                mention_count=0,
-                top_topics=[],
-            )
-
-        # Count bullish/bearish from sentiment field
-        bull = 0
-        bear = 0
-        topics: dict[str, int] = {}
-
-        for msg in messages[:50]:
-            sentiment = (msg.get("entities", {}).get("sentiment") or {}).get("basic") or ""
-            if sentiment == "Bullish":
-                bull += 1
-            elif sentiment == "Bearish":
-                bear += 1
-
-            # Extract trending topics from message body
-            body = msg.get("body", "")
-            # Simple: extract hashtags as topics
-            for word in body.split():
-                if word.startswith("$") and len(word) > 1:
-                    tag = word[1:].upper()
-                    topics[tag] = topics.get(tag, 0) + 1
-
-        total_scored = bull + bear
-        bullish_pct = (bull / total_scored * 100) if total_scored > 0 else None
-        mention_count = len(messages)
-
-        # Top 5 topics
-        top_topics = [t for t, _ in sorted(topics.items(), key=lambda x: -x[1])[:5]]
-
-        logger.debug(
-            "StockTwits %s: %d msgs, %d bull/%d bear, bullish_pct=%s",
-            ticker, mention_count, bull, bear, bullish_pct,
-        )
-
-        return SocialItem(
-            ticker=ticker.upper(),
-            source="stocktwits",
-            bullish_pct=bullish_pct,
-            mention_count=mention_count,
-            top_topics=top_topics,
-        )
-
-    except Exception as e:
-        logger.debug("StockTwits public fetch failed for %s: %s", ticker, e)
-        return None
+    return None
 
 
 def fetch_social_buzz_yfinance(ticker: str, market: str = "US") -> SocialItem | None:

@@ -64,8 +64,27 @@ def _load_tickers_from_supabase() -> list[dict]:
         query={"select": "ticker,market,sector,sub_sector,qtr_beta,yr_beta,pe_ratio,computed_at", "limit": "10000"},
     )
     if isinstance(data, list) and data:
-        log.info("Loaded %s tickers from quantfactor_universe", len(data))
-        return data
+        import re
+        _GARBAGE = re.compile(
+            r"(?:LIGHT\s*GREEN|DARK\s*GREEN|LIGHT\s*RED|DARK\s*RED|WHITE|COLOR|SCORING|"
+            r"GROWTH|RETURN|VALUATION|RISK|RATIOS|SOURCE|FUTURE|BENCHMARK|HIERARCH|"
+            r"MATCHED|WORST|BEST|CHEAPEST|EXPENSIVE|SAFEST|RISKIEST|SWEET\s*SPOT|"
+            r"UNCOLORED|LOSS.MAKING|NETPROFIT|EXCLUDED|YFINANCE|YOY|TTM|QOQ|"
+            r"PERIOD|MARKET\s*CAP|REVENUE|DII|FII|PB|EV/|SUM|Q\d+\(|^[A-Z]{1,2}$)",
+            re.IGNORECASE,
+        )
+        filtered = []
+        for r in data:
+            t = str(r.get("ticker", "")).strip().upper()
+            if not t or len(t) > 8 or len(t) < 2:
+                continue
+            if _GARBAGE.search(t):
+                continue
+            if not any(c.isalpha() for c in t):
+                continue
+            filtered.append(r)
+        log.info("Loaded %s tickers from quantfactor_universe (filtered from %s)", len(filtered), len(data))
+        return filtered
 
     # Fallback 1: anjali_enrichment (during migration period)
     data = _supabase_rest(

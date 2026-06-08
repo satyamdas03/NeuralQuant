@@ -165,11 +165,27 @@ def _load_qf_universe():
 
     if data and isinstance(data, list):
         _QF_UNIVERSE = {}
+        import re
+        _GARBAGE = re.compile(
+            r"(?:LIGHT\s*GREEN|DARK\s*GREEN|LIGHT\s*RED|DARK\s*RED|WHITE|COLOR|SCORING|"
+            r"GROWTH|RETURN|VALUATION|RISK|RATIOS|SOURCE|FUTURE|BENCHMARK|HIERARCH|"
+            r"MATCHED|WORST|BEST|CHEAPEST|EXPENSIVE|SAFEST|RISKIEST|SWEET\s*SPOT|"
+            r"UNCOLORED|LOSS.MAKING|NETPROFIT|EXCLUDED|YFINANCE|YOY|TTM|QOQ|"
+            r"PERIOD|MARKET\s*CAP|REVENUE|DII|FII|PB|EV/|SUM|Q\d+\(|^[A-Z]{1,2}$)",
+            re.IGNORECASE,
+        )
         for row in data:
-            key = f"{row.get('ticker', '')}:{row.get('market', 'US')}"
+            t = str(row.get("ticker", "")).strip().upper()
+            if not t or len(t) > 8 or len(t) < 2:
+                continue
+            if _GARBAGE.search(t):
+                continue
+            if not any(c.isalpha() for c in t):
+                continue
+            key = f"{t}:{row.get('market', 'US')}"
             _QF_UNIVERSE[key] = row
         _QF_CACHE_LOADED_AT = now
-        logger.info("QuantFactor universe loaded: %s rows", len(_QF_UNIVERSE))
+        logger.info("QuantFactor universe loaded: %s rows (filtered from %s)", len(_QF_UNIVERSE), len(data))
     else:
         logger.warning("QuantFactor universe load failed — keeping %s cached rows", len(_QF_UNIVERSE))
 

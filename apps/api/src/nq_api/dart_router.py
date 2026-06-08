@@ -194,7 +194,7 @@ async def handle_snap(req: QueryRequest) -> QueryResponse:
         if not cached:
             cached = await asyncio.to_thread(score_cache.read_one, ticker_upper, market, 86400)
             if cached:
-                log.info("SNAP: serving stale cache (>%5min) for %s/%s", ticker_upper, market)
+                log.info("SNAP: serving stale cache (>5min) for %s/%s", ticker_upper, market)
         if not cached:
             cached = await asyncio.to_thread(score_cache.read_one, ticker_upper, market, 999999999)
             if cached:
@@ -619,7 +619,7 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
             # Tier 2: stale cache (≤24 h) — nightly GHA data
             cached = score_cache.read_one(ticker, market, max_age_seconds=86400)
             if cached:
-                log.info("DEEP context: serving stale cache (>%15min) for %s/%s", ticker, market)
+                log.info("DEEP context: serving stale cache (>15min) for %s/%s", ticker, market)
         if not cached:
             # Tier 3: any age — better than no data
             cached = score_cache.read_one(ticker, market, max_age_seconds=999999999)

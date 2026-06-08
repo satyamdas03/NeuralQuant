@@ -116,7 +116,7 @@ def _run_market_from_quantfactor(market: str) -> int:
             price = float(fb.get("price") or 0)
 
         # Derive composite_score from quantfactor composite (scale 0-1 → 0-10)
-        qf_composite = r.get("composite")
+        qf_composite = r.get("composite_score")
         composite_score = float(qf_composite) * 10 if qf_composite is not None else 5.0
 
         # Derive percentiles from quantfactor scores (scale 0-4 → 0-1)
@@ -149,28 +149,28 @@ def _run_market_from_quantfactor(market: str) -> int:
             "insider_percentile": 0.5,
             "current_price": price,
             "analyst_target": 0.0,
-            "pe_ttm": float(r.get("pe_ttm") or 0),
-            "market_cap": float(r.get("market_cap") or 0),
-            "week52_high": float(r.get("week52_high") or 0),
-            "week52_low": float(r.get("week52_low") or 0),
+            "pe_ttm": float(r.get("pe_ratio") or 0),
+            "market_cap": float(r.get("market_cap_b") or 0) * 1e9 if r.get("market_cap_b") is not None else 0.0,
+            "week52_high": 0.0,
+            "week52_low": 0.0,
             "momentum_raw": 0.0,
             "gross_profit_margin": 0.0,
             "piotroski": 5,
             "pb_ratio": float(r.get("pb_ratio") or 0),
-            "beta": float(r.get("beta") or 0),
+            "beta": float(r.get("yr_beta") or r.get("qtr_beta") or 0),
             "realized_vol_1y": 0.0,
             "short_interest_pct": 0.0,
             "insider_cluster_score": 0.5,
             "accruals_ratio": 0.0,
             "revenue_growth_yoy": 0.0,
             "debt_equity": 0.0,
-            "roe": float(r.get("roe") or 0),
+            "roe": 0.0,
             "fcf_yield": 0.0,
-            "long_name": r.get("name", "") or t,
-            "industry": r.get("industry", "") or "",
-            "analyst_rec": r.get("analyst_rec", "") or "",
+            "long_name": r.get("ticker", "") or t,
+            "industry": r.get("sub_sector", "") or r.get("sector", "") or "",
+            "analyst_rec": "",
             "earnings_date": "",
-            "dividend_yield": float(r.get("dividend_yield") or 0),
+            "dividend_yield": 0.0,
         })
 
     if not all_results:

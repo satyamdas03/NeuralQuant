@@ -84,7 +84,7 @@ async def get_stock_score(
                 score_cache.read_one, ticker_upper, market, max_age_seconds=86400
             )
             if cached:
-                log.info("score_cache: serving stale (>%5min) for %s/%s", ticker_upper, market)
+                log.info("score_cache: serving stale (>5min) for %s/%s", ticker_upper, market)
         if not cached:
             # Tier 3: any age — better than 504
             cached = await asyncio.to_thread(

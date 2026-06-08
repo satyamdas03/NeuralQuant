@@ -122,24 +122,24 @@ class FinnhubClient:
         return indicators
 
     def get_candles(
-        self, ticker: str, resolution: str = "D", days: int = 200
+        self, ticker: str, resolution: str = "D", days: int = 200, market: str = "US"
     ) -> list[dict] | None:
         """Historical OHLCV candles. Tries Finnhub first, falls back to yfinance."""
         # Try Finnhub API first
-        candles = self._fetch_candles_finnhub(ticker, resolution, days)
+        candles = self._fetch_candles_finnhub(ticker, resolution, days, market)
         if candles:
             return candles
         # Fallback: yfinance (free, no API key needed)
-        return self._fetch_candles_yfinance(ticker, days)
+        return self._fetch_candles_yfinance(ticker, days, market)
 
     def _fetch_candles_finnhub(
-        self, ticker: str, resolution: str = "D", days: int = 200
+        self, ticker: str, resolution: str = "D", days: int = 200, market: str = "US"
     ) -> list[dict] | None:
         """Fetch candles from Finnhub API (requires premium for stock/candle)."""
         now = int(time.time())
         fr = now - days * 86400
         params = {
-            "symbol": self._resolve_symbol(ticker),
+            "symbol": self._resolve_symbol(ticker, market),
             "resolution": resolution,
             "from": str(fr),
             "to": str(now),
@@ -168,7 +168,7 @@ class FinnhubClient:
         ]
 
     def _fetch_candles_yfinance(
-        self, ticker: str, days: int = 250
+        self, ticker: str, days: int = 250, market: str = "US"
     ) -> list[dict] | None:
         """Fetch OHLCV from yfinance as free fallback for candles.
 
@@ -180,8 +180,9 @@ class FinnhubClient:
             try:
                 import yfinance as yf
                 with broker.acquire("yfinance"):
+                    yf_sym = ticker + ".NS" if market == "IN" and "." not in ticker else ticker
                     df = yf.download(
-                        self._resolve_symbol(ticker),
+                        yf_sym,
                         period=f"{days}d",
                         interval="1d",
                         progress=False,
@@ -486,8 +487,25 @@ class FinnhubClient:
             if resp.status_code == 429:
                 log.warning("Finnhub rate limited for %s/%s", endpoint, ticker)
                 return None
+            if resp.status_code in (301, 301, 303, 307):
+                # Redirect loop — free tier exhausted or API endpoint moved.
+                # treat as auth failure and apply cooldown
+                self._disabled_until = time.monotonic() + self._AUTH_COOLDOWN
+                log.warning("Finnhub redirect (endpoint=%s, status=%d) — free tier likely exhausted, cooldown %ds",
+                            endpoint, resp.status_code, self._AUTH_COOLDOWN)
+                return None
             if resp.status_code != 200:
                 log.debug("Finnhub %s/%s returned %d", endpoint, ticker, resp.status_code)
+                return None
+
+            # Guard against HTML redirect responses (302→200 after follow_redirects=True)
+            # that land on finnhub.io homepage instead of API JSON
+            effective_url = str(resp.url)
+            content_type = resp.headers.get("content-type", "")
+            if effective_url.rstrip("/") != url.rstrip("/") or "text/html" in content_type:
+                self._disabled_until = time.monotonic() + self._AUTH_COOLDOWN
+                log.warning("Finnhub redirect/auth failure (endpoint=%s, landed=%s) — cooldown %ds",
+                            endpoint, effective_url, self._AUTH_COOLDOWN)
                 return None
 
             # Guard against empty response body (common on free-tier for

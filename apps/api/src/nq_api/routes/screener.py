@@ -45,7 +45,11 @@ def _get_live_regime_id(market: str = "US") -> int:
     BUG-004 fix: _LiveMacro has no regime_id field so hasattr() always fails.
     Use the engine directly instead of reading a non-existent attribute."""
     try:
-        macro = fetch_real_macro()
+        if market == "IN":
+            from nq_api.data_builder import fetch_real_macro_in
+            macro = fetch_real_macro_in()
+        else:
+            macro = fetch_real_macro()
         engine = get_signal_engine()
         regime = engine._get_regime(macro, market)
         return regime.regime_id
@@ -67,7 +71,7 @@ async def screener_preview(market: str = "US", n: int = 8) -> ScreenerResponse:
             rows = await asyncio.to_thread(score_cache.read_top, market, n=n, max_age_seconds=86400)
             if rows:
                 cache_age = "stale"
-                logger.info("screener_preview: serving stale cache (>%5min) for market=%s", market)
+                logger.info("screener_preview: serving stale cache (>5min) for market=%s", market)
         if not rows:
             # Tier 3: any age — better than empty response
             rows = await asyncio.to_thread(score_cache.read_top, market, n=n, max_age_seconds=999999999)

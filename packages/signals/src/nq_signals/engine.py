@@ -54,7 +54,7 @@ class SignalEngine:
                     "india_vix_20d_chg": float(getattr(macro, "india_vix_20d_chg", 0.0) or 0.0),
                     "nifty_vs_200ma": float(getattr(macro, "nifty_vs_200ma", 0.0) or 0.0),
                     "inr_usd_1m_chg": float(getattr(macro, "inr_usd_1m_chg", 0.0) or 0.0),
-                    "nifty_1m_return": float(getattr(macro, "nifty_1m_return", 0.0) or 0.0),
+                    "nifty_1m_return": float(getattr(macro, "nifty_return_1m", 0.0) or 0.0),
                 }])
                 return self._regime_detector_in.get_current_state(macro_row)
 

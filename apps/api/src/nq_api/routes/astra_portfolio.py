@@ -179,7 +179,7 @@ def _fetch_quantfactor_pool(
             continue
 
         # Min risk score filter
-        risk_threshold = require_risk_strict if require_risk_str is not None else min_risk_score
+        risk_threshold = require_risk_strict if require_risk_strict is not None else min_risk_score
         if risk_threshold is not None and risk < risk_threshold:
             continue
 
