@@ -3,6 +3,7 @@ import logging
 from fastapi import APIRouter, Depends
 
 from nq_api.auth import User, get_current_user
+from nq_api.auth.deps import get_current_user_smoke
 from nq_api.auth.models import TIER_LIMITS
 from nq_api.cache.score_cache import _supabase_rest
 from nq_api.schemas import UserProfile
@@ -42,7 +43,7 @@ def auth_stats(user: User = Depends(get_current_user)):
 
 
 @router.get("/me")
-def me(user: User = Depends(get_current_user)) -> dict:
+def me(user: User = Depends(get_current_user_smoke)) -> dict:
     limits = TIER_LIMITS.get(user.tier, TIER_LIMITS["free"])
     return {
         "id": user.id,

@@ -90,6 +90,8 @@ services:
         sync: false
       - key: BEDROCK_RUNTIME_REGION
         value: "us-east-1"
+      - key: SMOKE_TEST_SECRET
+        sync: false
     plan: pro
     healthCheckPath: /health
 

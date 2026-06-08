@@ -154,12 +154,46 @@ def get_current_user(
 
 
 def get_current_user_optional(
+    x_smoke_secret: str | None = Header(default=None),
     authorization: str | None = Header(default=None),
 ) -> User | None:
-    """Return user if token valid, else None (no raise)."""
+    """Return user if token valid, else None (no raise).
+    Also accepts X-Smoke-Secret for automated smoke tests."""
+    _smoke_secret = os.environ.get("SMOKE_TEST_SECRET", "")
+    if _smoke_secret and x_smoke_secret == _smoke_secret:
+        return User(
+            id="smoke-test-00000000-0000-0000-0000-000000000000",
+            email="smoke-test@neuralquant.internal",
+            tier="pro",
+            paypal_subscription_id=None,
+            subscription_status="active",
+            referral_bonus_queries=0,
+        )
     if not _extract_bearer(authorization):
         return None
     try:
         return get_current_user(authorization)
     except HTTPException:
         return None
+
+
+def get_current_user_smoke(
+    x_smoke_secret: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
+) -> User:
+    """Auth dependency that bypasses auth when X-Smoke-Secret matches
+    SMOKE_TEST_SECRET env var. Used by smoke-test scripts for automated
+    endpoint verification. Falls back to normal JWT auth otherwise."""
+    _smoke_secret = os.environ.get("SMOKE_TEST_SECRET", "")
+    if _smoke_secret and x_smoke_secret == _smoke_secret:
+        # Smoke test bypass — return a synthetic pro-tier user
+        return User(
+            id="smoke-test-00000000-0000-0000-0000-000000000000",
+            email="smoke-test@neuralquant.internal",
+            tier="pro",
+            paypal_subscription_id=None,
+            subscription_status="active",
+            referral_bonus_queries=0,
+        )
+    # No smoke secret match — require normal auth
+    return get_current_user(authorization=authorization)

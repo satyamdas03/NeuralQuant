@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager
 
 log = logging.getLogger(__name__)
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Header
 from fastapi.middleware.cors import CORSMiddleware
 
 from nq_api.config import CORS_ORIGINS, CORS_ORIGIN_REGEX, FRONTEND_URL
@@ -479,6 +479,165 @@ app.include_router(testing_router)
 @app.get("/health")
 def health():
     return {"status": "ok", "version": "4.0.0"}
+
+
+@app.get("/health/smoke")
+async def health_smoke(x_cron_secret: str | None = Header(default=None)):
+    """Deep health check — tests all critical dependencies in parallel.
+    Protected by CRON_SECRET header (same as /cron/* endpoints)."""
+    import os, time
+    from datetime import datetime, timezone
+
+    _secret = os.environ.get("CRON_SECRET", "")
+    if _secret and x_cron_secret != _secret:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="invalid CRON_SECRET")
+
+    checks: dict[str, dict] = {}
+    failures: list[str] = []
+
+    async def _check(name: str, coro):
+        t0 = time.monotonic()
+        try:
+            result = await coro
+            elapsed = int((time.monotonic() - t0) * 1000)
+            result["latency_ms"] = elapsed
+            checks[name] = result
+            if not result.get("ok"):
+                failures.append(f"{name}: {result.get('error', 'unknown')}")
+        except Exception as exc:
+            elapsed = int((time.monotonic() - t0) * 1000)
+            checks[name] = {"ok": False, "latency_ms": elapsed, "error": str(exc)}
+            failures.append(f"{name}: {exc}")
+
+    # ── Individual check coroutines ─────────────────────────────────────
+
+    async def _check_supabase():
+        from nq_api.cache.score_cache import _supabase_rest
+        data = await asyncio.to_thread(
+            _supabase_rest, "score_cache", "GET",
+            {"select": "computed_at", "order": "computed_at.desc", "limit": "1"},
+        )
+        if isinstance(data, list) and data:
+            return {"ok": True, "last_computed": data[0].get("computed_at")}
+        return {"ok": False, "error": "no score_cache rows"}
+
+    async def _check_fmp():
+        def _fmp_quote():
+            from nq_data.fmp import get_fmp_client
+            fmp = get_fmp_client()
+            return fmp.get_quote("AAPL")
+        result = await asyncio.wait_for(asyncio.to_thread(_fmp_quote), timeout=8.0)
+        if result and (isinstance(result, dict) and result.get("price")):
+            return {"ok": True, "aapl_price": result.get("price")}
+        return {"ok": False, "error": "no price in FMP quote"}
+
+    async def _check_anthropic():
+        def _anthropic_ping():
+            import anthropic
+            api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+            if not api_key:
+                return {"ok": False, "error": "ANTHROPIC_API_KEY not set"}
+            client = anthropic.Anthropic(api_key=api_key, timeout=10.0)
+            resp = client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=5,
+                messages=[{"role": "user", "content": "hi"}],
+            )
+            return {"ok": True, "model": resp.model}
+        return await asyncio.wait_for(asyncio.to_thread(_anthropic_ping), timeout=15.0)
+
+    async def _check_market_overview():
+        from nq_api.routes.market import _market_overview_sync
+        result = await asyncio.wait_for(asyncio.to_thread(_market_overview_sync, "US"), timeout=8.0)
+        indices = result.get("indices", []) if isinstance(result, dict) else []
+        if indices:
+            return {"ok": True, "indices_count": len(indices)}
+        return {"ok": False, "error": "no indices returned"}
+
+    async def _check_stock_meta(ticker: str, market: str):
+        """Hit /stocks/{ticker}/meta internally via httpx."""
+        import httpx
+        try:
+            async with httpx.AsyncClient(timeout=12.0) as client:
+                r = await client.get(
+                    f"http://127.0.0.1:10000/stocks/{ticker}/meta",
+                    params={"market": market},
+                )
+            if r.status_code == 200:
+                data = r.json()
+                if data.get("current_price"):
+                    fields = [k for k in ("pe_ttm", "pb_ratio", "beta", "sector") if data.get(k) is not None]
+                    return {"ok": True, "fields_present": fields}
+                return {"ok": False, "error": "no current_price in meta"}
+            return {"ok": False, "error": f"HTTP {r.status_code}"}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}
+
+    async def _check_screener_preview():
+        from nq_api.cache.score_cache import read_top
+        rows = await asyncio.wait_for(asyncio.to_thread(read_top, "US", 8), timeout=5.0)
+        return {"ok": bool(rows), "results_count": len(rows) if rows else 0}
+
+    async def _check_score_cache_age():
+        from nq_api.cache.score_cache import _supabase_rest
+        data = await asyncio.to_thread(
+            _supabase_rest, "score_cache", "GET",
+            {"select": "computed_at", "order": "computed_at.desc", "limit": "1"},
+        )
+        if isinstance(data, list) and data:
+            last = data[0].get("computed_at")
+            if last:
+                dt = datetime.fromisoformat(last.replace("Z", "+00:00"))
+                age = int((datetime.now(timezone.utc) - dt).total_seconds())
+                return {"ok": age < 7200, "age_seconds": age}
+        return {"ok": False, "age_seconds": None}
+
+    async def _check_stock_snapshot():
+        from nq_api.cache.score_cache import _supabase_rest
+        data = await asyncio.to_thread(
+            _supabase_rest, "stock_snapshot", "GET",
+            {"select": "id", "limit": "0"},
+        )
+        # PostgREST doesn't return count with limit=0, use prefer count
+        # Fallback: just try to read 1 row
+        data2 = await asyncio.to_thread(
+            _supabase_rest, "stock_snapshot", "GET",
+            {"select": "ticker", "limit": "1"},
+        )
+        has_rows = isinstance(data2, list)
+        return {"ok": has_rows}
+
+    # ── Run all checks in parallel ──────────────────────────────────────
+    await asyncio.gather(
+        _check("supabase", _check_supabase()),
+        _check("fmp_api", _check_fmp()),
+        _check("anthropic_api", _check_anthropic()),
+        _check("market_overview", _check_market_overview()),
+        _check("stock_meta_aapl", _check_stock_meta("AAPL", "US")),
+        _check("stock_meta_tcs", _check_stock_meta("TCS", "IN")),
+        _check("screener_preview", _check_screener_preview()),
+        _check("score_cache", _check_score_cache_age()),
+        _check("stock_snapshot", _check_stock_snapshot()),
+    )
+
+    # Determine overall status
+    ok_count = sum(1 for c in checks.values() if c.get("ok"))
+    total = len(checks)
+    if ok_count == total:
+        status = "ok"
+    elif ok_count == 0:
+        status = "down"
+    else:
+        status = "degraded"
+
+    return {
+        "status": status,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "checks": checks,
+        "failures": failures,
+        "summary": f"{ok_count}/{total} checks passed",
+    }
 
 
 @app.get("/health/score-cache")
