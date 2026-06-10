@@ -1,0 +1,19 @@
+PROPRIETARY SOFTWARE LICENSE
+
+Copyright (c) 2026 Satyam Das. All rights reserved.
+
+This software, including all source code, documentation, designs, data
+schemas, scoring methodologies (including the IRS%, G Score, and Risk
+Efficiency Score systems), agent prompts, and associated assets
+(collectively, "the Software"), is proprietary and confidential.
+
+NO LICENSE IS GRANTED. No right to use, copy, modify, merge, publish,
+distribute, sublicense, or sell the Software is granted to any party
+without a written agreement signed by the copyright holder.
+
+Prior references to the MIT license were made in error; no LICENSE file
+was ever distributed with this repository. Any versions obtained while
+the repository was temporarily public remain subject to applicable
+copyright law; all versions are proprietary.
+
+Contact: satyamdas03@gmail.com for acquisition or licensing inquiries.
