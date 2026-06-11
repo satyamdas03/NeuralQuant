@@ -7,6 +7,7 @@ _env_path = Path(__file__).resolve().parents[2] / ".env"
 load_dotenv(_env_path, override=True)
 
 import logging
+import os
 import threading
 import time
 from contextlib import asynccontextmanager
@@ -382,6 +383,44 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── Global NaN/Inf JSON sanitizer (bug 110 class) ────────────────────────────
+# Last line of defense: no route can 500 on non-finite floats in a JSON body.
+import json as _json
+import math as _math
+from starlette.middleware.base import BaseHTTPMiddleware
+
+
+def _clean_nonfinite(obj):
+    if isinstance(obj, float):
+        return None if (_math.isnan(obj) or _math.isinf(obj)) else obj
+    if isinstance(obj, dict):
+        return {k: _clean_nonfinite(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_clean_nonfinite(v) for v in obj]
+    return obj
+
+
+class NaNSanitizerMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        resp = await call_next(request)
+        ctype = resp.headers.get("content-type", "")
+        if not ctype.startswith("application/json"):
+            return resp
+        body = b""
+        async for chunk in resp.body_iterator:
+            body += chunk
+        try:
+            cleaned = _json.dumps(_clean_nonfinite(_json.loads(body)))
+            from starlette.responses import Response as _Resp
+            return _Resp(cleaned, status_code=resp.status_code,
+                         media_type="application/json")
+        except Exception:
+            from starlette.responses import Response as _Resp
+            return _Resp(body, status_code=resp.status_code, media_type=ctype)
+
+
+app.add_middleware(NaNSanitizerMiddleware)
+
 # ── Visitor tracking (IP-based unique visitors per day) ─────────────────────
 import hashlib
 from starlette.requests import Request
@@ -457,7 +496,42 @@ app.include_router(testing_router)
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "version": "4.0.2"}
+    """Liveness + data-freshness in one call (bug class: stale cache invisible)."""
+    age_hours = None
+    rows = None
+    try:
+        from nq_api.cache.score_cache import _supabase_rest
+        data = _supabase_rest(
+            "score_cache", "GET",
+            {"select": "computed_at", "order": "computed_at.desc", "limit": "1"},
+        )
+        if isinstance(data, list) and data and data[0].get("computed_at"):
+            from datetime import datetime, timezone
+            ts = datetime.fromisoformat(data[0]["computed_at"].replace("Z", "+00:00"))
+            age_hours = round((datetime.now(timezone.utc) - ts).total_seconds() / 3600, 1)
+        # Row count via PostgREST Content-Range header (helper doesn't expose it)
+        import httpx
+        sb_url = os.environ.get("SUPABASE_URL", "")
+        sb_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+        if sb_url and sb_key:
+            r = httpx.head(
+                f"{sb_url}/rest/v1/score_cache?select=ticker",
+                headers={"apikey": sb_key, "Authorization": f"Bearer {sb_key}",
+                         "Prefer": "count=exact", "Range": "0-0"},
+                timeout=3.0,
+            )
+            cr = r.headers.get("content-range", "")
+            if "/" in cr and cr.split("/")[-1].isdigit():
+                rows = int(cr.split("/")[-1])
+    except Exception:
+        pass
+    return {
+        "status": "ok",
+        "version": "4.1.0",
+        "score_cache_age_hours": age_hours,
+        "score_cache_rows": rows,
+        "demo_mode": os.getenv("DEMO_MODE", "false").lower() == "true",
+    }
 
 
 @app.get("/health/smoke")
