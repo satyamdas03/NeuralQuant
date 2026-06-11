@@ -33,6 +33,8 @@ TABLES = [
     "users",
     "shared_analyses",
     "agent_logs",
+    "signal_log",
+    "news_classifications",
 ]
 
 

@@ -340,3 +340,34 @@ CREATE TABLE IF NOT EXISTS "agent_logs" (
     "metadata" jsonb,
     "created_at" timestamp with time zone
 );
+
+CREATE TABLE IF NOT EXISTS "signal_log" (
+    "id" bigint,
+    "ticker" text,
+    "market" text,
+    "signal_date" timestamp with time zone,
+    "composite_score" double precision,
+    "edge" double precision,
+    "direction" text,
+    "entry_price" double precision,
+    "bet" double precision,
+    "strategy" text,
+    "exit_price" double precision,
+    "pnl" double precision,
+    "resolved" boolean,
+    "resolution_date" timestamp with time zone,
+    "created_at" timestamp with time zone
+);
+
+CREATE TABLE IF NOT EXISTS "news_classifications" (
+    "id" bigint,
+    "ticker" text,
+    "headline" text,
+    "source" text,
+    "published_at" timestamp with time zone,
+    "direction" text,
+    "materiality" double precision,
+    "confidence" double precision,
+    "rationale" text,
+    "classified_at" timestamp with time zone
+);
