@@ -840,11 +840,42 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
         return None
 
 
+# ── DEMO_MODE: PARA-DEBATE needs an LLM key; serve the bundled sample ────────
+from pathlib import Path as _Path
+
+_DEMO_SAMPLE_PATH = (_Path(__file__).resolve().parents[5]
+                     / "data" / "demo_snapshot" / "sample_paradebate_RELIANCE.json")
+
+
+def _demo_no_llm() -> bool:
+    demo = os.getenv("DEMO_MODE", "false").lower() == "true"
+    has_llm = bool(os.getenv("ANTHROPIC_API_KEY")) or \
+        os.getenv("USE_BEDROCK", "false").lower() == "true"
+    return demo and not has_llm
+
+
+def _demo_payload() -> dict:
+    sample = None
+    try:
+        sample = json.loads(_DEMO_SAMPLE_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+    return {
+        "demo": True,
+        "message": "PARA-DEBATE requires an LLM key — add ANTHROPIC_API_KEY "
+                   "(or AWS Bedrock credentials with USE_BEDROCK=true) to .env",
+        "sample": sample,
+    }
+
+
 @router.post("", response_model=AnalystResponse)
 async def run_analyst(
     req: AnalystRequest,
     user: User | None = Depends(get_current_user_optional),
 ) -> AnalystResponse:
+    if _demo_no_llm():
+        from fastapi.responses import JSONResponse
+        return JSONResponse(_demo_payload())
     ticker = req.ticker.upper()
 
     # Cache-first: try building context from score_cache (fast, avoids blocking event loop)
@@ -912,6 +943,14 @@ async def run_analyst_stream(
     """
     ticker = req.ticker.upper()
     market = req.market
+
+    if _demo_no_llm():
+        async def demo_gen():
+            payload = _demo_payload()
+            result = payload.get("sample") or payload
+            yield f"data: {json.dumps({'status': 'done', 'result': result, 'demo': True})}\n\n"
+            yield "data: [DONE]\n\n"
+        return StreamingResponse(demo_gen(), media_type="text/event-stream")
 
     async def generate():
         # ── Phase 1: build context while streaming keep-alive pings ──

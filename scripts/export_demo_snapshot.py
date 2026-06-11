@@ -7,6 +7,7 @@ Reads SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY from apps/api/.env.
 from __future__ import annotations
 
 import csv
+import json
 import pathlib
 import sys
 
@@ -59,7 +60,11 @@ def export_table(client: httpx.Client, base: str, table: str) -> int:
     with open(out, "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=cols)
         w.writeheader()
-        w.writerows(rows)
+        for row in rows:
+            # dict/list values (jsonb / array columns) must be JSON, not
+            # Python repr, so COPY ... FORMAT csv can load them into jsonb.
+            w.writerow({k: (json.dumps(v) if isinstance(v, (dict, list)) else v)
+                        for k, v in row.items()})
     print(f"  OK   {table}: {len(rows)} rows -> {out.relative_to(ROOT)}")
     return len(rows)
 
