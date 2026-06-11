@@ -7,9 +7,14 @@ type CookieToSet = { name: string; value: string; options?: CookieOptions };
 export async function middleware(req: NextRequest) {
   let response = NextResponse.next({ request: req });
 
+  // Demo stack runs without real Supabase auth — skip the cookie refresh.
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseKey) return response;
+
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseKey,
     {
       cookies: {
         getAll() {
@@ -29,7 +34,12 @@ export async function middleware(req: NextRequest) {
   );
 
   // Refresh session cookie so logged-in users stay authenticated.
-  await supabase.auth.getUser();
+  // Never let an unreachable auth backend take down every route.
+  try {
+    await supabase.auth.getUser();
+  } catch {
+    // ignore — request proceeds without a refreshed session
+  }
 
   return response;
 }
