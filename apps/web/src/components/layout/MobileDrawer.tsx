@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useCallback } from "react";
 import Link from "next/link";
@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   ScanSearch,
   MessageSquareText,
-  FlaskConical,
   Star,
   Bell,
   Newspaper,
@@ -20,7 +19,6 @@ const NAV = [
   { href: "/news", label: "NewsDesk", icon: Newspaper },
   { href: "/screener", label: "Screener", icon: ScanSearch },
   { href: "/query", label: "Ask Morgan", icon: MessageSquareText },
-  { href: "/backtest", label: "Strategy", icon: FlaskConical },
   { href: "/watchlist", label: "Watchlist", icon: Star },
   { href: "/alerts", label: "Alerts", icon: Bell },
 ];
@@ -129,24 +127,6 @@ export default function MobileDrawer({ open, onClose }: MobileDrawerProps) {
           >
             New Research
           </Link>
-          <div className="flex flex-col gap-1">
-            <a
-              href="#"
-              className="flex items-center gap-4 text-text-muted px-0 py-2 hover:text-primary transition-all duration-200"
-            >
-              <span className="font-mono text-[11px] font-bold tracking-[0.2em] uppercase">
-                Documentation
-              </span>
-            </a>
-            <a
-              href="#"
-              className="flex items-center gap-4 text-text-muted px-0 py-2 hover:text-primary transition-all duration-200"
-            >
-              <span className="font-mono text-[11px] font-bold tracking-[0.2em] uppercase">
-                Support
-              </span>
-            </a>
-          </div>
           <Link
             href="/login"
             onClick={onClose}

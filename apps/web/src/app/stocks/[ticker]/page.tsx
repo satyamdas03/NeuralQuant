@@ -200,11 +200,8 @@ export default function StockPage() {
       {/* Price Chart */}
       <PriceChart ticker={ticker.toUpperCase()} market={market} />
 
-      {/* Sentiment + Backtest row */}
-      <div className="grid md:grid-cols-2 gap-5">
-        <SentimentCard s={sentiment} ticker={ticker.toUpperCase()} />
-        <BacktestCTA ticker={ticker.toUpperCase()} market={market} />
-      </div>
+      {/* Sentiment */}
+      <SentimentCard s={sentiment} ticker={ticker.toUpperCase()} />
 
       {/* PARA-DEBATE */}
       {!report ? (
@@ -321,24 +318,5 @@ function SentimentCard({ s, ticker }: { s: SentimentResponse | null; ticker: str
         </>
       )}
     </GhostBorderCard>
-  );
-}
-
-function BacktestCTA({ ticker, market }: { ticker: string; market: Market }) {
-  return (
-    <div className="bg-gradient-to-br from-primary/10 to-secondary/10 ghost-border p-5 flex flex-col justify-between">
-      <div>
-        <h3 className="font-semibold text-xs text-on-surface-variant uppercase tracking-wide">Strategy Backtest</h3>
-        <p className="text-sm text-on-surface-variant mt-2 leading-relaxed">
-          Test a moving-average crossover on {ticker} — see Sharpe, max drawdown, and how it compares to buy-and-hold.
-        </p>
-      </div>
-      <Link
-        href={`/backtest?ticker=${ticker}&market=${market}`}
-        className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/80 text-on-surface text-sm font-medium w-fit transition-colors"
-      >
-        Run backtest <ArrowRight size={14} />
-      </Link>
-    </div>
   );
 }

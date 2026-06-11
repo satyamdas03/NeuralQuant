@@ -1747,7 +1747,7 @@ export default function MethodologyPage() {
             className="text-lg max-w-xl mx-auto mb-10"
             style={{ color: "var(--color-text-muted)" }}
           >
-            Run your own screens, backtest strategies, and ask Morgan anything
+            Run your own screens and ask Morgan anything
             about your portfolio.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -1755,14 +1755,14 @@ export default function MethodologyPage() {
               Open the Screener
             </GradientButton>
             <Link
-              href="/backtest"
+              href="/query"
               className="inline-flex items-center gap-2 font-mono text-[11px] font-bold tracking-[0.2em] uppercase px-5 py-2.5 border transition-all duration-300 hover:shadow-[0_0_20px_rgba(0,255,178,0.15)]"
               style={{
                 borderColor: "rgba(0, 255, 178, 0.15)",
                 color: "var(--color-text-muted)",
               }}
             >
-              Run a Backtest <ArrowRight size={14} />
+              Ask Morgan <ArrowRight size={14} />
             </Link>
           </div>
         </div>

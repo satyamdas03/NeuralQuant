@@ -56,12 +56,6 @@ export default function LandingPage() {
               Intelligence
             </Link>
             <Link
-              href="/backtest"
-              className="text-text-muted hover:text-primary h-full flex items-center font-mono text-[11px] font-bold tracking-[0.2em] uppercase px-4 transition-colors"
-            >
-              Backtest
-            </Link>
-            <Link
               href="/compare"
               className="text-text-muted hover:text-primary h-full flex items-center font-mono text-[11px] font-bold tracking-[0.2em] uppercase px-4 transition-colors"
             >
@@ -117,13 +111,6 @@ export default function LandingPage() {
               className="text-text-muted hover:text-primary font-mono text-[11px] font-bold tracking-[0.2em] uppercase py-3 px-4 transition-colors"
             >
               Intelligence
-            </Link>
-            <Link
-              href="/backtest"
-              onClick={() => setMobileMenuOpen(false)}
-              className="text-text-muted hover:text-primary font-mono text-[11px] font-bold tracking-[0.2em] uppercase py-3 px-4 transition-colors"
-            >
-              Backtest
             </Link>
             <Link
               href="/compare"
