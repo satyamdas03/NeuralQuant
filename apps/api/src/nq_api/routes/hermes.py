@@ -95,5 +95,7 @@ async def events() -> StreamingResponse:
         except httpx.HTTPError:
             yield 'data: {"line": "[proxy] hermes agent unreachable - stream closed"}\n\n'
 
+    # no-transform: stops intermediaries (incl. Next's compression) from
+    # gzip-buffering the stream, which starves EventSource of events.
     return StreamingResponse(gen(), media_type="text/event-stream",
-                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+                             headers={"Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no"})
