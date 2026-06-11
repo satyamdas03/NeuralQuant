@@ -1,0 +1,5 @@
+# Files volume-mounted into Linux containers must stay LF even on Windows
+# checkouts (core.autocrlf=true would otherwise break the demo stack seed).
+*.sh text eol=lf
+docker/** text eol=lf
+data/demo_snapshot/** text eol=lf
