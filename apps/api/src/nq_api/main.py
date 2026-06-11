@@ -501,6 +501,9 @@ app.include_router(astra_portfolio_router)
 app.include_router(mobile_router)
 app.include_router(testing_router)
 
+from nq_api.routes.hermes import router as hermes_router  # noqa: E402
+app.include_router(hermes_router)
+
 
 @app.get("/health")
 def health():
