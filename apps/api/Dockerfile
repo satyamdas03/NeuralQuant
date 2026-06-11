@@ -5,10 +5,16 @@ WORKDIR /workspace
 # Install uv
 RUN pip install uv
 
-# Copy full repo (respects .dockerignore)
-COPY . .
+# Dependency layer: manifests only, so code edits don't re-download ~3GB of deps
+COPY pyproject.toml uv.lock ./
+COPY apps/api/pyproject.toml apps/api/
+COPY apps/livekit-agent/pyproject.toml apps/livekit-agent/
+COPY packages/data/pyproject.toml packages/data/
+COPY packages/signals/pyproject.toml packages/signals/
+RUN uv sync --frozen --no-dev --no-install-workspace
 
-# Sync workspace — installs nq-data, nq-signals, slack-bolt, everything into .venv
+# Copy full repo (respects .dockerignore) and install the workspace packages
+COPY . .
 RUN uv sync --frozen --no-dev
 
 EXPOSE 10000

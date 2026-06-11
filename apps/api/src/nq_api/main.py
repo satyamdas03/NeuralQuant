@@ -409,14 +409,22 @@ class NaNSanitizerMiddleware(BaseHTTPMiddleware):
         body = b""
         async for chunk in resp.body_iterator:
             body += chunk
+        # Preserve the original headers (CORS, cache, cookies) — rebuilding the
+        # response without them strips Access-Control-Allow-Origin and the
+        # browser then blocks every JSON call. Content-length/type are re-set.
+        passthrough = {
+            k: v for k, v in resp.headers.items()
+            if k.lower() not in ("content-length", "content-type")
+        }
         try:
             cleaned = _json.dumps(_clean_nonfinite(_json.loads(body)))
             from starlette.responses import Response as _Resp
             return _Resp(cleaned, status_code=resp.status_code,
-                         media_type="application/json")
+                         headers=passthrough, media_type="application/json")
         except Exception:
             from starlette.responses import Response as _Resp
-            return _Resp(body, status_code=resp.status_code, media_type=ctype)
+            return _Resp(body, status_code=resp.status_code,
+                         headers=passthrough, media_type=ctype)
 
 
 app.add_middleware(NaNSanitizerMiddleware)

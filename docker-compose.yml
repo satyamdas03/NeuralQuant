@@ -66,6 +66,8 @@ services:
         NEXT_PUBLIC_API_URL: http://localhost:8000          # baked at build time
         NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321    # rest-proxy stubs /auth/
         NEXT_PUBLIC_SUPABASE_ANON_KEY: demo-local-no-auth
+    environment:
+      API_PROXY_URL: http://api:8000   # server-side /api rewrite target
     ports: ["3000:3000"]
     depends_on: [api]
 
