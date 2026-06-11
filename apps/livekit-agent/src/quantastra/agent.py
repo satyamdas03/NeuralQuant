@@ -102,6 +102,10 @@ class QuantAstraAgent(
                 temperature=0.7,
                 max_tokens=2048,
                 api_key=os.getenv("ANTHROPIC_API_KEY"),
+                # Strict schemas rewrite every defaulted param as anyOf[T, null];
+                # our 20 tools produce 21 such unions and the Anthropic API now
+                # rejects requests with >16 (400 on every turn = agent goes mute).
+                _strict_tool_schema=False,
             ),
             tts=elevenlabs.TTS(
                 model="eleven_turbo_v2_5",
