@@ -172,3 +172,171 @@ CREATE TABLE IF NOT EXISTS "quarterly_test_results" (
     "evaluated_at" date,
     "notes" text
 );
+
+CREATE TABLE IF NOT EXISTS "score_cache_history" (
+    "id" bigint,
+    "ticker" text,
+    "market" text,
+    "composite_score" double precision,
+    "score_1_10" integer,
+    "regime_id" integer,
+    "regime_label" text,
+    "quality_percentile" double precision,
+    "momentum_percentile" double precision,
+    "value_percentile" double precision,
+    "low_vol_percentile" double precision,
+    "short_interest_percentile" double precision,
+    "insider_percentile" double precision,
+    "pe_ttm" double precision,
+    "pb_ratio" double precision,
+    "gross_profit_margin" double precision,
+    "roe" double precision,
+    "computed_at" timestamp with time zone
+);
+
+CREATE TABLE IF NOT EXISTS "stock_meta" (
+    "ticker" text,
+    "market" text,
+    "data" jsonb,
+    "fetched_at" timestamp with time zone
+);
+
+CREATE TABLE IF NOT EXISTS "stock_snapshot" (
+    "ticker" text,
+    "market" text,
+    "price" numeric,
+    "change_pct" numeric,
+    "volume" bigint,
+    "market_cap" numeric,
+    "pe_ttm" numeric,
+    "eps" numeric,
+    "beta" numeric,
+    "pb_ratio" numeric,
+    "week_52_high" numeric,
+    "week_52_low" numeric,
+    "earnings_date" text,
+    "analyst_target" numeric,
+    "recommendation" text,
+    "rsi_14d" numeric,
+    "macd_signal" numeric,
+    "insider_score" numeric,
+    "news_sentiment" numeric,
+    "sector" text,
+    "sub_sector" text,
+    "company_name" text,
+    "currency" text,
+    "cached_at" timestamp with time zone,
+    "stale" boolean,
+    "source" text
+);
+
+CREATE TABLE IF NOT EXISTS "enrichment_cache" (
+    "id" bigint,
+    "ticker" text,
+    "market" text,
+    "cached_at" timestamp with time zone,
+    "rsi_14" double precision,
+    "macd_line" double precision,
+    "macd_signal" double precision,
+    "macd_hist" double precision,
+    "atr_14" double precision,
+    "sma_50" double precision,
+    "sma_200" double precision,
+    "price_vs_sma50" double precision,
+    "price_vs_sma200" double precision,
+    "volume_today" double precision,
+    "volume_20d_avg" double precision,
+    "volume_ratio" double precision,
+    "finnhub_price" double precision,
+    "insider_cluster_score" double precision,
+    "insider_net_buy_ratio" double precision,
+    "insider_summary" text,
+    "news_sentiment_label" text,
+    "news_sentiment_score" double precision,
+    "news_buzz" double precision,
+    "news_bullish_pct" double precision,
+    "news_bearish_pct" double precision
+);
+
+CREATE TABLE IF NOT EXISTS "usage_log" (
+    "id" bigint,
+    "user_id" uuid,
+    "endpoint" text,
+    "ts" timestamp with time zone
+);
+
+CREATE TABLE IF NOT EXISTS "user_events" (
+    "id" uuid,
+    "user_id" uuid,
+    "session_id" text,
+    "event_type" text,
+    "category" text,
+    "label" text,
+    "payload" jsonb,
+    "created_at" timestamp with time zone
+);
+
+CREATE TABLE IF NOT EXISTS "conversations" (
+    "id" uuid,
+    "user_id" uuid,
+    "session_key" text,
+    "role" text,
+    "content" text,
+    "ticker" text,
+    "market" text,
+    "created_at" timestamp with time zone
+);
+
+CREATE TABLE IF NOT EXISTS "watchlists" (
+    "id" uuid,
+    "user_id" uuid,
+    "ticker" text,
+    "market" text,
+    "note" text,
+    "created_at" timestamp with time zone
+);
+
+CREATE TABLE IF NOT EXISTS "users" (
+    "id" uuid,
+    "email" text,
+    "tier" text,
+    "stripe_customer_id" text,
+    "stripe_subscription_id" text,
+    "subscription_status" text,
+    "created_at" timestamp with time zone,
+    "referral_bonus_queries" integer,
+    "paypal_subscription_id" text,
+    "welcome_email_sent_at" timestamp with time zone,
+    "debate_demo_email_sent_at" timestamp with time zone,
+    "screener_email_sent_at" timestamp with time zone,
+    "upgrade_email_sent_at" timestamp with time zone
+);
+
+CREATE TABLE IF NOT EXISTS "shared_analyses" (
+    "id" uuid,
+    "share_id" text,
+    "ticker" text,
+    "market" text,
+    "verdict" text,
+    "score" numeric,
+    "analyst_response" jsonb,
+    "score_data" jsonb,
+    "meta_data" jsonb,
+    "sentiment_data" jsonb,
+    "view_count" integer,
+    "creator_id" uuid,
+    "creator_email" text,
+    "is_public" boolean,
+    "created_at" timestamp with time zone
+);
+
+CREATE TABLE IF NOT EXISTS "agent_logs" (
+    "id" bigint,
+    "agent_name" text,
+    "channel" text,
+    "action_type" text,
+    "input_text" text,
+    "output_text" text,
+    "metadata" jsonb,
+    "created_at" timestamp with time zone
+);

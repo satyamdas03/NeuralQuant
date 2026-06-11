@@ -15,11 +15,24 @@ import httpx
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 OUT = ROOT / "docker" / "initdb" / "001_demo_schema.sql"
 TABLES = [
+    # Seeded from data/demo_snapshot CSVs
     "score_cache",
     "anjali_enrichment",
     "quantfactor_universe",
     "quarterly_test_runs",
     "quarterly_test_results",
+    # Empty but required — the API reads/writes these at runtime
+    "score_cache_history",
+    "stock_meta",
+    "stock_snapshot",
+    "enrichment_cache",
+    "usage_log",
+    "user_events",
+    "conversations",
+    "watchlists",
+    "users",
+    "shared_analyses",
+    "agent_logs",
 ]
 
 
