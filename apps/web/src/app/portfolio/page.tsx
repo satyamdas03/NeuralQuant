@@ -141,10 +141,12 @@ export default function PortfolioPage() {
       });
   }, []);
 
-  const loadRecommendation = useCallback((profile: AstraRiskProfile) => {
+  // mkt must be passable explicitly: setMarket() hasn't committed yet when the
+  // tab's onClick fires, so reading `market` here loads the PREVIOUS tab's data.
+  const loadRecommendation = useCallback((profile: AstraRiskProfile, mkt?: "IN" | "US") => {
     setLoading(true);
     setError(null);
-    authedApi.getAstraRecommend(profile, market)
+    authedApi.getAstraRecommend(profile, mkt ?? market)
       .then(setRecommendation)
       .catch((e) => setError(e instanceof Error ? e.message : "Failed to load recommendations"))
       .finally(() => setLoading(false));
@@ -243,7 +245,7 @@ export default function PortfolioPage() {
         {(["IN", "US"] as const).map((m) => (
           <button
             key={m}
-            onClick={() => { setMarket(m); if (riskProfile) loadRecommendation(riskProfile); }}
+            onClick={() => { setMarket(m); if (riskProfile) loadRecommendation(riskProfile, m); }}
             className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider transition-colors ${
               market === m
                 ? "bg-primary-fixed/10 text-primary-fixed border border-primary-fixed/30"
