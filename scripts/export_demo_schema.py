@@ -45,6 +45,14 @@ TABLES = [
 ]
 
 
+_KNOWN_PG_TYPES = {
+    "text", "integer", "bigint", "smallint", "numeric", "real",
+    "double precision", "boolean", "date", "uuid", "jsonb", "json",
+    "character varying", "character", "time without time zone",
+    "timestamp with time zone", "timestamp without time zone",
+}
+
+
 def load_env() -> dict[str, str]:
     env: dict[str, str] = {}
     for line in (ROOT / "apps" / "api" / ".env").read_text(encoding="utf-8").splitlines():
@@ -72,11 +80,15 @@ def main() -> int:
             continue
         cols = []
         for name, meta in props.items():
-            pgtype = meta.get("format", "text").split("(")[0] or "text"
+            pgtype = meta.get("format", "text").split("(")[0].strip() or "text"
             # Native arrays load as jsonb in the demo stack: the snapshot CSVs
             # store them as JSON, and PostgREST serves both identically.
             if pgtype.endswith("[]"):
                 pgtype = "jsonb"
+            elif pgtype not in _KNOWN_PG_TYPES:
+                # Custom enums (e.g. public.agent_role) don't exist in the demo
+                # db — degrade to text so CREATE TABLE can't abort the init.
+                pgtype = "text"
             cols.append(f'    "{name}" {pgtype}')
         parts.append(f'CREATE TABLE IF NOT EXISTS "{t}" (\n' + ",\n".join(cols) + "\n);\n")
         print(f"  OK   {t}: {len(props)} columns")

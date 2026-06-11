@@ -409,10 +409,10 @@ CREATE TABLE IF NOT EXISTS "team_tasks" (
     "id" uuid,
     "title" text,
     "description" text,
-    "assignee" public.agent_role,
-    "created_by" public.agent_role,
-    "status" public.task_status,
-    "priority" public.task_priority,
+    "assignee" text,
+    "created_by" text,
+    "status" text,
+    "priority" text,
     "category" text,
     "output" text,
     "review_notes" text,
@@ -423,7 +423,7 @@ CREATE TABLE IF NOT EXISTS "team_tasks" (
 
 CREATE TABLE IF NOT EXISTS "team_standups" (
     "id" uuid,
-    "agent_role" public.agent_role,
+    "agent_role" text,
     "summary" text,
     "blockers" text,
     "next_actions" text,
