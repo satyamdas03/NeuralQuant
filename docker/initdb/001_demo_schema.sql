@@ -371,3 +371,61 @@ CREATE TABLE IF NOT EXISTS "news_classifications" (
     "rationale" text,
     "classified_at" timestamp with time zone
 );
+
+CREATE TABLE IF NOT EXISTS "user_sessions" (
+    "id" uuid,
+    "user_id" uuid,
+    "started_at" timestamp with time zone,
+    "ended_at" timestamp with time zone,
+    "duration_seconds" integer,
+    "user_agent" text,
+    "ip_address" text,
+    "is_guest" boolean,
+    "metadata" jsonb
+);
+
+CREATE TABLE IF NOT EXISTS "session_reports" (
+    "id" uuid,
+    "session_id" uuid,
+    "user_id" uuid,
+    "report_text" text,
+    "summary" text,
+    "email_sent" boolean,
+    "email_sent_at" timestamp with time zone,
+    "generated_at" timestamp with time zone
+);
+
+CREATE TABLE IF NOT EXISTS "referrals" (
+    "id" uuid,
+    "referrer_id" uuid,
+    "code" text,
+    "referred_email" text,
+    "referred_user_id" uuid,
+    "status" text,
+    "created_at" timestamp with time zone
+);
+
+CREATE TABLE IF NOT EXISTS "team_tasks" (
+    "id" uuid,
+    "title" text,
+    "description" text,
+    "assignee" public.agent_role,
+    "created_by" public.agent_role,
+    "status" public.task_status,
+    "priority" public.task_priority,
+    "category" text,
+    "output" text,
+    "review_notes" text,
+    "reference_url" text,
+    "created_at" timestamp with time zone,
+    "updated_at" timestamp with time zone
+);
+
+CREATE TABLE IF NOT EXISTS "team_standups" (
+    "id" uuid,
+    "agent_role" public.agent_role,
+    "summary" text,
+    "blockers" text,
+    "next_actions" text,
+    "created_at" timestamp with time zone
+);

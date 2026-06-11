@@ -35,6 +35,13 @@ TABLES = [
     "agent_logs",
     "signal_log",
     "news_classifications",
+    "user_sessions",
+    "session_reports",
+    "alert_subscriptions",
+    "alert_deliveries",
+    "referrals",
+    "team_tasks",
+    "team_standups",
 ]
 
 
