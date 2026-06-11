@@ -22,21 +22,12 @@ def _needs_clarification(
     """
     q = question.lower().strip()
 
-    # Portfolio intent -- always clarify vague portfolio queries
-    # (e.g. "invest 10 lakhs" without specifying sectors/risk/return)
+    # Portfolio intent -- a real PM never allocates capital from one sentence.
+    # Always ask before producing a plan; the saved profile and any specifics
+    # in the question make the QUESTIONS smarter, they don't replace them.
+    # (Callers pass clarification_answers on the second round, which skips
+    # this entirely -- see query.py `and not req.clarification_answers`.)
     if _is_portfolio_intent(question):
-        if profile is not None:
-            return False  # profile already provides risk/time/goal context
-        _PORTFOLIO_CLARIFY_PATTERNS = [
-            "sector", "risk", "time horizon", "timeframe", "goal",
-            "aggressive", "conservative", "balanced", "growth", "income",
-            "short term", "long term", "mid term", "dividend",
-            "return", "months", "years", "drawdown", "volatility",
-        ]
-        # If question mentions specific preferences, skip clarification
-        if any(p in q for p in _PORTFOLIO_CLARIFY_PATTERNS):
-            return False
-        # Vague portfolio query without specifics -> clarify
         return True
 
     # Investment decision keywords ALWAYS need clarification (highest priority).
@@ -197,22 +188,41 @@ def _generate_clarification_questions(
             question_type="risk_tolerance",
         ))
 
-    # Portfolio-specific clarification questions
+    # Portfolio-specific clarification questions.
+    # Skip anything the user already stated -- a PM asks about the GAPS, not
+    # what was just said ("10 lakhs, 6-8% in 10 months" answers return+horizon,
+    # so ask about deployment style, liquidity, and concentration instead).
     elif _is_portfolio_intent(question):
-        cur = "Rs." if market == "IN" else "$"
+        _stated_return = bool(re.search(r"\d+\s*(?:-|to)\s*\d+\s*%|\d+\s*%\s*(?:return|gain|profit)", q))
+        _stated_horizon = bool(re.search(r"\d+\s*(?:month|year|week)", q))
+        _stated_sector = any(s in q for s in ["sector", "bank", "pharma", "it ", "defence", "energy", "fmcg", "auto"])
+
+        if not _stated_return:
+            questions.append(ClarificationQuestion(
+                question="What's your target return range for this portfolio?",
+                options=["5-8% (conservative)", "8-12% (balanced)", "12-18% (aggressive)", "18%+ (high risk)"],
+                question_type="investment_goal",
+            ))
+        if not _stated_horizon:
+            questions.append(ClarificationQuestion(
+                question="What's your investment time horizon?",
+                options=["Under 6 months", "6-18 months", "1-3 years", "3+ years"],
+                question_type="time_horizon",
+            ))
         questions.append(ClarificationQuestion(
-            question=f"What's your target return range for this portfolio?",
-            options=["5-8% (conservative)", "8-12% (balanced)", "12-18% (aggressive)", "18%+ (high risk)"],
-            question_type="investment_goal",
+            question="How do you want to deploy the capital?",
+            options=["Lumpsum now", "Staggered over 4-6 weeks (rupee-cost averaging)", "Half now, half on a market dip"],
+            question_type="context",
         ))
+        if not _stated_sector:
+            questions.append(ClarificationQuestion(
+                question="Which sectors do you want exposure to?",
+                options=["Diversified across all sectors", "Financials & NBFCs", "Technology & IT", "Energy & Infrastructure", "Defence & Manufacturing"],
+                question_type="sector_preference",
+            ))
         questions.append(ClarificationQuestion(
-            question="Which sectors do you want exposure to?",
-            options=["Diversified across all sectors", "Financials & NBFCs", "Technology & IT", "Energy & Infrastructure", "Defence & Manufacturing"],
-            question_type="sector_preference",
-        ))
-        questions.append(ClarificationQuestion(
-            question="What's your risk tolerance?",
-            options=["Conservative -- protect capital, minimal drawdown", "Balanced -- moderate risk for moderate returns", "Aggressive -- willing to accept -15% drawdown for higher upside"],
+            question="Could you need this money back early, and how would you handle a -10% month?",
+            options=["Funds are locked in -- I'd hold through drawdowns", "Might need partial liquidity -- keep some in liquid funds", "Would likely exit on a -10% drawdown"],
             question_type="risk_tolerance",
         ))
 

@@ -195,7 +195,11 @@ def _extract_json_from_llm(text: str) -> dict | None:
     first_brace = cleaned.find("{")
     if first_brace >= 0:
         snippet = cleaned[first_brace:]
-        # Count unclosed braces and brackets
+        # max_tokens usually cuts mid-STRING, not at a brace boundary — count
+        # unescaped quotes and close the string first or the repair never parses.
+        unescaped_quotes = len(re.findall(r'(?<!\\)"', snippet))
+        if unescaped_quotes % 2 == 1:
+            snippet += '"'
         open_braces = snippet.count("{") - snippet.count("}")
         open_brackets = snippet.count("[") - snippet.count("]")
         if open_braces > 0 or open_brackets > 0:
@@ -224,6 +228,37 @@ def _structured_from_markdown(raw: str, freeform_resp: QueryResponse, route: str
     Called when JSON parsing fails -- extracts verdict, metrics, scenarios, etc.
     from the markdown text so the frontend card components have real data."""
     from nq_api.schemas import StructuredQueryResponse
+
+    # If the raw text is (broken) JSON, regex-scraping it fabricates garbage —
+    # 0.20 "metrics" from probability fields, duplicated comparison rows — and
+    # the summary renders as a raw ```json blob. Salvage the human-readable
+    # field values and answer with ONLY those instead.
+    _jsonish = bool(re.match(r"^\s*(?:```(?:json)?\s*)?\{", raw))
+    if _jsonish:
+        def _field(name: str) -> str:
+            m = re.search(rf'"{name}"\s*:\s*"((?:[^"\\]|\\.)*)', raw)
+            return m.group(1).replace('\\"', '"').replace("\\n", "\n").strip() if m else ""
+        verdict_s = _field("verdict").upper()
+        conf_m = re.search(r'"confidence"\s*:\s*(\d+)', raw)
+        summary_s = _field("summary") or _field("investment_thesis")
+        if summary_s:
+            return StructuredQueryResponse(
+                verdict=verdict_s if verdict_s in ("STRONG BUY", "BUY", "HOLD", "SELL", "STRONG SELL") else "HOLD",
+                confidence=int(conf_m.group(1)) if conf_m else 50,
+                timeframe=_field("timeframe") or "Medium-term",
+                summary=summary_s[:800] + (" …(response was truncated — ask a follow-up for the full breakdown)" if not raw.rstrip().endswith(("}", "```")) else ""),
+                metrics=[],
+                reasoning=ReasoningBlock(
+                    why_this=_field("why_this") or "See summary.",
+                    why_not_alt=_field("why_not_alt") or "N/A",
+                    edge_summary=_field("edge_summary") or "N/A",
+                    second_best="N/A", confidence_gap="N/A",
+                ),
+                scenarios=[], allocations=[], comparisons=[],
+                data_sources=freeform_resp.data_sources,
+                follow_up_questions=freeform_resp.follow_up_questions,
+                route=route, stock_summary=stock_summary,
+            )
 
     # Extract verdict from text
     verdict = "HOLD"

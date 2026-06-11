@@ -41,10 +41,17 @@ BEDROCK_RUNTIME_REGION = os.getenv("BEDROCK_RUNTIME_REGION", "us-east-1")
 
 
 class _BedrockContent:
-    """Adapter: Bedrock content → Anthropic SDK format."""
+    """Adapter: Bedrock content → Anthropic SDK format.
+
+    Carries both text blocks and tool_use blocks (id/name/input) so call
+    sites that force structured output via tool_choice keep working.
+    """
     def __init__(self, raw: dict):
         self.text = raw.get("text", "")
         self.type = raw.get("type", "text")
+        self.id = raw.get("id", "")
+        self.name = raw.get("name", "")
+        self.input = raw.get("input")
 
 
 class _BedrockUsage:
@@ -85,15 +92,14 @@ class _BedrockMessages:
         model = kwargs.get("model", "claude-sonnet-4-6")
         max_tokens = kwargs.get("max_tokens", 4096)
         temperature = kwargs.get("temperature", 0.3)
-        # tools/tool_choice not supported yet via Bedrock — log warning
-        if kwargs.get("tools"):
-            logger.warning("Bedrock adapter: tools not yet supported, ignoring")
         return self._client.create_message(
             messages=messages,
             system=system,
             model=model,
             max_tokens=max_tokens,
             temperature=temperature,
+            tools=kwargs.get("tools"),
+            tool_choice=kwargs.get("tool_choice"),
         )
 
     async def stream(self, **kwargs):
@@ -188,11 +194,15 @@ class BedrockClient:
         model: str = "claude-sonnet-4-6",
         max_tokens: int = 4096,
         temperature: float = 0.3,
+        tools: list[dict] | None = None,
+        tool_choice: dict | None = None,
         **kwargs,
     ) -> _BedrockResponse:
         """
         Synchronous call — matches anthropic.messages.create() signature.
         Returns a response dict with .content[0].text accessible pattern.
+        Anthropic-on-Bedrock supports tools/tool_choice natively, so forced
+        structured output (tool_choice={"type": "tool", ...}) works here too.
         """
         body = {
             "anthropic_version": "bedrock-2023-05-31",
@@ -202,6 +212,10 @@ class BedrockClient:
         }
         if system:
             body["system"] = system
+        if tools:
+            body["tools"] = tools
+        if tool_choice:
+            body["tool_choice"] = tool_choice
 
         model_id = self._resolve_model(model)
         logger.debug(f"Bedrock invoke: model={model_id}, max_tokens={max_tokens}")
