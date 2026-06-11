@@ -9,11 +9,51 @@
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![Next.js 16](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs)](https://nextjs.org)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: Proprietary](https://img.shields.io/badge/License-Proprietary-red.svg)](PROPRIETARY-LICENSE.txt)
+
+> **This codebase is available for acquisition.** Contact the author for details.
 
 **Live at [neuralquant.co](https://neuralquant.co)**
 
 </div>
+
+---
+
+## Acquisition Overview
+
+**AI-powered stock intelligence platform — India + US.**
+
+Multi-agent Claude-powered research engine (PARA-DEBATE: 5 specialists + adversarial
+challenge + head analyst) · proprietary IRS% quantitative scoring across 1,750+ stocks ·
+web + mobile (Expo) + voice (LiveKit) on one FastAPI backend · AWS Bedrock-ready ·
+Q1FY27 documented backtest: **+13.5% avg alpha vs Nifty50, ~89% hit rate** (see
+[neuralquant.co/methodology](https://neuralquant.co/methodology)).
+
+**18 months of build. 82 documented sessions. 126 documented bug fixes.**
+
+### Evaluate in 15 minutes — zero API keys
+
+```bash
+git clone <repo> && cd NeuralQuant
+cp .env.example .env          # DEMO_MODE=true is the docker-compose default
+docker compose up --build
+# → http://localhost:3000
+```
+
+The demo stack bundles a real data snapshot (5 Supabase tables, 1,669 rows) and a
+canned PARA-DEBATE output, so the dashboard, screener, stock detail, and backtest
+pages all work offline. Add `ANTHROPIC_API_KEY` to run live agent debates.
+
+### What's included in the sale
+
+Codebase · neuralquant.co domain · Supabase data + Q1FY27 backtest results ·
+scoring methodology IP (IRS%, G Score, Risk Efficiency) · sister repo
+(anjali-value-stocks) · brand/design system · optional 3–6 month founder
+transition. Full list: [docs/ASSET_INVENTORY.md](docs/ASSET_INVENTORY.md).
+Due diligence: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) ·
+[docs/BUG_HISTORY.md](docs/BUG_HISTORY.md) ·
+[docs/OPERATIONS.md](docs/OPERATIONS.md) ·
+[docs/HANDOVER.md](docs/HANDOVER.md).
 
 ---
 

@@ -6,7 +6,13 @@ client = TestClient(app)
 def test_health_returns_ok():
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "version": "4.0.0"}
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["version"] == "4.1.0"
+    # Freshness fields always present (None when Supabase unreachable)
+    assert "score_cache_age_hours" in body
+    assert "score_cache_rows" in body
+    assert "demo_mode" in body
 
 def test_cors_headers_present():
     response = client.options(

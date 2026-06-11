@@ -144,7 +144,7 @@ def _fetch_quantfactor_pool(
     query: dict[str, Any] = {
         "select": "ticker,market,index_group,sector,g_score,risk_eff_score,irs_raw,irs_pct,"
                    "growth_score,return_score,valuation_score,risk_score,"
-                   "dii_quarter,fii_quarter,future_pe,ttm_peg",
+                   "dii_quarter,fii_quarter,future_pe,ttm_peg,composite_score",
         "market": f"eq.{market}",
         "irs_pct": "not.is.null",
         "order": "irs_pct.desc",
@@ -387,7 +387,7 @@ async def recommend_portfolio(
                 "irs_pct": irs,
                 "g_score": s.get("g_score"),
                 "risk_eff_score": s.get("risk_eff_score"),
-                "composite": s.get("composite"),
+                "composite": s.get("composite_score"),  # bug-116 class: column is composite_score
                 "pool": pool_name,
                 "allocation_pct": round(alloc_pct / len(stocks), 1) if stocks else 0,
             })

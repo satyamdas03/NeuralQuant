@@ -110,31 +110,9 @@ def _safe_bool(v) -> bool:
 # Row builders
 # ---------------------------------------------------------------------------
 
-# Patterns that indicate a legend/key row, not a real stock ticker
-_LEGEND_PATTERNS = re.compile(
-    r"(?:LIGHT\s*GREEN|DARK\s*GREEN|LIGHT\s*RED|DARK\s*RED|WHITE|COLOR|SCORING|"
-    r"GROWTH|RETURN|VALUATION|RISK|RATIOS|SOURCE|FUTURE|BENCHMARK|HIERARCH|"
-    r"MATCHED|WORST|BEST|CHEAPEST|EXPENSIVE|SAFEST|RISKIEST|SWEET\s*SPOT|"
-    r"UNCOLORED|LOSS.MAKING|NETPROFIT|EXCLUDED|YFINANCE|YOY|TTM|QOQ|"
-    r"PERIOD|MARKET\s*CAP|REVENUE|DII|FII|PB|EV/|SUM|Q\d+\(|^[A-Z]{1,2}$)",
-    re.IGNORECASE,
-)
-
-
-def _is_valid_ticker(ticker: str) -> bool:
-    """Return True if ticker looks like a real stock symbol, not a legend row."""
-    if not ticker or len(ticker) > 8 or len(ticker) < 2:
-        return False
-    # Must be mostly alphabetic (allow . - $ for NSE/BSE/INDEX tickers)
-    alpha_count = sum(1 for c in ticker if c.isalpha())
-    if alpha_count < 2:
-        return False
-    if _LEGEND_PATTERNS.search(ticker):
-        return False
-    # Must contain at least one letter
-    if not any(c.isalpha() for c in ticker):
-        return False
-    return True
+# Canonical validator (bug 91/122 consolidation). The old local copy rejected
+# len > 8, silently dropping valid NIFTY-200 names (HINDUNILVR, BAJFINANCE, ...).
+from nq_data.ticker_validation import is_valid_ticker as _is_valid_ticker
 
 
 def _build_us_row(df_row: dict, index_group: str) -> dict[str, Any]:

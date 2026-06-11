@@ -24,6 +24,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/watchlist", tags=["watchlist"])
 log = logging.getLogger(__name__)
 
+WATCHLIST_LIMITS = {"free": 25, "investor": 100, "pro": 250, "api": 1000}
+
 
 def _rest(
     method: str,
@@ -96,7 +98,17 @@ def list_watchlist(user: User = Depends(get_current_user)) -> WatchlistListRespo
 def add_watchlist(
     req: WatchlistAddRequest, user: User = Depends(get_current_user)
 ) -> WatchlistItem:
-    # Development phase — no watchlist limit enforcement
+    existing = _rest(
+        "GET",
+        query={"select": "id", "user_id": f"eq.{user.id}"},
+    )
+    limit = WATCHLIST_LIMITS.get(user.tier, WATCHLIST_LIMITS["free"])
+    if len(existing["data"] or []) >= limit:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Watchlist limit reached for {user.tier} tier ({limit}). "
+                   "Remove a ticker or upgrade.",
+        )
     ticker = req.ticker.upper().strip()
     insert_body = [{
         "user_id": user.id,

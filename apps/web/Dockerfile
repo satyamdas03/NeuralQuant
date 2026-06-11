@@ -1,0 +1,23 @@
+# Build context MUST be the repo root: `docker build -f apps/web/Dockerfile .`
+FROM node:20-alpine
+WORKDIR /app
+
+# NEXT_PUBLIC_* vars are baked at build time
+ARG NEXT_PUBLIC_API_URL=http://localhost:8000
+ARG NEXT_PUBLIC_SUPABASE_URL=
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY=
+ARG API_PROXY_URL=
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV API_PROXY_URL=$API_PROXY_URL
+ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+ENV NEXT_TELEMETRY_DISABLED=1
+
+COPY apps/web/package*.json ./
+RUN npm ci
+
+COPY apps/web/ .
+RUN npm run build
+
+EXPOSE 3000
+CMD ["npm", "start"]

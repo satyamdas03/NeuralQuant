@@ -28,8 +28,11 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
+        // API_PROXY_URL: server-side override for containerized deploys where
+        // the browser URL (localhost:8000) differs from the server's route to
+        // the API (http://api:8000 on the compose network).
         source: "/api/:path*",
-        destination: `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/:path*`,
+        destination: `${process.env.API_PROXY_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/:path*`,
       },
     ];
   },

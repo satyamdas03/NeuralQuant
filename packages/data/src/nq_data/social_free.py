@@ -1,17 +1,14 @@
 """
 Free social sentiment connectors — zero API keys required.
 
-Sources:
-  1. StockTwits public API (free, no key) — https://api.stocktwits.com/api/2/streams/symbol/{TICKER}.json
-  2. yfinance news headlines + VADER as "social buzz" proxy
+Source: yfinance news headlines + VADER as a "social buzz" proxy.
+(StockTwits connector removed — their public API returns 403 for all
+symbols since 2025; see bug 125.)
 """
 from __future__ import annotations
 import logging
-import os
 import time
 from dataclasses import dataclass
-from typing import Optional
-import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -25,22 +22,17 @@ class SocialItem:
     top_topics: list[str]
 
 
-def fetch_stocktwits_public(ticker: str) -> SocialItem | None:
-    """
-    StockTwits public API — DISABLED (returns 403 for all symbols as of 2025).
-    """
-    return None
-
-
 def fetch_social_buzz_yfinance(ticker: str, market: str = "US") -> SocialItem | None:
     """
     Use yfinance news headlines + VADER as social buzz proxy.
     Aggregates recent news sentiment as a measure of social/media buzz.
     """
     try:
-        import yfinance as yf
-        yf_sym = f"{ticker.upper()}.NS" if market == "IN" else ticker.upper()
-        raw_news = yf.Ticker(yf_sym).news or []
+        from nq_data.price.yf_guard import news as yf_news
+        raw_news = yf_news(ticker, market)
+
+        if raw_news is None:
+            return None  # guard skipped (Render) or yfinance failed
 
         if not raw_news:
             return SocialItem(
@@ -64,7 +56,7 @@ def fetch_social_buzz_yfinance(ticker: str, market: str = "US") -> SocialItem | 
     topics: dict[str, int] = {}
 
     for n in raw_news[:30]:
-        title = (n.get("content") or {}).get("title") or n.get("title") or ""
+        title = n.get("title") or ""
         if not title:
             continue
 
@@ -103,32 +95,23 @@ def fetch_social_buzz_yfinance(ticker: str, market: str = "US") -> SocialItem | 
 def fetch_all_free(tickers: list[str], market: str = "US") -> list[SocialItem]:
     """
     Fetch social sentiment for multiple tickers using only free sources.
-    Priority: StockTwits → yfinance social buzz.
-
-    Rate limited: max 30 tickers, 1s delay between StockTwits calls.
+    Rate limited: max 30 tickers, 0.5s delay between calls.
     """
     items: list[SocialItem] = []
     for i, t in enumerate(tickers[:30]):
-        # StockTwits (public, free)
-        st = fetch_stocktwits_public(t)
-        if st and st.bullish_pct is not None:
-            items.append(st)
+        buzz = fetch_social_buzz_yfinance(t, market)
+        if buzz and buzz.bullish_pct is not None:
+            items.append(buzz)
         else:
-            # Fallback: yfinance headlines as social buzz
-            buzz = fetch_social_buzz_yfinance(t, market)
-            if buzz and buzz.bullish_pct is not None:
-                items.append(buzz)
-            else:
-                # Empty item so UI knows we tried
-                items.append(SocialItem(
-                    ticker=t.upper(),
-                    source="social_buzz",
-                    bullish_pct=None,
-                    mention_count=0,
-                    top_topics=[],
-                ))
+            # Empty item so UI knows we tried
+            items.append(SocialItem(
+                ticker=t.upper(),
+                source="social_buzz",
+                bullish_pct=None,
+                mention_count=0,
+                top_topics=[],
+            ))
 
-        # Rate limit: be gentle with StockTwits public API
         if i < len(tickers) - 1:
             time.sleep(0.5)
 

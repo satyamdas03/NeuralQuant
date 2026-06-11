@@ -99,15 +99,16 @@ def _get_sentiment_sync(ticker: str, market: str, limit: int) -> dict[str, Any]:
 
 
 # ---------- Social Sentiment Endpoints ----------
-# Uses StockTwits public API (free, no key) + yfinance news aggregation as social buzz.
-# Reddit/StockTwits premium connectors replaced with free alternatives.
+# yfinance news aggregation as social buzz (free, no key).
+# StockTwits connector removed — public API 403s for all symbols (bug 125).
+# stocktwits_* keys kept as null/0 for frontend backward compatibility.
 
-from nq_data.social_free import fetch_stocktwits_public, fetch_social_buzz_yfinance, fetch_all_free
+from nq_data.social_free import fetch_social_buzz_yfinance, fetch_all_free
 
 
 @router.get("/social")
 async def get_social_sentiment_all(tickers: str = "AAPL,MSFT,GOOGL,TSLA,NVDA") -> dict[str, Any]:
-    """Return aggregated social sentiment for top tickers using free sources (StockTwits + yfinance news)."""
+    """Return aggregated social sentiment for top tickers (yfinance news buzz)."""
     ticker_list = [t.strip().upper() for t in tickers.split(",") if t.strip()]
 
     # Fetch live from free sources in thread pool
@@ -117,8 +118,8 @@ async def get_social_sentiment_all(tickers: str = "AAPL,MSFT,GOOGL,TSLA,NVDA") -
     for item in items:
         results.append({
             "ticker": item.ticker,
-            "stocktwits_bullish_pct": item.bullish_pct if item.source == "stocktwits" else None,
-            "stocktwits_mentions": item.mention_count if item.source == "stocktwits" else 0,
+            "stocktwits_bullish_pct": None,
+            "stocktwits_mentions": 0,
             "social_buzz_bullish_pct": item.bullish_pct if item.source == "social_buzz" else None,
             "social_buzz_mentions": item.mention_count if item.source == "social_buzz" else 0,
             "source": item.source,
@@ -130,26 +131,9 @@ async def get_social_sentiment_all(tickers: str = "AAPL,MSFT,GOOGL,TSLA,NVDA") -
 
 @router.get("/social/{ticker}")
 async def get_social_sentiment_ticker(ticker: str, market: str = "US") -> dict[str, Any]:
-    """Return social sentiment for a specific ticker using free sources."""
+    """Return social sentiment for a specific ticker (yfinance news buzz)."""
     t = ticker.upper()
 
-    # Try StockTwits first, fall back to yfinance social buzz
-    st_item = await asyncio.to_thread(fetch_stocktwits_public, t)
-
-    if st_item and st_item.bullish_pct is not None:
-        return {
-            "ticker": t,
-            "stocktwits": {
-                "bullish_pct": st_item.bullish_pct,
-                "mentions": st_item.mention_count,
-                "topics": st_item.top_topics,
-            },
-            "social_buzz": None,
-            "source": "stocktwits",
-            "cached": False,
-        }
-
-    # Fallback to yfinance social buzz
     buzz_item = await asyncio.to_thread(fetch_social_buzz_yfinance, t, market)
     if buzz_item and buzz_item.bullish_pct is not None:
         return {

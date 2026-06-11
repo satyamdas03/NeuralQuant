@@ -134,7 +134,10 @@ class TestInsiderSummary:
 # ── Client tests ─────────────────────────────────────────────────────────────
 
 class TestFinnhubClient:
-    def test_disabled_without_key(self):
+    def test_disabled_without_key(self, monkeypatch):
+        # api_key="" falls back to the env var; another test module may have
+        # load_dotenv()'d a real key into the process, so clear it here.
+        monkeypatch.delenv("FINNHUB_API_KEY", raising=False)
         client = FinnhubClient(api_key="")
         assert not client._enabled
 

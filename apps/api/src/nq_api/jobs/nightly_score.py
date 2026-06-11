@@ -95,14 +95,8 @@ def _run_market_from_quantfactor(market: str) -> int:
 
     # 3. Build score_cache rows from quantfactor + FMP
     # Skip garbage tickers (legend rows from Excel like "LIGHT GREEN (+0.5)")
-    _INVALID = re.compile(
-        r"(?:LIGHT\s*GREEN|DARK\s*GREEN|LIGHT\s*RED|DARK\s*RED|WHITE|COLOR|SCORING|"
-        r"GROWTH|RETURN|VALUATION|RISK|RATIOS|SOURCE|FUTURE|BENCHMARK|HIERARCH|"
-        r"MATCHED|WORST|BEST|CHEAPEST|EXPENSIVE|SAFEST|RISKIEST|SWEET\s*SPOT|"
-        r"UNCOLORED|LOSS.MAKING|NETPROFIT|EXCLUDED|YFINANCE|YOY|TTM|QOQ|"
-        r"PERIOD|MARKET\s*CAP|REVENUE|DII|FII|PB|EV/|SUM|Q\d+\(|^[A-Z]{1,2}$)",
-        re.IGNORECASE,
-    )
+    # — canonical validator, consolidated from the old inline regex (bug 91/122)
+    from nq_data.ticker_validation import is_valid_ticker
 
     all_results = []
     for r in qf_rows:
@@ -110,7 +104,7 @@ def _run_market_from_quantfactor(market: str) -> int:
         # Normalize Indian tickers: strip exchange suffix for consistent lookup
         if market == "IN":
             t = t.replace(".NS", "").replace(".BO", "")
-        if not t or len(t) > 12 or len(t) < 2 or _INVALID.search(t):
+        if not is_valid_ticker(t):
             continue
         # FMP live price
         price = 0.0
