@@ -29,9 +29,6 @@ NSE_BHAVCOPY_URL = os.environ.get(
     "NSE_BHAVCOPY_URL",
     "https://nsearchives.nseindia.com/content/historical/EQUITIES/{year}/{month}/cm{day}{month}{year}bhav.csv.zip",
 )
-STOCKTWITS_URL = os.environ.get(
-    "STOCKTWITS_URL", "https://api.stocktwits.com/api/2/streams/symbol/{ticker}.json"
-)
 ALPACA_PAPER_URL = os.environ.get(
     "ALPACA_PAPER_URL", "https://paper-api.alpaca.markets"
 )

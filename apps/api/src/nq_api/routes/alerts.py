@@ -99,7 +99,17 @@ def list_subscriptions(user: User = Depends(get_current_user)) -> AlertSubscript
 def create_subscription(
     req: AlertSubscriptionCreate, user: User = Depends(get_current_user)
 ) -> AlertSubscription:
-    # Development phase — no alert limit enforcement
+    existing = _rest(
+        "alert_subscriptions",
+        query={"select": "id", "user_id": f"eq.{user.id}"},
+    )
+    limit = ALERT_LIMITS.get(user.tier, ALERT_LIMITS["free"])
+    if len(existing["data"] or []) >= limit:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Alert limit reached for {user.tier} tier ({limit}). "
+                   "Delete an alert or upgrade.",
+        )
     ticker = req.ticker.upper().strip()
     insert_body = [{
         "user_id": user.id,
