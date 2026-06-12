@@ -75,13 +75,16 @@ def _log_session_start(user_id: str | None, room: str, agent: str) -> None:
     try:
         from nq_api.cache.score_cache import _supabase_rest
 
+        # "astra_session" is the historical name the web analytics layer
+        # also emits — keep it so dashboards see one event stream.
+        event_type = "veronica_session" if agent == "veronica" else "astra_session"
         _supabase_rest(
             "user_events",
             "POST",
             body=[{
                 "user_id": user_id,
                 "session_id": room,
-                "event_type": f"{agent}_session",
+                "event_type": event_type,
                 "category": "voice",
                 "label": "session_start",
                 "payload": {"room": room, "authenticated": bool(user_id)},
