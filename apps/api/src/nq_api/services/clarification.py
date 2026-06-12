@@ -1,5 +1,6 @@
 """Clarification question generation -- determines when and what to ask before answering."""
 import logging
+import re
 from datetime import date as _date, timedelta as _td
 
 from nq_api.services.constants import (
