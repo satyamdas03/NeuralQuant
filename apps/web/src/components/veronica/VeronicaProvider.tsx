@@ -43,15 +43,26 @@ export default function VeronicaProvider() {
   const [conn, setConn] = useState<{ token: string; url: string } | null>(null);
   const startedAtRef = useRef<number>(0);
   const retriedRef = useRef(false);
+  // Captured at connect time so session_end can attach it synchronously
+  // (pagehide can't await). Without the Bearer, /analytics/track stores
+  // user_id=null and the daily-cap query would treat every session as an
+  // orphan start (600s each).
+  const accessTokenRef = useRef<string | null>(null);
 
   const logSessionEnd = useCallback(() => {
     if (!startedAtRef.current) return;
     const duration_s = Math.round((Date.now() - startedAtRef.current) / 1000);
     startedAtRef.current = 0;
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (accessTokenRef.current) {
+      headers.Authorization = `Bearer ${accessTokenRef.current}`;
+    }
     try {
       fetch(`${API}/analytics/track`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         keepalive: true,
         body: JSON.stringify({
           event_type: "veronica_session",
@@ -72,6 +83,7 @@ export default function VeronicaProvider() {
       setHint("Sign in to meet Veronica");
       return;
     }
+    accessTokenRef.current = accessToken;
     setOrb("connecting");
     try {
       const res = await fetch(`${API}/livekit/token`, {
