@@ -34,7 +34,9 @@ export default function VeronicaOrb({
 }) {
   const active = state === "listening" || state === "speaking";
   return (
-    <div className="fixed bottom-20 right-4 z-[60] flex flex-col items-end gap-2 md:bottom-6 md:right-6">
+    // One slot above the QuantAstra FAB (bottom-20/lg:bottom-6) so the two
+    // never overlap on /dashboard.
+    <div className="fixed bottom-36 right-4 z-[60] flex flex-col items-end gap-2 lg:bottom-24 lg:right-6">
       {hint && (
         <div className="glass-strong ghost-border max-w-[220px] rounded-xl px-3 py-2 text-xs text-on-surface">
           {hint}
