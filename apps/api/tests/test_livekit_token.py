@@ -94,3 +94,17 @@ class TestSecondsToday:
             lt, "_fetch_today_veronica_events", side_effect=RuntimeError
         ):
             assert lt._veronica_seconds_today("user-42") == 0
+
+    def test_fetch_passes_filters_via_query_dict(self):
+        """Filters must go through query= — _supabase_rest strips query
+        strings embedded in the table arg (httpx params override)."""
+        with patch("nq_api.cache.score_cache._supabase_rest") as rest:
+            rest.return_value = []
+            lt._fetch_today_veronica_events("user-42")
+        args, kwargs = rest.call_args
+        assert args[0] == "user_events"
+        query = kwargs["query"]
+        assert query["user_id"] == "eq.user-42"
+        assert query["event_type"] == "eq.veronica_session"
+        assert query["created_at"].startswith("gte.")
+        assert query["select"] == "label,payload"

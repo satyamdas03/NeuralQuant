@@ -37,12 +37,17 @@ def _fetch_today_veronica_events(user_id: str) -> list[dict]:
     from nq_api.cache.score_cache import _supabase_rest
 
     today = datetime.now(timezone.utc).strftime("%Y-%m-%dT00:00:00")
+    # Filters MUST go through query= — _supabase_rest passes them as httpx
+    # params; a query string embedded in the table arg gets stripped.
     result = _supabase_rest(
-        f"user_events?user_id=eq.{user_id}"
-        f"&event_type=eq.veronica_session"
-        f"&created_at=gte.{today}"
-        "&select=label,payload",
+        "user_events",
         method="GET",
+        query={
+            "user_id": f"eq.{user_id}",
+            "event_type": "eq.veronica_session",
+            "created_at": f"gte.{today}",
+            "select": "label,payload",
+        },
     )
     return result if isinstance(result, list) else []
 
