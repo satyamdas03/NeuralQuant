@@ -1,11 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Mic } from "lucide-react";
 import QuantAstraModal from "./QuantAstraModal";
+import { setAstraOpen } from "@/lib/veronica-store";
 
 export default function QuantAstraFAB() {
   const [modalOpen, setModalOpen] = useState(false);
+
+  useEffect(() => {
+    setAstraOpen(modalOpen);
+    return () => setAstraOpen(false);
+  }, [modalOpen]);
 
   return (
     <>
