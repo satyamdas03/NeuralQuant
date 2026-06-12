@@ -154,6 +154,13 @@ class QuantAstraAgent(
 
 async def entrypoint(ctx: JobContext):
     """LiveKit worker entrypoint — called when agent joins a room."""
+    from quantastra.veronica_logic import agent_kind_for_room
+
+    if agent_kind_for_room(ctx.room.name) == "veronica":
+        from quantastra.veronica_agent import run_veronica
+        await run_veronica(ctx)
+        return
+
     log.info("QuantAstra agent joining room: %s", ctx.room.name)
 
     user_id = "anonymous"
