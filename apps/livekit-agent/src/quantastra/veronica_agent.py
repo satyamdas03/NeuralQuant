@@ -126,6 +126,9 @@ async def run_veronica(ctx: JobContext) -> None:
 
     @ctx.room.on("data_received")
     def _on_data_received(data_packet):
+        topic = getattr(data_packet, "topic", None)
+        if topic not in (None, "veronica"):
+            return
         raw = data_packet.data if hasattr(data_packet, "data") else data_packet
         try:
             if isinstance(raw, bytes):
@@ -137,10 +140,13 @@ async def run_veronica(ctx: JobContext) -> None:
         if page is None:
             return
         agent._latest_page = page
-        # Ground future Q&A in what's on screen — silent context note.
-        asyncio.ensure_future(_note_page(agent, page))
+        asyncio.ensure_future(_handle_page(agent, session, page))
+
+    async def _handle_page(agent: VeronicaAgent, session: AgentSession, page: dict) -> None:
+        # Ground Q&A first so narration sees the [PAGE] note, then speak.
+        await _note_page(agent, page)
         if page["narrate"]:
-            asyncio.ensure_future(_narrate(session, page))
+            await _narrate(session, page)
 
     async def _note_page(agent: VeronicaAgent, page: dict) -> None:
         try:
