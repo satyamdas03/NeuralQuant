@@ -115,6 +115,23 @@ def _safe_bool(v) -> bool:
 from nq_data.ticker_validation import is_valid_ticker as _is_valid_ticker
 
 
+def _normalize_india_index_group(raw) -> str:
+    """Map sheet 'Index Name' values onto the labels the portfolio pools
+    filter by (astra_portfolio accepts NIFTY100 / NIFTY200 / NSE250).
+
+    The collector historically wrote 'LM 250' — left unmapped it would drop
+    every Indian stock out of every recommendation pool.
+    """
+    s = str(raw or "").strip().upper().replace(" ", "")
+    if s in ("NIFTY100", "NIFTY50"):
+        return "NIFTY100"
+    if s in ("NIFTY200", "LM250", "NIFTYMIDCAP150", "MIDCAP150"):
+        return "NIFTY200"
+    if not s or s == "NAN":
+        return "NIFTY200"
+    return "NSE250"
+
+
 def _build_us_row(df_row: dict, index_group: str) -> dict[str, Any]:
     """Build a quantfactor_universe row from a US Excel sheet row."""
     ticker = str(df_row.get("Ticker", "")).strip().upper()
@@ -285,7 +302,7 @@ def _build_india_row(df_row: dict, computed_scores: dict | None = None) -> dict[
     return {
         "ticker": ticker,
         "market": "IN",
-        "index_group": df_row.get("Index Name") or "NIFTY200",
+        "index_group": _normalize_india_index_group(df_row.get("Index Name")),
         "sector": df_row.get("Sector") or None,
         "sub_sector": df_row.get("Sub Sector") or None,
         "sales_yoy_growth": _safe_float(df_row.get("Sales YoY Growth")),
@@ -574,8 +591,8 @@ def _parse_excel_us(path: str) -> list[dict[str, Any]]:
     return rows
 
 
-def _parse_excel_india(path: str) -> list[dict[str, Any]]:
-    """Parse the Indian Excel file (stock_analysis_coloured (1).xlsx).
+def _parse_excel_india(path: str, sheet: int | str = 0, extra_sheet: bool = True) -> list[dict[str, Any]]:
+    """Parse Indian rows from an Excel file.
 
     Two-phase parsing:
       1. Read all raw dicts from the Excel
@@ -591,17 +608,18 @@ def _parse_excel_india(path: str) -> list[dict[str, Any]]:
         return []
 
     raw_dicts: list[dict] = []
-    for sheet_idx in (0, 1):
+    sheets: list[int | str] = [sheet, 1] if extra_sheet else [sheet]
+    for sheet_id in sheets:
         try:
-            df = pd.read_excel(path, sheet_name=sheet_idx, header=0)
-            log.info("India Excel sheet %s rows: %s", sheet_idx, len(df))
+            df = pd.read_excel(path, sheet_name=sheet_id, header=0)
+            log.info("India Excel sheet %s rows: %s", sheet_id, len(df))
             for _, r in df.iterrows():
                 raw_dicts.append(r.to_dict())
         except Exception as e:
-            if sheet_idx == 0:
-                log.warning("Failed to parse India Excel sheet 0: %s", e)
+            if sheet_id == sheet:
+                log.warning("Failed to parse India Excel sheet %s: %s", sheet_id, e)
             else:
-                log.debug("India Excel sheet 1 not present or failed: %s", e)
+                log.debug("India Excel sheet %s not present or failed: %s", sheet_id, e)
 
     if not raw_dicts:
         return []
@@ -616,6 +634,15 @@ def _parse_excel_india(path: str) -> list[dict[str, Any]]:
         if row:
             rows.append(row)
     return rows
+
+
+# The daily-refreshed workbook carries the India universe in this sheet.
+# The standalone "stock_analysis_coloured (1).xlsx" is a static manual upload
+# kept only as a fallback — see _ensure_india_excel.
+_INDIA_SHEET_NAME = "NSE 100 Analysis"
+# Below this many parsed rows the fresh sheet is considered broken and the
+# fossil fallback is used instead — never let a bad refresh wipe the universe.
+_INDIA_MIN_ROWS = 150
 
 
 # ---------------------------------------------------------------------------
@@ -652,14 +679,30 @@ def run_quantfactor_sync(
     else:
         log.error("US Excel not available (download failed)")
 
-    # 2. Parse India Excel (auto-download from GitHub if missing)
-    in_path = _ensure_india_excel(india_excel_path)
-    if in_path:
-        in_rows = _parse_excel_india(in_path)
-        log.info("Parsed %s India rows from Excel", len(in_rows))
+    # 2. Parse India rows — primary source is the daily-refreshed NSE sheet
+    # inside the SAME workbook as the US data; the static standalone India
+    # file is only a fallback (it froze the universe at ~60 tickers).
+    in_rows: list[dict] = []
+    if us_path:
+        in_rows = _parse_excel_india(us_path, sheet=_INDIA_SHEET_NAME, extra_sheet=False)
+        log.info("Parsed %s India rows from '%s' sheet", len(in_rows), _INDIA_SHEET_NAME)
+    if len(in_rows) < _INDIA_MIN_ROWS:
+        log.warning(
+            "Fresh India sheet gave only %s rows (<%s) — falling back to static India Excel",
+            len(in_rows), _INDIA_MIN_ROWS,
+        )
+        in_path = _ensure_india_excel(india_excel_path)
+        if in_path:
+            fallback_rows = _parse_excel_india(in_path)
+            log.info("Parsed %s India rows from fallback Excel", len(fallback_rows))
+            if len(fallback_rows) > len(in_rows):
+                in_rows = fallback_rows
+        else:
+            log.warning("India fallback Excel not available either")
+    if in_rows:
         all_rows.extend(in_rows)
     else:
-        log.warning("India Excel not available (download failed) — skipping India universe")
+        log.warning("No India rows from any source — skipping India universe")
 
     if not all_rows:
         log.error("No rows parsed — aborting")
