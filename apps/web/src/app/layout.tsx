@@ -7,6 +7,7 @@ import WalkthroughProvider from "@/components/onboarding/WalkthroughProvider";
 import ServiceWorkerRegister from "@/components/ui/ServiceWorkerRegister";
 import InstallPWA from "@/components/ui/InstallPWA";
 import UpgradePrompt from "@/components/ui/UpgradePrompt";
+import VeronicaProvider from "@/components/veronica/VeronicaProvider";
 import { SessionProvider } from "@/lib/session-tracker";
 import AnalyticsRouteTracker from "@/components/AnalyticsRouteTracker";
 
@@ -179,6 +180,7 @@ export default function RootLayout({
             <AppShell>{children}</AppShell>
             <InstallPWA />
             <UpgradePrompt />
+            <VeronicaProvider />
           </WalkthroughProvider>
         </SessionProvider>
       </body>
