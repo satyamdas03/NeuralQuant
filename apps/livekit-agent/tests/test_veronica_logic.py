@@ -76,9 +76,19 @@ class TestBuildNarrationInstructions:
 class TestBuildVeronicaGreeting:
     def test_with_name(self):
         g = build_veronica_greeting("Satyam")
-        assert "Satyam" in g
         assert "Veronica" in g
 
     def test_without_name(self):
         g = build_veronica_greeting(None)
         assert "Veronica" in g
+
+
+def test_veronica_greeting_starts_hey_there_no_name():
+    g = build_veronica_greeting("Satyam")
+    assert g.startswith("Hey there")
+    assert "Satyam" not in g
+
+
+def test_veronica_greeting_anon_starts_hey_there():
+    g = build_veronica_greeting(None)
+    assert g.startswith("Hey there")
