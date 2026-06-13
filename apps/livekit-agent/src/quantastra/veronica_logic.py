@@ -48,16 +48,14 @@ def build_narration_instructions(ctx: dict) -> str:
     )
 
 
-def build_veronica_greeting(name: str | None) -> str:
-    """First spoken utterance after the user enables Veronica."""
-    if name:
-        return (
-            f"Hi {name}, Veronica here. I'm with you on every page now — "
-            "just speak whenever you have a question. "
-            "Want me to walk you through what you're looking at?"
-        )
+def build_veronica_greeting(name: str | None = None) -> str:
+    """First spoken utterance after the user enables Veronica.
+
+    `name` is accepted for caller compatibility but intentionally unused — the
+    greeting stays a simple 'Hey there'.
+    """
     return (
-        "Hi, I'm Veronica — your companion here at QuantAlpha. "
+        "Hey there, Veronica here — your companion across NeuralQuant. "
         "I'm with you on every page. Just speak whenever something "
         "catches your eye and I'll explain it."
     )

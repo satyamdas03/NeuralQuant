@@ -144,7 +144,7 @@ export default function StockPage() {
             "@context": "https://schema.org",
             "@type": "FinancialProduct",
             name: ticker,
-            description: `QuantAlpha AI analysis for ${ticker}`,
+            description: `NeuralQuant AI analysis for ${ticker}`,
             url: `https://neuralquant.vercel.app/stocks/${ticker}`,
           }),
         }}

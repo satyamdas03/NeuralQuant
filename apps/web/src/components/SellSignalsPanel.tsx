@@ -16,8 +16,8 @@ export default function SellSignalsPanel({ market = "IN" }: { market?: "US" | "I
   useEffect(() => {
     authedApi.getAstraSellSignals(market)
       .then((data) => {
-        setSellSignals(data.sell_signals ?? []);
-        setNeutralSignals(data.neutral_signals ?? []);
+        setSellSignals(Array.isArray(data?.sell_signals) ? data.sell_signals : []);
+        setNeutralSignals(Array.isArray(data?.neutral_signals) ? data.neutral_signals : []);
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Failed to load sell signals"))
       .finally(() => setLoading(false));

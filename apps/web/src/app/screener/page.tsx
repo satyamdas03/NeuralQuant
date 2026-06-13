@@ -136,7 +136,7 @@ function ScreenerInner() {
           <div>
             <h1 className="font-headline text-xl font-bold text-on-surface">AI Screener</h1>
             <p className="text-xs text-on-surface-variant">
-              Stocks ranked by QuantAlpha ForeCast Score™
+              Stocks ranked by NeuralQuant ForeCast Score™
             </p>
           </div>
         </div>

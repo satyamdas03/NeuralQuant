@@ -1302,7 +1302,7 @@ async def get_quantfactor_detail(ticker: str, market: str = "US"):
 
     row["irs_interpretation"] = interpretation
     row["sebi_disclaimer"] = (
-        "QuantAlpha is a research tool, not a SEBI-registered investment advisor. "
+        "NeuralQuant is a research tool, not a SEBI-registered investment advisor. "
         "Please consult a qualified financial advisor before investing."
     )
     return row

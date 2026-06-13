@@ -306,7 +306,7 @@ export default function PortfolioPage() {
 
           {/* SEBI Disclaimer */}
           <div className="text-[9px] text-on-surface-variant text-center leading-relaxed">
-            {recommendation.sebi_disclaimer || "These recommendations are based on quantitative analysis. QuantAlpha is a research tool, not a SEBI-registered investment advisor. Please consult a qualified financial advisor before investing."}
+            {recommendation.sebi_disclaimer || "These recommendations are based on quantitative analysis. NeuralQuant is a research tool, not a SEBI-registered investment advisor. Please consult a qualified financial advisor before investing."}
           </div>
         </>
       )}

@@ -5,16 +5,22 @@ import { authedApi } from "@/lib/api";
 import type { GeopoliticalWarning } from "@/lib/types";
 import GhostBorderCard from "@/components/ui/GhostBorderCard";
 import { Globe, Loader2 } from "lucide-react";
+import Link from "next/link";
 
-function severityBadge(severity: "HIGH" | "MEDIUM" | "LOW") {
-  const colors = {
-    HIGH: "bg-red-500/15 text-red-400 border-red-500/30",
-    MEDIUM: "bg-amber-500/15 text-amber-400 border-amber-500/30",
-    LOW: "bg-primary-fixed/15 text-primary-fixed border-primary-fixed/30",
-  };
+function riskStyles(level: "HIGH" | "MEDIUM") {
+  return level === "HIGH"
+    ? "bg-red-500/5 border-red-500/20"
+    : "bg-amber-500/5 border-amber-500/20";
+}
+
+function riskBadge(level: "HIGH" | "MEDIUM") {
+  const cls =
+    level === "HIGH"
+      ? "bg-red-500/15 text-red-400 border-red-500/30"
+      : "bg-amber-500/15 text-amber-400 border-amber-500/30";
   return (
-    <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${colors[severity]}`}>
-      {severity}
+    <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${cls}`}>
+      {level}
     </span>
   );
 }
@@ -28,8 +34,8 @@ export default function GeopoliticalScanPanel({ market = "IN" }: { market?: "US"
   useEffect(() => {
     authedApi.getAstraGeopoliticalScan(market)
       .then((data) => {
-        setWarnings(data.warnings ?? []);
-        setTotalScanned(data.total_scanned ?? 0);
+        setWarnings(Array.isArray(data?.warnings) ? data.warnings : []);
+        setTotalScanned(data?.total_scanned ?? 0);
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Scan failed"))
       .finally(() => setLoading(false));
@@ -63,15 +69,15 @@ export default function GeopoliticalScanPanel({ market = "IN" }: { market?: "US"
           <Globe size={24} className="mx-auto text-primary-fixed mb-2" />
           <p className="text-sm text-on-surface-variant">No geopolitical risk warnings detected for your portfolio.</p>
           {totalScanned > 0 && (
-            <p className="text-[10px] text-on-surface-variant mt-1">{totalScanned} sectors scanned</p>
+            <p className="text-[10px] text-on-surface-variant mt-1">{totalScanned} holdings scanned</p>
           )}
         </div>
       </GhostBorderCard>
     );
   }
 
-  const highCount = warnings.filter((w) => w.severity === "HIGH").length;
-  const medCount = warnings.filter((w) => w.severity === "MEDIUM").length;
+  const highCount = warnings.filter((w) => w.risk_level === "HIGH").length;
+  const medCount = warnings.filter((w) => w.risk_level === "MEDIUM").length;
 
   return (
     <div className="space-y-3">
@@ -98,48 +104,29 @@ export default function GeopoliticalScanPanel({ market = "IN" }: { market?: "US"
 
       <div className="space-y-2">
         {warnings.map((w, i) => (
-          <div
-            key={i}
-            className={`rounded-lg ghost-border p-3 space-y-1.5 ${
-              w.severity === "HIGH"
-                ? "bg-red-500/5 border-red-500/20"
-                : w.severity === "MEDIUM"
-                ? "bg-amber-500/5 border-amber-500/20"
-                : ""
-            }`}
+          <Link
+            key={`${w.ticker}-${i}`}
+            href={`/stocks/${w.ticker}?market=${market}`}
+            className={`block rounded-lg ghost-border p-3 space-y-1.5 ${riskStyles(w.risk_level)}`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-on-surface">{w.title}</span>
-              {severityBadge(w.severity)}
+              <span className="font-headline text-sm font-bold text-on-surface">{w.ticker}</span>
+              {riskBadge(w.risk_level)}
             </div>
-            <p className="text-xs text-on-surface-variant leading-relaxed">{w.description}</p>
-            {w.affected_sectors.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {w.affected_sectors.map((s) => (
-                  <span key={s} className="text-[9px] font-mono px-1 py-0.5 rounded bg-surface-container text-on-surface-variant">
-                    {s}
-                  </span>
-                ))}
-              </div>
+            <div className="flex items-center gap-3 text-[10px] font-mono text-on-surface-variant">
+              {w.sector && <span>{w.sector}</span>}
+              {w.beta != null && <span>β {w.beta.toFixed(2)}</span>}
+              {w.irs_pct != null && <span>IRS {w.irs_pct.toFixed(0)}%</span>}
+            </div>
+            {w.recommendation && (
+              <p className="text-[11px] text-on-surface">{w.recommendation}</p>
             )}
-            {w.affected_tickers.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {w.affected_tickers.slice(0, 5).map((t) => (
-                  <span key={t} className="text-[9px] font-mono px-1 py-0.5 rounded bg-surface-container-high text-on-surface">
-                    {t}
-                  </span>
-                ))}
-                {w.affected_tickers.length > 5 && (
-                  <span className="text-[9px] text-on-surface-variant">+{w.affected_tickers.length - 5} more</span>
-                )}
-              </div>
-            )}
-          </div>
+          </Link>
         ))}
       </div>
 
       <p className="text-[9px] text-on-surface-variant text-center">
-        {totalScanned} sectors scanned · Data sourced from market headlines
+        {totalScanned} holdings scanned · Geopolitically sensitive sectors flagged from your watchlist
       </p>
     </div>
   );

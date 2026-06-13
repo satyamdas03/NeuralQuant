@@ -266,7 +266,7 @@ export async function GET(
               letterSpacing: "1px",
             }}
           >
-            QuantAlpha
+            NeuralQuant
           </div>
         </div>
 

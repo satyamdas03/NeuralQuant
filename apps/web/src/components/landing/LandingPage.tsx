@@ -23,7 +23,7 @@ export default function LandingPage() {
         <div className="flex justify-between items-center h-full px-4 lg:px-16 max-w-[1400px] mx-auto">
           <div className="flex items-center gap-3">
             <span className="font-headline text-xl md:text-2xl font-bold tracking-tight text-primary-fixed">
-              QuantAlpha
+              NeuralQuant
             </span>
             <span className="font-mono text-[10px] text-text-muted tracking-[0.2em] uppercase hidden sm:inline">
               AI
@@ -146,7 +146,7 @@ export default function LandingPage() {
         <div className="relative z-10 max-w-[1400px] mx-auto px-4 lg:px-16 flex flex-col items-center text-center">
           <div className="inline-flex items-center gap-2 border border-primary-fixed/30 bg-surface-container-low px-4 py-2 font-mono text-[11px] font-bold tracking-[0.2em] uppercase text-primary-fixed mb-8">
             <span className="w-2 h-2 rounded-full bg-primary-fixed animate-pulse" />
-            QuantAlpha Engine V4.0 Live
+            NeuralQuant Engine V4.0 Live
           </div>
           <h1 className="font-serif hero-title text-4xl sm:text-5xl md:text-8xl lg:text-[10rem] mb-6">
             <span className="block">Institutional-Grade</span>
@@ -377,7 +377,7 @@ export default function LandingPage() {
           Built on published research
         </h2>
         <p className="text-text-muted max-w-2xl mb-12">
-          Every QuantAlpha factor is grounded in peer-reviewed finance research —
+          Every NeuralQuant factor is grounded in peer-reviewed finance research —
           not hype.
         </p>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -452,10 +452,10 @@ export default function LandingPage() {
         <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex flex-col gap-2">
             <span className="font-mono text-[11px] font-bold tracking-[0.2em] uppercase text-text-muted">
-              QuantAlpha
+              NeuralQuant
             </span>
             <p className="font-mono text-[11px] text-text-muted tracking-[0.1em]">
-              &copy; {new Date().getFullYear()} QuantAlpha &middot; Research tool,
+              &copy; {new Date().getFullYear()} NeuralQuant &middot; Research tool,
               not investment advice.
             </p>
           </div>

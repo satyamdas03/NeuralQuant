@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/testing/quarterly", tags=["testing"])
 
 SEBI_DISCLAIMER = (
-    "QuantAlpha is a research tool, not a SEBI-registered investment advisor. "
+    "NeuralQuant is a research tool, not a SEBI-registered investment advisor. "
     "Quarterly test results are for validation purposes only."
 )
 

@@ -31,24 +31,14 @@ async def _fetch_user_name(user_id: str) -> str | None:
 
 
 async def build_personalized_greeting(user_id: str) -> str:
-    """Build a personalized greeting for the user based on profile and session history.
-
-    Returns a greeting string for the agent's first spoken utterance.
-    """
-    name = await _fetch_user_name(user_id)
+    """Build the agent's first spoken utterance. Opens with a simple 'Hey there'
+    (no name/email) but keeps last-session recall for returning users."""
     last_summary = await _fetch_last_session_summary(user_id)
 
-    if name and last_summary:
+    if last_summary:
         return (
-            f"Hey {name}, welcome back. In our last session we talked about "
+            "Hey there, welcome back. In our last session we talked about "
             f"{last_summary} What's on your mind today?"
-        )
-
-    if name:
-        return (
-            f"Hey {name}, I'm QuantAstra, your portfolio manager at QuantAlpha. "
-            "I've got live markets, AI research, and your portfolio pulled up. "
-            "What's on your mind today?"
         )
 
     from quantastra.persona import INITIAL_GREETING

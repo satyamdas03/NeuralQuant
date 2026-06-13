@@ -229,11 +229,11 @@ _PHASE_LABELS = {
     "classify":  "Understanding your question",
     "news":      "Scanning latest market headlines",
     "macro":     "Loading real-time market indicators",
-    "platform":  "Reading QuantAlpha ForeCast scores + factor data",
+    "platform":  "Reading NeuralQuant ForeCast scores + factor data",
     "context":   "Assembling reasoning context",
     "prompt":    "Preparing AI analysis",
     "thinking":  "AI is reasoning over the data",
     "generate":  "AI is generating structured response",
     "parse":     "Processing results",
-    "render":    "Building QuantAlpha ForeCast",
+    "render":    "Building NeuralQuant ForeCast",
 }

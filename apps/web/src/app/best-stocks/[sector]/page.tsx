@@ -139,7 +139,7 @@ export default async function SectorPage({
     <div className="min-h-screen bg-surface text-on-surface">
       <div className="max-w-6xl mx-auto px-6 py-20">
         <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium mb-4">
-          QuantAlpha ForeCast&trade;
+          NeuralQuant ForeCast&trade;
         </span>
         <h1 className="font-headline text-4xl md:text-5xl font-bold tracking-tight">
           Best {data.name} Stocks in India

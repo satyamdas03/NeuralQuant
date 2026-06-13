@@ -85,7 +85,7 @@ export default function AIResponseCard({
       return (
         <div className="bg-surface-container ghost-border p-4 space-y-4">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-primary-fixed">QuantAlpha Portfolio ForeCast</span>
+            <span className="text-xs font-medium text-primary-fixed">NeuralQuant Portfolio ForeCast</span>
             <span className="text-[10px] text-on-surface-variant uppercase">{parsed.route}</span>
           </div>
 
@@ -128,7 +128,7 @@ export default function AIResponseCard({
     return (
       <div className="bg-surface-container ghost-border p-4 space-y-4">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-primary-fixed">QuantAlpha ForeCast</span>
+          <span className="text-xs font-medium text-primary-fixed">NeuralQuant ForeCast</span>
           <span className="text-[10px] text-on-surface-variant uppercase">{parsed.route}</span>
         </div>
 
@@ -167,7 +167,7 @@ export default function AIResponseCard({
   return (
     <div className="bg-surface-container ghost-border p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-primary-fixed">QuantAlpha ForeCast</span>
+        <span className="text-xs font-medium text-primary-fixed">NeuralQuant ForeCast</span>
         <div className="flex items-center gap-2">
           {regime && <RegimeBadge regime={regime} />}
           {score !== undefined && (

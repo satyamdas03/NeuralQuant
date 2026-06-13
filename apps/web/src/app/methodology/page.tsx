@@ -345,7 +345,7 @@ export default function MethodologyPage() {
             >
               The QuantFactor Engine{" "}
               <span className="italic text-primary-fixed">
-                — How QuantAlpha Selects Stocks
+                — How NeuralQuant Selects Stocks
               </span>
             </h1>
             <p
@@ -1209,7 +1209,7 @@ export default function MethodologyPage() {
                 >
                   <strong>SEBI Disclaimer:</strong> Past performance does not
                   guarantee future results. These are backtested results on
-                  historical data. QuantAlpha is a research tool, not a
+                  historical data. NeuralQuant is a research tool, not a
                   SEBI-registered Investment Advisor, Portfolio Manager, or
                   Research Analyst. Nothing on this page constitutes investment
                   advice. Please consult a SEBI-registered financial advisor
@@ -1723,7 +1723,7 @@ export default function MethodologyPage() {
               style={{ color: "rgba(255, 209, 102, 0.85)" }}
             >
               Past performance does not guarantee future results. These are
-              backtested results on historical data. QuantAlpha is a research
+              backtested results on historical data. NeuralQuant is a research
               tool, not a SEBI-registered Investment Advisor, Portfolio Manager,
               or Research Analyst. Nothing on this page constitutes investment
               advice. Please consult a SEBI-registered financial advisor before

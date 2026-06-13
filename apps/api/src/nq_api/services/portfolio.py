@@ -8,8 +8,22 @@ import pandas as pd
 from nq_api.services.constants import _PORTFOLIO_KEYWORDS
 from nq_api.services.prompts import _PROFILE_PROMPT_TEMPLATE
 from nq_api.schemas import UserProfile
+from nq_api.cache.snapshot_cache import read_snapshot
 
 log = logging.getLogger(__name__)
+
+
+def _snapshot_price(ticker: str, market: str) -> float | None:
+    """Live price from public.stock_snapshot (refreshed every 30 min, has IN prices
+    that Render's blocked yfinance cannot fetch). Returns None when absent or <= 0."""
+    try:
+        row = read_snapshot(ticker.upper(), market)
+        if row and row.get("price"):
+            p = float(row["price"])
+            return p if p > 0 else None
+    except Exception:
+        return None
+    return None
 
 
 def _is_portfolio_intent(question: str) -> bool:
@@ -207,6 +221,14 @@ def _validate_and_fill_portfolio_prices(
                         price_source = "yf_download"
             except Exception as exc:
                 log.debug("yf.download failed for %s: %s", sym, exc)
+
+        # -- Tier 4b: stock_snapshot (30-min refresh, reliable for IN on Render) --
+        if not live_price or live_price <= 0:
+            snap_price = _snapshot_price(ticker, stock_market)
+            if snap_price:
+                live_price = snap_price
+                price_source = "stock_snapshot"
+                fill_notes.append(f"{ticker} price: stock_snapshot ({live_price:.2f})")
 
         # -- Tier 5: score_cache (up to 7 days stale) --
         if not live_price or live_price <= 0:

@@ -30,8 +30,8 @@ from quantastra.veronica_persona import VERONICA_SYSTEM_PROMPT
 
 log = logging.getLogger("veronica")
 
-# ElevenLabs "Charlotte" — distinct from Astra's voice. Override per-env.
-VERONICA_VOICE_ID = os.getenv("VERONICA_VOICE_ID", "XB0fDUnXU5powFXDhCwa")
+# Veronica's ElevenLabs voice. Override per-env with VERONICA_VOICE_ID.
+VERONICA_VOICE_ID = os.getenv("VERONICA_VOICE_ID", "kdnRe2koJdOK4Ovxn2DI")
 
 
 async def _publish(participant: LocalParticipant | None, msg: dict) -> None:

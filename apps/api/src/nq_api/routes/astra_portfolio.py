@@ -23,7 +23,7 @@ router = APIRouter(prefix="/astra", tags=["astra"])
 
 SEBI_DISCLAIMER = (
     "These recommendations are based on quantitative analysis. "
-    "QuantAlpha is a research tool, not a SEBI-registered investment advisor. "
+    "NeuralQuant is a research tool, not a SEBI-registered investment advisor. "
     "Please consult a qualified financial advisor before investing."
 )
 
@@ -540,6 +540,7 @@ async def get_sell_signals(
                 "market": market,
                 "g_score": g,
                 "irs_pct": row.get("irs_pct"),
+                "reason": "May take significant time to show returns",
                 "note": "May take significant time to show returns",
                 "sector": row.get("sector"),
             })

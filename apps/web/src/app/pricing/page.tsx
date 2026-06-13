@@ -176,7 +176,7 @@ export default function PricingPage() {
         <div className="mt-16">
           <h2 className="font-headline text-2xl font-bold text-center">Why upgrade?</h2>
           <p className="mt-2 text-on-surface-variant text-center max-w-lg mx-auto text-sm">
-            QuantAlpha uses institutional-grade AI scoring on 100+ stocks. Free gives you a taste; Investor unlocks the full engine.
+            NeuralQuant uses institutional-grade AI scoring on 100+ stocks. Free gives you a taste; Investor unlocks the full engine.
           </p>
           <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
             <WhyCard

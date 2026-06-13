@@ -783,21 +783,19 @@ export interface AstraSellSignalsResponse {
 }
 
 export interface GeopoliticalWarning {
-  category: string;
-  severity: "HIGH" | "MEDIUM" | "LOW";
-  title: string;
-  description: string;
-  affected_sectors: string[];
-  affected_tickers: string[];
-  source?: string;
+  ticker: string;
+  sector?: string | null;
+  risk_level: "HIGH" | "MEDIUM";
+  beta?: number | null;
+  irs_pct?: number | null;
+  recommendation?: string | null;
 }
 
 export interface AstraGeopoliticalScanResponse {
   warnings: GeopoliticalWarning[];
   total_scanned: number;
-  high_risk_count: number;
-  medium_risk_count: number;
-  sebi_disclaimer: string;
+  warning_count?: number;
+  sebi_disclaimer?: string;
 }
 
 export interface QuantFactorDetailResponse {

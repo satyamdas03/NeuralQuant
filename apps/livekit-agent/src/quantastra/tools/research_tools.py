@@ -13,6 +13,19 @@ log = logging.getLogger(__name__)
 class ResearchToolsMixin:
     """Deep research tools — PARA-DEBATE analysis, sentiment, news."""
 
+    async def _publish_debate(self, payload: dict) -> None:
+        """Push a debate_progress event to the frontend over the data channel.
+        Best-effort — a publish failure must never interrupt the analysis."""
+        participant = getattr(self, "_participant", None)
+        if not participant:
+            return
+        try:
+            await participant.publish_data(
+                json.dumps(payload), reliable=True, topic="quantastra"
+            )
+        except Exception:
+            log.debug("Failed to publish debate_progress", exc_info=True)
+
     @function_tool
     async def run_para_debate(
         self,
@@ -32,12 +45,14 @@ class ResearchToolsMixin:
             ticker: Stock ticker symbol, e.g. 'AAPL' or 'RELIANCE'
             market: Market — 'US' or 'IN'
         """
+        await self._publish_debate({"type": "debate_progress", "phase": "started", "ticker": ticker, "market": market})
         try:
             from nq_api.agents.orchestrator import ParaDebateOrchestrator
             from nq_api.data_builder import _fetch_one, fetch_real_macro
 
             fund = _fetch_one(ticker, market, fast_pe=True)
             if fund is None:
+                await self._publish_debate({"type": "debate_progress", "phase": "error", "ticker": ticker})
                 return json.dumps({"status": "unavailable", "ticker": ticker, "reason": "Could not fetch fundamental data — FMP/yfinance may be unavailable"})
 
             macro = fetch_real_macro()
@@ -55,6 +70,10 @@ class ResearchToolsMixin:
                         "conviction": o.conviction,
                     })
 
+            await self._publish_debate({
+                "type": "debate_progress", "phase": "complete", "ticker": ticker,
+                "verdict": result.head_analyst_verdict, "consensus_score": result.consensus_score,
+            })
             return json.dumps({
                 "status": "ok",
                 "ticker": ticker,
@@ -69,6 +88,7 @@ class ResearchToolsMixin:
             }, default=str)
         except Exception as exc:
             log.error("run_para_debate failed for %s/%s: %s", ticker, market, exc)
+            await self._publish_debate({"type": "debate_progress", "phase": "error", "ticker": ticker})
             return json.dumps({
                 "status": "error",
                 "ticker": ticker,

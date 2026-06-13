@@ -181,7 +181,7 @@ def _fetch_article_body(url: str, timeout: float = 5.0, max_len: int = 2000) -> 
         with httpx.Client(timeout=timeout, follow_redirects=True) as client:
             resp = client.get(
                 url,
-                headers={"User-Agent": "Mozilla/5.0 (compatible; QuantAlpha/2.0)"},
+                headers={"User-Agent": "Mozilla/5.0 (compatible; NeuralQuant/2.0)"},
             )
             if resp.status_code != 200:
                 return ""
