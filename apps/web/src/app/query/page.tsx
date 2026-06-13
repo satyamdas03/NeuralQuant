@@ -9,7 +9,7 @@ export default function QueryPage() {
         <div>
           <h1 className="font-headline text-xl font-bold text-on-surface">Ask the AI</h1>
           <p className="text-xs text-on-surface-variant">
-            Natural language queries grounded in QuantAlpha data
+            Natural language queries grounded in NeuralQuant data
           </p>
         </div>
       </div>

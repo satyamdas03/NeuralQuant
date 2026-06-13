@@ -76,7 +76,7 @@ function SignupForm() {
             Create your account
           </h1>
           <p className="mt-1 text-xs text-on-surface-variant">
-            Join QuantAlpha — AI stock intelligence
+            Join NeuralQuant — AI stock intelligence
           </p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-3">

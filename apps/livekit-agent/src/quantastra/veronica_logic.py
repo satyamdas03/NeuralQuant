@@ -57,7 +57,7 @@ def build_veronica_greeting(name: str | None) -> str:
             "Want me to walk you through what you're looking at?"
         )
     return (
-        "Hi, I'm Veronica — your companion here at QuantAlpha. "
+        "Hi, I'm Veronica — your companion here at NeuralQuant. "
         "I'm with you on every page. Just speak whenever something "
         "catches your eye and I'll explain it."
     )

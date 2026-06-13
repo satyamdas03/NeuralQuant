@@ -102,7 +102,7 @@ export default function InstallPWA() {
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-white">
-                Add QuantAlpha to Home Screen
+                Add NeuralQuant to Home Screen
               </p>
               <p className="text-xs text-gray-400 mt-1">
                 Tap <strong>Share</strong> → <strong>Add to Home Screen</strong> to install.
@@ -128,7 +128,7 @@ export default function InstallPWA() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-white">
-              Add QuantAlpha to Home Screen
+              Add NeuralQuant to Home Screen
             </p>
             <p className="text-xs text-gray-400 mt-1">
               Quick access to AI-powered stock research

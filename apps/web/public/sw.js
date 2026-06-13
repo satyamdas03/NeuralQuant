@@ -1,6 +1,6 @@
 // Service worker — network-first for pages so deploys reach users immediately;
 // cache-first only for immutable static assets. Bump CACHE to purge old entries.
-const CACHE = "quantalpha-v2";
+const CACHE = "neuralquant-v1";
 const PRECACHE = ["/manifest.json", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {

@@ -246,7 +246,7 @@ export function NLQueryBox({ defaultTicker }: { defaultTicker?: string }) {
                 ) : (
                   <div className="flex items-center gap-2 py-1 text-sm text-on-surface-variant">
                     <span className="animate-pulse text-primary">●</span>
-                    <span>Connecting to QuantAlpha AI...</span>
+                    <span>Connecting to NeuralQuant AI...</span>
                   </div>
                 )}
               </div>

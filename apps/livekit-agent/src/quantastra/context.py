@@ -46,7 +46,7 @@ async def build_personalized_greeting(user_id: str) -> str:
 
     if name:
         return (
-            f"Hey {name}, I'm QuantAstra, your portfolio manager at QuantAlpha. "
+            f"Hey {name}, I'm QuantAstra, your portfolio manager at NeuralQuant. "
             "I've got live markets, AI research, and your portfolio pulled up. "
             "What's on your mind today?"
         )

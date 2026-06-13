@@ -35,7 +35,7 @@ export default function SideNavBar() {
     >
       <div className="px-6 mb-8 flex flex-col gap-2">
         <span className="font-mono text-[11px] font-bold tracking-[0.2em] text-primary-fixed uppercase">
-          QuantAlpha
+          NeuralQuant
         </span>
         <span className="font-mono text-[12px] text-text-muted">
           V2.0.4-BETA

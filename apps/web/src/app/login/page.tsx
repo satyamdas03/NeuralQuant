@@ -42,7 +42,7 @@ function LoginForm() {
       <div className="w-full max-w-sm glass-strong ghost-border p-8">
         <div className="mb-6 text-center">
           <h1 className="font-headline text-2xl font-bold text-primary-fixed">
-            Sign in to QuantAlpha
+            Sign in to NeuralQuant
           </h1>
           <p className="mt-1 text-xs text-on-surface-variant">
             Institutional-grade AI stock intelligence

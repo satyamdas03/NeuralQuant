@@ -23,7 +23,7 @@ router = APIRouter(prefix="/astra", tags=["astra"])
 
 SEBI_DISCLAIMER = (
     "These recommendations are based on quantitative analysis. "
-    "QuantAlpha is a research tool, not a SEBI-registered investment advisor. "
+    "NeuralQuant is a research tool, not a SEBI-registered investment advisor. "
     "Please consult a qualified financial advisor before investing."
 )
 

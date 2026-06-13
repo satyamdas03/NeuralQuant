@@ -6,7 +6,7 @@
 
 /* ═══════════════════════════════════════════════════════════
    OBSIDIAN QUANTUM V2 — Cyber-Financial Minimalism
-   QuantAlpha AI Institutional-Grade Design System
+   NeuralQuant AI Institutional-Grade Design System
    Design: QuantFactor / Implemented: Claude
    ═══════════════════════════════════════════════════════════ */
 
@@ -375,7 +375,7 @@
   animation: ping-slow 2.5s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
 
-/* ─── LiveKit Theme Overrides — QuantAlpha Obsidian Quantum V2 ─── */
+/* ─── LiveKit Theme Overrides — NeuralQuant Obsidian Quantum V2 ─── */
 .lk-room-container {
   --lk-control-bg: rgba(13, 20, 37, 0.85);
   --lk-control-fg: #47ffb8;

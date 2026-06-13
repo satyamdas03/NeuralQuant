@@ -90,7 +90,7 @@ export default function BrokerPageClient() {
         Broker Connect
       </h1>
       <p className="text-[#a0a0b0] mb-6 text-sm">
-        Open a trade ticket in your broker app. QuantAlpha never holds funds or executes orders.
+        Open a trade ticket in your broker app. NeuralQuant never holds funds or executes orders.
       </p>
 
       {/* Deep Link Trade */}
@@ -214,7 +214,7 @@ export default function BrokerPageClient() {
 
       {/* Disclaimer */}
       <div className="mt-6 p-4 bg-[#131322] border border-[#1e1e30] text-xs text-[#a0a0b0]">
-        <strong>Disclaimer:</strong> QuantAlpha provides analysis and trade suggestions only. We never hold funds, route orders, or execute trades.
+        <strong>Disclaimer:</strong> NeuralQuant provides analysis and trade suggestions only. We never hold funds, route orders, or execute trades.
         Always do your own research. This is not investment advice.
       </div>
     </div>

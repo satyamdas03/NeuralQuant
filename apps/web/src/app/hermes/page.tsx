@@ -276,7 +276,7 @@ export default function HermesPage() {
 
       <p className="font-mono text-[10px] text-on-surface-variant leading-relaxed">
         Hermes is an autonomous PAPER-trading research agent. No real capital is deployed. Nothing on this page is
-        investment advice. QuantAlpha is a research tool, not a SEBI-registered investment advisor.
+        investment advice. NeuralQuant is a research tool, not a SEBI-registered investment advisor.
       </p>
     </div>
   );
