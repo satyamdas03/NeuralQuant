@@ -17,6 +17,7 @@ import QuantAstraTranscriptPanel from "./QuantAstraTranscriptPanel";
 import QuantAstraFace from "./QuantAstraFace";
 
 import QuantAstraWhiteboard from "./QuantAstraWhiteboard";
+import DebateProgressPanel, { type DebateState } from "./DebateProgressPanel";
 import { useSessionTracker } from "@/lib/session-tracker";
 
 class CallErrorBoundary extends Component<
@@ -98,6 +99,7 @@ function QuantAstraCallInner() {
   const [agentTimeout, setAgentTimeout] = useState(false);
   const [whiteboardOpen, setWhiteboardOpen] = useState(false);
   const [whiteboardContent, setWhiteboardContent] = useState<WhiteboardContent | null>(null);
+  const [debate, setDebate] = useState<DebateState | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
@@ -213,6 +215,17 @@ function QuantAstraCallInner() {
             } else if (data.action === "close") {
               setWhiteboardOpen(false);
               setWhiteboardContent(null);
+            }
+            break;
+          case "debate_progress":
+            setDebate({
+              ticker: data.ticker ?? "",
+              phase: data.phase ?? "started",
+              verdict: data.verdict ?? null,
+              consensusScore: data.consensus_score ?? null,
+            });
+            if (data.phase === "complete" || data.phase === "error") {
+              setTimeout(() => setDebate(null), 8000);
             }
             break;
         }
@@ -333,6 +346,7 @@ function QuantAstraCallInner() {
       ) : (
         /* Transcript only — data panel disabled per user request */
         <div className="flex flex-1 flex-col overflow-hidden border-t border-ghost-border">
+          {debate && <DebateProgressPanel state={debate} />}
           <div className="flex-1 overflow-hidden">
             <QuantAstraTranscriptPanel
               lines={transcriptLines}
