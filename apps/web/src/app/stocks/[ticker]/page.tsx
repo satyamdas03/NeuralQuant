@@ -20,6 +20,7 @@ import GradientButton from "@/components/ui/GradientButton";
 import ShareAnalysisButton from "@/components/ShareAnalysisButton";
 import IRSZoneBadge from "@/components/IRSZoneBadge";
 import { Star, ArrowRight, Loader2 } from "lucide-react";
+import { setVeronicaPageData } from "@/lib/veronica-store";
 
 export default function StockPage() {
   const params = useParams();
@@ -69,6 +70,22 @@ export default function StockPage() {
       setWatchlisted(r.items.some(i => i.ticker === ticker.toUpperCase()));
     }).catch(() => {}); // Not logged in — non-critical
   }, [ticker, market, logActivity]);
+
+  // Publish the on-screen numbers to Veronica so she can describe this page.
+  useEffect(() => {
+    const m = meta as Record<string, unknown> | null;
+    const s = score as Record<string, unknown> | null;
+    const anjali = (s?.anjali ?? null) as Record<string, unknown> | null;
+    setVeronicaPageData({
+      ticker,
+      price: m?.current_price ?? null,
+      pe: m?.pe_ttm ?? null,
+      change_pct: m?.change_pct ?? null,
+      score: s?.score_1_10 ?? null,
+      irs_pct: anjali?.irs_pct ?? null,
+    });
+    return () => setVeronicaPageData(null);
+  }, [ticker, meta, score]);
 
   const runDebate = async () => {
     logActivity("para_debate_start", "analysis", `PARA-DEBATE: ${ticker}`, { ticker, market });

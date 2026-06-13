@@ -41,6 +41,7 @@ class TestParsePageContext:
             "page_type": "stock_detail",
             "ticker": "NVDA",
             "narrate": True,
+            "key_data": None,
         }
 
     def test_missing_optional_fields(self):
@@ -92,3 +93,33 @@ def test_veronica_greeting_starts_hey_there_no_name():
 def test_veronica_greeting_anon_starts_hey_there():
     g = build_veronica_greeting(None)
     assert g.startswith("Hey there")
+
+
+from quantastra.veronica_logic import parse_page_context
+
+
+def test_parse_page_context_preserves_key_data():
+    msg = {
+        "type": "page_context",
+        "route": "/stocks/TCS",
+        "pageType": "stock_detail",
+        "ticker": "TCS",
+        "narrate": False,
+        "keyData": {"price": 3500.0, "irs_pct": 78, "score": 1},
+    }
+    page = parse_page_context(msg)
+    assert page is not None
+    assert page["key_data"] == {"price": 3500.0, "irs_pct": 78, "score": 1}
+
+
+def test_parse_page_context_key_data_defaults_none():
+    msg = {"type": "page_context", "route": "/dashboard", "pageType": "dashboard"}
+    page = parse_page_context(msg)
+    assert page is not None
+    assert page["key_data"] is None
+
+
+def test_parse_page_context_key_data_must_be_dict():
+    msg = {"type": "page_context", "route": "/x", "keyData": "not-a-dict"}
+    page = parse_page_context(msg)
+    assert page["key_data"] is None

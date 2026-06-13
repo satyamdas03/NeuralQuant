@@ -26,11 +26,13 @@ def parse_page_context(msg) -> dict | None:
     if not isinstance(route, str) or not route:
         return None
     ticker = msg.get("ticker")
+    kd = msg.get("keyData")
     return {
         "route": route,
         "page_type": msg.get("pageType") or "page",
         "ticker": ticker if isinstance(ticker, str) and ticker else None,
         "narrate": bool(msg.get("narrate", False)),
+        "key_data": kd if isinstance(kd, dict) else None,
     }
 
 
