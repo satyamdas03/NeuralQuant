@@ -191,13 +191,19 @@ async def run_veronica(ctx: JobContext) -> None:
 
     async def _note_page(agent: VeronicaAgent, page: dict) -> None:
         try:
+            on_screen = ""
+            kd = page.get("key_data")
+            if isinstance(kd, dict) and kd:
+                pairs = ", ".join(f"{k}={v}" for k, v in kd.items() if v is not None)
+                if pairs:
+                    on_screen = f" On screen: {pairs}."
             chat_ctx = agent.chat_ctx.copy()
             chat_ctx.add_message(
                 role="system",
                 content=f"[PAGE] User is now viewing {page['page_type']} "
                         f"({page['route']})"
                         + (f", ticker {page['ticker']}" if page["ticker"] else "")
-                        + ".",
+                        + "." + on_screen,
             )
             await agent.update_chat_ctx(chat_ctx)
         except Exception:
