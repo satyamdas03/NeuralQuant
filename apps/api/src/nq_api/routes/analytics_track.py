@@ -31,7 +31,13 @@ async def track_event(request: Request):
         if auth_header.startswith("Bearer "):
             try:
                 from nq_api.auth.deps import get_current_user_optional
-                user = await get_current_user_optional(request)
+                # Sync function; pass the header value — calling it with the
+                # Request object left `authorization` as the Header() sentinel
+                # and silently stored user_id=NULL for every event.
+                user = get_current_user_optional(
+                    x_smoke_secret=request.headers.get("x-smoke-secret"),
+                    authorization=auth_header,
+                )
                 user_id = str(user.id) if user else None
             except Exception:
                 pass
