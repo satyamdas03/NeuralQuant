@@ -33,6 +33,47 @@ log = logging.getLogger("veronica")
 # Veronica's ElevenLabs voice. Override per-env with VERONICA_VOICE_ID.
 VERONICA_VOICE_ID = os.getenv("VERONICA_VOICE_ID", "kdnRe2koJdOK4Ovxn2DI")
 
+# Known-good ElevenLabs premade voice — always available to any account. Used as a
+# fallback so Veronica never goes silent if the configured voice is a Voice-Library
+# voice that hasn't been added to the account ("My Voices"), which fails at TTS time
+# with a cryptic websocket 1008.
+_SAFE_FALLBACK_VOICE = "XB0fDUnXU5powFXDhCwa"
+_resolved_voice: str | None = None
+
+
+def _resolve_voice_id() -> str:
+    """Return VERONICA_VOICE_ID if the account can use it, else a safe premade voice.
+
+    Checked once via the ElevenLabs REST API and cached. A 1008 at TTS time means the
+    voice isn't in the account; we surface that as an actionable log and fall back so
+    she still speaks."""
+    global _resolved_voice
+    if _resolved_voice:
+        return _resolved_voice
+    key = os.getenv("ELEVENLABS_API_KEY")
+    if not key or VERONICA_VOICE_ID == _SAFE_FALLBACK_VOICE:
+        _resolved_voice = VERONICA_VOICE_ID
+        return _resolved_voice
+    try:
+        import json as _json
+        import urllib.request
+        req = urllib.request.Request(
+            f"https://api.elevenlabs.io/v1/voices/{VERONICA_VOICE_ID}",
+            headers={"xi-api-key": key},
+        )
+        with urllib.request.urlopen(req, timeout=8) as r:
+            _json.loads(r.read())
+        _resolved_voice = VERONICA_VOICE_ID
+    except Exception as exc:
+        log.error(
+            "Veronica voice %s is not usable by this ElevenLabs account (%s). "
+            "Add it at elevenlabs.io/app/voice-library ('Add to My Voices'), then "
+            "redeploy. Falling back to %s so Veronica still speaks.",
+            VERONICA_VOICE_ID, exc, _SAFE_FALLBACK_VOICE,
+        )
+        _resolved_voice = _SAFE_FALLBACK_VOICE
+    return _resolved_voice
+
 
 async def _publish(participant: LocalParticipant | None, msg: dict) -> None:
     """Publish a JSON message to the frontend via LiveKit data channel."""
@@ -73,7 +114,7 @@ class VeronicaAgent(
             ),
             tts=elevenlabs.TTS(
                 model="eleven_turbo_v2_5",
-                voice_id=VERONICA_VOICE_ID,
+                voice_id=_resolve_voice_id(),
                 api_key=os.getenv("ELEVENLABS_API_KEY"),
             ),
             allow_interruptions=True,
