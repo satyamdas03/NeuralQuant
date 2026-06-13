@@ -27,7 +27,7 @@ Frontend/backend contract mismatch on geopolitical warnings.
 1. Update `GeopoliticalWarning` type in `types.ts` to the actual backend fields: `ticker, sector, risk_level ("HIGH"|"MEDIUM"), beta, irs_pct, recommendation`.
 2. Rewrite `GeopoliticalScanPanel` to render per-ticker rows: map `risk_level` → severity color (HIGH=red, MEDIUM=amber), show ticker, sector, beta, recommendation. Keep the HIGH/MEDIUM count chips by deriving from `risk_level`.
 3. Add defensive guards everywhere arrays/objects are read from API responses (`?? []`, `?? 0`, optional chaining) so a future contract drift degrades gracefully instead of white-screening.
-4. **Contract audit** `SellSignalsPanel` against `GET /astra/sell-signals`: confirm `sell_signals`/`neutral_signals` item shapes match the TS `SellSignal` type; add the same defensive guards.
+4. **Contract audit** `SellSignalsPanel` against `GET /astra/sell-signals`: confirmed no crash (no `.length` on item fields), but neutral items emit `note` while the panel renders `s.reason` → blank text. Cheap fix: backend `astra_portfolio.py:538` neutral branch also sets `"reason"` (keep `note` for compat). Add the same defensive guards to the panel.
 
 ### Test
 - Build passes (`apps/web` typecheck).
@@ -44,16 +44,14 @@ The 6-tier price cascade in `apps/api/src/nq_api/services/portfolio.py:159-241` 
 - Tier 5 `score_cache`: may lack the IN row.
 - Tier 6 `_fetch_one`: re-hits the same blocked sources.
 
-Gap: the cascade never queries `quantfactor_universe` — the **primary IN table** (502 live rows). Confirmed live in Session 89.
+Gap: the cascade never queries `stock_snapshot` — the dedicated live-price table. **Verified:** `quantfactor_universe` has NO price column (scores/ratios/beta only); cannot be used. `stock_snapshot` (`apps/api/src/nq_api/cache/snapshot_cache.py`) has a `price` column and is refreshed every 30 min via GitHub Actions, which runs yfinance **unguarded** — so it holds IN prices that Render's blocked yfinance cannot fetch.
 
 ### Fix
-Add a price tier (before the "all sources failed" branch at line 234) that reads `quantfactor_universe` / `quantfactor_cache` for the IN ticker and uses its price column.
-- Implementation step 1: grep the table/cache module for the price column name (`current_price`, `ltp`, `close`, `price`...). Do not assume — verify.
-- Use it only when `stock_market == "IN"` and prior tiers failed; tag `price_source = "quantfactor_universe"`.
-- If the column is genuinely absent, fall through to the existing unavailable branch unchanged.
+Add a price tier in `portfolio.py` (before the "all sources failed" branch at line 234) calling `snapshot_cache.read_snapshot(ticker, stock_market)` → `.get("price")`. Insert it **before** the score_cache tier (snapshot refreshes far more often). Tag `price_source = "stock_snapshot"`. Falls through cleanly if the row or price is absent.
 
 ### Test
-- Ask Morgan a portfolio query with an IN stock that previously showed "Price unavailable" (TCS, RELIANCE) → entry/target/stop populate from `quantfactor_universe`.
+- Ask Morgan a portfolio query with an IN stock that previously showed "Price unavailable" (TCS, RELIANCE) → entry/target/stop populate from `stock_snapshot`.
+- Unit: monkeypatch `read_snapshot` to return `{"price": 3500.0}` and assert the tier fills `live_price` with `price_source == "stock_snapshot"`.
 
 ---
 
