@@ -75,6 +75,16 @@ def _veronica_seconds_today(user_id: str) -> int:
     return total
 
 
+def _is_first_veronica_today(user_id: str) -> bool:
+    """True if the user has no prior veronica session today (drives the morning
+    briefing). Must be called BEFORE _log_session_start. Fails closed (False)."""
+    try:
+        rows = _fetch_today_veronica_events(user_id)
+    except Exception:
+        return False
+    return not any(r.get("label") == "session_start" for r in rows)
+
+
 def _log_session_start(user_id: str | None, room: str, agent: str) -> None:
     """Best-effort usage logging to user_events."""
     try:
@@ -166,9 +176,11 @@ async def generate_token(
             )
         user_id = str(user.id)
         room = f"veronica-{user_id}"
+        morning_briefing = _is_first_veronica_today(user_id)
     else:
         user_id = str(user.id) if user else f"anonymous-{uuid.uuid4().hex[:8]}"
         room = f"quantastra-{user_id}"
+        morning_briefing = False
 
     _log_session_start(str(user.id) if user else None, room, agent)
 
@@ -199,4 +211,5 @@ async def generate_token(
         "token": token,
         "url": LIVEKIT_URL,
         "room": room,
+        "morning_briefing": morning_briefing,
     }
