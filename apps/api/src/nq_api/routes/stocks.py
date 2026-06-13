@@ -489,7 +489,7 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
                         meta["earnings_date"] = yf_meta["earnings_date"]
             except (asyncio.TimeoutError, Exception):
                 log.debug("meta yfinance gap-fill failed for %s (non-critical)", t_up)
-        return meta
+        return _ensure_price(meta, t_up, market)
 
     # ── Phase 2: FMP direct fallback ───────────────────────────────────
     fmp_meta = None
@@ -504,7 +504,7 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
                                "analyst_target", "analyst_recommendation", "dividend_yield")
             missing = [f for f in _MISSING_FIELDS if fmp_meta.get(f) is None]
             if not missing:
-                return fmp_meta
+                return _ensure_price(fmp_meta, t_up, market)
             # FMP returned partial data — try yfinance to fill the gaps
             log.info("meta FMP partial for %s, missing: %s — trying yfinance gap-fill", t_up, missing)
             try:
@@ -522,7 +522,7 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
                         fmp_meta["earnings_date"] = yf_meta["earnings_date"]
             except (asyncio.TimeoutError, Exception):
                 log.debug("meta yfinance gap-fill failed for %s (non-critical)", t_up)
-            return fmp_meta
+            return _ensure_price(fmp_meta, t_up, market)
     except asyncio.TimeoutError:
         log.warning("meta FMP timed out for %s", t_up)
 
@@ -533,12 +533,26 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
             timeout=10.0,
         )
         if isinstance(yf_meta, dict):
-            return yf_meta
+            return _ensure_price(yf_meta, t_up, market)
     except asyncio.TimeoutError:
         log.warning("meta yfinance timed out for %s", t_up)
 
     log.error("meta all sources failed for %s", t_up)
     return _empty_meta(t_up)
+
+
+def _ensure_price(meta: dict, ticker: str, market: str) -> dict:
+    """Backfill current_price via the reliable openbb->snapshot->score_cache chain
+    when the meta path left it null (e.g. yfinance blocked on Render)."""
+    if isinstance(meta, dict) and meta.get("current_price") is None:
+        try:
+            from nq_api.services.live_price import get_live_price
+            lp, _src = get_live_price(ticker, market)
+            if lp:
+                meta["current_price"] = round(float(lp), 2)
+        except Exception:
+            pass
+    return meta
 
 
 def _safe_round(v, decimals: int) -> float | None:
