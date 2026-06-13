@@ -177,11 +177,31 @@ async def run_veronica(ctx: JobContext) -> None:
             msg = json.loads(raw) if isinstance(raw, str) else {}
         except (json.JSONDecodeError, UnicodeDecodeError):
             return
+        if isinstance(msg, dict) and msg.get("type") == "briefing":
+            asyncio.ensure_future(_morning_briefing(agent, session))
+            return
         page = parse_page_context(msg)
         if page is None:
             return
         agent._latest_page = page
         asyncio.ensure_future(_handle_page(agent, session, page))
+
+    async def _morning_briefing(agent: VeronicaAgent, session: AgentSession) -> None:
+        try:
+            from quantastra.context import build_greeting_context
+            ctx = await build_greeting_context(agent._user_id)
+        except Exception:
+            ctx = ""
+        instructions = (
+            "Give a brief spoken morning briefing, 20 to 30 seconds when read aloud. "
+            "Cover the market mood and one or two notable moves, then anything relevant "
+            "in the user's watchlist or portfolio. Conversational, no lists. "
+            + (f"Context to use: {ctx}" if ctx else "If you lack data, keep it short and warm.")
+        )
+        try:
+            session.generate_reply(instructions=instructions)
+        except Exception:
+            log.exception("Morning briefing failed")
 
     async def _handle_page(agent: VeronicaAgent, session: AgentSession, page: dict) -> None:
         # Ground Q&A first so narration sees the [PAGE] note, then speak.

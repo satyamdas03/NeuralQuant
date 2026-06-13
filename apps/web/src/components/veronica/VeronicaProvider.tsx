@@ -44,6 +44,7 @@ export default function VeronicaProvider() {
   const [conn, setConn] = useState<{ token: string; url: string } | null>(null);
   const startedAtRef = useRef<number>(0);
   const retriedRef = useRef(false);
+  const briefingRef = useRef(false);
   // Captured at connect time so session_end can attach it synchronously
   // (pagehide can't await). Without the Bearer, /analytics/track stores
   // user_id=null and the daily-cap query would treat every session as an
@@ -108,6 +109,7 @@ export default function VeronicaProvider() {
       if (!res.ok) throw new Error(`token ${res.status}`);
       const body = await res.json();
       if (body.status === "unavailable" || !body.token) throw new Error("unavailable");
+      briefingRef.current = Boolean(body.morning_briefing);
       startedAtRef.current = Date.now();
       setConn({ token: body.token, url: body.url });
       setOrb("listening");
@@ -169,6 +171,7 @@ export default function VeronicaProvider() {
           <VeronicaSession
             setOrb={setOrb}
             onIdleTimeout={() => disconnect("sleeping")}
+            briefing={briefingRef.current}
           />
         </LiveKitRoom>
       )}
@@ -180,9 +183,11 @@ export default function VeronicaProvider() {
 function VeronicaSession({
   setOrb,
   onIdleTimeout,
+  briefing,
 }: {
   setOrb: (s: OrbState) => void;
   onIdleTimeout: () => void;
+  briefing: boolean;
 }) {
   const pathname = usePathname();
   const { astraOpen, pageData } = useVeronicaExternalState();
@@ -196,6 +201,20 @@ function VeronicaSession({
 
   const narratedRef = useRef<Set<string>>(new Set());
   const lastActivityRef = useRef<number | null>(null);
+  const briefingSentRef = useRef(false);
+
+  // First connect of the day → ask the agent for a spoken morning briefing once
+  // the agent has actually joined the room.
+  useEffect(() => {
+    if (!briefing || briefingSentRef.current || !localParticipant || !agentParticipant) return;
+    briefingSentRef.current = true;
+    localParticipant
+      .publishData(new TextEncoder().encode(JSON.stringify({ type: "briefing" })), {
+        reliable: true,
+        topic: "veronica",
+      })
+      .catch(() => {});
+  }, [briefing, localParticipant, agentParticipant]);
 
   // Initialize idle-activity timestamp on mount (Date.now() is impure — must
   // not be called during render).
