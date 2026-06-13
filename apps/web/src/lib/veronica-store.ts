@@ -5,9 +5,11 @@ import { useSyncExternalStore } from "react";
 type VeronicaExternalState = {
   /** QuantAstra call modal is open — Veronica must go quiet. */
   astraOpen: boolean;
+  /** Key numbers visible on the current page, for Veronica grounding. */
+  pageData: Record<string, unknown> | null;
 };
 
-let state: VeronicaExternalState = { astraOpen: false };
+let state: VeronicaExternalState = { astraOpen: false, pageData: null };
 const listeners = new Set<() => void>();
 
 function emit() {
@@ -17,6 +19,11 @@ function emit() {
 export function setAstraOpen(open: boolean) {
   if (state.astraOpen === open) return;
   state = { ...state, astraOpen: open };
+  emit();
+}
+
+export function setVeronicaPageData(data: Record<string, unknown> | null) {
+  state = { ...state, pageData: data };
   emit();
 }
 
@@ -31,7 +38,7 @@ function getSnapshot(): VeronicaExternalState {
   return state;
 }
 
-const serverSnapshot: VeronicaExternalState = { astraOpen: false };
+const serverSnapshot: VeronicaExternalState = { astraOpen: false, pageData: null };
 
 export function useVeronicaExternalState(): VeronicaExternalState {
   return useSyncExternalStore(subscribe, getSnapshot, () => serverSnapshot);

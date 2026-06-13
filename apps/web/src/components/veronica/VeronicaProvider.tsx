@@ -174,7 +174,7 @@ function VeronicaSession({
   onIdleTimeout: () => void;
 }) {
   const pathname = usePathname();
-  const { astraOpen } = useVeronicaExternalState();
+  const { astraOpen, pageData } = useVeronicaExternalState();
   const quiet = astraOpen || isQuietRoute(pathname);
 
   const { localParticipant } = useLocalParticipant();
@@ -230,6 +230,7 @@ function VeronicaSession({
       pageType,
       ticker,
       narrate,
+      keyData: pageData ?? undefined,
     });
     localParticipant
       .publishData(new TextEncoder().encode(payload), {
@@ -237,7 +238,7 @@ function VeronicaSession({
         topic: "veronica",
       })
       .catch(() => {});
-  }, [pathname, quiet, localParticipant]);
+  }, [pathname, quiet, localParticipant, pageData]);
 
   useEffect(() => {
     const interval = setInterval(() => {
