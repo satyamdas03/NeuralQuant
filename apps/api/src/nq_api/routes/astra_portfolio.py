@@ -540,6 +540,7 @@ async def get_sell_signals(
                 "market": market,
                 "g_score": g,
                 "irs_pct": row.get("irs_pct"),
+                "reason": "May take significant time to show returns",
                 "note": "May take significant time to show returns",
                 "sector": row.get("sector"),
             })
