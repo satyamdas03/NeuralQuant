@@ -12,6 +12,7 @@ import {
 } from "@livekit/components-react";
 import { createClient } from "@/lib/supabase/client";
 import { isQuietRoute, useVeronicaExternalState } from "@/lib/veronica-store";
+import { useWakeWord } from "@/lib/useWakeWord";
 import VeronicaOrb, { type OrbState } from "./VeronicaOrb";
 
 const IDLE_LIMIT_MS = 5 * 60 * 1000;
@@ -142,6 +143,16 @@ export default function VeronicaProvider() {
       connect();
     }
   }, [orb, connect]);
+
+  // "Hey Veronica" wakes her while sleeping/idle — browser-side, zero LiveKit
+  // cost. No-op in unsupported browsers; orb click still works.
+  const wakeActive = orb === "sleeping" || orb === "idle";
+  useWakeWord(wakeActive, () => {
+    if (orb === "sleeping" || orb === "idle" || orb === "unavailable") {
+      retriedRef.current = false;
+      connect();
+    }
+  });
 
   return (
     <>
