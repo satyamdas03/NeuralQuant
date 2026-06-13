@@ -9,6 +9,7 @@ from nq_api.services.constants import _PORTFOLIO_KEYWORDS
 from nq_api.services.prompts import _PROFILE_PROMPT_TEMPLATE
 from nq_api.schemas import UserProfile
 from nq_api.cache.snapshot_cache import read_snapshot
+from nq_api.services.live_price import get_live_price
 
 log = logging.getLogger(__name__)
 
@@ -187,6 +188,14 @@ def _validate_and_fill_portfolio_prices(
                     price_source = "fmp_profile"
             except Exception as exc:
                 log.debug("FMP profile fallback failed for %s: %s", sym, exc)
+
+        # -- Tier 2b: nq-openbb yfinance proxy (reliable on Render, US + IN) --
+        if not live_price or live_price <= 0:
+            lp, lp_source = get_live_price(ticker, stock_market)
+            if lp:
+                live_price = lp
+                price_source = lp_source
+                fill_notes.append(f"{ticker} price: {lp_source} ({live_price:.2f})")
 
         # -- Tier 3: yfinance (cached + direct) --
         if not live_price or live_price <= 0:
