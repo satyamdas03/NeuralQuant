@@ -83,6 +83,13 @@ def _supabase_service_client():
     return client
 
 
+def _smoke_bypass_ok(provided: str | None) -> bool:
+    """Only honor the smoke bypass when a STRONG secret (>=24 chars) is set and
+    matches. Prevents a weak/empty SMOKE_TEST_SECRET from enabling the bypass."""
+    secret = os.environ.get("SMOKE_TEST_SECRET", "")
+    return bool(secret) and len(secret) >= 24 and provided == secret
+
+
 def _extract_bearer(authorization: str | None) -> str | None:
     if not authorization:
         return None
@@ -159,8 +166,7 @@ def get_current_user_optional(
 ) -> User | None:
     """Return user if token valid, else None (no raise).
     Also accepts X-Smoke-Secret for automated smoke tests."""
-    _smoke_secret = os.environ.get("SMOKE_TEST_SECRET", "")
-    if _smoke_secret and x_smoke_secret == _smoke_secret:
+    if _smoke_bypass_ok(x_smoke_secret):
         return User(
             id="smoke-test-00000000-0000-0000-0000-000000000000",
             email="smoke-test@neuralquant.internal",
@@ -184,8 +190,7 @@ def get_current_user_smoke(
     """Auth dependency that bypasses auth when X-Smoke-Secret matches
     SMOKE_TEST_SECRET env var. Used by smoke-test scripts for automated
     endpoint verification. Falls back to normal JWT auth otherwise."""
-    _smoke_secret = os.environ.get("SMOKE_TEST_SECRET", "")
-    if _smoke_secret and x_smoke_secret == _smoke_secret:
+    if _smoke_bypass_ok(x_smoke_secret):
         # Smoke test bypass — return a synthetic pro-tier user
         return User(
             id="smoke-test-00000000-0000-0000-0000-000000000000",

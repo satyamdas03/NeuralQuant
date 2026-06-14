@@ -1,0 +1,13 @@
+title = "NeuralQuant gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allowlisted paths (examples, docs, lockfiles)"
+paths = [
+  '''.*\.env\.example$''',
+  '''.*\.md$''',
+  '''package-lock\.json$''',
+  '''pnpm-lock\.yaml$''',
+]

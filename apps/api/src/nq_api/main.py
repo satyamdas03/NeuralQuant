@@ -14,6 +14,11 @@ from contextlib import asynccontextmanager
 
 log = logging.getLogger(__name__)
 
+# Redact secrets/PII (apikey=, Bearer, emails) from all logs ASAP, and silence
+# httpx URL logging that printed apikey= query strings.
+from nq_api.logging_redaction import install_log_redaction
+install_log_redaction()
+
 from fastapi import FastAPI, Header
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -51,6 +56,8 @@ async def _run_pending_migrations():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     import os
+    # Re-apply log redaction after uvicorn has installed its handlers.
+    install_log_redaction()
     # On Render, skip heavy prewarm — caches populate lazily on first request.
     # Prewarm threads with yfinance + asyncio.run() cause OOM/crash on cold starts.
     on_render = bool(os.environ.get("RENDER"))

@@ -6,6 +6,7 @@ and top tickers tracking.
 from __future__ import annotations
 
 import logging
+import os
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -69,8 +70,17 @@ def _supabase_rest(
 
 # ── Admin check ───────────────────────────────────────────────────────
 
+def _admin_emails() -> set[str]:
+    raw = os.environ.get("ADMIN_EMAILS", "")
+    return {e.strip().lower() for e in raw.split(",") if e.strip()}
+
+
 def _require_admin(user: User) -> None:
-    if user.tier not in ("pro", "api"):
+    """True admin gate — an allowlist of emails (ADMIN_EMAILS env), NOT the
+    subscription tier. A paying pro/api customer is not an admin and must not
+    see platform-wide growth metrics or other users' ids."""
+    admins = _admin_emails()
+    if not admins or (user.email or "").strip().lower() not in admins:
         raise HTTPException(status_code=403, detail="Admin access required")
 
 
