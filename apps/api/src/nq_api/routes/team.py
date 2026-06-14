@@ -14,7 +14,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from nq_api.auth import User, get_current_user
+from nq_api.auth.deps import require_team_access
 
 router = APIRouter(prefix="/team", tags=["team"])
 log = logging.getLogger(__name__)
@@ -146,7 +146,7 @@ def list_tasks(
     assignee: AgentRole | None = Query(None),
     priority: TaskPriority | None = Query(None),
     limit: int = Query(50, ge=1, le=200),
-    user: User = Depends(get_current_user),
+    _: object = Depends(require_team_access),
 ) -> TaskListResponse:
     """List team tasks, optionally filtered by status/assignee/priority."""
     query: dict[str, str] = {
@@ -168,7 +168,7 @@ def list_tasks(
 
 
 @router.post("/tasks", response_model=TaskOut, status_code=201)
-def create_task(req: TaskCreate, user: User = Depends(get_current_user)) -> TaskOut:
+def create_task(req: TaskCreate, _: object = Depends(require_team_access)) -> TaskOut:
     """Create a new task. Agents or Satyam can assign work."""
     body = [req.model_dump(exclude_none=True)]
     resp = _rest("team_tasks", method="POST", body=body)
@@ -182,7 +182,7 @@ def create_task(req: TaskCreate, user: User = Depends(get_current_user)) -> Task
 def update_task(
     task_id: str,
     req: TaskUpdate,
-    user: User = Depends(get_current_user),
+    _: object = Depends(require_team_access),
 ) -> TaskOut:
     """Update task status, output, or review notes. Closed-loop: mark in_review for human review."""
     updates = req.model_dump(exclude_none=True)
@@ -201,7 +201,7 @@ def update_task(
 
 
 @router.get("/tasks/queue", response_model=TaskListResponse)
-def review_queue(user: User = Depends(get_current_user)) -> TaskListResponse:
+def review_queue(_: object = Depends(require_team_access)) -> TaskListResponse:
     """Get tasks awaiting human review (status=in_review)."""
     resp = _rest("team_tasks", method="GET", query={
         "select": "*",
@@ -214,7 +214,7 @@ def review_queue(user: User = Depends(get_current_user)) -> TaskListResponse:
 
 
 @router.get("/tasks/stats")
-def task_stats(user: User = Depends(get_current_user)) -> dict:
+def task_stats(_: object = Depends(require_team_access)) -> dict:
     """Aggregate task counts by status and assignee."""
     resp = _rest("team_tasks", method="GET", query={"select": "status,assignee"})
     rows = resp["data"] or []
@@ -234,7 +234,7 @@ def task_stats(user: User = Depends(get_current_user)) -> dict:
 def list_standups(
     agent_role: AgentRole | None = Query(None),
     limit: int = Query(20, ge=1, le=100),
-    user: User = Depends(get_current_user),
+    _: object = Depends(require_team_access),
 ) -> StandupListResponse:
     """List agent standups, optionally filtered by agent role."""
     query: dict[str, str] = {
@@ -251,7 +251,7 @@ def list_standups(
 
 
 @router.post("/standups", response_model=StandupOut, status_code=201)
-def create_standup(req: StandupCreate, user: User = Depends(get_current_user)) -> StandupOut:
+def create_standup(req: StandupCreate, _: object = Depends(require_team_access)) -> StandupOut:
     """Agent posts a standup — what it did, blockers, next actions."""
     body = [req.model_dump(exclude_none=True)]
     resp = _rest("team_standups", method="POST", body=body)

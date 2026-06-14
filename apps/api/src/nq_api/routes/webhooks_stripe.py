@@ -31,8 +31,16 @@ async def stripe_webhook(request: Request):
     sig_header = request.headers.get("stripe-signature", "")
 
     if not _stripe_webhook_secret:
-        log.warning("STRIPE_WEBHOOK_SECRET not set — skipping verification")
-        # In development, skip verification if secret not configured
+        # An unverified webhook lets anyone forge tier upgrades / cancellations.
+        # Fail closed in production; only allow the unsigned path when explicitly
+        # opted in for local dev (ALLOW_UNVERIFIED_STRIPE_WEBHOOK=true).
+        if os.environ.get("ALLOW_UNVERIFIED_STRIPE_WEBHOOK", "").lower() != "true":
+            log.error("STRIPE_WEBHOOK_SECRET not set — refusing unverified webhook")
+            from nq_api.auth.security_audit import record
+            record("stripe_webhook_unconfigured", severity="critical",
+                   detail="received webhook with no STRIPE_WEBHOOK_SECRET configured")
+            raise HTTPException(503, "Webhook verification not configured")
+        log.warning("STRIPE_WEBHOOK_SECRET not set — accepting UNVERIFIED webhook (dev opt-in)")
         import json
         try:
             event = json.loads(body)
@@ -45,6 +53,9 @@ async def stripe_webhook(request: Request):
             )
         except stripe.error.SignatureVerificationError:
             log.warning("Stripe webhook signature verification failed")
+            from nq_api.auth.security_audit import record
+            record("stripe_webhook_bad_signature", severity="critical",
+                   detail="signature verification failed")
             raise HTTPException(400, "Invalid signature")
         except Exception as e:
             log.error("Stripe webhook parsing error: %s", e)

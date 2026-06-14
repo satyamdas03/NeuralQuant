@@ -15,6 +15,7 @@ from livekit.api import (
     VideoGrants,
 )
 
+from nq_api.auth.abuse_limit import enforce_ip_rate
 from nq_api.auth.deps import get_current_user_optional
 
 log = logging.getLogger(__name__)
@@ -155,6 +156,11 @@ async def generate_token(
     Also dispatches the quantastra agent worker to the room via the
     LiveKit AgentDispatch API so the agent joins automatically.
     """
+    # Abuse fuse: issuing a token dispatches a paid agent worker. The guest
+    # (QuantAstra) path needs no auth, so cap per-IP to stop scripted draining
+    # of LiveKit minutes. Real users request ~1 token per session.
+    enforce_ip_rate(request, bucket="livekit_token", limit=20, window_s=300)
+
     agent = "quantastra"
     try:
         body = await request.json()
