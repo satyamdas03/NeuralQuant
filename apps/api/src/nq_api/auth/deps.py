@@ -98,6 +98,8 @@ def require_admin(user: User) -> None:
     Fail-closed: if ADMIN_EMAILS is unset, no one is admin."""
     admins = admin_emails()
     if not admins or (user.email or "").strip().lower() not in admins:
+        from .security_audit import record
+        record("admin_denied", email=user.email, detail="require_admin rejected non-allowlisted user")
         raise HTTPException(status_code=403, detail="Admin access required")
 
 

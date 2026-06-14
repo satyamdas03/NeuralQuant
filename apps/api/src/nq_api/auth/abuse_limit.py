@@ -48,6 +48,8 @@ def enforce_ip_rate(request: Request, *, bucket: str, limit: int, window_s: floa
     """Raise 429 if this IP exceeded `limit` requests for `bucket` in `window_s`."""
     ip = client_ip(request)
     if not check_rate(f"{bucket}:{ip}", limit=limit, window_s=window_s):
+        from .security_audit import record
+        record("rate_limit_block", ip=ip, detail=f"bucket={bucket} limit={limit}/{int(window_s)}s")
         raise HTTPException(
             status_code=429,
             detail="Too many requests — slow down and try again shortly.",
