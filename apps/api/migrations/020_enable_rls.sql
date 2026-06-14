@@ -6,56 +6,80 @@
 -- access, so a user can never read or write another user's rows even if an
 -- app-layer filter is ever missed.
 --
--- Apply in the Supabase SQL editor. Owning columns were confirmed in the IDOR
--- audit (docs/SECURITY_IDOR_AUDIT.md): most tables use user_id; users uses id;
--- shared_analyses uses creator_id.
+-- Idempotent + tolerant: every table is guarded with to_regclass(), so tables that
+-- don't exist in this project are simply skipped (no error). Safe to re-run.
+-- Apply in the Supabase SQL editor.
 
 -- ---- tables owned directly via a user_id column ----
 do $$
 declare t text;
 begin
   foreach t in array array[
-    'watchlists','alert_subscriptions','alert_deliveries','conversations',
+    'watchlists','alerts','alert_subscriptions','alert_deliveries','conversations',
     'user_events','user_profiles','user_sessions','session_reports',
     'session_activities'
   ]
   loop
-    execute format('alter table public.%I enable row level security;', t);
-    execute format('drop policy if exists owner_all on public.%I;', t);
-    execute format(
-      'create policy owner_all on public.%I for all to authenticated '
-      'using (user_id = auth.uid()) with check (user_id = auth.uid());', t);
+    if to_regclass('public.'||t) is not null then
+      execute format('alter table public.%I enable row level security;', t);
+      execute format('drop policy if exists owner_all on public.%I;', t);
+      execute format(
+        'create policy owner_all on public.%I for all to authenticated '
+        'using (user_id = auth.uid()) with check (user_id = auth.uid());', t);
+    end if;
   end loop;
 end $$;
 
 -- ---- users: owned via id ----
-alter table public.users enable row level security;
-drop policy if exists owner_self on public.users;
-create policy owner_self on public.users for all to authenticated
-  using (id = auth.uid()) with check (id = auth.uid());
+do $$
+begin
+  if to_regclass('public.users') is not null then
+    alter table public.users enable row level security;
+    drop policy if exists owner_self on public.users;
+    create policy owner_self on public.users for all to authenticated
+      using (id = auth.uid()) with check (id = auth.uid());
+  end if;
+end $$;
 
 -- ---- shared_analyses: PUBLIC read-by-link, owner-only write (creator_id) ----
--- The share_id is a high-entropy capability (secrets.token_urlsafe(12)); callers
--- fetch by share_id, so public SELECT does not enable useful enumeration.
-alter table public.shared_analyses enable row level security;
-drop policy if exists public_read on public.shared_analyses;
-drop policy if exists owner_write on public.shared_analyses;
-create policy public_read on public.shared_analyses
-  for select to anon, authenticated using (true);
-create policy owner_write on public.shared_analyses
-  for all to authenticated
-  using (creator_id = auth.uid()) with check (creator_id = auth.uid());
+-- share_id is a high-entropy capability (secrets.token_urlsafe(12)); callers fetch
+-- by share_id, so public SELECT does not enable useful enumeration.
+do $$
+begin
+  if to_regclass('public.shared_analyses') is not null then
+    alter table public.shared_analyses enable row level security;
+    drop policy if exists public_read on public.shared_analyses;
+    drop policy if exists owner_write on public.shared_analyses;
+    create policy public_read on public.shared_analyses
+      for select to anon, authenticated using (true);
+    create policy owner_write on public.shared_analyses
+      for all to authenticated
+      using (creator_id = auth.uid()) with check (creator_id = auth.uid());
+  end if;
+end $$;
 
--- ---- teams / team_members: members only ----
-alter table public.team_members enable row level security;
-drop policy if exists member_access on public.team_members;
-create policy member_access on public.team_members for all to authenticated
-  using (user_id = auth.uid()) with check (user_id = auth.uid());
+-- ---- team_members: members only ----
+do $$
+begin
+  if to_regclass('public.team_members') is not null then
+    alter table public.team_members enable row level security;
+    drop policy if exists member_access on public.team_members;
+    create policy member_access on public.team_members for all to authenticated
+      using (user_id = auth.uid()) with check (user_id = auth.uid());
+  end if;
+end $$;
 
-alter table public.teams enable row level security;
-drop policy if exists team_member_access on public.teams;
-create policy team_member_access on public.teams for select to authenticated
-  using (id in (select team_id from public.team_members where user_id = auth.uid()));
+-- ---- teams: visible to members ----
+do $$
+begin
+  if to_regclass('public.teams') is not null
+     and to_regclass('public.team_members') is not null then
+    alter table public.teams enable row level security;
+    drop policy if exists team_member_access on public.teams;
+    create policy team_member_access on public.teams for select to authenticated
+      using (id in (select team_id from public.team_members where user_id = auth.uid()));
+  end if;
+end $$;
 
 -- ---- VERIFICATION (run as a sample authenticated user; expect only own rows) ----
 -- select set_config('request.jwt.claim.sub', '<A-REAL-USER-UUID>', true);
@@ -64,6 +88,5 @@ create policy team_member_access on public.teams for select to authenticated
 -- select count(*) from public.user_profiles;     -- same
 -- reset role;
 --
--- NOTE: if any table above does not exist or uses a different owning column,
--- remove/adjust that entry before running. service_role (the backend) is
--- unaffected either way.
+-- To see which tables actually got RLS enabled afterwards:
+-- select relname from pg_class where relrowsecurity and relnamespace = 'public'::regnamespace order by relname;
