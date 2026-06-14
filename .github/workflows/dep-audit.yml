@@ -1,0 +1,62 @@
+name: Dependency Audit
+
+# Supply-chain scanning (security roadmap P5). Runs on PRs touching dependency
+# manifests, on push to master, and weekly to catch newly-disclosed CVEs in
+# pinned deps even when nothing changed.
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "**/pyproject.toml"
+      - "**/requirements*.txt"
+      - "uv.lock"
+      - "**/package-lock.json"
+      - ".github/workflows/dep-audit.yml"
+  push:
+    branches: [master]
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+
+concurrency:
+  group: dep-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: pip-audit (Python)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Export locked dependencies
+        run: uv export --frozen --no-emit-workspace --format requirements-txt -o requirements-audit.txt
+
+      - name: pip-audit
+        run: uvx pip-audit -r requirements-audit.txt --progress-spinner off
+
+  node:
+    name: npm audit (web/team/mobile)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [web, team, mobile]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: npm audit — ${{ matrix.app }}
+        working-directory: apps/${{ matrix.app }}
+        # Fail only on high/critical; moderate/low are reported but non-blocking.
+        run: npm audit --audit-level=high
