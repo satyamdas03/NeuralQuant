@@ -31,8 +31,13 @@ async def stripe_webhook(request: Request):
     sig_header = request.headers.get("stripe-signature", "")
 
     if not _stripe_webhook_secret:
-        log.warning("STRIPE_WEBHOOK_SECRET not set — skipping verification")
-        # In development, skip verification if secret not configured
+        # An unverified webhook lets anyone forge tier upgrades / cancellations.
+        # Fail closed in production; only allow the unsigned path when explicitly
+        # opted in for local dev (ALLOW_UNVERIFIED_STRIPE_WEBHOOK=true).
+        if os.environ.get("ALLOW_UNVERIFIED_STRIPE_WEBHOOK", "").lower() != "true":
+            log.error("STRIPE_WEBHOOK_SECRET not set — refusing unverified webhook")
+            raise HTTPException(503, "Webhook verification not configured")
+        log.warning("STRIPE_WEBHOOK_SECRET not set — accepting UNVERIFIED webhook (dev opt-in)")
         import json
         try:
             event = json.loads(body)

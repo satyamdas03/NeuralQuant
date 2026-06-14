@@ -3,7 +3,7 @@ import logging
 from fastapi import APIRouter, Depends
 
 from nq_api.auth import User, get_current_user
-from nq_api.auth.deps import get_current_user_smoke
+from nq_api.auth.deps import get_current_user_smoke, require_admin
 from nq_api.auth.models import TIER_LIMITS
 from nq_api.cache.score_cache import _supabase_rest
 from nq_api.schemas import UserProfile
@@ -15,10 +15,12 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.get("/stats")
 def auth_stats(user: User = Depends(get_current_user)):
-    """Return signup/traction analytics (admin only)."""
-    if user.tier not in ("pro", "api"):
-        from fastapi import HTTPException
-        raise HTTPException(403, "Admin only")
+    """Return signup/traction analytics (admin only).
+
+    Gated on the ADMIN_EMAILS allowlist — NOT subscription tier. Exposes other
+    users' emails/ids, so a paying pro/api customer must not be able to read it.
+    """
+    require_admin(user)
 
     try:
         users = _supabase_rest(

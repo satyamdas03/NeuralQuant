@@ -7,6 +7,7 @@ RemoteProtocolError from supabase Python SDK in uvicorn asyncio).
 from __future__ import annotations
 import logging
 import os
+import secrets
 
 import httpx
 from fastapi import Depends, Header, HTTPException, status
@@ -81,6 +82,42 @@ def _supabase_service_client():
     client = create_client(url, key)
     _tls.supabase_client = client
     return client
+
+
+def admin_emails() -> set[str]:
+    """Allowlist of admin emails from the ADMIN_EMAILS env (comma-separated)."""
+    raw = os.environ.get("ADMIN_EMAILS", "")
+    return {e.strip().lower() for e in raw.split(",") if e.strip()}
+
+
+def require_admin(user: User) -> None:
+    """True admin gate — an allowlist of emails (ADMIN_EMAILS env), NOT the
+    subscription tier. A paying pro/api customer is not an admin and must not
+    see platform-wide metrics, other users' data, or internal ops tooling.
+
+    Fail-closed: if ADMIN_EMAILS is unset, no one is admin."""
+    admins = admin_emails()
+    if not admins or (user.email or "").strip().lower() not in admins:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+
+def require_team_access(
+    authorization: str | None = Header(default=None),
+    x_team_token: str | None = Header(default=None),
+) -> User | None:
+    """Gate the internal Team Hub (tasks/standups). Two ways in:
+
+    1. Automation/agents: send `X-Team-Token` matching the TEAM_API_TOKEN env
+       (constant-time compared). No JWT needed.
+    2. Humans: a valid Supabase JWT whose email is in the ADMIN_EMAILS allowlist.
+
+    Customers (any other signed-up user) are denied — the board is internal."""
+    service_token = os.environ.get("TEAM_API_TOKEN", "")
+    if service_token and x_team_token and secrets.compare_digest(x_team_token, service_token):
+        return None  # authorized automation
+    user = get_current_user(authorization)  # raises 401 if missing/invalid JWT
+    require_admin(user)  # raises 403 if not allowlisted
+    return user
 
 
 def _smoke_bypass_ok(provided: str | None) -> bool:
