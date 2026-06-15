@@ -4,7 +4,7 @@
 
 **AI-Powered Stock Intelligence Through Adversarial Multi-Agent Debate**
 
-*Institutional-grade quant engine + 7-agent PARA-DEBATE system. US S&P 500 + India Nifty 200. 100% live data. PayPal subscriptions.*
+*Institutional-grade quant engine + PARA-DEBATE multi-agent system + live voice analysts. US + India. 100% live data.*
 
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
@@ -13,9 +13,25 @@
 
 > **This codebase is available for acquisition.** Contact the author for details.
 
-**Live at [neuralquant.co](https://neuralquant.co)**
+**Live at [neuralquant.co](https://neuralquant.co)** · API `neuralquant.onrender.com` (v4.1.0)
 
 </div>
+
+---
+
+## Current Status — June 2026
+
+**Production live.** API v4.1.0, ~950 stocks in the score cache (≈450 US + ≈500 India), nightly refresh healthy. Last full prod smoke (2026-06-15): **13/13 endpoints PASS**, zero JS console errors across the app.
+
+**Recently shipped (Sessions 90–94):**
+- **Branding** unified to NeuralQuant; landing, methodology, pricing refreshed.
+- **Voice analysts live** — QuantAstra (on-demand) + **Veronica** (page-aware companion with "Hey Veronica" wake word + morning briefing), via a LiveKit worker.
+- **Hermes** — autonomous self-improving trading agent surfaced at `/hermes` (live "Matrix" dashboard, SSE log stream).
+- **India data parity** — QuantFactor universe expanded from ~60 to ~500 NSE names via a daily-refreshed sheet sync.
+- **Security hardening (P0–P6)** — Supabase RLS, log redaction, gitleaks + dependency scanning in CI, IDOR fixes, HTTP security headers + CSP (report-only), per-IP abuse limiting, webhook-signature enforcement, a security-event audit log, and an incident-response runbook. See [Security](#security).
+- **QA pass** — fixed a false "loss-making" badge, a CSP console error, and a "Sign In while authenticated" nav bug; removed the unused `/alerts` page.
+
+**Operator follow-ups (not code):** rotate the ElevenLabs key on the voice worker, manual-deploy `nq-api` on Render (ships the latest API/security changes), apply migration `021_security_events.sql`, warm the API before live demos (first-hit cold start on Ask Morgan / PARA-DEBATE is ~45–80s).
 
 ---
 
@@ -23,13 +39,9 @@
 
 **AI-powered stock intelligence platform — India + US.**
 
-Multi-agent Claude-powered research engine (PARA-DEBATE: 5 specialists + adversarial
-challenge + head analyst) · proprietary IRS% quantitative scoring across 1,750+ stocks ·
-web + mobile (Expo) + voice (LiveKit) on one FastAPI backend · AWS Bedrock-ready ·
-Q1FY27 documented backtest: **+13.5% avg alpha vs Nifty50, ~89% hit rate** (see
-[neuralquant.co/methodology](https://neuralquant.co/methodology)).
+Multi-agent Claude-powered research engine (PARA-DEBATE) · QuantFactor quintile engine + proprietary **IRS%** score across ~950 stocks · web + mobile (Expo) + voice (LiveKit) + an autonomous trading agent on one FastAPI backend · Anthropic Claude with an AWS Bedrock path · Q1FY27 documented backtest: **+13.5% avg alpha vs Nifty50, ~89% hit rate** (see [neuralquant.co/methodology](https://neuralquant.co/methodology)).
 
-**18 months of build. 82 documented sessions. 126 documented bug fixes.**
+**18+ months of build. 90+ documented sessions.**
 
 ### Evaluate in 15 minutes — zero API keys
 
@@ -40,181 +52,164 @@ docker compose up --build
 # → http://localhost:3000
 ```
 
-The demo stack bundles a real data snapshot (5 Supabase tables, 1,669 rows) and a
-canned PARA-DEBATE output, so the dashboard, screener, stock detail, and backtest
-pages all work offline. Add `ANTHROPIC_API_KEY` to run live agent debates.
+The demo stack bundles a real data snapshot (Supabase tables, ~1,669 rows) and a canned PARA-DEBATE output, so the dashboard, screener, stock detail, and backtest pages work offline. Add `ANTHROPIC_API_KEY` to run live agent debates.
 
 ### What's included in the sale
 
-Codebase · neuralquant.co domain · Supabase data + Q1FY27 backtest results ·
-scoring methodology IP (IRS%, G Score, Risk Efficiency) · sister repo
-(anjali-value-stocks) · brand/design system · optional 3–6 month founder
-transition. Full list: [docs/ASSET_INVENTORY.md](docs/ASSET_INVENTORY.md).
-Due diligence: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) ·
-[docs/BUG_HISTORY.md](docs/BUG_HISTORY.md) ·
-[docs/OPERATIONS.md](docs/OPERATIONS.md) ·
-[docs/HANDOVER.md](docs/HANDOVER.md).
+Codebase · neuralquant.co domain · Supabase data + Q1FY27 backtest results · scoring methodology IP (IRS%, G Score, Risk Efficiency, QuantFactor quintiles) · sister repo (anjali-value-stocks) · brand/design system · optional 3–6 month founder transition. Full list: [docs/ASSET_INVENTORY.md](docs/ASSET_INVENTORY.md). Due diligence: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/BUG_HISTORY.md](docs/BUG_HISTORY.md) · [docs/OPERATIONS.md](docs/OPERATIONS.md) · [docs/HANDOVER.md](docs/HANDOVER.md). Patent strategy: [IP_PROTECTION/MEETING_PREP.md](IP_PROTECTION/MEETING_PREP.md).
 
 ---
 
 ## What is NeuralQuant?
 
-NeuralQuant is a full-stack AI stock intelligence platform that combines a **5-factor quantitative signal engine** with a **7-agent AI analyst debate system** (PARA-DEBATE) to deliver institutional-grade research at retail speed — backed entirely by **live, real data**.
+A full-stack AI stock intelligence platform that combines a **quantitative signal engine** with a **multi-agent AI analyst debate** (PARA-DEBATE), **natural-language and voice analysts**, and an **autonomous trading agent** — backed entirely by **live, real data**.
 
 ### Why It's Different
 
 | Feature | NeuralQuant | Danelfin | TipRanks | Seeking Alpha |
 |---------|-------------|----------|----------|---------------|
 | **Adversarial agent** | Mandatory BEAR challenge | No | No | No |
-| **India market** | Nifty 200, live | No | No | No |
-| **Free tier** | Full access | 3 stocks/month | 5 searches/month | Paywalled |
-| **Natural language queries** | Yes | No | No | No |
-| **Voice input** | Yes | No | No | No |
+| **India market** | ~500 NSE names, live | No | No | No |
+| **Natural language queries** | Yes (Ask Morgan) | No | No | No |
+| **Voice analyst** | Yes (QuantAstra + Veronica) | No | No | No |
+| **LLM hallucination guard** | Per-agent metric reconciliation vs live data | No | No | No |
 | **Real-time enrichment** | RSI/MACD/ATR live | End-of-day | End-of-day | End-of-day |
-| **Multi-agent debate** | 7 agents, 1 verdict | Single score | Aggregation | Single author |
+| **Multi-agent debate** | 6 agents + head analyst, 1 verdict | Single score | Aggregation | Single author |
 | **Pricing** | Free / $9.99 / $29.99 / $99.99 | Free / $20 / $49 / $99 | Free / $30 / $50 | $239/yr |
 
-> **Expert Assessment (May 2026):** Overall 8.6/10 — Technical Depth 9.2, USP Distinctiveness 9.0, Market Timing 8.4. PARA-DEBATE validated by FinDebate (+20.4% alpha), AlphaAgents (BlackRock), Apex Parliament, and TradingAgents academic research.
+> **Expert Assessment (May 2026):** Overall 8.6/10 — Technical Depth 9.2, USP Distinctiveness 9.0, Market Timing 8.4. PARA-DEBATE validated by FinDebate (+20.4% alpha), AlphaAgents (BlackRock), Apex Parliament, and TradingAgents research.
 
 ---
 
 ## Key Features
 
-- **PARA-DEBATE**: 5 specialist agents (Macro, Fundamental, Technical, Sentiment, Geopolitical) + adversarial BEAR challenge + Head Analyst synthesis. Every stock gets a conviction call with reasoning.
-- **Ask AI**: Natural language queries with conversation memory. *"Why AAPL over MSFT?"* — cites live scores, FRED macro, news.
-- **5-Factor Scoring**: Quality, Momentum, Value, Low-Volatility, Short Interest/Delivery %. Rank-based 1-10 scoring across 700+ stocks.
-- **Dual Market**: US (S&P 500) + India (Nifty 200) with India-specific signals (delivery %, India VIX regime).
-- **Real-Time Enrichment**: RSI-14, MACD, ATR-14, SMA-50/200, volume ratio, insider clusters, news sentiment — all live.
-- **Screener**: Filter and rank by AI score, sector, market. 5 presets (Top Value, High Momentum, etc.)
-- **Backtest Engine**: Walk-forward validation with IC/ICIR metrics. Hit rate tracking by score decile.
-- **Alerts**: Score change, regime shift, and threshold alerts via email.
-- **PayPal Subscriptions**: 4 tiers — Free, Investor ($9.99/mo), Pro ($29.99/mo), API ($99.99/mo). USD-only.
+- **PARA-DEBATE** — 5 specialist agents (Macro, Fundamental, Technical, Sentiment, Geopolitical) + adversarial BEAR challenge + Head Analyst synthesis, run in parallel (`asyncio.gather`). Each agent's numeric claims are reconciled against live authoritative data before synthesis (hallucination guard). SSE-streamed.
+- **Ask Morgan** — natural-language queries with conversation memory and live data injection. *"Is AAPL a buy?"* → price, P/E, IRS%, QuantFactor breakdown, consensus.
+- **Voice analysts** — **QuantAstra** (on-demand voice) and **Veronica** (page-aware companion: wake word, morning briefing, reads the page you're on). Deepgram → Claude → ElevenLabs pipeline on a LiveKit worker.
+- **QuantFactor engine + IRS%** — cross-sectional quintile scoring (Growth / Return / Valuation / Risk) vs index peers, distilled into the proprietary **Investment Readiness Score (IRS%)**. US + India.
+- **Hermes** — autonomous self-improving trading agent (paper). LLM "reflection" loop mutates one strategy variable at a time with a written rationale and version history. Surfaced at `/hermes`.
+- **Screener** — filter/rank by IRS%, QuantFactor composite, sector, market; presets.
+- **Backtest** — walk-forward validation, Q1FY27 results published on `/methodology`.
+- **Dual market** — US (S&P 500) + India (NIFTY 500 pool) with India-specific signals (delivery %, India VIX regime).
+- **Payments** — Stripe + PayPal subscriptions, 4 tiers. Free during the development phase.
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                     Next.js 16 Frontend (Obsidian Quantum)           │
-│  Dashboard · Screener · Stock Detail · Ask AI · Backtest · Alerts   │
-│  Space Grotesk + Inter · Glassmorphism · 4-level surface hierarchy   │
-└────────────────────────┬────────────────────────────────────────────┘
-                         │ REST / JSON / SSE (direct to Render)
-┌────────────────────────▼────────────────────────────────────────────┐
-│                      FastAPI Backend (nq-api)                         │
-│  18 routers · 7 AI agents · 4-tier cache · PayPal webhooks           │
-│                                                                       │
-│  Stocks   → /stocks/{ticker}, /chart, /meta, /stream (SSE)           │
-│  Screener → /screener, /screener/preview                             │
-│  Analyst  → /analyst, /analyst/stream (SSE PARA-DEBATE)             │
-│  Query    → /query/v2, /query/v2/stream (SSE)                        │
-│  Market   → /overview, /sectors, /movers, /news                      │
-│  Auth     → /me, tier enforcement, rate limiting                      │
-│  Pay      → /checkout (PayPal), /webhooks/paypal                     │
-│  More     → /watchlist, /alerts, /backtest, /sentiment, /broker       │
-└──────────┬──────────────────────┬───────────────────────────────────┘
-           │                      │
-┌──────────▼──────────┐  ┌────────▼──────────────────────────────────┐
-│  nq-signals engine  │  │        PARA-DEBATE Orchestrator             │
-│  ─────────────────  │  │  ────────────────────────────────────────  │
-│  HMM Regime (4)     │  │  MACRO ─────────┐                          │
-│  Quality / Momentum │  │  FUNDAMENTAL ───┤                          │
-│  Value (P/E + P/B)  │  │  TECHNICAL ─────┤ asyncio.gather()        │
-│  Low-Volatility     │  │  SENTIMENT ─────┤ (6 in parallel)          │
-│  Short Interest (US)│  │  GEOPOLITICAL ──┤                          │
-│  Delivery % (IN)    │  │  ADVERSARIAL ────┘──► HEAD ANALYST          │
-│  Insider (EDGAR F4) │  └────────────────────────────────────────────┘
-└──────────┬──────────┘
-┌──────────▼──────────┐
-│    nq-data layer     │
-│  ─────────────────  │
-│  yfinance (US/IN)   │   Live prices, OHLCV, fundamentals, news
-│  NSE Bhavcopy (IN)  │   EOD data + delivery_pct
-│  FRED API (macro)   │   HY Spread, CPI, Fed Funds, 2Y/10Y yields
-│  EDGAR Form 4       │   Insider buying/selling signals
-│  Finnhub API        │   RSI/MACD/ATR/SMA, insider sentiment, news
-│  DuckDB DataStore   │   Zero-copy columnar cache
-└─────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                  Next.js 16 Frontend (Obsidian Quantum)               │
+│  Dashboard · Screener · Stock Detail · Ask Morgan · Portfolio ·       │
+│  Watchlist · Hermes · Backtest · Methodology · Veronica (global orb)  │
+└───────────────┬───────────────────────────────────────┬──────────────┘
+                │ REST / SSE (via /api proxy)            │ LiveKit (wss)
+┌───────────────▼───────────────────────────────────┐   │
+│                  FastAPI Backend (nq-api)          │   │
+│  34 routers · multi-agent debate · 4-tier cache    │   │
+│  Security: JWKS auth · RLS · ADMIN_EMAILS gate ·   │   │
+│            IP abuse limiter · webhook sig verify ·  │   │
+│            log redaction · security_events audit    │   │
+│                                                     │   │
+│  Stocks/Screener/Analyst/Query/Market/Portfolio ·   │   │
+│  Auth/Checkout(Stripe+PayPal)/Webhooks ·            │   │
+│  Watchlists/Backtest/Sentiment/Hermes(proxy)/Team   │   │
+└──────┬───────────────────┬────────────────┬────────┘   │
+       │                   │                │            │
+┌──────▼─────┐  ┌──────────▼────────┐  ┌────▼─────────┐  │
+│ nq-signals │  │ PARA-DEBATE        │  │ QuantFactor  │  │
+│ 5-factor + │  │ 6 agents ∥ +       │  │ quintile eng │  │
+│ HMM regime │  │ head analyst       │  │ + IRS% (US/IN│  │
+└──────┬─────┘  │ + metric reconcile │  │  daily sync) │  │
+       │        └────────────────────┘  └──────────────┘  │
+┌──────▼──────────────────────────────┐   ┌───────────────▼──────────────┐
+│            nq-data layer             │   │   livekit-agent (worker)     │
+│ yfinance · FMP · NSE Bhavcopy · FRED │   │  QuantAstra + Veronica       │
+│ EDGAR F4 · Finnhub · OpenBB proxy    │   │  Deepgram→Claude→ElevenLabs  │
+└──────────────────────────────────────┘   └──────────────────────────────┘
+
+External: Hermes trading agent (Railway) ──proxied via /hermes──▶ nq-api
 ```
+
+**Apps:** `apps/web` (Next.js, Vercel) · `apps/api` (FastAPI, Render) · `apps/livekit-agent` (voice worker, Render) · `apps/team` (internal Team Hub, Vercel) · `apps/mobile` (Expo). Packages: `packages/data` (nq-data), `packages/signals` (nq-signals).
 
 ---
 
-## Live Endpoints (Verified 2026-05-05)
-
-All endpoints tested and returning live data:
+## Live Endpoints (Verified 2026-06-15 — 13/13 PASS)
 
 | Endpoint | Method | Status | Notes |
 |----------|--------|--------|-------|
-| `/health` | GET | 200 | `{"status":"ok","version":"4.0.0"}` |
-| `/stocks/AAPL?market=US` | GET | 200 | Score 6/10, Risk-On regime |
-| `/stocks/TCS?market=IN` | GET | 200 | India stocks working |
-| `/stocks/AAPL/chart?period=1mo` | GET | 200 | OHLCV data |
-| `/stocks/AAPL/meta` | GET | 200 | Market cap $4.11T, P/E 33.9 |
-| `/screener/preview?market=US` | GET | 200 | GOOGL top, Recovery regime |
-| `/screener/preview?market=IN` | GET | 200 | MPHASIS top, Risk-On regime |
-| `/market/overview` | GET | 200 | 4 indices, real-time |
-| `/market/sectors` | GET | 200 | 11 sector ETFs |
-| `/market/movers` | GET | 200 | Top gainers/losers |
-| `/sentiment/news/AAPL` | GET | 200 | 10 headlines, aggregate score |
-| `/news?limit=5` | GET | 200 | Market headlines + sentiment |
-| `/backtest/accuracy` | GET | 200 | Hit rate 38.4% at 5+, 100 obs |
-| `/checkout/session` | POST | 401 | Auth required (PayPal) |
-| `/auth/me` | GET | 401 | Bearer token required |
+| `/health` | GET | 200 | `v4.1.0`, ~950 cache rows |
+| `/stocks/AAPL?market=US` | GET | 200 | IRS%, ForeCast, factor radar |
+| `/stocks/TCS?market=IN` | GET | 200 | India full render incl ₹ prices |
+| `/stocks/AAPL/chart?period=1mo` | GET | 200 | OHLCV |
+| `/stocks/AAPL/meta` | GET | 200 | Market cap, P/E, beta |
+| `/screener/preview?market=US` | GET | 200 | Ranked results |
+| `/market/overview` | GET | 200 | 4 indices |
+| `/market/sectors` | GET | 200 | 11 sectors |
+| `/market/news` | GET | 200 | Headlines + sentiment |
+| `/market-wrap/today` | GET | 200 | Daily wrap |
+| `/query/v2` (Ask Morgan) | POST | 200 | ~45s cold, fast warm |
+| `/analyst/stream` (PARA-DEBATE) | POST | 200 | SSE, ~77s cold |
+| `/hermes/status` | GET | 200 | Trading agent state |
+| `/auth/me` | GET | 401 | Bearer required |
 
 ---
 
 ## Data Sources
 
-Every number shown in NeuralQuant is sourced from live APIs — no synthetic data, no stale snapshots.
+Every number is sourced from live APIs — no synthetic data.
 
 | Data Point | Source | Refresh |
 |---|---|---|
 | VIX / India VIX | yfinance `^VIX` / `^INDIAVIX` | Real-time |
 | S&P 500 vs 200-day MA | yfinance `^GSPC` | Real-time |
 | HY Credit Spread OAS | FRED `BAMLH0A0HYM2` | Daily |
-| ISM PMI | FRED `MANEMP` | Monthly |
-| Gross profit margin | yfinance `grossMargins` | Quarterly |
-| Piotroski F-score (0-9) | yfinance financials | Quarterly |
-| 12-1 month momentum | yfinance 14-month OHLCV | Daily |
-| Realized 1Y volatility | yfinance price history | Daily |
-| P/E TTM / P/B ratio | yfinance | Real-time |
-| Short interest % float | yfinance `shortPercentOfFloat` | Bi-weekly |
+| Profile / quote / fundamentals | FMP (primary) → yfinance (fallback) | Real-time |
+| QuantFactor quintiles (IN) | Daily "NSE 100/500 Analysis" sheet sync | Daily |
+| P/E TTM / P/B ratio | FMP / yfinance | Real-time |
 | Delivery % (India) | NSE Bhavcopy | Daily |
 | Insider buying/selling | SEC EDGAR Form 4 | As filed |
-| RSI-14, MACD, ATR-14, SMA-50/200 | Finnhub candles | 15 min |
-| Insider net buy ratio + cluster score | Finnhub insider sentiment | 1 hour |
-| News sentiment (bullish/bearish %) | Finnhub news sentiment | 30 min |
+| RSI-14, MACD, ATR-14, SMA | Finnhub candles | 15 min |
+| News sentiment | FMP → Finnhub → yfinance cascade | 30 min |
+| Extended / terminal data | OpenBB proxy (`nq-openbb`) | On demand |
 
 ---
 
-## The 5-Factor Model
+## The 5-Factor Model (nq-signals)
 
-Scores are computed cross-sectionally within a reference universe — **no hardcoded thresholds**, everything is relative.
+Scores are computed cross-sectionally within a reference universe — no hardcoded thresholds.
 
 **US Market:**
 
 | Factor | Signal | Weight (Risk-On) |
 |---|---|---|
-| **Quality** | Gross margin + Piotroski F-score + Accruals ratio | 25% |
+| **Quality** | Gross margin + Piotroski F-score + Accruals | 25% |
 | **Momentum** | 12-1 month price return (Jegadeesh-Titman) | 25% |
 | **Value** | Inverse of (P/E rank x 0.5 + P/B rank x 0.5) | 10% |
 | **Low Volatility** | Inverse of realized 1Y vol + beta rank | 15% |
 | **Short Interest** | Inverse of short float rank | 10% |
 | **Insider** | EDGAR Form 4 cluster score | 5% |
 
-**India Market:**
+**India Market** swaps Short Interest for **Delivery %** (institutional conviction via `delivery_pct` rank). Regime weights shift automatically — US uses a 4-state HMM; India uses India VIX heuristics (VIX > 25 = Bear, > 18 = Late-Cycle, else Risk-On).
 
-| Factor | Signal | Weight (Risk-On) |
-|---|---|---|
-| **Quality** | Gross margin + Piotroski F-score + Accruals ratio | 25% |
-| **Momentum** | 12-1 month price return (crash-protected) | 25% |
-| **Value** | Inverse of (P/E rank x 0.5 + P/B rank x 0.5) | 10% |
-| **Low Volatility** | Inverse of realized 1Y vol + beta rank | 15% |
-| **Delivery %** | Institutional conviction via delivery_pct rank | 10% |
-| **Insider** | EDGAR Form 4 cluster score | 5% |
+> Alongside this, the **QuantFactor engine** scores each name into quintiles (Growth / Return / Valuation / Risk) vs index peers and derives the **IRS%** (Investment Readiness Score) shown across the product.
 
-Regime weights shift automatically. US uses 4-state HMM; India uses India VIX heuristics (VIX > 25 = Bear, > 18 = Late-Cycle, else Risk-On).
+---
+
+## Security
+
+Hardened across a P0–P6 program (Sessions 92–93):
+
+- **Auth** — Supabase JWT verified via JWKS; admin surfaces gated on an `ADMIN_EMAILS` allowlist (not tier); internal Team Hub behind admin/service-token.
+- **Database** — Row-Level Security (migrations `020_enable_rls.sql`, `021_security_events.sql`); backend uses `service_role` with RLS as the net.
+- **Secrets** — log redaction filter (scrubs keys/tokens/emails); gitleaks secret scanning in CI; `.env` gitignored.
+- **Web** — HTTP security headers (HSTS, X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy) + Content-Security-Policy (report-only, pending enforce).
+- **Abuse / integrity** — per-IP rate fuse on expensive endpoints (e.g. LiveKit token); Stripe/PayPal webhook signatures verified (fail-closed); file-upload size caps + MIME allow-list; prompt-injection guards on LLM file analysis.
+- **Supply chain** — `pip-audit` + `npm audit` + Dependabot in CI.
+- **Observability** — `security_events` audit log + incident-response runbook (`docs/SECURITY_INCIDENT_RESPONSE.md`).
+
+Full audit: `docs/SECURITY_IDOR_AUDIT.md` · operator actions: `docs/SECURITY_P0_P1_OPERATOR_ACTIONS.md`.
 
 ---
 
@@ -222,26 +217,12 @@ Regime weights shift automatically. US uses 4-state HMM; India uses India VIX he
 
 | Tier | USD/mo | INR/mo (approx) | Features |
 |------|--------|-----------------|----------|
-| **Free** | $0 | ₹0 | 3 PARA-DEBATE/day, screener, market data |
-| **Investor** | $9.99 | ~₹899 | Unlimited PARA-DEBATE, Ask AI, alerts |
-| **Pro** | $29.99 | ~₹2,499 | + Watchlists, backtest, sector deep dives |
-| **API** | $99.99 | ~₹8,499 | Full API access, 1000 calls/day |
+| **Free** | $0 | ₹0 | PARA-DEBATE, screener, market data |
+| **Investor** | $9.99 | ~₹899 | Unlimited PARA-DEBATE, Ask Morgan |
+| **Pro** | $29.99 | ~₹2,499 | + Watchlists, backtest, portfolio |
+| **API** | $99.99 | ~₹8,499 | Full API access |
 
-INR prices are approximate references. All charges in USD via PayPal. Free during development phase.
-
----
-
-## Alert System
-
-Users can subscribe to three alert types per ticker:
-
-| Alert Type | Trigger |
-|---|---|
-| **Score Change** | Composite score delta >= min_delta (default 0.10) |
-| **Regime Change** | Market regime shifts between Risk-On / Late-Cycle / Bear / Recovery |
-| **Threshold** | Composite score crosses a user-defined threshold |
-
-Alerts delivered via email (Resend) with 4-hour dedup window.
+All charges in USD via Stripe/PayPal. **Quota enforcement is bypassed during the development phase** (free indefinitely until monetization).
 
 ---
 
@@ -251,44 +232,24 @@ Alerts delivered via email (Resend) with 4-hour dedup window.
 stockpredictor/
 ├── packages/
 │   ├── data/                  # nq-data: connectors, DataBroker, DuckDB store
-│   │   └── src/nq_data/
-│   │       ├── broker/              # DataBroker, rate limiter, Alpaca integration
-│   │       ├── price/               # yfinance + NSE Bhavcopy connectors
-│   │       ├── macro/               # FRED macro connector
-│   │       ├── social/              # Reddit + StockTwits connectors
-│   │       ├── alt_signals/         # EDGAR Form 4 insider trades
-│   │       ├── finnhub.py           # Finnhub client (RSI/MACD/ATR/insider/news)
-│   │       └── models.py            # Pydantic domain models
-│   └── signals/               # nq-signals: 5-factor engine + ranking
-│       └── src/nq_signals/
-│           ├── engine.py            # SignalEngine — 5-factor composite (US + IN)
-│           ├── factors/             # Quality, Momentum, Value, Low-Vol
-│           ├── regime/              # 4-state HMM market regime detector
-│           └── ranker/              # LightGBM LambdaRank + walk-forward validation
+│   └── signals/               # nq-signals: 5-factor engine, HMM regime, ranker
 ├── apps/
-│   ├── api/                   # FastAPI backend
-│   │   └── src/nq_api/
-│   │       ├── main.py              # App lifespan, prewarm, router registration
-│   │       ├── config.py            # Settings, CORS, URLs
-│   │       ├── auth/                # JWT auth, tier limits, rate limiting
-│   │       ├── cache/               # 4-tier score cache + enrichment cache
-│   │       ├── data_builder.py      # 100% live data (US + IN macro + Bhavcopy)
-│   │       ├── paypal.py            # PayPal Subscriptions API client
-│   │       ├── agents/              # 7 PARA-DEBATE agent prompts
-│   │       └── routes/              # 18 routers (stocks, screener, analyst, query, etc.)
-│   └── web/                   # Next.js 16 frontend (Obsidian Quantum)
-│       └── src/
-│           ├── app/                 # 19 pages (landing, dashboard, stocks, etc.)
-│           ├── components/          # 47+ UI components
-│           └── lib/                 # API client, types, pricing, analytics
-├── scripts/
-│   └── nightly_score.py            # GHA nightly cache refresh (02:00 UTC)
-├── .github/workflows/
-│   ├── ci.yml                       # Lint + test on push/PR
-│   ├── deploy.yml                   # Auto-deploy to Render on push
-│   └── nightly-score.yml           # Daily score cache refresh
-└── supabase/
-    └── migration_010_paypal_subscription.sql  # PayPal subscription column
+│   ├── api/                   # FastAPI backend (34 routers)
+│   │   ├── src/nq_api/
+│   │   │   ├── auth/              # JWT, admin gate, rate_limit, abuse_limit, security_audit
+│   │   │   ├── agents/            # PARA-DEBATE agent prompts + context builders
+│   │   │   ├── cache/             # score cache, quantfactor cache, enrichment cache
+│   │   │   ├── jobs/              # quantfactor_sync, nightly_score, market_refresh
+│   │   │   ├── services/          # stock_summary, portfolio, enrichment, clarification
+│   │   │   └── routes/            # stocks, screener, analyst, query, hermes, team, ...
+│   │   └── migrations/           # SQL migrations (… 020 RLS, 021 security_events)
+│   ├── web/                   # Next.js 16 frontend (Vercel)
+│   ├── livekit-agent/         # QuantAstra + Veronica voice worker (Render)
+│   ├── team/                  # Internal Team Hub (Vercel)
+│   └── mobile/                # Expo mobile app
+├── scripts/                   # smoke_test.py, exports, backtest, db backup
+├── .github/workflows/         # ci, secret-scan (gitleaks), dep-audit, market-refresh, ...
+└── render.yaml                # Render service definitions (api + workers)
 ```
 
 ---
@@ -296,190 +257,120 @@ stockpredictor/
 ## Quickstart
 
 ### Prerequisites
-
-- Python 3.12+
-- [uv](https://github.com/astral-sh/uv) — fast Python package manager
-- Node.js 20+ (for frontend)
-- [FRED API key](https://fred.stlouisfed.org/docs/api/api_key.html) (free)
-- [Anthropic API key](https://console.anthropic.com/) (for PARA-DEBATE + Ask AI)
-- [PayPal Developer account](https://developer.paypal.com/) (for subscriptions)
+Python 3.12+ · [uv](https://github.com/astral-sh/uv) · Node.js 20+ · Anthropic API key (PARA-DEBATE/Ask Morgan) · FRED + Finnhub + FMP keys (data).
 
 ### 1. Clone and install
-
 ```bash
 git clone https://github.com/satyamdas03/NeuralQuant.git
 cd NeuralQuant
 uv sync
 ```
 
-### 2. Configure environment
-
+### 2. Configure (`apps/api/.env`)
 ```bash
-# apps/api/.env
 ANTHROPIC_API_KEY=sk-ant-...
-FRED_API_KEY=your_fred_key_here
-FINNHUB_API_KEY=your_finnhub_key_here
-PAYPAL_CLIENT_ID=your_paypal_client_id
-PAYPAL_CLIENT_SECRET=your_paypal_client_secret
-PAYPAL_WEBHOOK_ID=your_paypal_webhook_id
-PAYPAL_PLAN_INVESTOR_USD=P-xxx  # $9.99/mo
-PAYPAL_PLAN_PRO_USD=P-xxx       # $29.99/mo
-PAYPAL_PLAN_API_USD=P-xxx        # $99.99/mo
-# PAYPAL_LIVE=true               # Uncomment for production
+FRED_API_KEY=...
+FINNHUB_API_KEY=...
+FMP_API_KEY=...
+SUPABASE_URL=...           SUPABASE_SERVICE_ROLE_KEY=...   SUPABASE_ANON_KEY=...
+ADMIN_EMAILS=you@example.com
+# Payments (optional): STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, PAYPAL_*
+# Voice (optional, on the livekit-agent worker): LIVEKIT_*, DEEPGRAM_API_KEY, ELEVENLABS_API_KEY
+# USE_BEDROCK=true to route Claude calls through AWS Bedrock
 ```
 
-### 3. Start the API
-
+### 3. Run
 ```bash
-cd apps/api
-# Windows
-..\..\.venv\Scripts\python.exe -m uvicorn nq_api.main:app --reload --port 8000
-# Mac/Linux
-../../.venv/bin/uvicorn nq_api.main:app --reload --port 8000
+# API
+cd apps/api && ../../.venv/bin/uvicorn nq_api.main:app --reload --port 8000
+# Web
+cd apps/web && npm install && npm run dev    # http://localhost:3000
 ```
+API at `http://localhost:8000` · Swagger at `/docs`.
 
-API at `http://localhost:8000` · Swagger docs at `/docs`
-
-### 4. Start the frontend
-
+### 4. Tests + smoke
 ```bash
-cd apps/web
-npm install
-npm run dev    # http://localhost:3000
-```
-
-### 5. Run tests
-
-```bash
-.venv/Scripts/pytest.exe apps/api/tests/ packages/ -v
+uv run pytest apps/api/tests/ packages/ -v
+python scripts/smoke_test.py --api https://neuralquant.onrender.com   # 13 endpoints
 ```
 
 ---
 
 ## Deployment
 
-| Service | Platform | URL |
-|---------|----------|-----|
-| **API** | Render (Docker, free tier) | `neuralquant.onrender.com` |
-| **Web** | Vercel (Hobby) | [`neuralquant.co`](https://neuralquant.co) |
-| **Database** | Supabase (free tier) | Postgres + Auth + Edge Functions |
-| **Payments** | PayPal (sandbox) | Subscriptions API, webhook handling |
-| **CI/CD** | GitHub Actions | Auto-deploy on push to master |
+| Service | Platform | URL / Notes |
+|---------|----------|-------------|
+| **API** (`nq-api`) | Render (Docker) | `neuralquant.onrender.com` — **manual deploy** (auto-deploy unreliable) |
+| **Web** | Vercel | [`neuralquant.co`](https://neuralquant.co) |
+| **Voice** (`quantastra-agent`) | Render (worker) | LiveKit; holds `ELEVENLABS_API_KEY` |
+| **OpenBB** (`nq-openbb`) | Render | Terminal/extended data proxy |
+| **Team Hub** | Vercel | Internal ops board |
+| **Hermes** | Railway | External trading agent, proxied via `/hermes` |
+| **Database** | Supabase | Postgres + Auth + RLS |
+| **Payments** | Stripe + PayPal | Subscriptions + verified webhooks |
+| **CI/CD** | GitHub Actions | lint, gitleaks, dep-audit |
 
-### Environment Variables (Render)
-
-All env vars are set in the Render dashboard (not in render.yaml for secrets). Key vars:
-
-```
-RENDER=true
-SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_ANON_KEY
-ANTHROPIC_API_KEY, FRED_API_KEY, FINNHUB_API_KEY
-PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, PAYPAL_WEBHOOK_ID
-PAYPAL_PLAN_INVESTOR_USD, PAYPAL_PLAN_PRO_USD, PAYPAL_PLAN_API_USD
-RESEND_API_KEY
-```
+Scheduling runs via an **in-process scheduler** (02:00 / 02:30 / 20:30 UTC) — nightly score refresh, QuantFactor sync, EOD market wrap.
 
 ---
 
 ## Competitive Position
 
-> Validated by independent expert assessment (May 2026): Overall 8.6/10, USP Distinctiveness 9.0/10
+> Independent expert assessment (May 2026): Overall 8.6/10, USP Distinctiveness 9.0/10.
 
-| Dimension | Score | What It Means |
-|-----------|-------|---------------|
-| **Technical Depth** | 9.2 | Exceptional — academic quant rigour, PARA-DEBATE, zero synthetic data |
-| **USP Distinctiveness** | 9.0 | Uncontested — dual-market + adversarial AI + academic factors |
-| **Market Timing** | 8.4 | India 90M Demat accounts, AI cost deflation |
+| Dimension | Score | Meaning |
+|-----------|-------|---------|
+| **Technical Depth** | 9.2 | Academic quant rigour, PARA-DEBATE, zero synthetic data |
+| **USP Distinctiveness** | 9.0 | Dual-market + adversarial AI + voice + metric reconciliation |
+| **Market Timing** | 8.4 | India 90M+ Demat accounts, AI cost deflation |
 | **GTM Readiness** | 7.8 | Product live, acquisition channels needed |
-| **Investor Readiness** | 7.2 | Zero paid revenue, backtest not published |
+| **Investor Readiness** | 7.2 | Pre-revenue; backtest documented, not multi-year |
 
-**Academic validation:** PARA-DEBATE approach validated by FinDebate (+20.4% alpha), AlphaAgents (BlackRock), Apex Parliament, and TradingAgents research (2024-2026).
-
-**Market opportunity:** $47B TAM (global retail fintech analytics), $3.2B SAM (India + US AI tools), $48M SOM (50K subscribers at $80/yr blended ARPU).
+**Market opportunity:** $47B TAM (global retail fintech analytics), $3.2B SAM (India + US AI tools), $48M SOM.
 
 ---
 
 ## Roadmap
 
 ### Completed
+- [x] Quant signal engine (5 factors, HMM regime) + QuantFactor quintile engine + IRS%
+- [x] PARA-DEBATE (parallel agents + metric reconciliation) + SSE streaming
+- [x] 100% live data (yfinance, FMP, FRED, NSE, EDGAR, Finnhub, OpenBB)
+- [x] Auth, tiers, screener, portfolio, watchlist, Stripe + PayPal
+- [x] Voice analysts (QuantAstra + Veronica)
+- [x] Hermes live trading dashboard
+- [x] India data parity (~500 NSE names)
+- [x] Security hardening P0–P6 (RLS, headers, rate-limiting, audit log, CI scanning)
 
-- [x] **Phase 1**: Quantitative Signal Engine (5 factors, HMM regime, DuckDB)
-- [x] **Phase 2**: AI Analyst Platform (PARA-DEBATE, SSE streaming)
-- [x] **Phase 3**: 100% Live Data (yfinance, FRED, NSE, EDGAR, Finnhub)
-- [x] **Phase 4**: Production Features (auth, tiers, alerts, screener, PayPal)
-- [x] **Phase 4.1**: Quality Upgrade (enrichment cache, adversarial fix, India macro)
-- [x] **Priority 1 Fixes**: Cache reliability, India normalization, timeout guards
-- [x] **Session 8**: India .NS suffix, backtest staleness, auth webhook
-- [x] **Session 9**: TopNavBar removal, Vercel deploy fix
-- [x] **Session 10**: ADVERSARIAL timeout fix (30s→45s)
-- [x] **Session 11**: PARA-DEBATE subtitle fix, production verification
-- [x] **Session 12**: Domain research, Zoho Mail, competitor analysis, LinkedIn draft
-- [x] **Session 13**: Expert assessment, unified 30/60/90-day strategic plan
-- [x] **Session 14**: PayPal integration, neuralquant.co domain, Zoho Mail, deploy
-
-### In Progress
-
-- [ ] **3-year backtest**: Run and publish P&L curve, Sharpe ratio, IC, alpha
-- [ ] **PayPal live mode**: Switch from sandbox to live (PAYPAL_LIVE=true)
-- [ ] **LinkedIn launch post**: Draft ready, posting from personal account
-
-### Next 30 Days
-
-- [ ] Public model performance dashboard (score vs actual 30/60/90-day returns)
-- [ ] Test coverage 33% → 70%+
-- [ ] 6-month Pro free trial for 20 target users (SEBI RIAs, Zerodha power users)
-- [ ] Weekly "Top 10 India Picks" email newsletter
-- [ ] Antler India/Sydney pre-seed application
-
-### Next 60 Days
-
-- [ ] B2B API waitlist page
-- [ ] Referral programme with rewards
-- [ ] 12-slide investor pitch deck
-- [ ] Finance Twitter/X presence
-- [ ] LTV/CAC/burn financial model
-
-### Next 90 Days
-
-- [ ] Fitted HMM for India market regime (currently heuristic)
-- [ ] Portfolio competitions (community product)
-- [ ] Pricing comparison page vs Danelfin/TipRanks
-- [ ] Reddit/StockTwits sentiment integration
+### In progress / next
+- [ ] Flip CSP from report-only to enforce (after collecting violation reports)
+- [ ] Cut PARA-DEBATE / Ask Morgan cold-start latency (keep-warm)
+- [ ] Multi-year backtest with published P&L / Sharpe / IC
+- [ ] Fitted HMM for India regime (currently heuristic)
+- [ ] Test coverage expansion
 
 ---
 
 ## Known Limitations
 
-1. **Backtest data limited** — Only 100 observations from April 22, 2026. Nightly GHA workflow runs daily to build history.
-2. **PARA-DEBATE ~100s latency** — Sequential agent architecture. Parallel execution would cut to ~20-30s.
-3. **Score cache on Render** — Only top-50 per market prewarmed. Cold starts miss mid-caps.
-4. **FinBERT skipped on Render** — 512MB RAM limit. VADER sentiment used instead.
-5. **India regime heuristic** — Hardcoded VIX thresholds, not fitted HMM.
-6. **News is headlines only** — No article body/summary for context.
-7. **No persistent conversation** — Ask AI uses 4-turn/1500-char sliding window, lost on refresh.
-
----
-
-## Contributing
-
-Pull requests welcome. Please:
-
-1. Run `pytest` from the repo root — all tests must pass
-2. Follow the existing code style (Ruff-compatible, Pydantic v2)
-3. Keep agent prompts in `agents/*.py` — don't hardcode in routes
-4. No synthetic data — every new data field must come from a real source
+1. **Cold-start latency** — first-hit Ask Morgan ~45s, PARA-DEBATE ~77s (warm after). Pre-warm before live demos.
+2. **Render manual deploys** — `nq-api` auto-deploy has been unreliable; deploy manually.
+3. **CSP report-only** — security headers shipped; CSP not yet enforced (no violation collector yet).
+4. **India fundamentals gaps** — some FMP endpoints are US-only; IN relies on the sheet sync + yfinance.
+5. **QuantFactor "earnings declined" flag** — derived from profit-growth, not profit level; corrected in UI, full DB correction needs a re-sync.
+6. **No persistent Ask Morgan memory** — sliding-window context, lost on refresh.
 
 ---
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+**Proprietary.** See [PROPRIETARY-LICENSE.txt](PROPRIETARY-LICENSE.txt). This codebase is offered for acquisition; not open source.
 
 ---
 
 <div align="center">
 
-**Built with Claude · 5-Factor Quant Engine · 7-Agent PARA-DEBATE · Finnhub Enrichment · India & US Markets · 100% Live Data**
+**Quant Engine + IRS% · PARA-DEBATE Multi-Agent Debate · Voice Analysts · Autonomous Trading Agent · India & US · 100% Live Data**
 
 [neuralquant.co](https://neuralquant.co) · [GitHub](https://github.com/satyamdas03/NeuralQuant) · [API Docs](https://neuralquant.onrender.com/docs)
 
