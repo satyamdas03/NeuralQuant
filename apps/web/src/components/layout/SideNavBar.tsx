@@ -1,7 +1,9 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import {
   LayoutDashboard,
   ScanSearch,
@@ -10,6 +12,7 @@ import {
   Bell,
   Newspaper,
   LogIn,
+  LogOut,
   PieChart,
   Bot,
 } from "lucide-react";
@@ -27,6 +30,25 @@ const NAV = [
 
 export default function SideNavBar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [email, setEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null));
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setEmail(session?.user?.email ?? null);
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  const handleSignOut = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    setEmail(null);
+    router.push("/login");
+    router.refresh();
+  };
 
   return (
     <aside
@@ -77,15 +99,28 @@ export default function SideNavBar() {
         >
           New Research
         </Link>
-        <Link
-          href="/login"
-          className="flex items-center gap-4 text-text-muted px-0 py-2 hover:text-primary transition-all duration-200"
-        >
-          <LogIn size={16} />
-          <span className="font-mono text-[11px] font-bold tracking-[0.2em] uppercase">
-            Sign In
-          </span>
-        </Link>
+        {email ? (
+          <button
+            onClick={handleSignOut}
+            title={email}
+            className="flex items-center gap-4 text-text-muted px-0 py-2 hover:text-primary transition-all duration-200 text-left"
+          >
+            <LogOut size={16} />
+            <span className="font-mono text-[11px] font-bold tracking-[0.2em] uppercase truncate">
+              Sign Out
+            </span>
+          </button>
+        ) : (
+          <Link
+            href="/login"
+            className="flex items-center gap-4 text-text-muted px-0 py-2 hover:text-primary transition-all duration-200"
+          >
+            <LogIn size={16} />
+            <span className="font-mono text-[11px] font-bold tracking-[0.2em] uppercase">
+              Sign In
+            </span>
+          </Link>
+        )}
       </div>
     </aside>
   );
