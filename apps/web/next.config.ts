@@ -23,7 +23,8 @@ const CSP_REPORT_ONLY = [
   "base-uri 'self'",
   "form-action 'self'",
   "frame-ancestors 'self'",
-  "upgrade-insecure-requests",
+  // NOTE: upgrade-insecure-requests is intentionally omitted — it is ignored in
+  // Report-Only mode and logs a console error. Re-add it when flipping to enforce.
 ].join("; ");
 
 // Static security headers — safe to enforce immediately on a normal SPA.

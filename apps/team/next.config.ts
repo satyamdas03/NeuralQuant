@@ -12,7 +12,7 @@ const CSP_REPORT_ONLY = [
   "base-uri 'self'",
   "form-action 'self'",
   "frame-ancestors 'self'",
-  "upgrade-insecure-requests",
+  // Omitted in Report-Only mode (ignored + logs a console error); re-add on enforce.
 ].join("; ");
 
 const securityHeaders = [
