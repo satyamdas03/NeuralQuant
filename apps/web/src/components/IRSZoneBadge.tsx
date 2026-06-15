@@ -129,9 +129,12 @@ export default function IRSZoneBadge({ scores, ticker, market = "US", compact = 
             VALUE SWEET SPOT
           </span>
         )}
+        {/* The underlying flag is net-profit GROWTH < 0 in some period (YoY/TTM/QoQ),
+            not an actual net loss — see quantfactor_sync.py. Label it truthfully as a
+            decline, not "loss-making", which falsely tagged profitable names like AAPL. */}
         {scores.is_loss_making && (
-          <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-error/15 text-error border border-error/30">
-            LOSS-MAKING
+          <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30">
+            EARNINGS DECLINED
           </span>
         )}
         {(gScore != null && gScore < -4) && (

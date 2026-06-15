@@ -50,20 +50,22 @@ def build_anjali_context(enrichment: dict | None) -> str:
     sector = enrichment.get("sector")
     market = enrichment.get("market", "US")
 
-    # Loss flags
-    is_loss_yoy = enrichment.get("loss_profit_yoy", False)
-    is_loss_ttm = enrichment.get("loss_profit_ttm", False)
-    is_loss_qoq = enrichment.get("loss_profit_qoq", False)
+    # Earnings-decline flags. NOTE: these are net-profit GROWTH < 0 in a period
+    # (see quantfactor_sync.py), i.e. earnings *declined* — NOT an actual net loss.
+    # Labeling them "net loss" made the LLM call profitable names (e.g. AAPL)
+    # loss-making. Describe them as declines so the model states it truthfully.
+    is_decline_yoy = enrichment.get("loss_profit_yoy", False)
+    is_decline_ttm = enrichment.get("loss_profit_ttm", False)
+    is_decline_qoq = enrichment.get("loss_profit_qoq", False)
 
-    # Format loss flag summary
-    loss_flags = []
-    if is_loss_yoy:
-        loss_flags.append("YoY net loss")
-    if is_loss_ttm:
-        loss_flags.append("TTM net loss")
-    if is_loss_qoq:
-        loss_flags.append("QoQ net loss")
-    loss_summary = " | ".join(loss_flags) if loss_flags else "None (profitable)"
+    decline_flags = []
+    if is_decline_yoy:
+        decline_flags.append("YoY earnings decline")
+    if is_decline_ttm:
+        decline_flags.append("TTM earnings decline")
+    if is_decline_qoq:
+        decline_flags.append("QoQ earnings decline")
+    loss_summary = " | ".join(decline_flags) if decline_flags else "None (earnings growing or flat)"
 
     # Build context block
     lines = [
@@ -87,8 +89,8 @@ def build_anjali_context(enrichment: dict | None) -> str:
     if val_parts:
         lines.append(f"  Valuation: {' | '.join(val_parts)}")
 
-    # Loss flags
-    lines.append(f"  Is loss-making: {loss_summary}")
+    # Earnings-decline flags (NOT actual losses — see note above)
+    lines.append(f"  Earnings trend: {loss_summary}")
 
     # Quintile scores
     score_parts = []
