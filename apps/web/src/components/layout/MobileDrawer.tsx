@@ -9,7 +9,6 @@ import {
   ScanSearch,
   MessageSquareText,
   Star,
-  Bell,
   Newspaper,
   LogIn,
   LogOut,
@@ -24,7 +23,6 @@ const NAV = [
   { href: "/query", label: "Ask Morgan", icon: MessageSquareText },
   { href: "/hermes", label: "Live Trading", icon: Bot, beta: true },
   { href: "/watchlist", label: "Watchlist", icon: Star },
-  { href: "/alerts", label: "Alerts", icon: Bell },
 ];
 
 interface MobileDrawerProps {

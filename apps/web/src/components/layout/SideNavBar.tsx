@@ -9,7 +9,6 @@ import {
   ScanSearch,
   MessageSquareText,
   Star,
-  Bell,
   Newspaper,
   LogIn,
   LogOut,
@@ -25,7 +24,6 @@ const NAV = [
   { href: "/portfolio", label: "Portfolio", icon: PieChart },
   { href: "/hermes", label: "Live Trading", icon: Bot, beta: true },
   { href: "/watchlist", label: "Watchlist", icon: Star },
-  { href: "/alerts", label: "Alerts", icon: Bell },
 ];
 
 export default function SideNavBar() {
