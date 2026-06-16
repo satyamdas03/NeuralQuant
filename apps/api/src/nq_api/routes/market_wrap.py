@@ -68,8 +68,8 @@ def _get_watchlist_scores(user_id: str, market: str, limit: int = 5) -> list[dic
     try:
         scores = _supabase_rest(
             f"score_cache?{ticker_filter}&market=eq.{market}"
-            f"&select=ticker,composite_score,sector,current_price,long_name"
-            f"&order=composite_score.desc&limit={limit}"
+            f"&select=ticker,composite_score,score_1_10,sector,current_price,long_name"
+            f"&order=score_1_10.desc&limit={limit}"
         )
     except Exception:
         logger.debug("Failed to fetch watchlist scores for user %s", user_id)
@@ -93,7 +93,7 @@ def _get_watchlist_scores(user_id: str, market: str, limit: int = 5) -> list[dic
         ticker = row.get("ticker", "")
         pc = price_changes.get(ticker, {})
         row["change_pct"] = pc.get("change_pct")
-        row["verdict"] = _verdict(float(row.get("composite_score") or 0))
+        row["verdict"] = _verdict(float(row.get("score_1_10") or 0))
 
     return scores
 
@@ -129,8 +129,8 @@ def _build_market_wrap_html(
     def _pick_rows(picks: list[dict]) -> str:
         html = ""
         for pick in picks[:5]:
-            score = pick.get("composite_score", 0)
-            score_bar = int(score * 10)
+            score = pick.get("score_1_10") or 0  # canonical 0-10
+            score_bar = max(0, min(10, int(round(score))))
             html += f"""
         <tr>
           <td style="padding: 8px 0; font-weight: 600; color: #c1c1ff;">
@@ -256,7 +256,7 @@ def _generate_wrap_narrative(
     # Format top picks
     top_picks_text = ""
     for pick in top_picks[:3]:
-        top_picks_text += f"- {pick.get('ticker', 'N/A')}: Score {pick.get('composite_score', 0):.1f}/10 ({pick.get('sector', 'N/A')})\n"
+        top_picks_text += f"- {pick.get('ticker', 'N/A')}: Score {pick.get('score_1_10', 0):.1f}/10 ({pick.get('sector', 'N/A')})\n"
 
     if watchlist_picks:
         holdings_text = ""
@@ -264,7 +264,7 @@ def _generate_wrap_narrative(
             chg = h.get("change_pct")
             chg_str = f"{chg:+.2f}%" if chg is not None else "N/A"
             holdings_text += (
-                f"- {h.get('ticker', 'N/A')}: Score {h.get('composite_score', 0):.1f}/10, "
+                f"- {h.get('ticker', 'N/A')}: Score {h.get('score_1_10', 0):.1f}/10, "
                 f"{chg_str} today, verdict: {h.get('verdict', 'N/A')}\n"
             )
         prompt = MARKET_WRAP_PERSONALIZED_PROMPT.format(

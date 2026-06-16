@@ -128,7 +128,7 @@ export default function MarketWrapCard() {
                   >
                     {p.ticker}
                     <span className="font-bold text-amber-400">
-                      {p.score_1_10 || (p.composite_score ? (p.composite_score * 10).toFixed(0) : "?")}/10
+                      {p.score_1_10 ?? (p.composite_score != null ? Math.max(0, Math.min(10, Math.round(p.composite_score / 10))) : "?")}/10
                     </span>
                   </Link>
                 ))}
@@ -151,7 +151,7 @@ export default function MarketWrapCard() {
                   >
                     {p.ticker}
                     <span className="font-bold text-primary">
-                      {p.score_1_10 || (p.composite_score ? (p.composite_score * 10).toFixed(0) : "?")}/10
+                      {p.score_1_10 ?? (p.composite_score != null ? Math.max(0, Math.min(10, Math.round(p.composite_score / 10))) : "?")}/10
                     </span>
                   </Link>
                 ))}

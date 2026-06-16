@@ -196,10 +196,13 @@ def read_top_picks(
         "score_cache",
         method="GET",
         query={
-            "select": "ticker,composite_score,sector",
+            # score_1_10 is the canonical 0-10 display score. composite_score in
+            # score_cache is on a different (~0-100) scale, so consumers MUST use
+            # score_1_10 for display/verdict — not composite (see market_wrap.py).
+            "select": "ticker,composite_score,score_1_10,sector",
             "market": f"eq.{market}",
             "computed_at": f"gte.{cutoff}",
-            "order": "composite_score.desc",
+            "order": "score_1_10.desc",
             "limit": str(limit),
         },
     )
