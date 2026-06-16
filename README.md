@@ -31,7 +31,7 @@
 - **Security hardening (P0–P6)** — Supabase RLS, log redaction, gitleaks + dependency scanning in CI, IDOR fixes, HTTP security headers + CSP (report-only), per-IP abuse limiting, webhook-signature enforcement, a security-event audit log, and an incident-response runbook. See [Security](#security).
 - **QA pass** — fixed a false "loss-making" badge, a CSP console error, and a "Sign In while authenticated" nav bug; removed the unused `/alerts` page.
 
-**Operator follow-ups (not code):** rotate the ElevenLabs key on the voice worker, manual-deploy `nq-api` on Render (ships the latest API/security changes), apply migration `021_security_events.sql`, warm the API before live demos (first-hit cold start on Ask Morgan / PARA-DEBATE is ~45–80s).
+**Operator follow-ups (not code):** rotate the ElevenLabs key on the voice worker, manual-deploy `nq-api` on Render (ships the latest API/security changes), apply migration `021_security_events.sql`. Before any live demo, run `python scripts/warmup.py` (~3–5 min prior) — first-hit Ask Morgan / PARA-DEBATE is ~50s / ~85s of inherent multi-agent LLM time, and warming the exact demo tickers makes the audience-facing clicks fast.
 
 ---
 
@@ -292,6 +292,7 @@ API at `http://localhost:8000` · Swagger at `/docs`.
 ```bash
 uv run pytest apps/api/tests/ packages/ -v
 python scripts/smoke_test.py --api https://neuralquant.onrender.com   # 13 endpoints
+python scripts/warmup.py --tickers AAPL,MSFT,TCS                      # pre-demo warm-up
 ```
 
 ---
@@ -353,7 +354,7 @@ Scheduling runs via an **in-process scheduler** (02:00 / 02:30 / 20:30 UTC) — 
 
 ## Known Limitations
 
-1. **Cold-start latency** — first-hit Ask Morgan ~45s, PARA-DEBATE ~77s (warm after). Pre-warm before live demos.
+1. **Cold-start / inherent LLM latency** — first-hit Ask Morgan ~50s, PARA-DEBATE ~85s (multi-agent live debate; faster once warm). Run `scripts/warmup.py` before live demos.
 2. **Render manual deploys** — `nq-api` auto-deploy has been unreliable; deploy manually.
 3. **CSP report-only** — security headers shipped; CSP not yet enforced (no violation collector yet).
 4. **India fundamentals gaps** — some FMP endpoints are US-only; IN relies on the sheet sync + yfinance.
