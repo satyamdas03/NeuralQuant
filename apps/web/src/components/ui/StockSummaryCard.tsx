@@ -83,7 +83,7 @@ function QuantFactorRow({ scores }: { scores: QuantFactorScores }) {
           </span>
         </div>
       </div>
-      <div className="grid grid-cols-4 gap-x-2 gap-y-0.5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-2 gap-y-1">
         {[
           { label: "Growth", score: scores.growth_score },
           { label: "Return", score: scores.return_score },

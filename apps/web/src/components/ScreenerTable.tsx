@@ -49,8 +49,10 @@ export function ScreenerTable({ stocks }: { stocks: AIScore[] }) {
                       {s.ticker}
                     </Link>
                     {s.anjali?.is_loss_making && (
-                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-error/15 text-error border border-error/30">
-                        LOSS
+                      // Flag is net-profit GROWTH < 0 (earnings declined), not an
+                      // actual loss — see quantfactor_sync.py. Truthful short label.
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                        EPS↓
                       </span>
                     )}
                     {s.anjali?.valuation_sweet_spot && (

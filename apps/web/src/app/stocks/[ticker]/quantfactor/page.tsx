@@ -146,7 +146,7 @@ export default function QuantFactorDetailPage() {
           <ScoreBar label="Return" value={data.return_score} min={-4} max={4} />
           <ScoreBar label="Valuation" value={data.valuation_score} min={-4} max={4} />
           <ScoreBar label="Total G Score" value={data.g_score} min={-12} max={12} />
-          <div className="grid grid-cols-3 gap-x-4 gap-y-1 pt-2 border-t border-outline-variant/20">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 pt-2 border-t border-outline-variant/20">
             {[
               { label: "Growth", score: data.growth_score },
               { label: "Return", score: data.return_score },

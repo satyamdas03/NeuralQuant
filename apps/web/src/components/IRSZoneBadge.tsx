@@ -102,7 +102,7 @@ export default function IRSZoneBadge({ scores, ticker, market = "US", compact = 
       {scoreBar(riskEff, -8, 8, "Risk Efficiency", riskEffColor)}
 
       {/* Sub-scores grid */}
-      <div className="grid grid-cols-4 gap-x-2 gap-y-1 pt-2 border-t border-outline-variant/20">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-2 gap-y-1 pt-2 border-t border-outline-variant/20">
         {[
           { label: "Growth", value: scores.growth_score },
           { label: "Return", value: scores.return_score },
