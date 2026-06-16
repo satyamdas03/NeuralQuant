@@ -31,46 +31,59 @@ from quantastra.veronica_persona import VERONICA_SYSTEM_PROMPT
 log = logging.getLogger("veronica")
 
 # Veronica's ElevenLabs voice. Override per-env with VERONICA_VOICE_ID.
-VERONICA_VOICE_ID = os.getenv("VERONICA_VOICE_ID", "kdnRe2koJdOK4Ovxn2DI")
+# Default "Jessica" (playful/warm) — a default premade voice usable on free tier.
+VERONICA_VOICE_ID = os.getenv("VERONICA_VOICE_ID", "cgSgspJ2msm6clMCkdW9")
 
-# Known-good ElevenLabs premade voice — always available to any account. Used as a
-# fallback so Veronica never goes silent if the configured voice is a Voice-Library
-# voice that hasn't been added to the account ("My Voices"), which fails at TTS time
-# with a cryptic websocket 1008.
-_SAFE_FALLBACK_VOICE = "XB0fDUnXU5powFXDhCwa"
+# Ultra-safe fallback: "Sarah" (also QuantAstra's voice), a default premade voice
+# confirmed usable via the API on a free ElevenLabs account. IMPORTANT: ElevenLabs
+# free tier returns HTTP 402 ("Free users cannot use library voices via the API")
+# for Voice-Library voices (e.g. the old fallback Charlotte XB0fD...). Only voices
+# in the account's own /v1/voices list work — hence the membership check below.
+_SAFE_FALLBACK_VOICE = "EXAVITQu4vr4xnSDxMaL"
 _resolved_voice: str | None = None
 
 
 def _resolve_voice_id() -> str:
-    """Return VERONICA_VOICE_ID if the account can use it, else a safe premade voice.
+    """Return VERONICA_VOICE_ID if the account can actually USE it, else a usable one.
 
-    Checked once via the ElevenLabs REST API and cached. A 1008 at TTS time means the
-    voice isn't in the account; we surface that as an actionable log and fall back so
-    she still speaks."""
+    The earlier version only checked that the voice *existed* (GET /v1/voices/{id}),
+    which passes for library voices that still 402 at TTS time on free tier. Instead,
+    fetch the account's usable voice list and require membership; fall back to Sarah,
+    then to any usable voice, so Veronica never goes silent. Cached after first call."""
     global _resolved_voice
     if _resolved_voice:
         return _resolved_voice
     key = os.getenv("ELEVENLABS_API_KEY")
-    if not key or VERONICA_VOICE_ID == _SAFE_FALLBACK_VOICE:
-        _resolved_voice = VERONICA_VOICE_ID
+    want = VERONICA_VOICE_ID
+    if not key:
+        _resolved_voice = want
         return _resolved_voice
     try:
         import json as _json
         import urllib.request
         req = urllib.request.Request(
-            f"https://api.elevenlabs.io/v1/voices/{VERONICA_VOICE_ID}",
-            headers={"xi-api-key": key},
+            "https://api.elevenlabs.io/v1/voices", headers={"xi-api-key": key},
         )
         with urllib.request.urlopen(req, timeout=8) as r:
-            _json.loads(r.read())
-        _resolved_voice = VERONICA_VOICE_ID
+            usable = {v.get("voice_id") for v in _json.loads(r.read()).get("voices", [])}
+        if want in usable:
+            _resolved_voice = want
+        elif _SAFE_FALLBACK_VOICE in usable:
+            log.error(
+                "Veronica voice %s not usable by this ElevenLabs account (not in its "
+                "voice list — likely a Voice-Library voice needing a paid plan). "
+                "Falling back to %s.", want, _SAFE_FALLBACK_VOICE,
+            )
+            _resolved_voice = _SAFE_FALLBACK_VOICE
+        else:
+            first = next(iter(usable), want)
+            log.error(
+                "Neither %s nor fallback %s is usable; using first account voice %s.",
+                want, _SAFE_FALLBACK_VOICE, first,
+            )
+            _resolved_voice = first
     except Exception as exc:
-        log.error(
-            "Veronica voice %s is not usable by this ElevenLabs account (%s). "
-            "Add it at elevenlabs.io/app/voice-library ('Add to My Voices'), then "
-            "redeploy. Falling back to %s so Veronica still speaks.",
-            VERONICA_VOICE_ID, exc, _SAFE_FALLBACK_VOICE,
-        )
+        log.error("Could not verify ElevenLabs voices (%s); using %s.", exc, _SAFE_FALLBACK_VOICE)
         _resolved_voice = _SAFE_FALLBACK_VOICE
     return _resolved_voice
 
