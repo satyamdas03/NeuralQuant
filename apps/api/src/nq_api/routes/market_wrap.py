@@ -68,8 +68,8 @@ def _get_watchlist_scores(user_id: str, market: str, limit: int = 5) -> list[dic
     try:
         scores = _supabase_rest(
             f"score_cache?{ticker_filter}&market=eq.{market}"
-            f"&select=ticker,composite_score,score_1_10,sector,current_price,long_name"
-            f"&order=score_1_10.desc&limit={limit}"
+            f"&select=ticker,composite_score,sector,current_price,long_name"
+            f"&order=composite_score.desc&limit={limit}"
         )
     except Exception:
         logger.debug("Failed to fetch watchlist scores for user %s", user_id)
@@ -93,7 +93,10 @@ def _get_watchlist_scores(user_id: str, market: str, limit: int = 5) -> list[dic
         ticker = row.get("ticker", "")
         pc = price_changes.get(ticker, {})
         row["change_pct"] = pc.get("change_pct")
-        row["verdict"] = _verdict(float(row.get("score_1_10") or 0))
+        # composite_score is ~0-100; derive a clean 0-10 score for display + verdict.
+        comp = row.get("composite_score")
+        row["score_1_10"] = max(0, min(10, round(float(comp) / 10))) if comp is not None else 0
+        row["verdict"] = _verdict(float(row["score_1_10"]))
 
     return scores
 

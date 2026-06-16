@@ -196,17 +196,24 @@ def read_top_picks(
         "score_cache",
         method="GET",
         query={
-            # score_1_10 is the canonical 0-10 display score. composite_score in
-            # score_cache is on a different (~0-100) scale, so consumers MUST use
-            # score_1_10 for display/verdict — not composite (see market_wrap.py).
-            "select": "ticker,composite_score,score_1_10,sector",
+            # composite_score here is on a ~0-100 scale; consumers must divide by 10
+            # for a 0-10 display score (see market_wrap.py). (score_1_10 is not a
+            # queryable column on this table — selecting/ordering it returns nothing.)
+            "select": "ticker,composite_score,sector",
             "market": f"eq.{market}",
             "computed_at": f"gte.{cutoff}",
-            "order": "score_1_10.desc",
+            "order": "composite_score.desc",
             "limit": str(limit),
         },
     )
-    return data if isinstance(data, list) else []
+    rows = data if isinstance(data, list) else []
+    # Derive a clean 0-10 display score from the ~0-100 composite_score so callers
+    # (market wrap card + emails) render "9/10" not "900/10".
+    for r in rows:
+        comp = r.get("composite_score")
+        if comp is not None:
+            r["score_1_10"] = max(0, min(10, round(float(comp) / 10)))
+    return rows
 
 
 def upsert_scores(rows: list[dict[str, Any]]) -> int:
