@@ -139,6 +139,23 @@ def validate_summary_prices(
     if not ctx_price or ctx_price <= 0 or not summary:
         return summary, corrections
 
+    # Guard against multi-price summaries. We only have ONE verified price (the
+    # subject ticker's). If the summary mentions several distinct prices — a stock
+    # comparison ("AMD $547 vs NVDA $212") or a 52-week range — forcing the first
+    # match to ctx_price corrupts the others (it slammed AMD's $547 to NVDA's $212).
+    # When prices are ambiguous like that, skip correction rather than fabricate.
+    all_vals: list[float] = []
+    for pattern, _sym in _PRICE_PATTERNS:
+        for m in pattern.finditer(summary):
+            try:
+                all_vals.append(float(m.group(1).replace(",", "")))
+            except ValueError:
+                continue
+    if all_vals:
+        lo, hi = min(all_vals), max(all_vals)
+        if lo > 0 and (hi - lo) / lo > 0.05:
+            return summary, corrections  # multiple distinct prices — don't guess
+
     for pattern, cur_symbol in _PRICE_PATTERNS:
         for m in pattern.finditer(summary):
             try:
