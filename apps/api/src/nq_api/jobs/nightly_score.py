@@ -93,6 +93,22 @@ def _run_market_from_quantfactor(market: str) -> int:
         except Exception as exc:
             log.warning("[%s] FMP batch quotes failed: %s", market, exc)
 
+    # 2b. Snapshot fallback prices. FMP has no India coverage (402), so without
+    # this every IN score_cache row gets current_price=0.0. stock_snapshot is
+    # refreshed every 30 min (FMP for US, yfinance for IN) — read it as the
+    # price source whenever FMP returns nothing. Keyed bare (strip .NS/.BO).
+    snap_prices: dict[str, float] = {}
+    try:
+        from nq_api.cache.snapshot_cache import read_all_by_market
+        for s in read_all_by_market(market, limit=5000):
+            st = str(s.get("ticker") or "").replace(".NS", "").replace(".BO", "").upper()
+            p = s.get("price")
+            if st and p:
+                snap_prices[st] = float(p)
+        log.info("[%s] snapshot fallback prices: %d tickers", market, len(snap_prices))
+    except Exception as exc:
+        log.warning("[%s] snapshot price fallback failed: %s", market, exc)
+
     # 3. Build score_cache rows from quantfactor + FMP
     # Skip garbage tickers (legend rows from Excel like "LIGHT GREEN (+0.5)")
     # — canonical validator, consolidated from the old inline regex (bug 91/122)
@@ -106,11 +122,14 @@ def _run_market_from_quantfactor(market: str) -> int:
             t = t.replace(".NS", "").replace(".BO", "")
         if not is_valid_ticker(t):
             continue
-        # FMP live price
+        # Live price: FMP first (US), then stock_snapshot fallback (IN — FMP
+        # returns nothing for Indian tickers).
         price = 0.0
         if fmp_prices:
             fb = (fmp_prices.get(t) or fmp_prices.get(f"{t}.NS") or fmp_prices.get(f"{t}.BO") or {})
             price = float(fb.get("price") or 0)
+        if not price:
+            price = snap_prices.get(t.upper(), 0.0)
 
         # Derive composite_score from quantfactor composite (scale 0-1 → 0-10)
         qf_composite = r.get("composite_score")

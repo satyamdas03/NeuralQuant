@@ -64,25 +64,13 @@ def _load_tickers_from_supabase() -> list[dict]:
         query={"select": "ticker,market,sector,sub_sector,qtr_beta,yr_beta,pe_ratio,computed_at", "limit": "10000"},
     )
     if isinstance(data, list) and data:
-        import re
-        _GARBAGE = re.compile(
-            r"(?:LIGHT\s*GREEN|DARK\s*GREEN|LIGHT\s*RED|DARK\s*RED|WHITE|COLOR|SCORING|"
-            r"GROWTH|RETURN|VALUATION|RISK|RATIOS|SOURCE|FUTURE|BENCHMARK|HIERARCH|"
-            r"MATCHED|WORST|BEST|CHEAPEST|EXPENSIVE|SAFEST|RISKIEST|SWEET\s*SPOT|"
-            r"UNCOLORED|LOSS.MAKING|NETPROFIT|EXCLUDED|YFINANCE|YOY|TTM|QOQ|"
-            r"PERIOD|MARKET\s*CAP|REVENUE|DII|FII|PB|EV/|SUM|Q\d+\(|^[A-Z]{1,2}$|^NAN$|^NONE$)",
-            re.IGNORECASE,
-        )
-        filtered = []
-        for r in data:
-            t = str(r.get("ticker", "")).strip().upper()
-            if not t or len(t) > 8 or len(t) < 2:
-                continue
-            if _GARBAGE.search(t):
-                continue
-            if not any(c.isalpha() for c in t):
-                continue
-            filtered.append(r)
+        # Canonical validator (consolidates bug 91/122/126). The old inline
+        # filter rejected len > 8, silently dropping every .NS-suffixed IN name
+        # (RELIANCE.NS=11, HDFCBANK.NS=12) and long NIFTY names (HINDUNILVR) —
+        # which is why only ~595 of 949 reached stock_snapshot and the biggest
+        # IN stocks had no live price at all.
+        from nq_data.ticker_validation import is_valid_ticker
+        filtered = [r for r in data if is_valid_ticker(str(r.get("ticker", "")))]
         log.info("Loaded %s tickers from quantfactor_universe (filtered from %s)", len(filtered), len(data))
         return filtered
 

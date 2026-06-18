@@ -36,6 +36,9 @@ def is_valid_ticker(raw: str | None) -> bool:
     if not raw:
         return False
     t = str(raw).upper().strip().removesuffix(".NS").removesuffix(".BO")
+    # Stringified NaN/None from empty Excel cells — the "NAN.NS" ghost ticker.
+    if t in ("NAN", "NONE", "NULL", ""):
+        return False
     if len(t) < MIN_TICKER_LEN or len(t) > MAX_TICKER_LEN:
         return False
     # Must be mostly alphabetic (allow . - & $ for NSE/BSE/index tickers)
