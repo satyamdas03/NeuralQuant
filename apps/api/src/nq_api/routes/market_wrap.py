@@ -47,7 +47,13 @@ def _get_watchlist_scores(user_id: str, market: str, limit: int = 5) -> list[dic
 
     try:
         watchlist = _supabase_rest(
-            f"watchlists?user_id=eq.{user_id}&market=eq.{market}&select=ticker"
+            "watchlists",
+            method="GET",
+            query={
+                "user_id": f"eq.{user_id}",
+                "market": f"eq.{market}",
+                "select": "ticker",
+            },
         )
     except Exception:
         logger.debug("Failed to fetch watchlist for user %s", user_id)
@@ -71,13 +77,21 @@ def _get_watchlist_scores(user_id: str, market: str, limit: int = 5) -> list[dic
     raw_changes = _batch_pct_change([_yf_sym(t) for t in tickers])
     price_changes = {t: raw_changes.get(_yf_sym(t), {}) for t in tickers}
 
-    # Build OR filter for score_cache lookup
-    ticker_filter = ",".join(f"ticker.eq.{t}" for t in tickers)
+    # PostgREST IN filter — match score_cache rows for exactly the watchlist
+    # tickers (bare, no .NS — that's how score_cache stores them), scoped to the
+    # requested market. The old code passed a raw query string with an invalid
+    # OR syntax, so PostgREST dropped every filter and returned the whole table.
     try:
         scores = _supabase_rest(
-            f"score_cache?{ticker_filter}&market=eq.{market}"
-            f"&select=ticker,composite_score,sector,current_price,long_name"
-            f"&order=composite_score.desc&limit={limit}"
+            "score_cache",
+            method="GET",
+            query={
+                "ticker": f"in.({','.join(tickers)})",
+                "market": f"eq.{market}",
+                "select": "ticker,composite_score,sector,current_price,long_name",
+                "order": "composite_score.desc",
+                "limit": str(limit),
+            },
         )
     except Exception:
         logger.debug("Failed to fetch watchlist scores for user %s", user_id)
