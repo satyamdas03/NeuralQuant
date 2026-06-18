@@ -60,8 +60,16 @@ def _get_watchlist_scores(user_id: str, market: str, limit: int = 5) -> list[dic
     if not tickers:
         return []
 
-    # Fetch live price changes for watchlist tickers
-    price_changes = _batch_pct_change(tickers)
+    # Fetch live price changes for watchlist tickers.
+    # IN tickers MUST carry the .NS suffix — bare names ('RELIANCE', 'TCS') make
+    # yfinance treat them as US symbols and it rate-limits / reports "possibly
+    # delisted". Resolve to .NS for the fetch, then map results back to bare keys
+    # so the downstream score_cache lookup (which uses bare tickers) still works.
+    def _yf_sym(t: str) -> str:
+        return f"{t}.NS" if market == "IN" and "." not in t else t
+
+    raw_changes = _batch_pct_change([_yf_sym(t) for t in tickers])
+    price_changes = {t: raw_changes.get(_yf_sym(t), {}) for t in tickers}
 
     # Build OR filter for score_cache lookup
     ticker_filter = ",".join(f"ticker.eq.{t}" for t in tickers)

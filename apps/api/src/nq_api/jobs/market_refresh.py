@@ -70,7 +70,7 @@ def _load_tickers_from_supabase() -> list[dict]:
             r"GROWTH|RETURN|VALUATION|RISK|RATIOS|SOURCE|FUTURE|BENCHMARK|HIERARCH|"
             r"MATCHED|WORST|BEST|CHEAPEST|EXPENSIVE|SAFEST|RISKIEST|SWEET\s*SPOT|"
             r"UNCOLORED|LOSS.MAKING|NETPROFIT|EXCLUDED|YFINANCE|YOY|TTM|QOQ|"
-            r"PERIOD|MARKET\s*CAP|REVENUE|DII|FII|PB|EV/|SUM|Q\d+\(|^[A-Z]{1,2}$)",
+            r"PERIOD|MARKET\s*CAP|REVENUE|DII|FII|PB|EV/|SUM|Q\d+\(|^[A-Z]{1,2}$|^NAN$|^NONE$)",
             re.IGNORECASE,
         )
         filtered = []

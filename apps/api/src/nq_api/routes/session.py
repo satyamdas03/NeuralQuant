@@ -202,6 +202,12 @@ def end_session(
             st = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
             et = datetime.fromisoformat(ended_at.replace("Z", "+00:00"))
             duration_seconds = int((et - st).total_seconds())
+            # Clients reuse one persisted session_id for days, so a raw delta can
+            # report "15593 min" in the summary email. Clamp to a sane upper
+            # bound (8h) — anything longer is a stale, reused session, not a sit.
+            _MAX_SESSION_SECONDS = 8 * 3600
+            if duration_seconds > _MAX_SESSION_SECONDS:
+                duration_seconds = _MAX_SESSION_SECONDS
         except Exception:
             pass
 

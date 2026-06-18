@@ -135,7 +135,7 @@ def _normalize_india_index_group(raw) -> str:
 def _build_us_row(df_row: dict, index_group: str) -> dict[str, Any]:
     """Build a quantfactor_universe row from a US Excel sheet row."""
     ticker = str(df_row.get("Ticker", "")).strip().upper()
-    if not _is_valid_ticker(ticker):
+    if ticker in ("", "NAN", "NONE") or not _is_valid_ticker(ticker):
         return None
 
     # Compute composite scores from quintiles if the SCORE columns are empty
@@ -263,7 +263,8 @@ def _build_india_row(df_row: dict, computed_scores: dict | None = None) -> dict[
     Pass computed_scores={ticker: {...}} to inject percentile-based scores.
     """
     ticker = str(df_row.get("Ticker", df_row.get("NseCode", ""))).strip().upper()
-    if not _is_valid_ticker(ticker.replace(".NS", "").replace(".BO", "")):
+    _bare = ticker.replace(".NS", "").replace(".BO", "")
+    if _bare in ("", "NAN", "NONE") or not _is_valid_ticker(_bare):
         return None
     if "." not in ticker:
         ticker = ticker + ".NS"
