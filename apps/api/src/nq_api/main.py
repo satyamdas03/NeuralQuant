@@ -370,7 +370,17 @@ async def lifespan(app: FastAPI):
         log.warning("Slack agent system shutdown error (non-fatal): %s", exc)
 
 
-app = FastAPI(title="NeuralQuant API", version="4.0.2", lifespan=lifespan)
+# Swagger/OpenAPI docs leak the full API surface (every route, params, auth
+# scheme). Keep them OFF in prod; opt in locally with ENABLE_DOCS=true.
+_docs_enabled = os.environ.get("ENABLE_DOCS", "").lower() == "true"
+app = FastAPI(
+    title="NeuralQuant API",
+    version="4.0.2",
+    lifespan=lifespan,
+    docs_url="/docs" if _docs_enabled else None,
+    redoc_url="/redoc" if _docs_enabled else None,
+    openapi_url="/openapi.json" if _docs_enabled else None,
+)
 
 # Log validation errors for debugging
 from fastapi.exceptions import RequestValidationError
@@ -466,6 +476,22 @@ async def track_visitors(request: Request, call_next):
                 del _visitor_store[d]
     except Exception:
         pass
+    return response
+
+
+# ── Security headers on the API origin ───────────────────────────────────────
+# The Vercel web origin sets these, but the API is directly reachable too.
+# Registered last so it is the OUTERMOST middleware — headers survive the
+# NaN sanitizer rebuild and apply to every response.
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response: Response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault(
+        "Strict-Transport-Security", "max-age=63072000; includeSubDomains"
+    )
     return response
 
 
