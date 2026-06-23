@@ -682,6 +682,30 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                         chg = fmp_fb.get("change_pct", 0) or chg
                         if fmp_fb.get("pe"):
                             fund["pe_ttm"] = fmp_fb["pe"]
+                # Final fallback: targeted score_cache row for THIS ticker. cache_map
+                # only holds the top-50 by composite, so low-ranked tickers (most IN
+                # blue-chips score low on thin fundamentals) miss it. Critically, IN
+                # stocks get no FMP price (402 on cloud IPs) and skip _fetch_one on
+                # Render -> without this, the LLM sees no CURRENT_PRICE and says
+                # "price unavailable" despite a fresh nightly price sitting in cache.
+                if not price:
+                    try:
+                        _crow = cache_map.get(t) or score_cache.read_one(
+                            t, target_market, max_age_seconds=999999999
+                        )
+                    except Exception:
+                        _crow = None
+                    if _crow:
+                        if _crow.get("current_price"):
+                            price = _crow["current_price"]
+                        for _src, _dst in (
+                            ("pe_ttm", "pe_ttm"), ("pb_ratio", "pb_ratio"),
+                            ("beta", "beta"), ("market_cap", "market_cap"),
+                            ("week52_high", "week52_high"), ("week52_low", "week52_low"),
+                            ("analyst_target", "analyst_target"),
+                        ):
+                            if not fund.get(_dst) and _crow.get(_src):
+                                fund[_dst] = _crow[_src]
                 pe = fund.get("pe_ttm")
                 pb = fund.get("pb_ratio")
                 target = fund.get("analyst_target")
