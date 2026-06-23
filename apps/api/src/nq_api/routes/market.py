@@ -485,11 +485,22 @@ async def market_movers(market: str = Query("US", description="Market filter: US
                 losers = [_snap_to_mover(s) for s in list(reversed(sorted_by_change[-5:]))]
                 active = [_snap_to_mover(s) for s in sorted(valid, key=lambda x: x.get("volume") or 0, reverse=True)[:5]]
                 return {"gainers": gainers, "losers": losers, "active": active, "market": mkt_filter}
-            # Not enough valid snapshots → try to return whatever we have (price only)
+            # Not enough FRESH snapshots (off-hours: last refresh >2h ago) → rank the
+            # stale-but-real rows by change_pct. A slightly stale real mover beats a
+            # price-sorted placeholder, and ranking the full universe (~500 rows) keeps
+            # gainers/losers from collapsing to the same reversed list (the old by-price
+            # path returned identical tickers as both gainers and losers).
             if len(all_snaps) >= 3:
-                by_price = sorted(all_snaps, key=lambda x: x.get("price") or 0, reverse=True)
-                top5 = [_snap_to_mover(s) for s in by_price[:5]]
-                return {"gainers": top5, "losers": list(reversed(top5)), "active": top5, "market": mkt_filter}
+                priced = [s for s in all_snaps if s.get("price") is not None]
+                by_chg = sorted(
+                    priced,
+                    key=lambda x: x.get("change_pct") if x.get("change_pct") is not None else 0,
+                    reverse=True,
+                )
+                gainers = [_snap_to_mover(s) for s in by_chg[:5]]
+                losers = [_snap_to_mover(s) for s in list(reversed(by_chg[-5:]))]
+                active = [_snap_to_mover(s) for s in sorted(priced, key=lambda x: x.get("volume") or 0, reverse=True)[:5]]
+                return {"gainers": gainers, "losers": losers, "active": active, "market": mkt_filter, "stale": True}
     except Exception as exc:
         logger.debug("movers snapshot fast path failed: %s", exc)
 
