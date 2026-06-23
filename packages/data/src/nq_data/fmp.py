@@ -177,6 +177,7 @@ class FMPClient:
                         "pe": q.get("pe") or q.get("peRatio"),
                         "market_cap": q.get("marketCap"),
                         "volume": q.get("volume"),
+                        "name": q.get("name"),
                     }
                 self._cache_set("batch_quote", cache_key, chunk_results)
                 results.update(chunk_results)

@@ -236,7 +236,10 @@ def _build_snapshot_rows(
             beta = yf.get("beta")
 
         # Company name / sector
-        company_name = yf.get("name") if yf else None
+        # yfinance batch is IN-only (see _fetch_yf_batch), so US rows have no yf name.
+        # Fall back to the FMP batch quote's name (works on Render where yfinance is
+        # rate-limited) so US stock pages show "Apple Inc." not just "AAPL".
+        company_name = (yf.get("name") if yf else None) or fmp.get("name") or meta.get("long_name")
         sector = meta.get("sector") or (yf.get("sector") if yf else None)
         sub_sector = meta.get("sub_sector") or (yf.get("industry") if yf else None)
 
