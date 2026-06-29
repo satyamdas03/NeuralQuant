@@ -16,6 +16,30 @@ from nq_api.services.constants import (
 logger = logging.getLogger(__name__)
 log = logging.getLogger(__name__)
 
+
+def _row_score_10(row: dict) -> int:
+    """Canonical 1-10 display score for a score_cache row.
+
+    score_cache.composite_score is stored on a wide scale (qf_composite*10, e.g.
+    NVDA=70, TCS=-95), so the old `int(composite_score*10)` produced nonsense like
+    700/10 in Ask Morgan answers. Prefer the stored score_1_10 (already 1-10);
+    fall back to score_builder's normalizer on the raw composite.
+    """
+    s = row.get("score_1_10")
+    if s is not None:
+        try:
+            return max(1, min(10, int(round(float(s)))))
+        except (TypeError, ValueError):
+            pass
+    c = row.get("composite_score")
+    if c is None:
+        return 5
+    try:
+        from nq_api.score_builder import _score_to_1_10
+        return _score_to_1_10(float(c))
+    except (TypeError, ValueError, ImportError):
+        return 5
+
 # ── In-memory platform data cache ────────────────────────────────────────────
 # Caches _enrich_with_platform_data results for 10 minutes per (ticker_hint, market).
 # This avoids re-running expensive _fetch_one / FMP calls for repeated queries
@@ -558,7 +582,7 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                 lines = [f"NeuralQuant {target_market} Screener -- Top 20 (cached scores). LIVE PRICES for top 5 -- USE THESE, NOT training data:"]
                 for i, row in enumerate(cached[:20]):
                     t = row.get("ticker", "")
-                    sc = int(row.get("composite_score", 0.5) * 10)
+                    sc = _row_score_10(row)
                     pe = row.get("pe_ttm")
                     gpm = row.get("gross_profit_margin")
                     momentum = row.get("momentum_percentile")
@@ -668,7 +692,7 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                 else:
                     fund = _fetch_one(t, target_market, fast_pe=False)
                 cached_row = cache_map.get(t, {})
-                sc = int(cached_row.get("composite_score", 0.5) * 10) if cached_row else "N/A"
+                sc = _row_score_10(cached_row) if cached_row else "N/A"
                 price = fund.get("current_price")
                 chg = fund.get("change_pct") or 0
                 # FMP batch-quote fallback -- critical for IN stocks where yfinance fails on cloud IPs
@@ -952,7 +976,7 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
                         # Skip if already shown as FMP peer
                         if peer_ticker in fmp_peer_tickers:
                             continue
-                        peer_sc = int(peer.get("composite_score", 0.5) * 10)
+                        peer_sc = _row_score_10(peer)
                         comp_lines.append(
                             f"  Alternative: {peer_ticker} (ForeCast {peer_sc}/10)"
                             f" -- Quality {peer.get('quality_percentile', 0):.0%}"
