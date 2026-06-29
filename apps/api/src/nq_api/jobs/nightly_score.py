@@ -115,6 +115,7 @@ def _run_market_from_quantfactor(market: str) -> int:
     from nq_data.ticker_validation import is_valid_ticker
 
     all_results = []
+    kept_rows = []  # quantfactor rows in lockstep with all_results (for percentile ranking)
     for r in qf_rows:
         t = r.get("ticker", "")
         # Normalize Indian tickers: strip exchange suffix for consistent lookup
@@ -188,9 +189,32 @@ def _run_market_from_quantfactor(market: str) -> int:
             "earnings_date": "",
             "dividend_yield": 0.0,
         })
+        kept_rows.append(r)
 
     if not all_results:
         return 0
+
+    # Factor percentiles via TRUE cross-sectional rank within the market.
+    # The quantfactor *_score fields are signed (roughly -4..+4; negative = weak).
+    # The old per-row `val/4 clamped at 0` floored EVERY negative score to exactly
+    # 0.0, which zeroed quality+momentum for entire down-cycle markets (all IN
+    # blue chips showed 0; even 10/10 stocks like BHEL showed value=0). Ranking is
+    # range-independent and monotonic: most-negative → ~0, neutral → ~0.5, top → ~1.
+    def _rank_pct(field: str) -> list[float]:
+        col = pd.to_numeric(pd.Series([row.get(field) for row in kept_rows]), errors="coerce")
+        pct = col.rank(pct=True, method="average")
+        return [float(p) if pd.notna(p) else 0.5 for p in pct]
+
+    _ret_pct = _rank_pct("return_score")      # return ≈ momentum
+    _grw_pct = _rank_pct("growth_score")      # growth ≈ quality
+    _val_pct = _rank_pct("valuation_score")
+    _risk_pct = _rank_pct("risk_score")       # higher Anjali risk_score = lower risk = higher low_vol
+    for i, res in enumerate(all_results):
+        res["momentum_percentile"] = round(_ret_pct[i], 3)
+        res["quality_percentile"] = round(_grw_pct[i], 3)
+        res["growth_percentile"] = round(_grw_pct[i], 3)
+        res["value_percentile"] = round(_val_pct[i], 3)
+        res["low_vol_percentile"] = round(_risk_pct[i], 3)
 
     # Rank within market
     all_results.sort(key=lambda r: r["composite_score"], reverse=True)
