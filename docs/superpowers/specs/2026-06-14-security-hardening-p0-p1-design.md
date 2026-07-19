@@ -21,7 +21,7 @@ Goal: raise NeuralQuant to bank-grade, defense-in-depth security for a product s
 ### Confirmed gaps (this spec fixes P0 + P1; rest → roadmap)
 | # | Severity | Finding | Phase |
 |---|---|---|---|
-| 1 | 🔴 | **FMP API key leaked** (`pBgk4hR1ikd8c1llnvNhR7gKjafv8Fn2`) — appeared in prod logs and was pasted into chat. Burned. | P0 |
+| 1 | 🔴 | **FMP API key leaked** — appeared in prod logs and was pasted into chat. Key revoked. | P0 |
 | 2 | 🔴 | **Secrets/PII in logs** — `httpx` INFO logs full request URLs incl. `?apikey=…`; user emails + ids logged at INFO. | P0 |
 | 3 | 🔴 | **Service-role-everywhere → RLS off** — all DB access via `SUPABASE_SERVICE_ROLE_KEY` (33 uses / 23 files). Supabase RLS bypassed; cross-user safety depends 100% on app-layer `user_id` scoping → IDOR risk if any route slips. | P1 |
 | 4 | 🟠 | **No RLS policies** on user-data tables — no DB-level safety net; direct-Supabase (anon-key) paths unprotected. | P1 |
@@ -35,7 +35,7 @@ Goal: raise NeuralQuant to bank-grade, defense-in-depth security for a product s
 ## 2. P0 — Secrets & exposure (this session)
 
 ### 2.1 Rotate the leaked FMP key (USER action — documented, not code)
-- In the FMP dashboard: revoke `pBgk4hR1ikd8c1llnvNhR7gKjafv8Fn2`, issue a new key.
+- In the FMP dashboard: revoke the leaked key, issue a new key.
 - Update `FMP_API_KEY` on Render (`nq-api` + any worker that uses it) and local `.env`.
 - Redeploy. Old key dies on revoke.
 - Also review other keys that may have transited logs/chat (Anthropic, ElevenLabs, Supabase) — rotate any that did.

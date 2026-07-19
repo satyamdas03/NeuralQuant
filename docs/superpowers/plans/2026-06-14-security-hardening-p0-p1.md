@@ -29,7 +29,7 @@ from nq_api.logging_redaction import redact, RedactingFilter
 
 
 def test_redacts_apikey_query():
-    assert redact("GET https://x.com/q?symbol=AAPL&apikey=pBgk4hR1ikd8c1llnvNhR7gKjafv8Fn2") \
+    assert redact("GET https://x.com/q?symbol=AAPL&apikey=REDACTEDKEY1234567890ABCDEFGHI") \
         == "GET https://x.com/q?symbol=AAPL&apikey=***"
 
 
@@ -471,7 +471,7 @@ Create `docs/SECURITY_P0_P1_OPERATOR_ACTIONS.md`:
 # Security P0/P1 — Operator Actions (do these by hand)
 
 ## 1. Rotate the leaked FMP key (URGENT)
-The key `pBgk4hR1ikd8c1llnvNhR7gKjafv8Fn2` was exposed in logs/chat — it is burned.
+The FMP API key was exposed in logs/chat — it is burned.
 1. FMP dashboard → API keys → revoke the old key, generate a new one.
 2. Update `FMP_API_KEY` on Render (nq-api + any worker) and in local `.env`.
 3. Redeploy nq-api. Verify a stock query returns prices.

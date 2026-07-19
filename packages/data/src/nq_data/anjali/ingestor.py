@@ -191,7 +191,7 @@ def ingest_to_supabase(
     supabase_cols = set(_COLUMN_MAP.values())
 
     for _, record in df.iterrows():
-        row: dict[str, Any] = {"market": market, "refreshed_at": now_iso}
+        row: dict[str, Any] = {"market": market, "fetched_at": now_iso}
         for df_col, db_col in _COLUMN_MAP.items():
             if df_col in record.index:
                 row[db_col] = _sanitize_value(record[df_col])
@@ -200,8 +200,8 @@ def ingest_to_supabase(
         if "ticker" not in row or not row["ticker"]:
             continue
 
-        # Filter to only known Supabase columns
-        row = {k: v for k, v in row.items() if k in supabase_cols or k in {"refreshed_at"}}
+        # Filter to only known Supabase columns (plus runtime fetched_at)
+        row = {k: v for k, v in row.items() if k in supabase_cols or k == "fetched_at"}
         rows.append(row)
 
     if not rows:

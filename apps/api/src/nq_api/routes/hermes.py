@@ -22,8 +22,23 @@ log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/hermes", tags=["hermes"])
 
-_CACHE_TTL = 5.0
+_DEFAULT_TTL = 5.0
+_TTLS: dict[str, float] = {
+    "/status": 60.0,
+    "/strategy": 60.0,
+    "/reflections": 60.0,
+    "/trades": 30.0,
+}
 _cache: dict[str, tuple[float, dict]] = {}
+
+_UPSTREAM_OFFLINE_DETAIL = (
+    "Hermes agent is offline. Railway service status: offline. "
+    "Last known data may be served from cache."
+)
+
+
+def _cache_ttl(path: str) -> float:
+    return _TTLS.get(path, _DEFAULT_TTL)
 
 
 def _upstream() -> tuple[str, dict]:
@@ -37,8 +52,9 @@ def _upstream() -> tuple[str, dict]:
 async def _proxy_get(path: str, params: dict | None = None) -> dict:
     cache_key = f"{path}?{sorted((params or {}).items())}"
     now = time.time()
+    ttl = _cache_ttl(path)
     hit = _cache.get(cache_key)
-    if hit and now - hit[0] < _CACHE_TTL:
+    if hit and now - hit[0] < ttl:
         return hit[1]
     base, headers = _upstream()
     try:
@@ -46,16 +62,50 @@ async def _proxy_get(path: str, params: dict | None = None) -> dict:
             r = await client.get(f"{base}{path}", headers=headers, params=params)
             r.raise_for_status()
             data = r.json()
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(e.response.status_code, f"Hermes upstream error: {e.response.status_code}")
     except httpx.HTTPError as e:
-        # Agent down or cold — serve last cached payload when we have one
+        status_code = getattr(getattr(e, "response", None), "status_code", None)
         if hit:
-            log.warning("Hermes upstream unreachable (%s) — serving stale cache for %s", e, path)
+            log.warning(
+                "Hermes upstream error (%s) for %s — serving stale cache",
+                status_code or e,
+                path,
+            )
             return hit[1]
-        raise HTTPException(503, "Hermes agent unreachable")
+        raise HTTPException(503, detail=_UPSTREAM_OFFLINE_DETAIL)
     _cache[cache_key] = (now, data)
     return data
+
+
+@router.get("/health")
+async def health() -> dict:
+    """Public liveness probe for the Hermes Railway service."""
+    base = os.environ.get("HERMES_API_URL", "").rstrip("/")
+    if not base:
+        return {
+            "status": "offline",
+            "upstream_status": None,
+            "message": "Hermes integration not configured (HERMES_API_URL missing).",
+        }
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(5.0, connect=2.0)) as client:
+            r = await client.get(f"{base}/health")
+            if r.is_success:
+                return {
+                    "status": "ok",
+                    "upstream_status": r.status_code,
+                    "message": "Hermes agent is reachable.",
+                }
+            return {
+                "status": "offline",
+                "upstream_status": r.status_code,
+                "message": "Hermes agent returned an error.",
+            }
+    except httpx.HTTPError as e:
+        return {
+            "status": "offline",
+            "upstream_status": None,
+            "message": f"Hermes agent unreachable: {type(e).__name__}.",
+        }
 
 
 @router.get("/status")
@@ -87,13 +137,13 @@ async def events() -> StreamingResponse:
         try:
             async with httpx.AsyncClient(timeout=httpx.Timeout(None, connect=10.0)) as client:
                 async with client.stream("GET", f"{base}/events", headers=headers) as r:
-                    if r.status_code != 200:
-                        yield f'data: {{"line": "[proxy] upstream returned {r.status_code}"}}\n\n'
+                    if not r.is_success:
+                        yield f'data: {{"line": "Hermes agent is offline. Railway service status: returned {r.status_code}."}}\n\n'
                         return
                     async for chunk in r.aiter_bytes():
                         yield chunk
-        except httpx.HTTPError:
-            yield 'data: {"line": "[proxy] hermes agent unreachable - stream closed"}\n\n'
+        except httpx.HTTPError as e:
+            yield f'data: {{"line": "Hermes agent is offline. Railway service status: unreachable ({type(e).__name__})."}}\n\n'
 
     # no-transform: stops intermediaries (incl. Next's compression) from
     # gzip-buffering the stream, which starves EventSource of events.

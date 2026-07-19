@@ -134,12 +134,21 @@ def main() -> int:
     ok, code, body, el = _hit(base, "GET", "/health")
     record("GET /health", ok, code, el, str(body)[:60])
 
-    # ── 2. Score cache freshness ────────────────────────────────────────
+    # ── 2. Hermes health (route itself must return 200 even if upstream offline) ─
+    ok, code, body, el = _hit(base, "GET", "/hermes/health")
+    status = body.get("status", "?") if isinstance(body, dict) else "?"
+    record("GET /hermes/health", code == 200, code, el, f"status={status}")
+
+    # ── 3. Cron auth gate (no secret → 401) ───────────────────────────────
+    ok, code, body, el = _hit(base, "POST", "/cron/market-refresh", expect=(401,))
+    record("POST /cron/market-refresh (no auth)", code == 401, code, el, "expect 401")
+
+    # ── 4. Score cache freshness ────────────────────────────────────────
     ok, code, body, el = _hit(base, "GET", "/health/score-cache")
     age = body.get("age_seconds", "?") if isinstance(body, dict) else "?"
     record("GET /health/score-cache", ok, code, el, f"age={age}s")
 
-    # ── 3. Deep smoke (requires CRON_SECRET) ────────────────────────────
+    # ── 5. Deep smoke (requires CRON_SECRET) ────────────────────────────
     if args.cron_secret:
         hdrs = {"X-Cron-Secret": args.cron_secret}
         ok, code, body, el = _hit(base, "GET", "/health/smoke", headers=hdrs, timeout=20)
@@ -152,52 +161,52 @@ def main() -> int:
     else:
         print(f"  {WARN}  GET /health/smoke  SKIPPED (no --cron-secret)")
 
-    # ── 4. Market overview ───────────────────────────────────────────────
+    # ── 6. Market overview ───────────────────────────────────────────────
     ok, code, body, el = _hit(base, "GET", "/market/overview", timeout=15)
     n = len(body.get("indices", [])) if isinstance(body, dict) else 0
     record("GET /market/overview", ok and n > 0, code, el, f"{n} indices")
 
-    # ── 5. Stock meta AAPL ──────────────────────────────────────────────
+    # ── 7. Stock meta AAPL ──────────────────────────────────────────────
     ok, code, body, el = _hit(base, "GET", "/stocks/AAPL/meta?market=US", timeout=15)
     price = body.get("current_price", "?") if isinstance(body, dict) else "?"
     record("GET /stocks/AAPL/meta", ok, code, el, f"price={price}")
 
-    # ── 6. Stock meta TCS ───────────────────────────────────────────────
+    # ── 8. Stock meta TCS ───────────────────────────────────────────────
     ok, code, body, el = _hit(base, "GET", "/stocks/TCS/meta?market=IN", timeout=15)
     pe = body.get("pe_ttm", "?") if isinstance(body, dict) else "?"
     record("GET /stocks/TCS/meta", ok, code, el, f"pe_ttm={pe}")
 
-    # ── 7. Stock chart AAPL ─────────────────────────────────────────────
+    # ── 9. Stock chart AAPL ─────────────────────────────────────────────
     ok, code, body, el = _hit(base, "GET", "/stocks/AAPL/chart?period=1mo&market=US", timeout=15)
     bars = len(body.get("data", [])) if isinstance(body, dict) else 0
     record("GET /stocks/AAPL/chart", ok and bars > 0, code, el, f"{bars} bars")
 
-    # ── 8. Stock score AAPL ──────────────────────────────────────────────
+    # ── 10. Stock score AAPL ─────────────────────────────────────────────
     ok, code, body, el = _hit(base, "GET", "/stocks/AAPL?market=US", timeout=30)
     score = body.get("score_1_10", "?") if isinstance(body, dict) else "?"
     record("GET /stocks/AAPL", ok, code, el, f"score={score}")
 
-    # ── 9. Screener preview US ──────────────────────────────────────────
+    # ── 11. Screener preview US ─────────────────────────────────────────
     ok, code, body, el = _hit(base, "GET", "/screener/preview?market=US&n=8")
     n = len(body.get("results", [])) if isinstance(body, dict) else 0
     record("GET /screener/preview US", ok and n > 0, code, el, f"{n} results")
 
-    # ── 10. Market wrap ──────────────────────────────────────────────────
+    # ── 12. Market wrap ──────────────────────────────────────────────────
     ok, code, body, el = _hit(base, "GET", "/market-wrap/today", timeout=20)
     has_indices = bool(body.get("indices")) if isinstance(body, dict) else False
     record("GET /market-wrap/today", ok, code, el, f"indices={'yes' if has_indices else 'no'}")
 
-    # ── 11. Market news ──────────────────────────────────────────────────
+    # ── 13. Market news ──────────────────────────────────────────────────
     ok, code, body, el = _hit(base, "GET", "/market/news?n=3")
     n = len(body.get("news", [])) if isinstance(body, dict) else 0
     record("GET /market/news", ok and n > 0, code, el, f"{n} headlines")
 
-    # ── 12. Market sectors ──────────────────────────────────────────────
+    # ── 14. Market sectors ──────────────────────────────────────────────
     ok, code, body, el = _hit(base, "GET", "/market/sectors")
     n = len(body.get("sectors", [])) if isinstance(body, dict) else 0
     record("GET /market/sectors", ok and n > 0, code, el, f"{n} sectors")
 
-    # ── 13. Ask Morgan (authed — uses SMOKE_TEST_SECRET) ────────────────
+    # ── 15. Ask Morgan (authed — uses SMOKE_TEST_SECRET) ────────────────
     smoke_hdrs = {"X-Smoke-Secret": args.smoke_secret} if args.smoke_secret else {}
     ok, code, body, el = _hit(
         base, "POST", "/query/v2",
@@ -208,7 +217,7 @@ def main() -> int:
     answer = str(body.get("answer", ""))[:60] if isinstance(body, dict) else str(body)[:60]
     record("POST /query/v2", ok, code, el, answer)
 
-    # ── 14. PARA-DEBATE (SSE, authed) ───────────────────────────────────
+    # ── 16. PARA-DEBATE (SSE, authed) ───────────────────────────────────
     if not args.skip_sse:
         ok, code, body, el = _hit_sse(
             base, "/analyst/stream",
@@ -221,7 +230,7 @@ def main() -> int:
     else:
         print(f"  {WARN}  POST /analyst/stream  SKIPPED (--skip-sse)")
 
-    # ── 15. Authed: /auth/me with smoke secret ───────────────────────────
+    # ── 17. Authed: /auth/me with smoke secret ───────────────────────────
     if args.smoke_secret:
         ok, code, body, el = _hit(
             base, "GET", "/auth/me",

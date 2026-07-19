@@ -64,7 +64,7 @@
 1. Go to [financialmodelingprep.com](https://financialmodelingprep.com) → Login → Billing → Cancel Subscription
 2. Or email support@fmp.com to cancel
 3. **Effect:** App will fall back to yfinance/Finnhub for data (slower, less reliable, but functional for 10 days)
-4. **To resume:** Re-subscribe with same API key (`pBgk4hR1ikd8c1llnvNhR7gKjafv8Fn2`)
+4. **To resume:** Re-subscribe with same API key (retrieve from your password manager)
 
 **Saves: ~$11.31/week**
 
@@ -166,28 +166,28 @@ All critical secrets are stored in:
 **Make sure you have these written down or in a password manager:**
 
 ```
-ANTHROPIC_API_KEY=sk-ant-api03-...
-FMP_API_KEY=pBgk4hR1ikd8c1llnvNhR7gKjafv8Fn2
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-SUPABASE_JWT_SECRET=4MQghPeLdArPFAyh6keckkjQtUZV4B5uX9HAhzTNyJgRi5xCDRmP5HcYO72+jcR0b4N7skT61C8kd3R7GxWhiA==
-PAYPAL_CLIENT_ID=...
-PAYPAL_CLIENT_SECRET=...
-PAYPAL_WEBHOOK_ID=...
-CRON_SECRET=9bea18e8ca9191837613841e5104746881932e2f4c74aae64ea88e3c4f941990
-SMOKE_TEST_SECRET=6K86EP5RfhR2Ro7-UhxWuXRGEsx7r1JwnKoJ80yb3Yo
-STRIPE_SECRET_KEY=sk_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-AWS_ACCESS_KEY_ID=...
-AWS_SECRET_ACCESS_KEY=...
-LIVEKIT_URL=...
-LIVEKIT_API_KEY=...
-LIVEKIT_API_SECRET=...
-DEEPGRAM_API_KEY=...
-ELEVENLABS_API_KEY=...
-RESEND_API_KEY=...
-SLACK_BOT_TOKEN=xoxb-...
-SLACK_APP_TOKEN=xapp-...
+ANTHROPIC_API_KEY=<ANTHROPIC_API_KEY>
+FMP_API_KEY=<FMP_API_KEY>
+SUPABASE_SERVICE_ROLE_KEY=<SUPABASE_SERVICE_ROLE_KEY>
+SUPABASE_ANON_KEY=<SUPABASE_ANON_KEY>
+SUPABASE_JWT_SECRET=<SUPABASE_JWT_SECRET>
+PAYPAL_CLIENT_ID=<PAYPAL_CLIENT_ID>
+PAYPAL_CLIENT_SECRET=<PAYPAL_CLIENT_SECRET>
+PAYPAL_WEBHOOK_ID=<PAYPAL_WEBHOOK_ID>
+CRON_SECRET=<CRON_SECRET>
+SMOKE_TEST_SECRET=<SMOKE_TEST_SECRET>
+STRIPE_SECRET_KEY=<STRIPE_SECRET_KEY>
+STRIPE_WEBHOOK_SECRET=<STRIPE_WEBHOOK_SECRET>
+AWS_ACCESS_KEY_ID=<AWS_ACCESS_KEY_ID>
+AWS_SECRET_ACCESS_KEY=<AWS_SECRET_ACCESS_KEY>
+LIVEKIT_URL=<LIVEKIT_URL>
+LIVEKIT_API_KEY=<LIVEKIT_API_KEY>
+LIVEKIT_API_SECRET=<LIVEKIT_API_SECRET>
+DEEPGRAM_API_KEY=<DEEPGRAM_API_KEY>
+ELEVENLABS_API_KEY=<ELEVENLABS_API_KEY>
+RESEND_API_KEY=<RESEND_API_KEY>
+SLACK_BOT_TOKEN=<SLACK_BOT_TOKEN>
+SLACK_APP_TOKEN=<SLACK_APP_TOKEN>
 ```
 
 > ⚠️ **NEVER share these publicly. The `.env` file in your repo has production secrets in plaintext — this is a security risk. Consider rotating all keys after resume.**
@@ -234,7 +234,7 @@ SLACK_APP_TOKEN=xapp-...
 ### Step 3C — FMP Premium: Re-Subscribe
 
 1. [financialmodelingprep.com](https://financialmodelingprep.com) → Pricing → Subscribe
-2. Verify your key `pBgk4hR1ikd8c1llnvNhR7gKjafv8Fn2` is still active
+2. Verify your FMP key is still active (retrieve from your password manager)
 3. If not, update `FMP_API_KEY` in Render Dashboard → `nq-api` → Environment
 
 ---
@@ -262,8 +262,8 @@ Run the smoke test:
 ```bash
 python scripts/smoke_test.py \
   --api https://neuralquant.onrender.com \
-  --cron-secret 9bea18e8ca9191837613841e5104746881932e2f4c74aae64ea88e3c4f941990 \
-  --smoke-secret 6K86EP5RfhR2Ro7-UhxWuXRGEsx7r1JwnKoJ80yb3Yo
+  --cron-secret "<CRON_SECRET>" \
+  --smoke-secret "<SMOKE_TEST_SECRET>"
 ```
 
 Expected: **14/15 or 15/15 PASS**

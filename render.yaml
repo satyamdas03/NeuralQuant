@@ -196,7 +196,7 @@ services:
     rootDir: .
     schedule: "0 2 * * *"
     buildCommand: pip install uv && uv sync --frozen --no-dev
-    startCommand: uv run python -c "import os, httpx; r = httpx.post('https://neuralquant.onrender.com/cron/anjali', headers={'Authorization': f'Bearer {os.environ[\"CRON_SECRET\"]}'}); print(r.status_code, r.text[:200])"
+    startCommand: uv run python scripts/cron_invoke.py --endpoint /cron/anjali
     envVars:
       - key: CRON_SECRET
         sync: false
@@ -210,7 +210,7 @@ services:
     rootDir: .
     schedule: "30 20 * * 1-5"
     buildCommand: pip install uv && uv sync --frozen --no-dev
-    startCommand: uv run python -c "import os, httpx; r = httpx.post('https://neuralquant.onrender.com/cron/market-refresh', headers={'Authorization': f'Bearer {os.environ[\"CRON_SECRET\"]}'}); print(r.status_code, r.text[:200])"
+    startCommand: uv run python scripts/cron_invoke.py --endpoint /cron/market-refresh
     envVars:
       - key: CRON_SECRET
         sync: false
@@ -224,7 +224,7 @@ services:
     rootDir: .
     schedule: "0 11 * * 1-5"
     buildCommand: pip install uv && uv sync --frozen --no-dev
-    startCommand: uv run python -c "import os, httpx; r = httpx.post('https://neuralquant.onrender.com/cron/market-wrap?market=IN', headers={'Authorization': f'Bearer {os.environ[\"CRON_SECRET\"]}'}); print(r.status_code, r.text[:200])"
+    startCommand: uv run python scripts/cron_invoke.py --endpoint /cron/market-wrap --params "market=IN"
     envVars:
       - key: CRON_SECRET
         sync: false
@@ -238,7 +238,35 @@ services:
     rootDir: .
     schedule: "30 21 * * 1-5"
     buildCommand: pip install uv && uv sync --frozen --no-dev
-    startCommand: uv run python -c "import os, httpx; r = httpx.post('https://neuralquant.onrender.com/cron/market-wrap?market=US', headers={'Authorization': f'Bearer {os.environ[\"CRON_SECRET\"]}'}); print(r.status_code, r.text[:200])"
+    startCommand: uv run python scripts/cron_invoke.py --endpoint /cron/market-wrap --params "market=US"
+    envVars:
+      - key: CRON_SECRET
+        sync: false
+    plan: starter
+
+  # ── Cron: Nightly score rebuild — US (02:00 UTC daily) ──────────────
+  - type: cron
+    name: nq-nightly-score-us
+    runtime: python
+    pythonVersion: 3.12
+    rootDir: .
+    schedule: "0 2 * * *"
+    buildCommand: pip install uv && uv sync --frozen --no-dev
+    startCommand: uv run python scripts/cron_invoke.py --endpoint /cron/nightly-score --params "market=US"
+    envVars:
+      - key: CRON_SECRET
+        sync: false
+    plan: starter
+
+  # ── Cron: Nightly score rebuild — IN (02:30 UTC daily) ────────────────
+  - type: cron
+    name: nq-nightly-score-in
+    runtime: python
+    pythonVersion: 3.12
+    rootDir: .
+    schedule: "30 2 * * *"
+    buildCommand: pip install uv && uv sync --frozen --no-dev
+    startCommand: uv run python scripts/cron_invoke.py --endpoint /cron/nightly-score --params "market=IN"
     envVars:
       - key: CRON_SECRET
         sync: false

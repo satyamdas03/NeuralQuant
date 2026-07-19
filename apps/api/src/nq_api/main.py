@@ -750,6 +750,15 @@ def health_score_cache():
         "GET",
         {"select": "computed_at", "order": "computed_at.desc", "limit": "1"},
     )
+    count_data = _supabase_rest(
+        "score_cache",
+        "GET",
+        {"select": "count()"},
+    )
+    rows = None
+    if isinstance(count_data, list) and count_data:
+        rows = count_data[0].get("count")
+
     if isinstance(data, list) and data:
         last = data[0].get("computed_at")
         if last:
@@ -762,7 +771,8 @@ def health_score_cache():
                     "status": "stale" if stale else "ok",
                     "last_computed": last,
                     "age_seconds": int(age_seconds),
+                    "rows": rows,
                 }
             except Exception:
                 pass
-    return {"status": "stale", "last_computed": None, "age_seconds": None}
+    return {"status": "stale", "last_computed": None, "age_seconds": None, "rows": rows}

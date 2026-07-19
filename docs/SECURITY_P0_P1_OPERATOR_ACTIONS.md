@@ -4,7 +4,7 @@ These are the non-code steps the code changes depend on. Do them after the
 `session92-security-p0-p1` branch is merged + deployed.
 
 ## 1. Rotate the leaked FMP key (URGENT)
-The key `pBgk4hR1ikd8c1llnvNhR7gKjafv8Fn2` was exposed in logs/chat — it is burned.
+The FMP API key was exposed in logs/chat — it is burned.
 1. FMP dashboard → API keys → **revoke** the old key, **generate** a new one.
 2. Update `FMP_API_KEY` on Render (`nq-api` + any worker that uses it) and in local `.env`.
 3. Redeploy `nq-api`. Verify a stock query returns prices.

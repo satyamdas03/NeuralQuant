@@ -3,7 +3,7 @@ from nq_api.logging_redaction import redact, RedactingFilter
 
 
 def test_redacts_apikey_query():
-    assert redact("GET https://x.com/q?symbol=AAPL&apikey=pBgk4hR1ikd8c1llnvNhR7gKjafv8Fn2") \
+    assert redact("GET https://x.com/q?symbol=AAPL&apikey=REDACTEDKEY1234567890ABCDEFGHI") \
         == "GET https://x.com/q?symbol=AAPL&apikey=***"
 
 

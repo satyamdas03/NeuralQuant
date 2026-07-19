@@ -37,8 +37,35 @@ Fixed run-rate ≈ **$51/week** all-in (detail: EMERGENCY_SHUTDOWN_RESUME_PLAN.m
 | nq-wrap-in | cron `0 11 * * 1-5` | Starter | India EOD market wrap email |
 | nq-wrap-us | cron `30 21 * * 1-5` | Starter | US EOD market wrap email |
 
-Cron services call `POST /cron/*` on nq-api with `X-Cron-Secret`. An in-process
-scheduler in `main.py` lifespan covers nightly scoring as backup.
+Cron services call `POST /cron/*` on nq-api with the `X-Cron-Secret` HTTP
+header (`CRON_SECRET` env var). The cron bodies are thin wrappers in
+`scripts/cron_invoke.py`; each service in `render.yaml` passes `CRON_SECRET` as
+a synced (`sync: false`) secret. To add a new job, create another `type: cron`
+entry in `render.yaml`, point `startCommand` at `python scripts/cron_invoke.py
+<endpoint>`, and ensure `CRON_SECRET` is available.
+
+## Hermes live trading agent
+
+The `/hermes` page proxies the Hermes trading-agent state API running on Railway.
+Only `nq-api` talks directly to Railway; the browser never sees the upstream URL
+or secret.
+
+Required env vars on `nq-api`:
+
+| Var | Purpose |
+|---|---|
+| `HERMES_API_URL` | Base URL of the Hermes Railway service |
+| `HERMES_API_SECRET` | Shared secret forwarded as `X-Hermes-Secret` |
+
+Optional Hermes-daemon vars (set on the Railway service itself, see
+`hermes-trading/README.md`):
+
+| Var | Purpose |
+|---|---|
+| `HERMES_TRADING_MODE` | `paper` (default) or `live` |
+| `HERMES_API_PORT` | Port for the daemon's state API |
+| `HERMES_BIN` / `HERMES_MODEL` | Reflection CLI + model overrides |
+| `RESEED_STRATEGY` | One-time reset flag; set once, then remove |
 
 ## Deploy
 
