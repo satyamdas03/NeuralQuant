@@ -10,20 +10,20 @@ jobs:
     name: Sync Excel → quantfactor_universe
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           path: neuralquant
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: satyamdas03/anjali-value-stocks
           path: anjali-repo
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
-      - uses: astral-sh/setup-uv@v4
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
           cache-local-path: .uv-cache
