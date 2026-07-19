@@ -196,7 +196,7 @@ services:
     rootDir: .
     schedule: "0 2 * * *"
     buildCommand: pip install uv && uv sync --frozen --no-dev
-    startCommand: uv run python -c "import os, httpx; r = httpx.post('https://neuralquant.onrender.com/cron/anjali', headers={'X-Cron-Secret': os.environ['CRON_SECRET']}); print(r.status_code, r.text[:200])"
+    startCommand: uv run python -c "import os, httpx; r = httpx.post('https://neuralquant.onrender.com/cron/anjali', headers={'Authorization': f'Bearer {os.environ[\"CRON_SECRET\"]}'}); print(r.status_code, r.text[:200])"
     envVars:
       - key: CRON_SECRET
         sync: false
@@ -210,7 +210,7 @@ services:
     rootDir: .
     schedule: "30 20 * * 1-5"
     buildCommand: pip install uv && uv sync --frozen --no-dev
-    startCommand: uv run python -c "import os, httpx; r = httpx.post('https://neuralquant.onrender.com/cron/market-refresh', headers={'X-Cron-Secret': os.environ['CRON_SECRET']}); print(r.status_code, r.text[:200])"
+    startCommand: uv run python -c "import os, httpx; r = httpx.post('https://neuralquant.onrender.com/cron/market-refresh', headers={'Authorization': f'Bearer {os.environ[\"CRON_SECRET\"]}'}); print(r.status_code, r.text[:200])"
     envVars:
       - key: CRON_SECRET
         sync: false
@@ -224,7 +224,7 @@ services:
     rootDir: .
     schedule: "0 11 * * 1-5"
     buildCommand: pip install uv && uv sync --frozen --no-dev
-    startCommand: uv run python -c "import os, httpx; r = httpx.post('https://neuralquant.onrender.com/cron/market-wrap?market=IN', headers={'X-Cron-Secret': os.environ['CRON_SECRET']}); print(r.status_code, r.text[:200])"
+    startCommand: uv run python -c "import os, httpx; r = httpx.post('https://neuralquant.onrender.com/cron/market-wrap?market=IN', headers={'Authorization': f'Bearer {os.environ[\"CRON_SECRET\"]}'}); print(r.status_code, r.text[:200])"
     envVars:
       - key: CRON_SECRET
         sync: false
@@ -238,7 +238,7 @@ services:
     rootDir: .
     schedule: "30 21 * * 1-5"
     buildCommand: pip install uv && uv sync --frozen --no-dev
-    startCommand: uv run python -c "import os, httpx; r = httpx.post('https://neuralquant.onrender.com/cron/market-wrap?market=US', headers={'X-Cron-Secret': os.environ['CRON_SECRET']}); print(r.status_code, r.text[:200])"
+    startCommand: uv run python -c "import os, httpx; r = httpx.post('https://neuralquant.onrender.com/cron/market-wrap?market=US', headers={'Authorization': f'Bearer {os.environ[\"CRON_SECRET\"]}'}); print(r.status_code, r.text[:200])"
     envVars:
       - key: CRON_SECRET
         sync: false
