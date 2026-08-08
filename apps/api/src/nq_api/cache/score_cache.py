@@ -234,7 +234,8 @@ def upsert_scores(rows: list[dict[str, Any]]) -> int:
         history_cols = {"ticker", "market", "composite_score", "score_1_10", "regime_id",
                         "regime_label", "quality_percentile", "momentum_percentile",
                         "value_percentile", "low_vol_percentile", "short_interest_percentile",
-                        "insider_percentile", "pe_ttm", "pb_ratio", "gross_profit_margin", "roe", "computed_at"}
+                        "insider_percentile", "growth_percentile", "pe_ttm", "pb_ratio",
+                        "gross_profit_margin", "roe", "computed_at"}
         history_rows = [_sanitize_floats({k: v for k, v in r.items() if k in history_cols}) for r in rows]
         _supabase_rest("score_cache_history", method="POST", body=history_rows)
     except Exception:

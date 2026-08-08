@@ -31,6 +31,34 @@ def _safe_float(v, default: float = 0.0) -> float:
     except (TypeError, ValueError):
         return default
 
+
+def _safe_opt_float(v) -> float | None:
+    """Like _safe_float but preserves None/NaN as None (for optional display fields)."""
+    try:
+        if v is None or pd.isna(v):
+            return None
+        if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+            return None
+        fv = float(v)
+        return fv if math.isfinite(fv) else None
+    except (TypeError, ValueError):
+        return None
+
+
+def normalize_cache_composite(score) -> float | None:
+    """Normalize score_cache.composite_score to the 0-1 scale used by edge/signal logic.
+
+    nightly_score.py stores composite_score as qf_composite * 10, and the
+    QuantFactor composite ranges -16..+16 → stored range roughly -160..+160.
+    Map: (stored + 160) / 320 → 0-1, clamped. Values already within [0, 1]
+    pass through untouched (live-path percentile-average scale)."""
+    v = _safe_opt_float(score)
+    if v is None:
+        return None
+    if 0.0 <= v <= 1.0:
+        return v
+    return max(0.0, min(1.0, (v + 160.0) / 320.0))
+
 _FEATURE_DISPLAY = {
     "quality_percentile":        ("Quality composite",   True),
     "momentum_percentile":       ("12-1 Momentum",       True),
@@ -208,4 +236,11 @@ def row_to_ai_score(row: pd.Series, market: str, score_1_10_override: int | None
         confidence=_confidence(row),
         last_updated=datetime.now(timezone.utc).isoformat(),
         anjali=anjali_scores,
+        quantfactor=anjali_scores,
+        name=str(row.get("long_name")) if row.get("long_name") else None,
+        current_price=_safe_opt_float(row.get("current_price")),
+        change_pct=_safe_opt_float(row.get("change_pct")),
+        pe_ttm=_safe_opt_float(row.get("pe_ttm")),
+        market_cap=_safe_opt_float(row.get("market_cap")),
+        sector=str(row.get("sector")) if row.get("sector") and str(row.get("sector")) != "nan" else None,
     )

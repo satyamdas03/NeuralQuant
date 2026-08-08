@@ -292,17 +292,20 @@ def _get_accuracy_sync() -> AccuracyResponse:
             score_history["date_only"] = score_history["date"].dt.normalize()
         score_history["ticker"] = score_history["ticker"].str.upper()
 
-        # Derive score_1_10 from composite_score if null (history table doesn't store it)
+        # Derive score_1_10 from composite_score if null (history table doesn't store it).
+        # composite_score is stored on the qf*10 scale — normalize to 0-1 first.
+        from nq_api.score_builder import _score_to_1_10, normalize_cache_composite
+
+        def _derive_1_10(s):
+            n = normalize_cache_composite(s) if pd.notna(s) else None
+            return _score_to_1_10(n) if n is not None else None
+
         if "score_1_10" not in score_history.columns or score_history["score_1_10"].isna().all():
-            from nq_api.score_builder import _score_to_1_10
-            score_history["score_1_10"] = score_history["composite_score"].apply(
-                lambda s: _score_to_1_10(s) if pd.notna(s) else None
-            )
+            score_history["score_1_10"] = score_history["composite_score"].apply(_derive_1_10)
         else:
             # Fill null score_1_10 from composite_score
-            from nq_api.score_builder import _score_to_1_10
             mask = score_history["score_1_10"].isna() & score_history["composite_score"].notna()
-            score_history.loc[mask, "score_1_10"] = score_history.loc[mask, "composite_score"].apply(_score_to_1_10)
+            score_history.loc[mask, "score_1_10"] = score_history.loc[mask, "composite_score"].apply(_derive_1_10)
 
         # Drop rows where score_1_10 is still null (no composite_score either)
         score_history = score_history[score_history["score_1_10"].notna()].copy()
@@ -497,15 +500,19 @@ def _single_date_snapshot(score_history: pd.DataFrame, n_dates: int, date_range_
     if len(us_rows) < 5:
         us_rows = score_history
 
-    # Derive score_1_10 from composite_score if null
-    from nq_api.score_builder import _score_to_1_10
+    # Derive score_1_10 from composite_score if null.
+    # composite_score is stored on the qf*10 scale — normalize to 0-1 first.
+    from nq_api.score_builder import _score_to_1_10, normalize_cache_composite
+
+    def _derive_1_10(s):
+        n = normalize_cache_composite(s) if pd.notna(s) else None
+        return _score_to_1_10(n) if n is not None else None
+
     if "score_1_10" not in us_rows.columns or us_rows["score_1_10"].isna().all():
-        us_rows["score_1_10"] = us_rows["composite_score"].apply(
-            lambda s: _score_to_1_10(s) if pd.notna(s) else None
-        )
+        us_rows["score_1_10"] = us_rows["composite_score"].apply(_derive_1_10)
     else:
         mask = us_rows["score_1_10"].isna() & us_rows["composite_score"].notna()
-        us_rows.loc[mask, "score_1_10"] = us_rows.loc[mask, "composite_score"].apply(_score_to_1_10)
+        us_rows.loc[mask, "score_1_10"] = us_rows.loc[mask, "composite_score"].apply(_derive_1_10)
 
     # Compute score distribution from current snapshot
     score_col = "score_1_10" if "score_1_10" in us_rows.columns else None
@@ -522,9 +529,12 @@ def _single_date_snapshot(score_history: pd.DataFrame, n_dates: int, date_range_
             count = int((us_rows[score_col] == level).sum())
             if count > 0:
                 avg_comp = float(us_rows.loc[us_rows[score_col] == level, comp_col].dropna().mean()) if comp_col and comp_col in us_rows.columns else level / 10
+                # composite_score is stored qf*10 (-160..+160); normalize to 0-1 then
+                # express as 0-100 display strength (NOT a walk-forward hit rate).
+                norm = normalize_cache_composite(avg_comp)
                 score_breakdown.append(ScoreBreakdownItem(
                     score=level, count=count,
-                    hit_rate=round(avg_comp * 100, 1),
+                    hit_rate=round((norm if norm is not None else level / 10) * 100, 1),
                     avg_return_pct=0.0,
                 ))
 

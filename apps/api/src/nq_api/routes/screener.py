@@ -192,7 +192,7 @@ def _cache_rows_to_ai_scores(rows: list[dict], market: str, regime_id: int) -> l
 def _snapshot_rows_to_ai_scores(snap_rows: list[dict], market: str) -> list:
     """Build AIScore list from stock_snapshot rows using QuantFactor scores.
     Orders by IRS% descending, then by price change."""
-    from nq_api.schemas import AIScore, SubScores, FeatureDriver, QuantFactorScores
+    from nq_api.schemas import AIScore, SubScores, FeatureDriver, AnjaliScores
     from nq_api.score_builder import _score_to_1_10
 
     results = []
@@ -215,7 +215,7 @@ def _snapshot_rows_to_ai_scores(snap_rows: list[dict], market: str) -> list:
         # Build QuantFactor scores sub-object
         qf_scores = None
         if qf and qf.get("composite_score") is not None:
-            qf_scores = QuantFactorScores(
+            qf_scores = AnjaliScores(
                 growth_score=qf.get("growth_score"),
                 return_score=qf.get("return_score"),
                 valuation_score=qf.get("valuation_score"),
@@ -253,7 +253,10 @@ def _snapshot_rows_to_ai_scores(snap_rows: list[dict], market: str) -> list:
             top_drivers=[FeatureDriver(name="Price Change", contribution=(snap.get("change_pct") or 0)/10, value=f"{snap.get('change_pct') or 0:.1f}%", direction="positive" if (snap.get('change_pct') or 0) > 0 else "negative")],
             confidence="medium",
             quantfactor=qf_scores,
+            anjali=qf_scores,
+            name=snap.get("long_name") or snap.get("name"),
             current_price=snap.get("price"),
+            change_pct=snap.get("change_pct"),
             market_cap=snap.get("market_cap"),
             pe_ttm=snap.get("pe_ttm"),
             sector=snap.get("sector"),

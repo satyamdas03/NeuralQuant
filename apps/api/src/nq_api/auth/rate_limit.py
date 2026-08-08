@@ -36,6 +36,40 @@ log = logging.getLogger(__name__)
 QUOTA_FREE_UNTIL = date(2099, 12, 31)  # Development phase — free indefinitely
 
 
+_EXPENSIVE_ANON_USAGE: dict[str, int] = {}
+
+
+def enforce_expensive_anon_cap(cap: int = 5):
+    """Per-IP daily cap for ANONYMOUS users on LLM-expensive endpoints
+    (e.g. PARA-DEBATE ~7 agent calls per run).
+
+    Applies even during the quota-free development phase: anonymous abuse
+    burns real LLM money. Authenticated users stay unlimited (quota-free).
+    In-process counter — resets on restart, which is an acceptable soft cap.
+    """
+
+    def _dep(
+        request: Request,
+        user: User | None = Depends(get_current_user_optional),
+    ) -> User | None:
+        if user is not None:
+            return user
+        gid = _ip_to_guest_id(request)
+        if len(_EXPENSIVE_ANON_USAGE) > 5000:
+            _EXPENSIVE_ANON_USAGE.clear()
+        key = f"{gid}:{date.today()}"
+        used = _EXPENSIVE_ANON_USAGE.get(key, 0)
+        if used >= cap:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Free daily analysis limit reached ({cap}/day) — sign in for unlimited access",
+            )
+        _EXPENSIVE_ANON_USAGE[key] = used + 1
+        return user
+
+    return _dep
+
+
 def _quota_free() -> bool:
     """Return True — app is free indefinitely during development phase.
 

@@ -15,7 +15,7 @@ from fastapi.responses import StreamingResponse
 import yfinance as yf
 from nq_api.schemas import AnalystRequest, AnalystResponse, AgentOutput
 from nq_api.agents.orchestrator import ParaDebateOrchestrator
-from nq_api.auth.rate_limit import enforce_tier_quota
+from nq_api.auth.rate_limit import enforce_tier_quota, enforce_expensive_anon_cap
 from nq_api.auth.deps import get_current_user_optional
 from nq_api.auth.models import User
 
@@ -871,7 +871,7 @@ def _demo_payload() -> dict:
 @router.post("", response_model=AnalystResponse)
 async def run_analyst(
     req: AnalystRequest,
-    user: User | None = Depends(get_current_user_optional),
+    user: User | None = Depends(enforce_expensive_anon_cap()),
 ) -> AnalystResponse:
     if _demo_no_llm():
         from fastapi.responses import JSONResponse
@@ -926,7 +926,7 @@ async def run_analyst(
 @router.post("/stream")
 async def run_analyst_stream(
     req: AnalystRequest,
-    user: User | None = Depends(get_current_user_optional),
+    user: User | None = Depends(enforce_expensive_anon_cap()),
 ) -> StreamingResponse:
     """SSE variant of /analyst.
 

@@ -375,7 +375,7 @@ async def lifespan(app: FastAPI):
 _docs_enabled = os.environ.get("ENABLE_DOCS", "").lower() == "true"
 app = FastAPI(
     title="NeuralQuant API",
-    version="4.0.2",
+    version="4.1.0",
     lifespan=lifespan,
     docs_url="/docs" if _docs_enabled else None,
     redoc_url="/redoc" if _docs_enabled else None,

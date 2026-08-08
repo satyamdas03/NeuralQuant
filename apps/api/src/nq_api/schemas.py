@@ -48,6 +48,14 @@ class AIScore(BaseModel):
     confidence: Literal["high", "medium", "low"]
     last_updated: str            # ISO datetime
     anjali: AnjaliScores | None = None  # QuantFactor Engine scores (None if not available)
+    # Display enrichment (populated from score_cache / stock_snapshot when available)
+    quantfactor: AnjaliScores | None = None  # alias of QuantFactor scores for screener card
+    name: str | None = None
+    current_price: float | None = None
+    change_pct: float | None = None
+    pe_ttm: float | None = None
+    market_cap: float | None = None
+    sector: str | None = None
 
 
 class ScreenerRequest(BaseModel):

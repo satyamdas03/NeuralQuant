@@ -22,17 +22,40 @@ class SocialItem:
     top_topics: list[str]
 
 
+def _fmp_news_fallback(ticker: str, market: str) -> list[dict] | None:
+    """FMP per-ticker news as headline source when yfinance is skipped/blocked
+    (always the case on Render cloud IPs — yf_guard returns None there)."""
+    try:
+        from nq_data.fmp import get_fmp_client
+        from nq_data.price.yf_guard import normalize_ticker
+        fmp = get_fmp_client()
+        if not fmp._enabled:
+            return None
+        sym = normalize_ticker(ticker, market)
+        items = fmp.get_market_news(limit=25, tickers=sym) or []
+        return [{"title": i.get("title", ""), "publisher": i.get("source", "FMP")}
+                for i in items if i.get("title")]
+    except Exception as e:
+        logger.debug("FMP social buzz fallback failed for %s: %s", ticker, e)
+        return None
+
+
 def fetch_social_buzz_yfinance(ticker: str, market: str = "US") -> SocialItem | None:
     """
     Use yfinance news headlines + VADER as social buzz proxy.
     Aggregates recent news sentiment as a measure of social/media buzz.
+    Falls back to FMP headlines when yfinance is blocked (Render).
     """
     try:
         from nq_data.price.yf_guard import news as yf_news
         raw_news = yf_news(ticker, market)
 
-        if raw_news is None:
-            return None  # guard skipped (Render) or yfinance failed
+        if not raw_news:
+            # yf guard skipped (Render) or empty — try FMP before giving up
+            fmp_news = _fmp_news_fallback(ticker, market)
+            if fmp_news is None and raw_news is None:
+                return None  # all sources failed
+            raw_news = fmp_news if fmp_news is not None else raw_news
 
         if not raw_news:
             return SocialItem(

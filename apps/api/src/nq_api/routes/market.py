@@ -180,27 +180,31 @@ def _market_overview_sync(market: str = "US"):
             if batch and len(batch) > 0:
                 for sym, name in idx_map.items():
                     q = batch.get(sym)
+                    d = None
                     if q and q.get("price") is not None:
-                        indices.append({
-                            "symbol": sym, "name": name,
+                        d = {
                             "price": round(float(q["price"]), 2),
                             "change_pct": round(float(q.get("change_pct") or 0), 2),
                             "change_abs": round(float(q.get("change") or 0), 2),
-                        })
+                        }
                     else:
-                        d = _pct_change_from_info(sym) or {"price": 0.0, "change_pct": 0.0, "change_abs": 0.0}
+                        d = _pct_change_from_info(sym)
+                    # Zero-price stubs render as "Rs.0.00" — omit instead; frontend
+                    # shows "unavailable" for missing entries (never a fake price).
+                    if d and d.get("price"):
                         indices.append({"symbol": sym, "name": name, **d})
                 for sym, name in fut_map.items():
                     q = batch.get(sym)
+                    d = None
                     if q and q.get("price") is not None:
-                        futures.append({
-                            "symbol": sym, "name": name,
+                        d = {
                             "price": round(float(q["price"]), 2),
                             "change_pct": round(float(q.get("change_pct") or 0), 2),
                             "change_abs": round(float(q.get("change") or 0), 2),
-                        })
+                        }
                     else:
-                        d = _pct_change_from_info(sym) or {"price": 0.0, "change_pct": 0.0, "change_abs": 0.0}
+                        d = _pct_change_from_info(sym)
+                    if d and d.get("price"):
                         futures.append({"symbol": sym, "name": name, **d})
                 fmp_ok = True
     except Exception as exc:
@@ -212,20 +216,21 @@ def _market_overview_sync(market: str = "US"):
             all_syms = list(idx_map.keys()) + list(fut_map.keys())
             batch_data = _batch_pct_change(all_syms)
             for sym, name in idx_map.items():
-                d = batch_data.get(sym) or _pct_change_from_info(sym) or {"price": 0.0, "change_pct": 0.0, "change_abs": 0.0}
-                indices.append({"symbol": sym, "name": name, **d})
+                d = batch_data.get(sym) or _pct_change_from_info(sym)
+                if d and d.get("price"):
+                    indices.append({"symbol": sym, "name": name, **d})
             for sym, name in fut_map.items():
-                d = batch_data.get(sym) or _pct_change_from_info(sym) or {"price": 0.0, "change_pct": 0.0, "change_abs": 0.0}
-                futures.append({"symbol": sym, "name": name, **d})
+                d = batch_data.get(sym) or _pct_change_from_info(sym)
+                if d and d.get("price"):
+                    futures.append({"symbol": sym, "name": name, **d})
         except Exception:
             logger.exception("market_overview yfinance fallback failed for %s", market)
 
-    # Hard guarantee: if indices/futures are still empty, fill with zero-dict stubs
-    # so frontend never sees "unavailable".
-    if not indices:
+    # Only emit zero-dict stubs on a TOTAL data outage (every source failed) —
+    # never mix zero stubs with real prices (a Rs.0.00 entry reads as data, not outage).
+    if not indices and not futures:
         for sym, name in idx_map.items():
             indices.append({"symbol": sym, "name": name, "price": 0.0, "change_pct": 0.0, "change_abs": 0.0})
-    if not futures:
         for sym, name in fut_map.items():
             futures.append({"symbol": sym, "name": name, "price": 0.0, "change_pct": 0.0, "change_abs": 0.0})
 

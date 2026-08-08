@@ -132,6 +132,17 @@ def _daily_loss_limit_for_strategy(strategy_id: str) -> float:
     return risk_map.get(strat.get("risk_profile", "balanced"), 100.0)
 
 
+def _normalize_cache_score(score: float) -> float:
+    """Normalize score_cache.composite_score to 0-1 for edge computation.
+
+    Delegates to score_builder.normalize_cache_composite (single source of
+    truth for the qf*10 storage scale)."""
+    from nq_api.score_builder import normalize_cache_composite
+
+    v = normalize_cache_composite(score)
+    return v if v is not None else 0.0
+
+
 def _rows_to_signals(
     rows: list[dict[str, Any]],
     bankroll: float,
@@ -146,7 +157,8 @@ def _rows_to_signals(
 
     signals: list[dict[str, Any]] = []
     for row in rows:
-        score = float(row.get("composite_score", 0))
+        raw_score = float(row.get("composite_score") or 0)
+        score = _normalize_cache_score(raw_score)
         edge = compute_edge(score, threshold)
         if edge <= 0:
             continue
@@ -165,6 +177,7 @@ def _rows_to_signals(
             "market": row.get("market", "US"),
             "sector": row.get("sector", ""),
             "composite_score": round(score, 4),
+            "cache_composite_raw": round(raw_score, 4),
             "edge": round(edge, 4),
             "direction": "bullish",
             "bet": sizing.bet,

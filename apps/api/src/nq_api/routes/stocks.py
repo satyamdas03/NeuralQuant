@@ -165,9 +165,11 @@ async def get_stock_score(
 
 
 def _score_1_10_from_cache(row: dict) -> int:
-    """Derive a 1-10 score from cached composite_score using the same stretching logic."""
-    from nq_api.score_builder import _score_to_1_10
-    return _score_to_1_10(float(row.get("composite_score", 0.5)))
+    """Derive a 1-10 score from cached composite_score using the same stretching logic.
+    score_cache.composite_score is stored qf*10 — normalize to 0-1 first."""
+    from nq_api.score_builder import _score_to_1_10, normalize_cache_composite
+    n = normalize_cache_composite(row.get("composite_score"))
+    return _score_to_1_10(n if n is not None else 0.5)
 
 
 # Period → (yahoo-range, yahoo-interval) for direct chart API fallback
@@ -424,10 +426,16 @@ def _has_null_fields(meta: dict) -> bool:
 
 
 def _merge_meta(base: dict, overlay: dict) -> dict:
-    """Merge overlay into base: overlay values replace nulls / 0-sentinels in base."""
+    """Merge overlay into base: overlay values replace nulls / 0-sentinels in base.
+    Special case: name equal to the ticker symbol is a placeholder, not a real
+    company name — allow the overlay to replace it."""
     merged = {**base}
     for k, v in overlay.items():
-        if _is_nullish(merged, k) and v is not None:
+        nullish = _is_nullish(merged, k)
+        if k == "name" and not nullish:
+            tk = str(merged.get("ticker", "")).split(".")[0].upper()
+            nullish = str(merged.get("name", "")).split(".")[0].upper() in {tk, ""}
+        if nullish and v is not None:
             # Don't overwrite with another 0 sentinel
             if isinstance(v, (int, float)) and v == 0 and k in _NUMERIC_NULL_SENTINELS:
                 continue
@@ -471,9 +479,10 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
         except Exception:
             pass
         # If key fields still missing after FMP, try yfinance gap-fill
-        _CRITICAL_FIELDS = ("pe_ttm", "pb_ratio", "week_52_high", "week_52_low",
+        _CRITICAL_FIELDS = ("name", "market_cap", "change_pct", "pe_ttm", "pb_ratio", "week_52_high", "week_52_low",
                             "analyst_target", "analyst_recommendation", "dividend_yield")
-        missing = [f for f in _CRITICAL_FIELDS if meta.get(f) is None]
+        missing = [f for f in _CRITICAL_FIELDS
+                   if meta.get(f) is None or (f == "name" and str(meta.get("name", "")).upper() == t_up.split(".")[0].upper())]
         if missing:
             try:
                 yf_meta = await asyncio.wait_for(
@@ -489,7 +498,7 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
                         meta["earnings_date"] = yf_meta["earnings_date"]
             except (asyncio.TimeoutError, Exception):
                 log.debug("meta yfinance gap-fill failed for %s (non-critical)", t_up)
-        return _ensure_price(meta, t_up, market)
+        return _ensure_name(_ensure_price(meta, t_up, market), t_up, market)
 
     # ── Phase 2: FMP direct fallback ───────────────────────────────────
     fmp_meta = None
@@ -500,11 +509,12 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
         )
         if isinstance(fmp_meta, dict):
             # Check if key fields are missing — if so, try yfinance to fill gaps
-            _MISSING_FIELDS = ("pe_ttm", "pb_ratio", "week_52_high", "week_52_low",
+            _MISSING_FIELDS = ("name", "market_cap", "change_pct", "pe_ttm", "pb_ratio", "week_52_high", "week_52_low",
                                "analyst_target", "analyst_recommendation", "dividend_yield")
-            missing = [f for f in _MISSING_FIELDS if fmp_meta.get(f) is None]
+            missing = [f for f in _MISSING_FIELDS
+                       if fmp_meta.get(f) is None or (f == "name" and str(fmp_meta.get("name", "")).upper() == t_up.split(".")[0].upper())]
             if not missing:
-                return _ensure_price(fmp_meta, t_up, market)
+                return _ensure_name(_ensure_price(fmp_meta, t_up, market), t_up, market)
             # FMP returned partial data — try yfinance to fill the gaps
             log.info("meta FMP partial for %s, missing: %s — trying yfinance gap-fill", t_up, missing)
             try:
@@ -522,7 +532,7 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
                         fmp_meta["earnings_date"] = yf_meta["earnings_date"]
             except (asyncio.TimeoutError, Exception):
                 log.debug("meta yfinance gap-fill failed for %s (non-critical)", t_up)
-            return _ensure_price(fmp_meta, t_up, market)
+            return _ensure_name(_ensure_price(fmp_meta, t_up, market), t_up, market)
     except asyncio.TimeoutError:
         log.warning("meta FMP timed out for %s", t_up)
 
@@ -533,7 +543,7 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
             timeout=10.0,
         )
         if isinstance(yf_meta, dict):
-            return _ensure_price(yf_meta, t_up, market)
+            return _ensure_name(_ensure_price(yf_meta, t_up, market), t_up, market)
     except asyncio.TimeoutError:
         log.warning("meta yfinance timed out for %s", t_up)
 
@@ -552,6 +562,26 @@ def _ensure_price(meta: dict, ticker: str, market: str) -> dict:
                 meta["current_price"] = round(float(lp), 2)
         except Exception:
             pass
+    return meta
+
+
+def _ensure_name(meta: dict, ticker: str, market: str) -> dict:
+    """Backfill a real company name when meta has name == ticker (FMP profile
+    unavailable). Sources: score_cache long_name, then quantfactor_universe."""
+    if not isinstance(meta, dict):
+        return meta
+    bare = ticker.split(".")[0].upper()
+    if str(meta.get("name", "")).split(".")[0].upper() not in {bare, ""}:
+        return meta
+    try:
+        sc = _read_score_cache(ticker, market)
+        if sc and sc.get("long_name"):
+            nm = str(sc["long_name"])
+            if nm.split(".")[0].upper() != bare:
+                meta["name"] = nm
+                return meta
+    except Exception:
+        pass
     return meta
 
 
@@ -833,11 +863,15 @@ def _fetch_stock_meta_fmp(ticker: str, market: str) -> dict | Exception:
         sector = None
         industry = None
 
+        change_pct = None
+        volume = None
         if quote:
             current_price = quote.get("price")
             mc = quote.get("market_cap")
             hi52 = quote.get("year_high")
             lo52 = quote.get("year_low")
+            change_pct = quote.get("change_pct")
+            volume = quote.get("volume")
 
         if profile:
             name = profile.get("name") or name
@@ -919,6 +953,8 @@ def _fetch_stock_meta_fmp(ticker: str, market: str) -> dict | Exception:
             "industry": industry,
             "dividend_yield": div_pct,
             "current_price": current_price,
+            "change_pct": _safe_round(change_pct, 2),
+            "volume": volume,
         }
 
         # Post-build FMP enrichment: analyst target, grades, earnings, dividends, insider
