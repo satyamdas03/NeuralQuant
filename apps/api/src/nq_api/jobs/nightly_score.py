@@ -98,6 +98,7 @@ def _run_market_from_quantfactor(market: str) -> int:
     # refreshed every 30 min (FMP for US, yfinance for IN) — read it as the
     # price source whenever FMP returns nothing. Keyed bare (strip .NS/.BO).
     snap_prices: dict[str, float] = {}
+    snap_names: dict[str, str] = {}
     try:
         from nq_api.cache.snapshot_cache import read_all_by_market
         for s in read_all_by_market(market, limit=5000):
@@ -105,7 +106,10 @@ def _run_market_from_quantfactor(market: str) -> int:
             p = s.get("price")
             if st and p:
                 snap_prices[st] = float(p)
-        log.info("[%s] snapshot fallback prices: %d tickers", market, len(snap_prices))
+            nm = s.get("company_name") or s.get("long_name") or s.get("name")
+            if st and nm and str(nm).upper() != st:
+                snap_names[st] = str(nm)
+        log.info("[%s] snapshot fallback prices: %d tickers, names: %d", market, len(snap_prices), len(snap_names))
     except Exception as exc:
         log.warning("[%s] snapshot price fallback failed: %s", market, exc)
 
@@ -183,7 +187,7 @@ def _run_market_from_quantfactor(market: str) -> int:
             "debt_equity": 0.0,
             "roe": 0.0,
             "fcf_yield": 0.0,
-            "long_name": r.get("ticker", "") or t,
+            "long_name": snap_names.get(t.upper()) or r.get("long_name") or t,
             "industry": r.get("sub_sector", "") or r.get("sector", "") or "",
             "analyst_rec": "",
             "earnings_date": "",
