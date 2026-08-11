@@ -1,0 +1,67 @@
+# NeuralQuant Phase 1 on Oracle Cloud Free Tier
+# Services: Hermes paper-trading worker + state API only.
+#
+# To run nq-api + web + worker here too, uncomment the api/web sections and adjust
+# the Caddyfile accordingly. Keep Supabase managed.
+#
+# Usage:
+#   1. Copy .env.oracle to /opt/neuralquant/.env
+#   2. docker compose -f /opt/neuralquant/docker-compose.yml up -d --build
+#
+services:
+  # ── Hermes crypto paper-trading worker + state API ───────────────────────
+  hermes:
+    build:
+      context: ../../hermes-trading
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      HERMES_TRADING_MODE: ${HERMES_TRADING_MODE:-paper}
+      HERMES_API_PORT: ${HERMES_API_PORT:-6900}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      # Add exchange keys here (e.g. KRAKEN_API_KEY, KRAKEN_PRIVATE_KEY)
+    volumes:
+      - hermes_state:/app/state
+    expose:
+      - "6900"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:6900/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    # Limit so it doesn't starve the VM on the free tier
+    deploy:
+      resources:
+        limits:
+          cpus: "0.75"
+          memory: "1.5G"
+
+  # ── Caddy reverse proxy + automatic HTTPS ───────────────────────────────
+  # Exposes Hermes on HTTPS at hermes.yourdomain.com or the VM's public IP.
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      HERMES_HOST: ${HERMES_HOST:-hermes}
+      HERMES_PORT: ${HERMES_API_PORT:-6900}
+    depends_on:
+      - hermes
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: "256M"
+
+volumes:
+  hermes_state:
+  caddy_data:
+  caddy_config:
