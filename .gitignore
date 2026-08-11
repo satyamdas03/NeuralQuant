@@ -33,3 +33,15 @@ docs/launch-playbook.md
 
 .vercel
 .gstack/
+.gstack/*.tmp
+
+# audit / smoke / extraction artifacts
+prod_audit_report.json
+smoke_report.json
+docx_extract.txt
+extract_docx.py
+
+# local environment files (examples are tracked)
+apps/api/.env
+apps/web/.env.local
+apps/web/.env.production

@@ -21,7 +21,7 @@ import httpx
 
 DEFAULT_TIMEOUT = 120
 DEFAULT_RETRIES = 2
-BASE_URL = "https://neuralquant.onrender.com"
+BASE_URL = os.environ.get("CRON_BASE_URL", "https://neuralquant.onrender.com")
 
 
 class CronInvokeError(Exception):

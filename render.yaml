@@ -90,6 +90,10 @@ services:
         value: "us-east-1"
       - key: SMOKE_TEST_SECRET
         sync: false
+      - key: HERMES_API_URL
+        sync: false
+      - key: HERMES_API_SECRET
+        sync: false
     plan: pro
     healthCheckPath: /health
 
@@ -108,136 +112,8 @@ services:
     plan: standard
     healthCheckPath: /docs
 
-  - type: worker
-    name: nq-trader
-    runtime: python
-    pythonVersion: 3.12
-    rootDir: .
-    buildCommand: pip install uv && uv sync --frozen --no-dev
-    startCommand: uv run python trade_daemon.py
-    envVars:
-      - key: ANTHROPIC_API_KEY
-        sync: false
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false
-      - key: FMP_API_KEY
-        sync: false
-      - key: FINNHUB_API_KEY
-        sync: false
-      - key: ALPACA_API_KEY
-        sync: false
-      - key: ALPACA_SECRET_KEY
-        sync: false
-      - key: ALPACA_PAPER
-        value: "true"
-      - key: TRADE_ENABLED
-        value: "true"
-      - key: DRY_RUN
-        value: "true"
-      - key: DAILY_LOSS_LIMIT
-        value: "100.0"
-      - key: MAX_BET_DEFAULT
-        value: "5000.0"
-      - key: MAX_POSITIONS_DEFAULT
-        value: "10"
-      - key: TRADE_DAEMON_SCAN_INTERVAL_MINUTES
-        value: "15"
-      - key: TRADE_DAEMON_STRATEGY
-        value: "value_play"
-      - key: TRADE_DAEMON_BANKROLL
-        value: "10000.0"
-      - key: TRADE_DAEMON_TOP_N
-        value: "10"
-      - key: TRADE_DAEMON_MAX_SIGNALS_PER_DAY
-        value: "20"
-    plan: starter
+  # NOTE: nq-trader and quantastra-agent now run on the Oracle Cloud Free Tier VM.
+  # See infra/oracle-cloud/docker-compose.yml.
 
-  - type: worker
-    name: quantastra-agent
-    runtime: python
-    pythonVersion: 3.12
-    rootDir: .
-    buildCommand: pip install uv && uv sync --frozen --no-dev
-    startCommand: uv run python -m quantastra.agent start
-    envVars:
-      - key: LIVEKIT_URL
-        sync: false
-      - key: LIVEKIT_API_KEY
-        sync: false
-      - key: LIVEKIT_API_SECRET
-        sync: false
-      - key: DEEPGRAM_API_KEY
-        sync: false
-      - key: ELEVENLABS_API_KEY
-        sync: false
-      - key: ANTHROPIC_API_KEY
-        sync: false
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false
-      - key: FMP_API_KEY
-        sync: false
-      - key: FINNHUB_API_KEY
-        sync: false
-      - key: LOG_LEVEL
-        value: "INFO"
-    plan: standard
-
-  # ── Cron: Anjali nightly refresh (02:00 UTC daily) ──────────────────
-  - type: cron
-    name: nq-anjali-refresh
-    runtime: python
-    pythonVersion: 3.12
-    rootDir: .
-    schedule: "0 2 * * *"
-    buildCommand: pip install uv && uv sync --frozen --no-dev
-    startCommand: uv run python scripts/cron_invoke.py --endpoint /cron/anjali
-    envVars:
-      - key: CRON_SECRET
-        sync: false
-    plan: starter
-
-  # ── Cron: Market data refresh (20:30 UTC = 4:30pm ET, weekdays) ─────
-  - type: cron
-    name: nq-market-refresh
-    runtime: python
-    pythonVersion: 3.12
-    rootDir: .
-    schedule: "30 20 * * 1-5"
-    buildCommand: pip install uv && uv sync --frozen --no-dev
-    startCommand: uv run python scripts/cron_invoke.py --endpoint /cron/market-refresh
-    envVars:
-      - key: CRON_SECRET
-        sync: false
-    plan: starter
-
-  # ── Cron: Nightly score rebuild — US (02:00 UTC daily) ──────────────
-  - type: cron
-    name: nq-nightly-score-us
-    runtime: python
-    pythonVersion: 3.12
-    rootDir: .
-    schedule: "0 2 * * *"
-    buildCommand: pip install uv && uv sync --frozen --no-dev
-    startCommand: uv run python scripts/cron_invoke.py --endpoint /cron/nightly-score --params "market=US"
-    envVars:
-      - key: CRON_SECRET
-        sync: false
-    plan: starter
-
-  # ── Cron: Nightly score rebuild — IN (02:30 UTC daily) ────────────────
-  - type: cron
-    name: nq-nightly-score-in
-    runtime: python
-    pythonVersion: 3.12
-    rootDir: .
-    schedule: "30 2 * * *"
-    buildCommand: pip install uv && uv sync --frozen --no-dev
-    startCommand: uv run python scripts/cron_invoke.py --endpoint /cron/nightly-score --params "market=IN"
-    envVars:
-      - key: CRON_SECRET
-        sync: false
-    plan: starter
+  # NOTE: Cron jobs (anjali refresh, market refresh, nightly US/IN) now run
+  # on the Oracle Cloud Free Tier VM via host cron. See infra/oracle-cloud/.

@@ -1,0 +1,19 @@
+# NeuralQuant cron jobs running on Oracle Cloud VM
+# Calls Render nq-api endpoints with CRON_SECRET.
+# Install with: crontab -u neuralquant infra/oracle-cloud/crontab.txt
+
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+# All required secrets are loaded by run-cron.sh from /opt/neuralquant/.env
+
+# Anjali value-stocks refresh — 02:00 UTC daily
+0 2 * * * /opt/neuralquant/infra/oracle-cloud/run-cron.sh /cron/anjali
+
+# Nightly score rebuild — US — 02:05 UTC daily
+5 2 * * * /opt/neuralquant/infra/oracle-cloud/run-cron.sh /cron/nightly-score "market=US"
+
+# Nightly score rebuild — India — 02:30 UTC daily
+30 2 * * * /opt/neuralquant/infra/oracle-cloud/run-cron.sh /cron/nightly-score "market=IN"
+
+# Market data refresh — 20:30 UTC weekdays (4:30pm ET)
+30 20 * * 1-5 /opt/neuralquant/infra/oracle-cloud/run-cron.sh /cron/market-refresh

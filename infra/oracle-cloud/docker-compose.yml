@@ -1,15 +1,24 @@
-# NeuralQuant Phase 1 on Oracle Cloud Free Tier
-# Services: Hermes paper-trading worker + state API only.
+# NeuralQuant "now + safe" stack on Oracle Cloud Free Tier
+# Runs on a single Ampere A1 VM (2 OCPU / 12 GB RAM).
 #
-# To run nq-api + web + worker here too, uncomment the api/web sections and adjust
-# the Caddyfile accordingly. Keep Supabase managed.
+# What is here:
+#   - Hermes crypto paper-trading worker + state API
+#   - nq-trader (Alpaca paper-trading daemon)
+#   - quantastra-agent (LiveKit voice agent)
+#   - Caddy reverse proxy + TLS
+#
+# Cron jobs (anjali refresh, market refresh, nightly US/IN) run on the host
+# via cron, calling the Render nq-api with CRON_SECRET.
 #
 # Usage:
-#   1. Copy .env.oracle to /opt/neuralquant/.env
-#   2. docker compose -f /opt/neuralquant/docker-compose.yml up -d --build
+#   1. Copy .env.oracle to /opt/neuralquant/.env and fill secrets.
+#   2. cd /opt/neuralquant
+#   3. docker compose up -d --build
 #
+# Note: Supabase stays managed. nq-api + nq-openbb stay on Render.
+
 services:
-  # ── Hermes crypto paper-trading worker + state API ───────────────────────
+  # ── Hermes crypto paper-trading worker + state API ──────────────────────
   hermes:
     build:
       context: ../../hermes-trading
@@ -20,7 +29,12 @@ services:
       HERMES_TRADING_MODE: ${HERMES_TRADING_MODE:-paper}
       HERMES_API_PORT: ${HERMES_API_PORT:-6900}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
-      # Add exchange keys here (e.g. KRAKEN_API_KEY, KRAKEN_PRIVATE_KEY)
+      HERMES_MODEL: ${HERMES_MODEL:-}
+      HERMES_BIN: ${HERMES_BIN:-}
+      RESEED_STRATEGY: ${RESEED_STRATEGY:-false}
+      # Exchange keys (add all that you have)
+      KRAKEN_API_KEY: ${KRAKEN_API_KEY:-}
+      KRAKEN_PRIVATE_KEY: ${KRAKEN_PRIVATE_KEY:-}
     volumes:
       - hermes_state:/app/state
     expose:
@@ -30,16 +44,68 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 30s
-    # Limit so it doesn't starve the VM on the free tier
+      start_period: 60s
     deploy:
       resources:
         limits:
           cpus: "0.75"
           memory: "1.5G"
 
+  # ── NeuralQuant Alpaca paper-trading daemon ─────────────────────────────
+  nq-trader:
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    command:
+      - uv
+      - run
+      - python
+      - trade_daemon.py
+    environment:
+      ENVIRONMENT: production
+      RENDER: "false"
+      TRADE_ENABLED: ${TRADE_ENABLED:-true}
+      DRY_RUN: ${DRY_RUN:-true}
+      ALPACA_PAPER: ${ALPACA_PAPER:-true}
+      TRADE_DAEMON_SCAN_INTERVAL_MINUTES: ${TRADE_DAEMON_SCAN_INTERVAL_MINUTES:-15}
+      TRADE_DAEMON_STRATEGY: ${TRADE_DAEMON_STRATEGY:-value_play}
+      TRADE_DAEMON_BANKROLL: ${TRADE_DAEMON_BANKROLL:-10000.0}
+      TRADE_DAEMON_TOP_N: ${TRADE_DAEMON_TOP_N:-10}
+      TRADE_DAEMON_MAX_SIGNALS_PER_DAY: ${TRADE_DAEMON_MAX_SIGNALS_PER_DAY:-20}
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "1G"
+    # No ports exposed; daemon polls outbound only.
+
+  # ── QuantAstra / Veronica LiveKit voice agent ───────────────────────────
+  quantastra-agent:
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    command:
+      - uv
+      - run
+      - python
+      - -m
+      - quantastra.agent
+      - start
+    environment:
+      ENVIRONMENT: production
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "1.5G"
+    # No ports exposed; connects outbound to LiveKit.
+
   # ── Caddy reverse proxy + automatic HTTPS ───────────────────────────────
-  # Exposes Hermes on HTTPS at hermes.yourdomain.com or the VM's public IP.
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
