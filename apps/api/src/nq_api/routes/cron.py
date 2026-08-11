@@ -23,7 +23,7 @@ import logging
 import os
 import threading
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Header, HTTPException, Query
 
@@ -275,196 +275,20 @@ def cron_quantfactor_sync_status(authorization: str | None = Header(None)):
     return {"running": is_running, "last_result": _qf_sync_last_result}
 
 
-# ── Market Wrap Broadcast ───────────────────────────────────────────────────
-
-@router.post("/market-wrap")
-def cron_market_wrap(
-    market: str = Query("US", pattern="^(US|IN)$"),
-    authorization: str | None = Header(None),
-):
-    """Manually trigger a market wrap broadcast for all subscribed users.
-
-    Uses the same logic as the scheduled broadcast but triggered on-demand.
-    Requires CRON_SECRET header.
-    """
-    _verify_secret(authorization)
-    threading.Thread(target=_run_market_wrap_broadcast, args=(market,), daemon=True).start()
-    return {"status": "started", "market": market}
-
-
 # ── Onboarding Email Scheduler ───────────────────────────────────────────────────
+# NOTE: Email functionality has been removed. Onboarding emails are disabled.
 
-_EMAIL_WINDOWS = [
-    # (column, age_days, email_fn_name)
-    ("welcome_email_sent_at", 0, "send_welcome_email"),
-    ("debate_demo_email_sent_at", 1, "send_debate_demo_email"),
-    ("screener_email_sent_at", 3, "send_screener_email"),
-    ("upgrade_email_sent_at", 7, "send_upgrade_email"),
-]
+_EMAIL_WINDOWS = []
 
 
 def _run_onboarding_emails():
-    """Dispatch onboarding emails to users matching age windows.
-
-    Runs daily at 09:00 UTC. Queries users table for users whose
-    created_at falls in the right window and whose email column is NULL.
-    """
-    import httpx
-    from nq_api.notify import send_welcome_email, send_debate_demo_email, send_screener_email, send_upgrade_email
-
-    _EMAIL_FNS = {
-        "send_welcome_email": send_welcome_email,
-        "send_debate_demo_email": send_debate_demo_email,
-        "send_screener_email": send_screener_email,
-        "send_upgrade_email": send_upgrade_email,
-    }
-
-    supabase_url = os.environ.get("SUPABASE_URL", "")
-    supabase_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
-    if not supabase_url or not supabase_key:
-        log.warning("[onboarding-emails] SUPABASE_URL or SERVICE_ROLE_KEY not set — skipping")
-        return
-
-    headers = {
-        "apikey": supabase_key,
-        "Authorization": f"Bearer {supabase_key}",
-        "Content-Type": "application/json",
-        "Prefer": "return=representation",
-    }
-    base = f"{supabase_url}/rest/v1/users"
-
-    now = datetime.now(timezone.utc)
-    sent_counts = {col: 0 for col, _, _ in _EMAIL_WINDOWS}
-
-    for column, age_days, fn_name in _EMAIL_WINDOWS:
-        # Calculate the window: users created between (age_days+1) days ago and age_days days ago
-        # Day-0 = created today (0 days ago), Day-1 = created 1 day ago, etc.
-        window_start = now - timedelta(days=age_days + 1)
-        window_end = now - timedelta(days=age_days)
-
-        # PostgREST: use AND filter for compound conditions on same column
-        params = {
-            "select": "id,email,name",
-            "and": f"(created_at.gte.{window_start.isoformat()},created_at.lt.{window_end.isoformat()},{column}.is.null)",
-        }
-
-        try:
-            resp = httpx.get(base, headers=headers, params=params, timeout=15)
-            resp.raise_for_status()
-            users = resp.json()
-        except Exception:
-            log.exception("[onboarding-emails] Failed to query users for %s", column)
-            continue
-
-        if not users:
-            log.info("[onboarding-emails] No users to email for %s (window=%s)", column, age_days)
-            continue
-
-        email_fn = _EMAIL_FNS[fn_name]
-        for user in users:
-            email = user.get("email")
-            if not email:
-                continue
-            name = user.get("name")
-            user_id = user["id"]
-
-            try:
-                if fn_name == "send_welcome_email":
-                    ok = email_fn(email, name=name)
-                else:
-                    ok = email_fn(email)
-            except Exception:
-                log.exception("[onboarding-emails] Failed to send %s to %s", fn_name, email)
-                continue
-
-            if ok:
-                # Mark email sent
-                patch = {column: now.isoformat()}
-                try:
-                    httpx.patch(
-                        f"{base}",
-                        headers=headers,
-                        params={"id": f"eq.{user_id}"},
-                        json=patch,
-                        timeout=10,
-                    )
-                except Exception:
-                    log.exception("[onboarding-emails] Failed to mark %s sent for user %s", column, user_id)
-                sent_counts[column] += 1
-                log.info("[onboarding-emails] Sent %s to %s", fn_name, email)
-            else:
-                log.warning("[onboarding-emails] Email send returned False for %s to %s", fn_name, email)
-
-    log.info("[onboarding-emails] Dispatch complete: %s", sent_counts)
+    """Disabled — onboarding emails removed."""
+    log.info("[onboarding-emails] Skipped (email functionality disabled)")
 
 
 def _run_market_wrap_broadcast(market: str):
-    """Send personalized EOD market wrap emails to all subscribed users.
-
-    Runs after market close:
-      - IN: 11:00 UTC (4:30pm IST)
-      - US: 21:30 UTC (5:30pm ET)
-
-    Each email is personalized with the user's watchlist highlights.
-    Skips users who opted out (email_market_wrap=false).
-    """
-    log.info("[market-wrap] Starting %s market wrap broadcast", market)
-    from nq_api.cache.score_cache import _supabase_rest
-
-    supabase_url = os.environ.get("SUPABASE_URL", "")
-    supabase_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
-    if not supabase_url or not supabase_key:
-        log.warning("[market-wrap] SUPABASE_URL or SERVICE_ROLE_KEY not set — skipping")
-        return
-
-    # Fetch subscribed users (investor tier and above)
-    # tier is text — use PostgREST `in` operator (gte on text columns causes 400)
-    try:
-        users = _supabase_rest(
-            "users",
-            "GET",
-            query={"select": "id,email,name,tier", "tier": "in.(investor,pro,api)"},
-        )
-    except Exception:
-        log.exception("[market-wrap] Failed to fetch users")
-        return
-
-    if not users:
-        log.info("[market-wrap] No subscribed users found")
-        return
-
-    # Fetch opt-out list
-    skip_ids: set[str] = set()
-    try:
-        profiles = _supabase_rest(
-            "user_profiles",
-            "GET",
-            query={"select": "user_id", "email_market_wrap": "eq.false"},
-        )
-        if profiles:
-            skip_ids = {p["user_id"] for p in profiles if p.get("user_id")}
-    except Exception:
-        log.debug("[market-wrap] Could not fetch email preferences — sending to all")
-
-    from nq_api.routes.market_wrap import _send_market_wrap
-
-    sent = 0
-    skipped = 0
-    for u in users:
-        uid = u.get("id")
-        email = u.get("email")
-        if not email:
-            continue
-        if uid and uid in skip_ids:
-            skipped += 1
-            continue
-        try:
-            _send_market_wrap(email, u.get("name", ""), market, uid)
-            sent += 1
-        except Exception:
-            log.exception("[market-wrap] Failed to send to %s", email)
-
-    log.info("[market-wrap] %s broadcast complete: %d sent, %d skipped", market, sent, skipped)
+    """Disabled — market wrap email broadcasts removed."""
+    log.info("[market-wrap] Skipped %s broadcast (email functionality disabled)", market)
 
 
 # ── In-process Scheduler ───────────────────────────────────────────────────────
@@ -483,9 +307,6 @@ async def start_scheduled_jobs():
       - IN scores:       02:30 UTC
       - QuantFactor sync: 03:00 UTC (syncs Excel data → quantfactor_universe)
       - Anjali:          20:30 UTC (QuantFactor Engine enrichment)
-      - Onboarding:      09:00 UTC
-      - IN market wrap:  11:00 UTC (4:30pm IST)
-      - US market wrap:  21:30 UTC (5:30pm ET)
 
     Uses asyncio loop + threading so it doesn't block API requests.
     Only starts once even if lifespan is called multiple times.
@@ -503,9 +324,6 @@ async def start_scheduled_jobs():
         _ran_us_today = ""
         _ran_in_today = ""
         _ran_anjali_today = ""
-        _ran_email_today = ""
-        _ran_wrap_us_today = ""
-        _ran_wrap_in_today = ""
         _ran_qf_sync_today = ""
 
         while True:
@@ -563,24 +381,6 @@ async def start_scheduled_jobs():
                         threading.Thread(target=_run_anjali_bg_wrap, args=("BOTH",), daemon=True).start()
                     else:
                         log.warning("[scheduler] QuantFactor already running, skipping")
-
-                # Onboarding emails at 09:00 UTC
-                if now.hour == 9 and now.minute < 5 and _ran_email_today != today:
-                    _ran_email_today = today
-                    log.info("[scheduler] Triggering onboarding email dispatch at %s", now.isoformat())
-                    threading.Thread(target=_run_onboarding_emails, daemon=True).start()
-
-                # IN market wrap broadcast at 11:00 UTC (4:30pm IST)
-                if now.hour == 11 and now.minute < 5 and _ran_wrap_in_today != today:
-                    _ran_wrap_in_today = today
-                    log.info("[scheduler] Triggering IN market wrap broadcast at %s", now.isoformat())
-                    threading.Thread(target=_run_market_wrap_broadcast, args=("IN",), daemon=True).start()
-
-                # US market wrap broadcast at 21:30 UTC (5:30pm ET)
-                if now.hour == 21 and now.minute >= 25 and now.minute < 35 and _ran_wrap_us_today != today:
-                    _ran_wrap_us_today = today
-                    log.info("[scheduler] Triggering US market wrap broadcast at %s", now.isoformat())
-                    threading.Thread(target=_run_market_wrap_broadcast, args=("US",), daemon=True).start()
 
             except Exception:
                 log.exception("[scheduler] Error in scheduler loop")

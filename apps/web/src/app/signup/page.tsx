@@ -44,7 +44,6 @@ function SignupForm() {
       setError(error.message);
       return;
     }
-    // Fire-and-forget welcome email (backup for Supabase DB trigger)
     if (data.session || data.user) {
       // Track signup completion
       const method = "email";
@@ -54,11 +53,6 @@ function SignupForm() {
       if (shareId) {
         analytics.signupFromShare(shareId).catch(() => {});
       }
-      fetch("/api/auth/welcome", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, name: email.split("@")[0] }),
-      }).catch(() => {/* best-effort */});
     }
     if (data.session) {
       router.push("/dashboard");

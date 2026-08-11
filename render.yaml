@@ -32,8 +32,6 @@ services:
         sync: false
       - key: SUPABASE_JWT_SECRET
         sync: false
-      - key: RESEND_API_KEY
-        sync: false
       - key: FINNHUB_API_KEY
         sync: false
       - key: FMP_API_KEY
@@ -211,34 +209,6 @@ services:
     schedule: "30 20 * * 1-5"
     buildCommand: pip install uv && uv sync --frozen --no-dev
     startCommand: uv run python scripts/cron_invoke.py --endpoint /cron/market-refresh
-    envVars:
-      - key: CRON_SECRET
-        sync: false
-    plan: starter
-
-  # ── Cron: IN market wrap broadcast (11:00 UTC = 4:30pm IST, weekdays) ──
-  - type: cron
-    name: nq-wrap-in
-    runtime: python
-    pythonVersion: 3.12
-    rootDir: .
-    schedule: "0 11 * * 1-5"
-    buildCommand: pip install uv && uv sync --frozen --no-dev
-    startCommand: uv run python scripts/cron_invoke.py --endpoint /cron/market-wrap --params "market=IN"
-    envVars:
-      - key: CRON_SECRET
-        sync: false
-    plan: starter
-
-  # ── Cron: US market wrap broadcast (21:30 UTC = 5:30pm ET, weekdays) ──
-  - type: cron
-    name: nq-wrap-us
-    runtime: python
-    pythonVersion: 3.12
-    rootDir: .
-    schedule: "30 21 * * 1-5"
-    buildCommand: pip install uv && uv sync --frozen --no-dev
-    startCommand: uv run python scripts/cron_invoke.py --endpoint /cron/market-wrap --params "market=US"
     envVars:
       - key: CRON_SECRET
         sync: false

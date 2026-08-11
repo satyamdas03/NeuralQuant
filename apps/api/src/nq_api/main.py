@@ -23,7 +23,7 @@ from fastapi import FastAPI, Header
 from fastapi.middleware.cors import CORSMiddleware
 
 from nq_api.config import CORS_ORIGINS, CORS_ORIGIN_REGEX, FRONTEND_URL
-from nq_api.routes import stocks, screener, analyst, query, market, auth, watchlists, sentiment, backtest, alerts, newsdesk, team, broker, trade, live, live_dashboard
+from nq_api.routes import stocks, screener, analyst, query, market, auth, watchlists, sentiment, backtest, newsdesk, team, broker, trade, live, live_dashboard
 from nq_api.routes.terminal import router as terminal_router
 from nq_api.routes.auth_webhook import router as auth_webhook_router
 from nq_api.routes.market_wrap import router as market_wrap_router
@@ -509,7 +509,6 @@ app.include_router(auth.router)         # /auth/me
 app.include_router(watchlists.router)   # /watchlist
 app.include_router(sentiment.router, prefix="/sentiment", tags=["sentiment"])
 app.include_router(backtest.router,  prefix="/backtest",  tags=["backtest"])
-app.include_router(alerts.router)
 app.include_router(newsdesk.router)
 app.include_router(checkout_router)
 app.include_router(checkout_stripe_router)
@@ -745,24 +744,38 @@ async def health_smoke(x_cron_secret: str | None = Header(default=None)):
 def health_score_cache():
     """Return score-cache freshness. 503 if stale >2h."""
     from nq_api.cache.score_cache import _supabase_rest
+    import httpx
+
     data = _supabase_rest(
         "score_cache",
         "GET",
         {"select": "computed_at", "order": "computed_at.desc", "limit": "1"},
     )
-    count_data = _supabase_rest(
-        "score_cache",
-        "GET",
-        {"select": "count()"},
-    )
+
+    # Row count via PostgREST Content-Range header (helper doesn't expose it)
     rows = None
-    if isinstance(count_data, list) and count_data:
-        rows = count_data[0].get("count")
+    try:
+        sb_url = os.environ.get("SUPABASE_URL", "")
+        sb_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+        if sb_url and sb_key:
+            r = httpx.head(
+                f"{sb_url}/rest/v1/score_cache?select=ticker",
+                headers={"apikey": sb_key, "Authorization": f"Bearer {sb_key}",
+                         "Prefer": "count=exact", "Range": "0-0"},
+                timeout=3.0,
+            )
+            cr = r.headers.get("content-range", "")
+            if "/" in cr:
+                count_part = cr.split("/")[-1]
+                if count_part.isdigit():
+                    rows = int(count_part)
+    except Exception:
+        pass
 
     if isinstance(data, list) and data:
         last = data[0].get("computed_at")
         if last:
-            from datetime import datetime, timezone, timedelta
+            from datetime import datetime, timezone
             try:
                 dt = datetime.fromisoformat(last.replace("Z", "+00:00"))
                 age_seconds = (datetime.now(timezone.utc) - dt).total_seconds()

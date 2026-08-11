@@ -237,9 +237,9 @@ def end_session(
     name = email.split("@")[0] if email else None
 
     if email and duration_seconds and duration_seconds > 30:
-        from nq_api.session_analysis import analyze_and_email
+        from nq_api.session_analysis import analyze_and_store
         background_tasks.add_task(
-            analyze_and_email,
+            analyze_and_store,
             session_id=body.session_id,
             user_id=str(stored_uid),
             user_email=email,

@@ -102,7 +102,6 @@ export interface UserProfile {
   goal: "wealth_building" | "retirement" | "education" | "passive_income" | "tax_saving";
   investable_amount?: string;
   updated_at?: string;
-  email_market_wrap?: boolean;
 }
 
 export interface QueryRequest {
@@ -354,30 +353,6 @@ export interface AccuracyResponse {
   score_breakdown?: ScoreBreakdownItem[];
   top_stocks_snapshot?: TopStockItem[];
 }
-
-export type AlertType = "score_change" | "regime_change" | "threshold";
-
-export interface AlertSubscription {
-  id: string;
-  ticker: string;
-  market: "US" | "IN";
-  alert_type: AlertType;
-  threshold: number | null;
-  min_delta: number;
-  last_triggered_at: string | null;
-  created_at: string;
-}
-
-export interface AlertDelivery {
-  id: string;
-  ticker: string;
-  market: "US" | "IN";
-  alert_type: AlertType;
-  old_value: number | null;
-  new_value: number | null;
-  delivered_at: string;
-}
-
 
 // ── Structured Query Response (v2) ──────────────────────────────────────────
 

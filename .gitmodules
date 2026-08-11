@@ -1,0 +1,3 @@
+[submodule "hermes-trading"]
+	path = hermes-trading
+	url = https://github.com/satyamdas03/hermes-trading.git

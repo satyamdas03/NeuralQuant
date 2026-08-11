@@ -116,7 +116,6 @@ class UserProfile(BaseModel):
     time_horizon: str  # <1yr | 1-3yr | 3-5yr | 5yr+
     goal: str  # wealth_building | retirement | education | passive_income | tax_saving
     investable_amount: str | None = None
-    email_market_wrap: bool = True  # opt-in for daily market wrap emails
 
 
 class QueryRequest(BaseModel):

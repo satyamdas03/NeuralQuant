@@ -5,7 +5,7 @@ import type {
   MarketOverview, MarketNews, MarketSectors,
   MarketMovers, StockChart, StockMeta, OptionsSnapshot,
   SentimentResponse, BacktestRequest, AccuracyResponse,
-  AlertSubscription, AlertDelivery, NewsDeskResponse,
+  NewsDeskResponse,
   UserProfile,
   TerminalEndpoint, TerminalCategory, TerminalQueryResult, TerminalHealth,
   TradeSignalsResponse, TradeStrategy, CalibrationReport, RiskProfileConfig,
@@ -87,22 +87,6 @@ export const authedApi = {
     }),
   deleteWatchlist: (id: string) =>
     authedFetch<void>(`/watchlist/${id}`, { method: "DELETE" }),
-
-  // Alerts
-  listAlertSubscriptions: () =>
-    authedFetch<{ items: AlertSubscription[]; count: number }>("/alerts/subscriptions"),
-  createAlertSubscription: (body: {
-    ticker: string; market?: "US" | "IN"; alert_type?: "score_change" | "regime_change" | "threshold";
-    threshold?: number; min_delta?: number;
-  }) =>
-    authedFetch<AlertSubscription>("/alerts/subscriptions", {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
-  deleteAlertSubscription: (id: string) =>
-    authedFetch<void>(`/alerts/subscriptions/${id}`, { method: "DELETE" }),
-  listAlertDeliveries: (limit = 20) =>
-    authedFetch<{ items: AlertDelivery[]; count: number }>(`/alerts/deliveries?limit=${limit}`),
 
   // User Profile
   getUserProfile: () =>

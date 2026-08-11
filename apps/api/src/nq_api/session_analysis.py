@@ -1,6 +1,7 @@
-"""Session analysis pipeline — fetch activities, generate MoM report via Claude, email via Resend.
+"""Session analysis pipeline — fetch activities, generate MoM report via Claude, store.
 
-Called as a background task from POST /session/end.
+Called as a background task from POST /session/end. Emails are disabled; reports
+are stored in session_reports and surfaced through /session/reports.
 """
 
 from __future__ import annotations
@@ -11,7 +12,6 @@ import os
 from datetime import datetime, timezone
 
 from nq_api.cache.score_cache import _supabase_rest
-from nq_api.notify import RESEND_FROM, FRONTEND_URL, _resend_client
 
 log = logging.getLogger(__name__)
 
@@ -97,7 +97,7 @@ def _generate_report_via_claude(
 
     greeting_name = user_name or "there"
 
-    prompt = f"""You are writing a post-session summary email for a user of NeuralQuant, an AI-powered stock analysis platform.
+    prompt = f"""You are writing a post-session summary for a user of NeuralQuant, an AI-powered stock analysis platform.
 
 The user just finished a {duration_minutes}-minute session. Here is everything they did:
 
@@ -224,109 +224,18 @@ def _store_report(session_id: str, user_id: str, report_text: str, summary: str)
         return None
 
 
-import time as _time
-
-
-def _send_report_email(to: str, subject: str, html_body: str) -> bool:
-    """Send the session report email via Resend with retry.
-
-    Returns True only if the API confirms delivery.
-    Returns False on misconfiguration or persistent failure so callers can alert.
-    """
-    resend = _resend_client()
-    if not resend or not os.environ.get("RESEND_API_KEY"):
-        log.warning("RESEND_API_KEY not set — cannot send report email: %s -> %s", subject, to)
-        return False
-
-    for attempt in range(1, 4):
-        try:
-            resend.Emails.send({
-                "from": RESEND_FROM,
-                "to": to,
-                "subject": subject,
-                "html": html_body,
-            })
-            log.info("Session report email sent: %s -> %s (attempt %d)", subject, to, attempt)
-            return True
-        except Exception:
-            log.exception("Failed to send session report email to %s (attempt %d)", to, attempt)
-            if attempt < 3:
-                _time.sleep(2 ** attempt)  # 2s, 4s, then give up
-    return False
-
-
-def _mark_report_sent(report_id: str) -> None:
-    """Mark a report as emailed."""
-    try:
-        _supabase_rest(
-            "session_reports",
-            method="PATCH",
-            query={"id": f"eq.{report_id}"},
-            body=[{
-                "email_sent": True,
-                "email_sent_at": datetime.now(timezone.utc).isoformat(),
-            }],
-        )
-    except Exception:
-        log.exception("Failed to mark report %s as sent", report_id)
-
-
-def _build_email_html(report_body: str, user_name: str | None) -> str:
-    """Wrap the report body in NeuralQuant-branded HTML."""
-    greeting_name = user_name or "there"
-
-    # Convert plain text sections to HTML
-    # Split on section headers (lines starting with emoji or bold markers)
-    body_html = ""
-    for line in report_body.strip().split("\n"):
-        line = line.strip()
-        if not line:
-            body_html += "<br>"
-        elif line.startswith("📋") or line.startswith("💡") or line.startswith("🔍") or line.startswith("**"):
-            # Section header
-            clean = line.replace("**", "")
-            body_html += f'<p style="font-size:16px;font-weight:700;margin:20px 0 8px;color:#bdf4ff;">{clean}</p>'
-        elif line.startswith("•") or line.startswith("-"):
-            body_html += f'<p style="margin:4px 0 4px 16px;font-size:14px;">{line}</p>'
-        else:
-            body_html += f'<p style="margin:4px 0;font-size:14px;line-height:1.6;">{line}</p>'
-
-    return f"""
-    <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 560px;
-                margin: 0 auto; background: #0f0f1a; color: #e0e0e0;
-                border-radius: 12px; overflow: hidden;">
-      <div style="padding: 28px 32px; background: linear-gradient(135deg, #00ffb2 0%, #0a3d2a 100%);
-                  color: #050a0f;">
-        <h1 style="margin: 0; font-size: 20px; letter-spacing: -0.3px;">NeuralQuant</h1>
-        <p style="margin: 6px 0 0; font-size: 13px; opacity: 0.8;">Session Minutes</p>
-      </div>
-      <div style="padding: 24px 32px;">
-        {body_html}
-      </div>
-      <div style="padding: 20px 32px; border-top: 1px solid #1e1e30;">
-        <p style="margin: 0; font-size: 12px; color: #a0a0b0;">
-          <a href="{FRONTEND_URL}/dashboard" style="color: #00ffb2;">Dashboard</a>
-           · <a href="{FRONTEND_URL}/query" style="color: #00ffb2;">Ask Morgan</a>
-           · <a href="{FRONTEND_URL}/screener" style="color: #00ffb2;">Screener</a>
-        </p>
-        <p style="margin: 8px 0 0; font-size: 11px; color: #606070;">
-          You received this because you signed up at neuralquant.co. Session reports help you track your research.
-        </p>
-      </div>
-    </div>
-    """
-
-
-# ── Main entry point ─────────────────────────────────────────────────────
-
-def analyze_and_email(
+def analyze_and_store(
     session_id: str,
     user_id: str,
     user_email: str,
     user_name: str | None,
     duration_seconds: int,
 ) -> None:
-    """Full pipeline: fetch activities → generate report → store → email."""
+    """Full pipeline: fetch activities → generate report → store.
+
+    Emails are disabled; reports are stored and available via /session/reports.
+    The `user_email` argument is kept for signature compatibility but unused.
+    """
     log.info("Starting session analysis for %s (user=%s, duration=%ds)",
              session_id, user_id, duration_seconds)
 
@@ -347,27 +256,3 @@ def analyze_and_email(
 
     report_id = _store_report(session_id, user_id, report_text, summary)
     log.info("Report stored: %s for session %s", report_id, session_id)
-
-    # Extract subject from report (first meaningful line, or use default)
-    subject = f"Your NeuralQuant Session Summary — {duration_minutes}min"
-    for line in report_text.strip().split("\n"):
-        clean = line.strip()
-        if clean and not clean.startswith("**") and not clean.startswith("Hi") and not clean.startswith("Hey") and len(clean) > 10:
-            # Use first non-greeting content line as subject material
-            pass
-        if clean.startswith("SUBJECT:"):
-            subject = clean.split(":", 1)[1].strip().strip('"')
-            break
-
-    # Build HTML email
-    # Strip any SUBJECT: line from body for the email
-    email_body = report_text
-    if email_body.strip().split("\n")[0].upper().startswith("SUBJECT:"):
-        email_body = "\n".join(email_body.strip().split("\n")[1:]).strip()
-
-    html = _build_email_html(email_body, user_name)
-    sent = _send_report_email(user_email, subject, html)
-
-    if sent and report_id:
-        _mark_report_sent(report_id)
-        log.info("Session report emailed to %s for session %s", user_email, session_id)

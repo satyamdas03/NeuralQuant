@@ -1,43 +1,23 @@
-"""Daily Market Wrap — scheduled email with market snapshot and NeuralQuant picks.
+"""Daily Market Wrap — JSON-only after email removal.
 
 This module provides:
-1. POST /market-wrap/send — Trigger a market wrap email to a specific user
-2. POST /market-wrap/broadcast — Send to all subscribed users (admin only)
+1. GET /market-wrap/today — Return the daily market wrap data as JSON
 
-The email content is built from live market data + score_cache.
-A GitHub Actions cron or scheduled task can call /market-wrap/broadcast daily.
+Email broadcast endpoints have been removed. No emails are sent.
 """
 from __future__ import annotations
 import asyncio
 import logging
-import os
 from datetime import datetime, timezone
-from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends
 
-from nq_api.config import FRONTEND_URL
 from nq_api.auth.models import User
 from nq_api.auth.rate_limit import get_current_user
 from nq_api.auth.deps import get_current_user_optional
-from nq_api.notify import RESEND_FROM, _send_email_with_retry
-from nq_api.services.prompts import MARKET_WRAP_PROMPT, MARKET_WRAP_PERSONALIZED_PROMPT
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/market-wrap", tags=["market-wrap"])
-
-
-class MarketWrapRequest(BaseModel):
-    email: str
-    name: Optional[str] = None
-    market: str = "US"
-    user_id: Optional[str] = None
-
-
-class BroadcastRequest(BaseModel):
-    market: str = "US"
-    tier: str = "investor"  # minimum tier to receive
 
 
 def _get_watchlist_scores(user_id: str, market: str, limit: int = 5) -> list[dict]:
@@ -79,8 +59,7 @@ def _get_watchlist_scores(user_id: str, market: str, limit: int = 5) -> list[dic
 
     # PostgREST IN filter — match score_cache rows for exactly the watchlist
     # tickers (bare, no .NS — that's how score_cache stores them), scoped to the
-    # requested market. The old code passed a raw query string with an invalid
-    # OR syntax, so PostgREST dropped every filter and returned the whole table.
+    # requested market.
     try:
         scores = _supabase_rest(
             "score_cache",
@@ -121,254 +100,6 @@ def _get_watchlist_scores(user_id: str, market: str, limit: int = 5) -> list[dic
         row["verdict"] = _verdict(float(row["score_1_10"]))
 
     return scores
-
-
-def _build_market_wrap_html(
-    market_data: dict,
-    top_picks: list[dict],
-    market: str = "US",
-    name: str | None = None,
-    watchlist_picks: list[dict] | None = None,
-    narrative: str | None = None,
-) -> str:
-    """Build the daily market wrap email HTML with optional personalization."""
-    market_label = "NIFTY 500" if market == "IN" else "S&P 500"
-
-    # Personal greeting
-    greeting = f"Hi {name}," if name else "Hi,"
-
-    # Market snapshot section
-    indices_html = ""
-    for idx in market_data.get("indices", []):
-        change_icon = "▲" if idx.get("change_pct", 0) >= 0 else "▼"
-        change_color = "#4ade80" if idx.get("change_pct", 0) >= 0 else "#f87171"
-        indices_html += f"""
-        <tr>
-          <td style="padding: 8px 0; font-weight: 600;">{idx.get('name', 'N/A')}</td>
-          <td style="padding: 8px 0; text-align: right;">{idx.get('price', 'N/A'):,.2f}</td>
-          <td style="padding: 8px 0; text-align: right; color: {change_color};">
-            {change_icon} {idx.get('change_pct', 0):.2f}%
-          </td>
-        </tr>"""
-
-    def _pick_rows(picks: list[dict]) -> str:
-        html = ""
-        for pick in picks[:5]:
-            score = pick.get("score_1_10") or 0  # canonical 0-10
-            score_bar = max(0, min(10, int(round(score))))
-            html += f"""
-        <tr>
-          <td style="padding: 8px 0; font-weight: 600; color: #c1c1ff;">
-            <a href="{FRONTEND_URL}/stocks/{pick.get('ticker', '')}?market={market}"
-               style="color: #c1c1ff; text-decoration: none;">
-              {pick.get('ticker', 'N/A')}
-            </a>
-          </td>
-          <td style="padding: 8px 0; text-align: center;">
-            <span style="background: linear-gradient(135deg, #c1c1ff, #bdf4ff);
-                          padding: 4px 12px; border-radius: 4px; color: #0e0e0e; font-weight: 600;">
-              {score_bar}/10
-            </span>
-          </td>
-          <td style="padding: 8px 0; text-align: right; color: #a0a0b0;">
-            {pick.get('sector', 'N/A')}
-          </td>
-        </tr>"""
-        return html
-
-    picks_html = _pick_rows(top_picks)
-
-    # Watchlist highlights section (only if user has watchlist picks)
-    watchlist_html = ""
-    if watchlist_picks:
-        watchlist_html = f"""
-      <div style="padding: 0 32px 24px;">
-        <h2 style="font-size: 16px; margin: 0 0 12px; color: #bdf4ff;">Your Watchlist Highlights</h2>
-        <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
-          <tr style="border-bottom: 1px solid #1e1e30;">
-            <th style="padding: 8px 0; text-align: left; color: #a0a0b0;">Ticker</th>
-            <th style="padding: 8px 0; text-align: center; color: #a0a0b0;">Score</th>
-            <th style="padding: 8px 0; text-align: right; color: #a0a0b0;">Sector</th>
-          </tr>
-          {_pick_rows(watchlist_picks)}
-        </table>
-      </div>"""
-
-    today = datetime.now(timezone.utc).strftime("%A, %B %d, %Y")
-
-    # Personalized narrative
-    narrative_html = ""
-    if narrative:
-        narrative_html = f"""
-      <div style="padding: 0 32px 16px;">
-        <p style="font-size: 15px; line-height: 1.6; margin: 0; color: #e0e0e0;">
-          {narrative}
-        </p>
-      </div>"""
-
-    return f"""
-    <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 520px;
-                margin: 0 auto; background: #0f0f1a; color: #e0e0e0;
-                border-radius: 12px; overflow: hidden;">
-      <div style="padding: 28px 32px; background: linear-gradient(135deg, #c1c1ff 0%, #bdf4ff 100%);
-                  color: #0e0e0e;">
-        <p style="margin: 0; font-size: 12px; opacity: 0.7;">{today}</p>
-        <h1 style="margin: 4px 0 0; font-size: 22px;">NeuralQuant Daily Wrap</h1>
-        <p style="margin: 4px 0 0; font-size: 14px; opacity: 0.8;">{greeting} {market_label} Market Snapshot</p>
-      </div>
-{narrative_html}
-      <div style="padding: 24px 32px;">
-        <h2 style="font-size: 16px; margin: 0 0 12px; color: #bdf4ff;">Market Snapshot</h2>
-        <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
-          <tr style="border-bottom: 1px solid #1e1e30;">
-            <th style="padding: 8px 0; text-align: left; color: #a0a0b0;">Index</th>
-            <th style="padding: 8px 0; text-align: right; color: #a0a0b0;">Price</th>
-            <th style="padding: 8px 0; text-align: right; color: #a0a0b0;">Change</th>
-          </tr>
-          {indices_html}
-        </table>
-      </div>
-{watchlist_html}
-      <div style="padding: 0 32px 24px;">
-        <h2 style="font-size: 16px; margin: 0 0 12px; color: #bdf4ff;">Top NeuralQuant Picks</h2>
-        <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
-          <tr style="border-bottom: 1px solid #1e1e30;">
-            <th style="padding: 8px 0; text-align: left; color: #a0a0b0;">Ticker</th>
-            <th style="padding: 8px 0; text-align: center; color: #a0a0b0;">Score</th>
-            <th style="padding: 8px 0; text-align: right; color: #a0a0b0;">Sector</th>
-          </tr>
-          {picks_html}
-        </table>
-      </div>
-
-      <div style="padding: 20px 32px; border-top: 1px solid #1e1e30;">
-        <a href="{FRONTEND_URL}/screener"
-           style="display: inline-block; padding: 12px 28px;
-                  background: linear-gradient(135deg, #c1c1ff, #bdf4ff);
-                  color: #0e0e0e; border-radius: 8px; text-decoration: none;
-                  font-weight: 600; font-size: 15px;">
-          Explore All Picks →
-        </a>
-      </div>
-
-      <div style="padding: 16px 32px; border-top: 1px solid #1e1e30;">
-        <p style="margin: 0; font-size: 12px; color: #a0a0b0;">
-          NeuralQuant · AI-powered stock intelligence<br>
-          <a href="{FRONTEND_URL}" style="color: #bdf4ff;">neuralquant.ai</a>
-        </p>
-      </div>
-    </div>"""
-
-
-def _generate_wrap_narrative(
-    market_data: dict,
-    top_picks: list[dict],
-    watchlist_picks: list[dict] | None,
-    market: str,
-    name: str | None,
-) -> str:
-    """Generate market wrap narrative via Claude. Returns empty string on failure."""
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        return ""
-
-    # Format market snapshot
-    indices = market_data.get("indices", [])
-    market_snapshot = ""
-    for idx in indices:
-        market_snapshot += f"- {idx.get('name', 'N/A')}: {idx.get('price', 'N/A')} ({idx.get('change_pct', 0):+.2f}%)\n"
-
-    # Format top picks
-    top_picks_text = ""
-    for pick in top_picks[:3]:
-        top_picks_text += f"- {pick.get('ticker', 'N/A')}: Score {pick.get('score_1_10', 0):.1f}/10 ({pick.get('sector', 'N/A')})\n"
-
-    if watchlist_picks:
-        holdings_text = ""
-        for h in watchlist_picks[:5]:
-            chg = h.get("change_pct")
-            chg_str = f"{chg:+.2f}%" if chg is not None else "N/A"
-            holdings_text += (
-                f"- {h.get('ticker', 'N/A')}: Score {h.get('score_1_10', 0):.1f}/10, "
-                f"{chg_str} today, verdict: {h.get('verdict', 'N/A')}\n"
-            )
-        prompt = MARKET_WRAP_PERSONALIZED_PROMPT.format(
-            market_snapshot=market_snapshot,
-            top_picks=top_picks_text,
-            holdings_context=holdings_text,
-        )
-    else:
-        prompt = MARKET_WRAP_PROMPT.format(
-            market_snapshot=market_snapshot,
-            top_picks=top_picks_text,
-        )
-
-    try:
-        from nq_api.services.constants import USE_BEDROCK
-        if USE_BEDROCK:
-            from nq_api.services.bedrock_client import bedrock
-            client = bedrock
-        else:
-            import anthropic
-            client = anthropic.Anthropic(api_key=api_key, timeout=30.0)
-        response = client.messages.create(
-            model=os.environ.get("ANTHROPIC_DEFAULT_SONNET_MODEL", "claude-sonnet-4-6"),
-            max_tokens=256,
-            system="You are NeuralQuant's senior market writer. Be concise and data-driven.",
-            messages=[{"role": "user", "content": prompt}],
-        )
-        for block in response.content:
-            if block.type == "text":
-                return block.text.strip()
-    except Exception:
-        logger.debug("Market wrap narrative generation failed")
-    return ""
-
-
-def _send_market_wrap(to: str, name: str | None, market: str,
-                      user_id: str | None = None) -> bool:
-    """Fetch market data and top picks, build HTML, send via Resend."""
-    from nq_api.routes.market import _market_overview_sync
-    from nq_api.cache.score_cache import read_top_picks
-
-    # Fetch market snapshot
-    try:
-        market_data = _market_overview_sync(market)
-    except Exception:
-        logger.exception("Market wrap: failed to fetch market data")
-        market_data = {"indices": [], "futures": []}
-
-    # Fetch top picks from score_cache
-    try:
-        top_picks = read_top_picks(market=market, limit=5)
-    except Exception:
-        logger.exception("Market wrap: failed to fetch top picks")
-        top_picks = []
-
-    # Fetch personalized watchlist scores
-    watchlist_picks = None
-    if user_id:
-        try:
-            watchlist_picks = _get_watchlist_scores(user_id, market, limit=5)
-        except Exception:
-            logger.debug("Market wrap: failed to fetch watchlist scores for %s", user_id)
-
-    # Generate personalized narrative only when watchlist is present
-    narrative = None
-    if watchlist_picks:
-        try:
-            narrative = _generate_wrap_narrative(
-                market_data, top_picks, watchlist_picks, market, name
-            )
-        except Exception:
-            logger.debug("Market wrap: narrative generation failed for %s", user_id)
-
-    html = _build_market_wrap_html(
-        market_data, top_picks, market, name, watchlist_picks, narrative
-    )
-    subject = f"NeuralQuant Daily Wrap — {market_label(market)}"
-
-    return _send_email_with_retry(to, subject, html)
 
 
 def market_label(market: str) -> str:
@@ -437,85 +168,3 @@ async def get_today_market_wrap(
         "top_picks": top_picks,
         "watchlist_picks": watchlist_picks,
     }
-
-
-@router.post("/send")
-async def send_market_wrap(
-    req: MarketWrapRequest,
-    background_tasks: BackgroundTasks,
-    user: User = Depends(get_current_user),
-):
-    """Send a market wrap email to the requesting user.
-
-    When the user has watchlist stocks, the wrap includes a personalized
-    narrative generated by Claude mentioning their holdings.
-    """
-    uid = req.user_id or user.id
-    background_tasks.add_task(_send_market_wrap, req.email, req.name, req.market, uid)
-    return {"status": "queued", "email": req.email, "market": req.market}
-
-
-@router.post("/broadcast")
-async def broadcast_market_wrap(
-    req: BroadcastRequest,
-    background_tasks: BackgroundTasks,
-    user: User = Depends(get_current_user),
-):
-    """Admin: Send personalized market wrap to all subscribed users above the given tier.
-
-    Each email includes the user's watchlist highlights alongside top NeuralQuant picks.
-    Users who have set email_market_wrap=false in their profile are skipped.
-    Requires RESEND_API_KEY and SUPABASE_SERVICE_ROLE_KEY.
-    """
-    if user.tier not in ("pro", "api"):
-        raise HTTPException(403, "Broadcast requires pro or api tier")
-
-    from nq_api.cache.score_cache import _supabase_rest
-
-    # Fetch subscribed users from Supabase
-    try:
-        # tier is text, not numeric — use PostgREST `in` operator for tier >= requested
-        # (gte does NOT work on text/enum columns; causes 400 Bad Request)
-        _TIER_ORDER = {"free": 0, "investor": 1, "pro": 2, "api": 3}
-        min_level = _TIER_ORDER.get(req.tier, 1)
-        allowed = [t for t, lvl in _TIER_ORDER.items() if lvl >= min_level]
-        allowed_csv = ",".join(allowed)
-        users = _supabase_rest(
-            "users",
-            "GET",
-            query={"select": "email,name,tier,id", "tier": f"in.({allowed_csv})"},
-        )
-    except Exception as e:
-        raise HTTPException(500, f"Failed to fetch users: {e}")
-
-    if not users:
-        return {"status": "no_recipients", "count": 0}
-
-    # Fetch opt-out list from user_profiles
-    skip_ids: set[str] = set()
-    try:
-        profiles = _supabase_rest(
-            "user_profiles?email_market_wrap=eq.false&select=user_id"
-        )
-        if profiles:
-            skip_ids = {p["user_id"] for p in profiles if p.get("user_id")}
-    except Exception:
-        logger.debug("Could not fetch email preferences — sending to all")
-
-    count = 0
-    skipped = 0
-    for u in users:
-        uid = u.get("id")
-        email = u.get("email")
-        if not email:
-            continue
-        if uid and uid in skip_ids:
-            skipped += 1
-            continue
-        background_tasks.add_task(
-            _send_market_wrap, email, u.get("name"), req.market, uid
-        )
-        count += 1
-
-    logger.info("Market wrap broadcast: %d queued, %d skipped (opt-out)", count, skipped)
-    return {"status": "queued", "recipients": count, "skipped": skipped, "market": req.market}
