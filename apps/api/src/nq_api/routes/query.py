@@ -131,7 +131,7 @@ async def run_nl_query(
         _timed(asyncio.to_thread(_fetch_enrichment, effective_ticker, req.market or 'US'), 15.0, {}),
         _timed(asyncio.to_thread(_fetch_relevant_news, req.question, req.ticker, 5), 8.0, []),
         _timed(asyncio.to_thread(_build_macro_context, req.question, req.market or "US", today), 10.0, None),
-        _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, req.market or "US"), 20.0, None),
+        _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, req.market or "US", effective_ticker), 20.0, None),
         _timed(asyncio.to_thread(_fetch_finnhub_news_summaries, req.ticker, req.market or "US", 5), 8.0, []),
     )
 
@@ -359,7 +359,7 @@ async def run_nl_query_v2(
     headlines, macro_ctx, platform_ctx, finnhub_news, enrichment = await asyncio.gather(
         _timed(asyncio.to_thread(_fetch_relevant_news, req.question, effective_ticker_v2, 5), 8.0, []),
         _timed(asyncio.to_thread(_build_macro_context, req.question, effective_market_v2, today), 10.0, None),
-        _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, effective_market_v2), 25.0, None),
+        _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, effective_market_v2, effective_ticker_v2), 25.0, None),
         _timed(asyncio.to_thread(_fetch_finnhub_news_summaries, effective_ticker_v2, effective_market_v2, 5), 8.0, []),
         _timed(asyncio.to_thread(_fetch_enrichment, effective_ticker_v2, effective_market_v2), 15.0, {}),
     )
@@ -877,7 +877,7 @@ async def run_nl_query_v2_stream(
             headlines, macro_ctx, platform_ctx, finnhub_news, enrichment = await asyncio.gather(
                 _timed(asyncio.to_thread(_fetch_relevant_news, req.question, stream_ticker, 5), 8.0, []),
                 _timed(asyncio.to_thread(_build_macro_context, req.question, stream_market, today), 10.0, None),
-                _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, stream_market), 25.0, None),
+                _timed(asyncio.to_thread(_enrich_with_platform_data, req.question, stream_market, stream_ticker), 25.0, None),
                 _timed(asyncio.to_thread(_fetch_finnhub_news_summaries, stream_ticker, stream_market, 5), 8.0, []),
                 _timed(asyncio.to_thread(_fetch_enrichment, stream_ticker, stream_market), 15.0, {}),
             )

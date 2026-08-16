@@ -99,6 +99,7 @@ def _run_market_from_quantfactor(market: str) -> int:
     # price source whenever FMP returns nothing. Keyed bare (strip .NS/.BO).
     snap_prices: dict[str, float] = {}
     snap_names: dict[str, str] = {}
+    snap_meta: dict[str, dict] = {}  # full snapshot row keyed by bare ticker (market_cap, 52wk, target)
     try:
         from nq_api.cache.snapshot_cache import read_all_by_market
         for s in read_all_by_market(market, limit=5000):
@@ -109,7 +110,9 @@ def _run_market_from_quantfactor(market: str) -> int:
             nm = s.get("company_name") or s.get("long_name") or s.get("name")
             if st and nm and str(nm).upper() != st:
                 snap_names[st] = str(nm)
-        log.info("[%s] snapshot fallback prices: %d tickers, names: %d", market, len(snap_prices), len(snap_names))
+            if st:
+                snap_meta[st] = s
+        log.info("[%s] snapshot fallback prices: %d tickers, names: %d, meta: %d", market, len(snap_prices), len(snap_names), len(snap_meta))
     except Exception as exc:
         log.warning("[%s] snapshot price fallback failed: %s", market, exc)
 
@@ -153,6 +156,7 @@ def _run_market_from_quantfactor(market: str) -> int:
         regime_id = 1 if composite_score >= 6 else (2 if composite_score >= 4 else 3)
         regime_label = {1: "Risk-On", 2: "Neutral", 3: "Bear"}[regime_id]
 
+        sm = snap_meta.get(t.upper(), {})
         all_results.append({
             "ticker": t,
             "market": market,
@@ -169,11 +173,11 @@ def _run_market_from_quantfactor(market: str) -> int:
             "short_interest_percentile": 0.5,
             "insider_percentile": 0.5,
             "current_price": price,
-            "analyst_target": 0.0,
+            "analyst_target": _f(sm.get("analyst_target")),
             "pe_ttm": float(r.get("pe_ratio") or 0),
-            "market_cap": float(r.get("market_cap_b") or 0) * 1e9 if r.get("market_cap_b") is not None else 0.0,
-            "week52_high": 0.0,
-            "week52_low": 0.0,
+            "market_cap": _f(sm.get("market_cap")) or (float(r.get("market_cap_b") or 0) * 1e9 if r.get("market_cap_b") is not None else 0.0),
+            "week52_high": _f(sm.get("week_52_high")),
+            "week52_low": _f(sm.get("week_52_low")),
             "momentum_raw": 0.0,
             "gross_profit_margin": 0.0,
             "piotroski": 5,

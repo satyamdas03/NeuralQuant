@@ -175,10 +175,13 @@ export default function DashboardPage() {
   const [newsLoading, setNewsLoading] = useState(true);
   const [sectorsLoading, setSectorsLoading] = useState(true);
   const [stocksLoading, setStocksLoading] = useState(true);
-  const [showWelcome, setShowWelcome] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return !localStorage.getItem("nq_onboarding_seen");
-  });
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  useEffect(() => {
+    // Defer localStorage read to post-hydration to avoid React #418 mismatch
+    // (server renders false; client would render true on first paint).
+    setShowWelcome(!localStorage.getItem("nq_onboarding_seen"));
+  }, []);
 
   useEffect(() => {
     api.getMarketOverview()

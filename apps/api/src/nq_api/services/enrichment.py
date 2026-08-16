@@ -485,7 +485,7 @@ def _fetch_dynamic_nse_stock(word: str) -> dict | None:
     return None
 
 
-def _enrich_with_platform_data(question: str, market: str) -> str | None:
+def _enrich_with_platform_data(question: str, market: str, ticker_hint: str | None = None) -> str | None:
     """
     Fetch NeuralQuant's own stock scores + live prices when the question needs them.
     Uses score_cache (instant) + _fetch_one (2-5s per stock) instead of
@@ -503,6 +503,8 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
     # This avoids re-running expensive _fetch_one / FMP calls for the same
     # stock within a 10-minute window (e.g., conversation follow-ups).
     _cache_tickers, _ = _detect_tickers_in_question(question, market)
+    if ticker_hint and ticker_hint not in _cache_tickers:
+        _cache_tickers = list(_cache_tickers) + [ticker_hint]
     _cache_key = f"{','.join(sorted(_cache_tickers))}:{market}:{question[:60].upper()}"
     with _PLATFORM_CACHE_LOCK:
         if _cache_key in _PLATFORM_CACHE:
@@ -525,6 +527,11 @@ def _enrich_with_platform_data(question: str, market: str) -> str | None:
 
     needs_screener = any(k in q_upper for k in _SCREENER_KEYWORDS)
     in_universe_tickers, out_of_universe_words = _detect_tickers_in_question(question, target_market)
+
+    # Seed with the explicit ticker hint (from req.ticker) so open-ended
+    # questions about a company name still get platform data injected.
+    if ticker_hint and ticker_hint not in in_universe_tickers:
+        in_universe_tickers = list(in_universe_tickers) + [ticker_hint]
 
     # Auto-detect IN market when all in-universe tickers are Indian (no India keywords needed)
     if target_market != "IN" and in_universe_tickers:
