@@ -1,0 +1,22 @@
+MEMORY FILES TO READ ON SESSION RESTART
+
+  Read in this order to regain full context:
+
+  1. C:\Users\point\.claude\projects\C--Users-point\memory\MEMORY.md — master index
+  2. C:\Users\point\.claude\projects\C--Users-point\memory\financial_simplicity_interview_prep.md — the full dossier
+  3. C:\Users\point\.claude\projects\C--Users-point\memory\user_satyam_profile.md — broader user profile
+  4. C:\Users\point\.claude\projects\C--Users-point\memory\project_neuralquant.md — NeuralQuant deep dive
+
+  This is where you should start next in the new session to keep going: confirm which interview stage you're at (live scheduled?
+  date set?), re-read the dossier, then ask if you want mock interview practice, flashcards, or a day-of briefing.
+
+  ---
+  SHORTHAND: ad_mem
+
+  Whenever you type : ad_mem, I will:
+  - Re-read the current session state
+  - Re-save all preparation guide and research to memory .md files
+  - Update MEMORY.md index
+  - Provide recovery paths and start-here instructions
+
+  Ready for next step: mock interview, flashcards, or company news update?

@@ -1,0 +1,516 @@
+---
+  DEEP DIVE: SATYAM DAS
+
+  Core identity: Full-stack AI engineer with quant-finance depth. Not just a "used ChatGPT for assignments" candidate — you have 3 published papers, a live-deployed AI stock platform, and a sophisticated causal-temporal neural framework for portfolio signals.
+
+  Education: B.Tech CSE, VIT (8.17/10). Currently Master of AI candidate at UTS Sydney (from paper header).
+
+  Technical footprint:
+  - AI/ML deep: PyTorch, TensorFlow, LangChain, Hugging Face, OpenAI GPT, custom architectures (GNNs, PINNs, Transformers, LTC networks)
+  - Full-stack production: React, Next.js 16, Node.js, FastAPI, MongoDB, Tailwind
+  - Cloud/DevOps: AWS Certified Solutions Architect, Lambda, S3, EC2, Amplify, Bedrock, Step Functions, Docker, Vercel CI/CD
+  - Quant finance: Portfolio optimization, factor models, backtesting, conformal prediction, Kelly criterion, regime detection, causal graphs
+  - Unique edge: Multi-agent LLM orchestration (7-agent PARA-DEBATE), adversarial AI (CyberDojo), edge AI (CubeSats)
+
+  Published research (3 papers):
+  1. PROMETHEUS (Journal of Financial Data Science, under review, March 2026) — Your crown jewel. A causal-temporal neural framework for uncertainty-aware portfolio signal generation. Built 5 innovations: rolling Granger-causal Graph Attention Networks, Liquid Time-Constant temporal encoders, split conformal prediction, CrisisVAE synthetic augmentation, and uncertainty-discounted Kelly sizing. Achieved walk-forward Sharpe +0.617, max drawdown -3.78% vs
+  -18.76% buy-and-hold, 91.3% empirical conformal coverage.
+  2. Financial Trend Analyzer using Multi-Agent LLMs (ICTIS Bangkok 2025, Springer) — LangChain-powered autonomous agents analyzing financial news sentiment.
+  3. LLM-based Smart Assistant for IoT Control (GICS 2024, ISBN 978-93-94638-96-9) — OpenAI/LLAMA APIs with secure function-calling.
+  4. Voice-Based Key Generation using Fuzzy Extractors (De Gruyter Brill, 2026) — MFCC-based biometric crypto.
+
+  Live startup: NeuralQuant — AI-powered stock intelligence platform. 6-factor quant engine (Quant Alpha) + 7-agent PARA-DEBATE adversarial analyst system. Dual-market (US/India), 18 backend modules, FastAPI + Next.js 16, live on Render/Vercel, Stripe billing, 4 subscription tiers. Real-time feeds from FMP Premium API (primary), yfinance (fallback), NSE 100 Analysis / NIFTY 500 (India daily sync), FRED, EDGAR, Finnhub. DuckDB analytical cache. v4.1.0-sale-ready (June 2026): 116 automated tests green, Docker acceptance passed, 126 production bugs catalogued and fixed across 82 dev sessions.
+
+  Other notable projects:
+  - Ethos-X / Hermes: Autonomous AI trading agent evolved into the Hermes Live Trading Daemon with real-time Matrix UI, SSE log streaming, and trade deduplication. Multimodal (BERT for news, custom PyTorch for price, macro signals). +27% in 2008 backtest. Tactical Safety Override via logit probing. Live paper trading SPY/BTC/ETH at +$1,634 P&L (v37).
+  - The Code Doctor: SOTA vulnerability detection, 74% accuracy on CodeXGLUE (32% relative improvement over GNN baselines). Hybrid GCN/GAT + GPT-4o-mini + RAG/FAISS.
+  - Neural Wind Tunnel: PINN solving Navier-Stokes in <50ms (1000x speedup over CFD). React Three Fiber holographic visualization.
+  - LeadSpark: Full-stack AI voice CRM with LiveKit/SIP, GPT-4, real-time analytics.
+  - Dynamic Multi-Factor Portfolio Optimization Engine (Quant Alpha): 750+ US equities and ~500 Indian equities (daily NIFTY 500 sync), 6 proprietary factors. Q1FY27 quarterly test: all 3 pools beat NIFTY50 (-6.38%) with alpha +12.69% to +14.83% and 87-91% hit rate. Human-readable audit trail for every selection.
+
+  ---
+  DEEP DIVE: FINANCIAL SIMPLICITY
+
+  What they do: Portfolio Assurance Systems. The "control layer" between investment mandate design and actual client portfolios. Continuous verification, not sporadic audits.
+
+  Founded: 2003 by Stuart Holdsworth (CEO, 30+ years fintech experience). Team is small, high-calibre, Sydney in-office.
+
+  Scale: Powers $30B+ in client portfolios. Clients include Pershing, Morgans, Cameron Harrison, Boag Financial.
+
+  Products:
+  - CPS — Custom client portfolio management & control
+  - MPS — Model portfolio management (bulk administration)
+  - f/s labs — Algorithmic IP and API toolkit for platforms (personalized rebalancing algorithms as API)
+  - ATS — Assurance Testing Service (external validation of monitoring/rebalancing algorithms)
+
+  Their thesis: "As portfolio production becomes easier through automation and AI, verification becomes the defining capability."
+
+  Team culture (from Open Roles page):
+  - "Let the machines do the work"
+  - Continuous improvement — ideas always welcome
+  - Accountability — do what you say
+  - Small team, focus on shipping high-quality software
+  - AI-enabled development is on the roadmap
+
+  Critical insight: They are currently hiring a Portfolio Assurance Application Engineer whose job is literally "creating the machine that tests our machines using AI and quantitative methods." This is almost a description of your PROMETHEUS paper + NeuralQuant experience combined.
+
+  Stuart's recent writing (2024-2025):
+  Products:
+  - CPS — Custom client portfolio management & control
+  - MPS — Model portfolio management (bulk administration)
+  - f/s labs — Algorithmic IP and API toolkit for platforms (personalized rebalancing algorithms as API)
+  - ATS — Assurance Testing Service (external validation of monitoring/rebalancing algorithms)
+
+  ---
+  ALIGNMENT: WHY THEY SHOULD HIRE YOU
+
+  1. Direct domain overlap
+  Their core product is portfolio assurance. Your PROMETHEUS paper is about portfolio signal generation with formal uncertainty quantification and conformal coverage guarantees. You have literally built "the machine that evaluates machine decisions" — which is what portfolio assurance is.
+
+  2. Legacy + future dual capability
+  The role requires supporting legacy systems AND shaping AI-first future. Your resume shows both:
+  - Legacy: Full-stack production systems (LeadSpark CRM, admin dashboards, AWS serverless rostering), React/Node/API work, database design
+  - AI-first: NeuralQuant, Ethos-X, PROMETHEUS, multi-agent LLMs, quant research
+
+  3. You ship
+  NeuralQuant is live with Stripe billing (v4.1.0-sale-ready, 116 tests green, 126 bugs fixed). Ethos-X / Hermes runs live paper trading at +$1,634 P&L. PROMETHEUS has a Phoenix lifecycle manager for weekly automated retraining. You don't just theorize — you deploy, monitor, and iterate.
+
+  4. Uncertainty quantification is your superpower
+  Financial Simplicity's value prop is verification. Your entire PROMETHEUS architecture is built around a rigorous statistical answer to "how confident should we be in this signal?" via split conformal prediction. This is deeper than most AI/ML practitioners go.
+
+  5. You fit their culture signals
+  - They want "smart, high-energy, curious" — your GitHub has 65 repos spanning quant finance, cosmology, wildfire detection, adversarial LLMs. You are obviously insatiably curious.
+  - They want someone who "builds things because they're curious" — you built Ethos-X from scratch, NeuralQuant as a live startup, published 3 papers while studying.
+  - They value continuous improvement — your PROMETHEUS paper literally describes a system with weekly automated retraining and validation gates.
+
+  6. Sydney-based + visa reality
+  You are already in Sydney (Ultimo), studying at UTS. No relocation risk. Student visa 500 with 48 hrs/fortnight work rights — fits part-time internship.
+
+  ---
+  INTERVIEW PLAYBOOK
+
+  Your Narrative Arc (2-minute pitch)
+
+  ▎ "I sit at the intersection of AI, full-stack engineering, and quantitative finance. I came to this because I kept noticing that most AI systems in finance produce confident predictions without telling you how much to trust them. So I built PROMETHEUS — a neural framework that generates portfolio
+  ▎ signals with statistically guaranteed uncertainty bounds. It achieved a 0.617 Sharpe ratio with only -3.78% max drawdown during live walk-forward testing.
+  ▎
+  ▎ But I'm not just a researcher — I ship. NeuralQuant, my AI stock intelligence platform, is live today with real users, 7 adversarial AI agents debating every stock call, and real billing. I built the entire stack: FastAPI backend, Next.js frontend, multi-source data pipelines, and a DuckDB analytics
+  ▎ cache.
+  ▎
+  ▎ What excites me about Financial Simplicity is that you're solving the exact next-layer problem: it's not just about generating signals, it's about continuously verifying that thousands of client portfolios actually match their mandates. Your phrase 'verification becomes the defining capability'
+  ▎ resonates deeply with my work on conformal prediction and calibrated uncertainty. I'd love to bring both my quant research depth and my production engineering experience to help build that assurance layer."
+
+  Key Talking Points to Weave In
+
+  ┌───────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │      Their Interest       │                                                                    Your Evidence                                                                    │
+  ├───────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Legacy system improvement │ LeadSpark CRM (full-stack, JWT, real-time), AWS serverless rostering, admin dashboards, 90% automation at Core2Cloud                                │
+  ├───────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ AI prototyping            │ NeuralQuant (live), Ethos-X / Hermes (live paper trading at +$1,634 P&L), multi-agent LLM pipelines, CrisisVAE synthetic data generation            │
+  ├───────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Automation                │ 90% workflow automation at internship, Phoenix lifecycle manager (weekly automated retraining), algorithmic order generation thinking in PROMETHEUS │
+  ├───────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Product thinking          │ NeuralQuant has 4 pricing tiers, Stripe billing, screener, email alerts, voice queries, methodology page, public backtest API — you designed a product │
+  ├───────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Curiosity/builder mindset │ 65 GitHub repos, published in 3 venues, built across quant finance, cosmology, edge AI, cybersecurity                                               │
+  └───────────────────────────┴─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+  Questions They Will Likely Ask (Live Interview)
+
+  Based on your video topics (Ethos-X + explaining process over outcomes), expect deep dives:
+
+  On Ethos-X / technical depth:
+  - They value continuous improvement — your PROMETHEUS paper literally describes a system with weekly automated retraining and validation gates.
+
+  Based on your video topics (Ethos-X + explaining process over outcomes), expect deep dives:
+
+  On Ethos-X / technical depth:
+  - "You mentioned probing logit outputs — walk me through exactly what you saw and how you diagnosed the problem."
+  Your answer: Logits for Short were extremely high (delta +10). The penalty in reward function wasn't triggering because the trend indicator (originally slower) was lagging. I inspected raw pre-softmax outputs directly rather
+  than just accuracy metrics. This revealed the model's internal "confidence" was decoupled from actual market regime. Swapped to 20-day MA as faster safety signal. This is the kind of debugging mentality they want.
+
+  - "Why did you choose deep reinforcement learning over supervised learning for this?"
+  Your answer: Supervised learning needs labels. In trading, the "correct" action depends on future outcomes which are path-dependent and noisy. RL lets the agent discover optimal sequential decision-making through trial and
+  error, handling delayed rewards. That said, my PROMETHEUS paper actually uses supervised learning with rolling tertile labels for signal generation and reserves RL conceptually — because pure RL on crash-only windows
+  catastrophically overfit (all-Sell policy, Sharpe -15.1). I learned that the hard way. The hybrid approach with safety filters and conformal sizing was more robust.
+
+
+  - "What would you do differently if you were building Ethos-X today?"
+  Your answer: Three things. First, I'd integrate the conformal prediction framework from PROMETHEUS — instead of binary buy/hold/sell, I'd output uncertainty-calibrated prediction sets that modulate position size. Second, I'd
+  replace the fixed 60-second decision cadence with a Liquid Time-Constant encoder that adapts its integration rate to volatility — fast during crashes, slow during calm. Third, I'd add cross-asset causal graph attention rather
+  than treating SPY/BTC/ETH independently — during stress, correlations converge to 1, and independent models blow up.
+
+
+  - "How do you know your backtest isn't overfitted?"
+  Your answer: Walk-forward testing, not simple train/test split. In PROMETHEUS, I used 70/15/15 chronological split with calibration on the most recent block. The model never sees future data. I also disabled RL entirely after
+  it collapsed on bull-market deployment — the final system uses Phase G safety filter + adaptive conformal recalibration. Plus, I stress-tested against three distinct crisis archetypes (2008, 2020, 2022) which represent
+  different failure modes.
+
+
+
+  On "explaining to others" / culture fit:
+  - "You talked about fitness journeys and process over outcomes. How does that show up in your work?"
+  Your answer: The PROMETHEUS paper is a perfect example. The first version used fixed ±2% thresholds for labels. It produced 41.6% Hold, 33.5% Buy, 25% Sell — and 0% Sell recall. I was attached to the "good accuracy" number, but
+   the model was useless for downside protection. I had to stop celebrating the headline metric and focus on the process: rolling tertile labeling, Focal Loss for hard examples, iterative ablation studies. The "win" wasn't the
+  Sharpe ratio — it was building a system that tells the truth about its own uncertainty.
+
+
+  - "Tell us about a time you got stuck for longer than expected."
+  Your answer: (Adapt your A2 prep) The RL phase collapse in PROMETHEUS. I trained REINFORCE on crash-only windows, and when deployed on 2024-2026 bull market data, it went all-Sell a  inspected raw pre-softmax outputs directly rather than just accuracy metrics. This revealed the model's internal "confidence" was decoupled from actual market regime. Swapped to
+  20-day MA as faster safety signal. This is the kind of debugging mentality they want.
+
+
+  - "Why did you choose deep reinforcement learning over supervised learning for this?"
+  Your answer: Supervised learning needs labels. In trading, the "correct" action depends on future outcomes which are path-dependent and noisy. RL lets the agent discover optimal
+  sequential decision-making through trial and error, handling delayed rewards. That said, my PROMETHEUS paper actually uses supervised learning with rolling tertile labels for signal
+   generation and reserves RL conceptually — because pure RL on crash-only windows catastrophically overfit (all-Sell policy, Sharpe -15.1). I learned that the hard way. The hybrid
+  approach with safety filters and conformal sizing was more robust.
+
+
+  - "Tell us about a time you got stuck for longer than expected."
+  Your answer: (Adapt your A2 prep) The RL phase collapse in PROMETHEUS. I trained REINFORCE on crash-only windows, and when deployed on 2024-2026 bull market data, it went all-Sell
+  and lost 89.7%. I spent weeks debugging the reward function, entropy bonuses, advantage estimates. Eventually realized the problem was fundamental: the training distribution didn't
+  match deployment. I "killed my darling" — disabled RL entirely, replaced it with supervised learning + Phase G safety filter + adaptive conformal recalibration. The final system was
+   simpler and more robust.
+
+
+  On Financial Simplicity specifically:
+  - "What do you know about what we do?"
+  Your answer: You build Portfolio Assurance Systems — the control layer that continuously verifies client portfolios against their mandates. CPS for bespoke accounts, MPS for model
+  portfolios, f/s labs as your API toolkit, and ATS for external algorithm validation. You manage $30B+. Your founder Stuart Holdsworth has been building this since 2003. Most
+  importantly, you've identified that as AI makes portfolio production easier, verification becomes the scarce, valuable capability. That's exactly what my research on conformal
+  prediction addresses — provable statistical guarantees on AI-driven decisions.
+
+
+  - "Where do you see AI adding value in our business?"
+  Your answer: Three layers. First, anomaly detection at scale — instead of rule-based drift thresholds, a causal-temporal model could flag not just that a portfolio diverged, but why
+   (regime shift, causal contagion from a hub asset, macro shock). Second, automated assurance testing — your ATS product validates client algorithms. An AI-powered test harness could
+   generate synthetic market scenarios (like my CrisisVAE does) to stress-test rebalancing logic under 2008-style, 2020-style, and 2022-style conditions. Third, confidence scoring on
+  recommendations — when your system suggests a rebalancing action, attaching a calibrated uncertainty score (via conformal prediction) lets advisers communicate risk honestly to
+  clients.
+
+  Questions YOU Should Ask Them
+
+  1. "You mention AI-enabled development is on the roadmap. Is there a specific initiative already underway, or is this intern role expected to help define what that looks like?"
+  different failure modes.
+
+  On "explaining to others" / culture fit:
+  - "You talked about fitness journeys and process over outcomes. How does that show up in your work?"
+  Your answer: The PROMETHEUS paper is a perfect example. The first version used fixed ±2% thresholds for labels. It produced 41.6% Hold, 33.5% Buy, 25%
+  Sell — and 0% Sell recall. I was attached to the "good accuracy" number, but the model was useless for downside protection. I had to stop celebrating
+  the headline metric and focus on the process: rolling tertile labeling, Focal Loss for hard examples, iterative ablation studies. The "win" wasn't the
+  Sharpe ratio — it was building a system that tells the truth about its own uncertainty.
+  - "Tell us about a time you got stuck for longer than expected."
+  Your answer: (Adapt your A2 prep) The RL phase collapse in PROMETHEUS. I trained REINFORCE on crash-only windows, and when deployed on 2024-2026 bull
+  market data, it went all-Sell and lost 89.7%. I spent weeks debugging the reward function, entropy bonuses, advantage estimates. Eventually realized
+  the problem was fundamental: the training distribution didn't match deployment. I "killed my darling" — disabled RL entirely, replaced it with
+  supervised learning + Phase G safety filter + adaptive conformal recalibration. The final system was simpler and more robust.
+
+  On Financial Simplicity specifically:
+  - "What do you know about what we do?"
+  Your answer: You build Portfolio Assurance Systems — the control layer that continuously verifies client portfolios against their mandates. CPS for
+  bespoke accounts, MPS for model portfolios, f/s labs as your API toolkit, and ATS for external algorithm validation. You manage $30B+. Your founder
+  Stuart Holdsworth has been building this since 2003. Most importantly, you've identified that as AI makes portfolio production easier, verification
+  becomes the scarce, valuable capability. That's exactly what my research on conformal prediction addresses — provable statistical guarantees on
+  AI-driven decisions.
+
+
+  - "Where do you see AI adding value in our business?"
+  Your answer: Three layers. First, anomaly detection at scale — instead of rule-based drift thresholds, a causal-temporal model could flag not just that
+   a portfolio diverged, but why (regime shift, causal contagion from a hub asset, macro shock). Second, automated assurance testing — your ATS product
+  validates client algorithms. An AI-powered test harness could generate synthetic market scenarios (like my CrisisVAE does) to stress-test rebalancing
+  logic under 2008-style, 2020-style, and 2022-style conditions. Third, confidence scoring on recommendations — when your system suggests a rebalancing
+  action, attaching a calibrated uncertainty score (via conformal prediction) lets advisers communicate risk honestly to clients.
+
+  Questions YOU Should Ask Them
+
+  1. "You mention AI-enabled development is on the roadmap. Is there a specific initiative already underway, or is this intern role expected to help
+  define what that looks like?"
+  (Shows you read their careers page, want to understand scope)
+  2. "I saw the Portfolio Assurance Application Engineer role — 'the machine that tests our machines.' How does that team interface with the platform
+  engineering and product teams?"
+  (Shows deep research, understands their org)
+  3. "What does the legacy stack look like today? Are we talking .NET/Java monoliths, or more modern microservices?"
+  (Shows you're ready to roll up sleeves on legacy)
+  4. "Stuart wrote about 'Trusting the Machine' and the human challenge of agentic software. How is the leadership thinking about calibrated uncertainty
+  — i.e., when should the machine defer to human judgment?"
+  (Shows you read his articles, operate at strategic level)
+  5. "For someone on this pathway to permanent role, what does 'success' look like in the first 90 days?"
+  (Shows ambition, long-term thinking)
+
+  Risk Flags to Avoid
+
+  Don't say: "I want to work with AI" too generically
+  Why: They explicitly reject ChatGPT-for-assignments candidates
+  Instead say: "I build systems that combine neural architectures with statistical guarantees — like conformal prediction for portfolio signals"
+   mandates. CPS for bespoke accounts, MPS for model portfolios, f/s labs as your API toolkit, and ATS for external algorithm
+  validation. You manage $30B+. Your founder Stuart Holdsworth has been building this since 2003. Most importantly, you've
+  identified that as AI makes portfolio production easier, verification becomes the scarce, valuable capability. That's exactly
+  what my research on conformal prediction addresses — provable statistical guarantees on AI-driven decisions.
+  - "Where do you see AI adding value in our business?"
+  Your answer: Three layers. First, anomaly detection at scale — instead of rule-based drift thresholds, a causal-temporal model
+  could flag not just that a portfolio diverged, but why (regime shift, causal contagion from a hub asset, macro shock). Second,
+  automated assurance testing — your ATS product validates client algorithms. An AI-powered test harness could generate synthetic
+  market scenarios (like my CrisisVAE does) to stress-test rebalancing logic under 2008-style, 2020-style, and 2022-style
+  conditions. Third, confidence scoring on recommendations — when your system suggests a rebalancing action, attaching a calibrated
+   uncertainty score (via conformal prediction) lets advisers communicate risk honestly to clients.
+
+  Questions YOU Should Ask Them
+
+  1. "You mention AI-enabled development is on the roadmap. Is there a specific initiative already underway, or is this intern role
+   expected to help define what that looks like?"
+  (Shows you read their careers page, want to understand scope)
+  2. "I saw the Portfolio Assurance Application Engineer role — 'the machine that tests our machines.' How does that team interface
+   with the platform engineering and product teams?"
+  (Shows deep research, understands their org)
+  3. "What does the legacy stack look like today? Are we talking .NET/Java monoliths, or more modern microservices?"
+  (Shows you're ready to roll up sleeves on legacy)
+  4. "Stuart wrote about 'Trusting the Machine' and the human challenge of agentic software. How is the leadership thinking about
+  calibrated uncertainty — i.e., when should the machine defer to human judgment?"
+  (Shows you read his articles, operate at strategic level)
+  ⎿  Received 0 bytes (999 Unknown Status)
+
+● Resume PDF unreadable via direct read. LinkedIn blocked by 999. Reading paper in chunks and searching deeper.
+
+  Read 1 file (ctrl+o to expand)
+
+● Web Search("Financial Simplicity Sydney AI technology innovation portfolio assurance")
+  ⎿  Did 1 search in 22s
+
+● Web Search("site:github.com satyamdas03 NeuralQuant")
+  ⎿  Did 1 search in 136s
+
+● Fetch(https://github.com/satyamdas03/NeuralQuant)
+  ⎿  Received 419KB (200 OK)
+
+● Good data so far. Need more paper + company pages. Resume still unreadable — will try extraction.
+
+  Read 1 file (ctrl+o to expand)
+
+● Fetch(https://www.financialsimplicity.com/about/)
+  ⎿  Received 65.3KB (200 OK)
+
+● Fetch(https://www.financialsimplicity.com/solutions/)
+  ⎿  Received 136.7KB (200 OK)
+
+● Fetch(https://www.financialsimplicity.com/products/)
+  ⎿  Received 76.4KB (200 OK)
+
+● Agent(Extract resume text)
+  ⎿  Done (4 tool uses · 48.1k tokens · 1m 40s)
+  (ctrl+o to expand)
+
+● Have full resume, paper (15 pages), company intel, and NeuralQuant deep dive. Synthesizing now.
+
+  Read 1 file (ctrl+o to expand)
+
+● Web Search("Financial Simplicity Stuart Holdsworth interview team culture engineering 2024 2025")
+  ⎿  Did 1 search in 21s
+
+● Synthesizing complete profile. Here's your full interview prep dossier.
+
+  ---
+  DEEP DIVE: SATYAM DAS
+
+  Core identity: Full-stack AI engineer with quant-finance depth. Not just a "used ChatGPT for assignments" candidate — you have 3 published papers, a live-deployed AI stock platform, and a sophisticated causal-temporal neural framework for portfolio signals.
+
+  Education: B.Tech CSE, VIT (8.17/10). Currently Master of AI candidate at UTS Sydney (from paper header).
+
+  Technical footprint:
+  - AI/ML deep: PyTorch, TensorFlow, LangChain, Hugging Face, OpenAI GPT, custom architectures (GNNs, PINNs, Transformers, LTC networks)
+  - Full-stack production: React, Next.js 16, Node.js, FastAPI, MongoDB, Tailwind
+  - Cloud/DevOps: AWS Certified Solutions Architect, Lambda, S3, EC2, Amplify, Bedrock, Step Functions, Docker, Vercel CI/CD
+  - Quant finance: Portfolio optimization, factor models, backtesting, conformal prediction, Kelly criterion, regime detection, causal graphs
+  - Unique edge: Multi-agent LLM orchestration (7-agent PARA-DEBATE), adversarial AI (CyberDojo), edge AI (CubeSats)
+
+  Published research (3 papers):
+  1. PROMETHEUS (Journal of Financial Data Science, under review, March 2026) — Your crown jewel. A causal-temporal neural framework for uncertainty-aware portfolio signal generation. Built 5 innovations: rolling Granger-causal Graph Attention Networks, Liquid Time-Constant temporal encoders, split conformal prediction, CrisisVAE synthetic augmentation, and uncertainty-discounted Kelly sizing. Achieved walk-forward Sharpe +0.617, max drawdown -3.78% vs
+  -18.76% buy-and-hold, 91.3% empirical conformal coverage.
+  2. Financial Trend Analyzer using Multi-Agent LLMs (ICTIS Bangkok 2025, Springer) — LangChain-powered autonomous agents analyzing financial news sentiment.
+  3. LLM-based Smart Assistant for IoT Control (GICS 2024, ISBN 978-93-94638-96-9) — OpenAI/LLAMA APIs with secure function-calling.
+  4. Voice-Based Key Generation using Fuzzy Extractors (De Gruyter Brill, 2026) — MFCC-based biometric crypto.
+
+  Live startup: NeuralQuant — AI-powered stock intelligence platform. 6-factor quant engine (Quant Alpha) + 7-agent PARA-DEBATE adversarial analyst system. Dual-market (US/India), 18 backend modules, FastAPI + Next.js 16, live on Render/Vercel, Stripe billing, 4 subscription tiers. Real-time feeds from FMP Premium API (primary), yfinance (fallback), NSE 100 Analysis / NIFTY 500 (India daily sync), FRED, EDGAR, Finnhub. DuckDB analytical cache. v4.1.0-sale-ready (June 2026): 116 automated tests green, Docker acceptance passed, 126 production bugs catalogued and fixed across 82 dev sessions.
+
+  Other notable projects:
+  - Ethos-X / Hermes: Autonomous AI trading agent evolved into the Hermes Live Trading Daemon with real-time Matrix UI, SSE log streaming, and trade deduplication. Multimodal (BERT for news, custom PyTorch for price, macro signals). +27% in 2008 backtest. Tactical Safety Override via logit probing. Live paper trading SPY/BTC/ETH at +$1,634 P&L (v37).
+  - The Code Doctor: SOTA vulnerability detection, 74% accuracy on CodeXGLUE (32% relative improvement over GNN baselines). Hybrid GCN/GAT + GPT-4o-mini + RAG/FAISS.
+  - Neural Wind Tunnel: PINN solving Navier-Stokes in <50ms (1000x speedup over CFD). React Three Fiber holographic visualization.
+  - LeadSpark: Full-stack AI voice CRM with LiveKit/SIP, GPT-4, real-time analytics.
+  - Dynamic Multi-Factor Portfolio Optimization Engine (Quant Alpha): 750+ US equities and ~500 Indian equities (daily NIFTY 500 sync), 6 proprietary factors. Q1FY27 quarterly test: all 3 pools beat NIFTY50 (-6.38%) with alpha +12.69% to +14.83% and 87-91% hit rate. Human-readable audit trail for every selection.
+
+  ---
+  DEEP DIVE: FINANCIAL SIMPLICITY
+
+  What they do: Portfolio Assurance Systems. The "control layer" between investment mandate design and actual client portfolios. Continuous verification, not sporadic audits.
+
+  Founded: 2003 by Stuart Holdsworth (CEO, 30+ years fintech experience). Team is small, high-calibre, Sydney in-office.
+
+  Scale: Powers $30B+ in client portfolios. Clients include Pershing, Morgans, Cameron Harrison, Boag Financial.
+
+  Products:
+  - CPS — Custom client portfolio management & control
+  - MPS — Model portfolio management (bulk administration)
+  - f/s labs — Algorithmic IP and API toolkit for platforms (personalized rebalancing algorithms as API)
+  - ATS — Assurance Testing Service (external validation of monitoring/rebalancing algorithms)
+
+  Their thesis: "As portfolio production becomes easier through automation and AI, verification becomes the defining capability."
+
+  Team culture (from Open Roles page):
+  - "Let the machines do the work"
+  - Continuous improvement — ideas always welcome
+  - Accountability — do what you say
+  - Small team, focus on shipping high-quality software
+  - AI-enabled development is on the roadmap
+
+  Critical insight: They are currently hiring a Portfolio Assurance Application Engineer whose job is literally "creating the machine that tests our machines using AI and quantitative methods." This is almost a description of your PROMETHEUS paper + NeuralQuant experience combined.
+
+  Stuart's recent writing (2024-2025):
+  - "The Human Condition in the Age of AI Investing"
+  - "Trusting the Machine: The Human Challenge in the Age of Agentic Software"
+  - He thinks deeply about AI + wealth management intersection. He will respect someone who has built real systems in this space.
+
+  ---
+  ALIGNMENT: WHY THEY SHOULD HIRE YOU
+
+  1. Direct domain overlap
+  Their core product is portfolio assurance. Your PROMETHEUS paper is about portfolio signal generation with formal uncertainty quantification and conformal coverage guarantees. You have literally built "the machine that evaluates machine decisions" — which is what portfolio assurance is.
+
+  2. Legacy + future dual capability
+  The role requires supporting legacy systems AND shaping AI-first future. Your resume shows both:
+  - Legacy: Full-stack production systems (LeadSpark CRM, admin dashboards, AWS serverless rostering), React/Node/API work, database design
+  - AI-first: NeuralQuant, Ethos-X, PROMETHEUS, multi-agent LLMs, quant research
+
+  3. You ship
+  NeuralQuant is live with Stripe billing (v4.1.0-sale-ready, 116 tests green, 126 bugs fixed). Ethos-X / Hermes runs live paper trading at +$1,634 P&L. PROMETHEUS has a Phoenix lifecycle manager for weekly automated retraining. You don't just theorize — you deploy, monitor, and iterate.
+
+  4. Uncertainty quantification is your superpower
+  Financial Simplicity's value prop is verification. Your entire PROMETHEUS architecture is built around a rigorous statistical answer to "how confident should we be in this signal?" via split conformal prediction. This is deeper than most AI/ML practitioners go.
+
+  5. You fit their culture signals
+  - They want "smart, high-energy, curious" — your GitHub has 65 repos spanning quant finance, cosmology, wildfire detection, adversarial LLMs. You are obviously insatiably curious.
+  - They want someone who "builds things because they're curious" — you built Ethos-X from scratch, NeuralQuant as a live startup, published 3 papers while studying.
+  - They value continuous improvement — your PROMETHEUS paper literally describes a system with weekly automated retraining and validation gates.
+
+  6. Sydney-based + visa reality
+  You are already in Sydney (Ultimo), studying at UTS. No relocation risk. Student visa 500 with 48 hrs/fortnight work rights — fits part-time internship.
+
+  ---
+  INTERVIEW PLAYBOOK
+
+  Your Narrative Arc (2-minute pitch)
+
+  ▎ "I sit at the intersection of AI, full-stack engineering, and quantitative finance. I came to this because I kept noticing that most AI systems in finance produce confident predictions without telling you how much to trust them. So I built PROMETHEUS — a neural framework that generates portfolio signals with statistically guaranteed uncertainty bounds. It achieved a 0.617 Sharpe ratio with only -3.78% max drawdown during live walk-forward testing.
+  ▎
+  ▎ But I'm not just a researcher — I ship. NeuralQuant, my AI stock intelligence platform, is live today with real users, 7 adversarial AI agents debating every stock call, and Stripe billing. I built the entire stack: FastAPI backend, Next.js frontend, multi-source data pipelines (FMP Premium primary), and a DuckDB analytics cache. Tagged v4.1.0-sale-ready with 116 tests green and 126 production bugs fixed.
+  ▎
+  ▎ What excites me about Financial Simplicity is that you're solving the exact next-layer problem: it's not just about generating signals, it's about continuously verifying that thousands of client portfolios actually match their mandates. Your phrase 'verification becomes the defining capability' resonates deeply with my work on conformal prediction and calibrated uncertainty. I'd love to bring both my quant research depth and my production engineering
+  ▎ experience to help build that assurance layer."
+
+  Key Talking Points to Weave In
+
+  ┌───────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │      Their Interest       │                                                                    Your Evidence                                                                    │
+  ├───────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Legacy system improvement │ LeadSpark CRM (full-stack, JWT, real-time), AWS serverless rostering, admin dashboards, 90% automation at Core2Cloud                                │
+  ├───────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ AI prototyping            │ NeuralQuant (live), Ethos-X / Hermes (live paper trading at +$1,634 P&L), multi-agent LLM pipelines, CrisisVAE synthetic data generation            │
+  ├───────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Automation                │ 90% workflow automation at internship, Phoenix lifecycle manager (weekly automated retraining), algorithmic order generation thinking in PROMETHEUS │
+  ├───────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Product thinking          │ NeuralQuant has 4 pricing tiers, Stripe billing, screener, email alerts, voice queries, methodology page, public backtest API — you designed a product │
+  ├───────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Curiosity/builder mindset │ 65 GitHub repos, published in 3 venues, built across quant finance, cosmology, edge AI, cybersecurity                                               │
+  └───────────────────────────┴─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+  Questions They Will Likely Ask (Live Interview)
+
+  Based on your video topics (Ethos-X + explaining process over outcomes), expect deep dives:
+
+  On Ethos-X / technical depth:
+  - "You mentioned probing logit outputs — walk me through exactly what you saw and how you diagnosed the problem."
+  Your answer: Logits for Short were extremely high (delta +10). The penalty in reward function wasn't triggering because the trend indicator (originally slower) was lagging. I inspected raw pre-softmax outputs directly rather than just accuracy metrics. This revealed the model's internal "confidence" was decoupled from actual market regime. Swapped to 20-day MA as faster safety signal. This is the kind of debugging mentality they want.
+  - "Why did you choose deep reinforcement learning over supervised learning for this?"
+  Your answer: Supervised learning needs labels. In trading, the "correct" action depends on future outcomes which are path-dependent and noisy. RL lets the agent discover optimal sequential decision-making through trial and error, handling delayed rewards. That said, my PROMETHEUS paper actually uses supervised learning with rolling tertile labels for signal generation and reserves RL conceptually — because pure RL on crash-only windows catastrophically
+  overfit (all-Sell policy, Sharpe -15.1). I learned that the hard way. The hybrid approach with safety filters and conformal sizing was more robust.
+  - "What would you do differently if you were building Ethos-X today?"
+  Your answer: Three things. First, I'd integrate the conformal prediction framework from PROMETHEUS — instead of binary buy/hold/sell, I'd output uncertainty-calibrated prediction sets that modulate position size. Second, I'd replace the fixed 60-second decision cadence with a Liquid Time-Constant encoder that adapts its integration rate to volatility — fast during crashes, slow during calm. Third, I'd add cross-asset causal graph attention rather than
+  treating SPY/BTC/ETH independently — during stress, correlations converge to 1, and independent models blow up.
+  - "How do you know your backtest isn't overfitted?"
+  Your answer: Walk-forward testing, not simple train/test split. In PROMETHEUS, I used 70/15/15 chronological split with calibration on the most recent block. The model never sees future data. I also disabled RL entirely after it collapsed on bull-market deployment — the final system uses Phase G safety filter + adaptive conformal recalibration. Plus, I stress-tested against three distinct crisis archetypes (2008, 2020, 2022) which represent different
+  failure modes.
+
+  On "explaining to others" / culture fit:
+  - "You talked about fitness journeys and process over outcomes. How does that show up in your work?"
+  Your answer: The PROMETHEUS paper is a perfect example. The first version used fixed ±2% thresholds for labels. It produced 41.6% Hold, 33.5% Buy, 25% Sell — and 0% Sell recall. I was attached to the "good accuracy" number, but the model was useless for downside protection. I had to stop celebrating the headline metric and focus on the process: rolling tertile labeling, Focal Loss for hard examples, iterative ablation studies. The "win" wasn't the
+  Sharpe ratio — it was building a system that tells the truth about its own uncertainty.
+  - "Tell us about a time you got stuck for longer than expected."
+  Your answer: (Adapt your A2 prep) The RL phase collapse in PROMETHEUS. I trained REINFORCE on crash-only windows, and when deployed on 2024-2026 bull market data, it went all-Sell and lost 89.7%. I spent weeks debugging the reward function, entropy bonuses, advantage estimates. Eventually realized the problem was fundamental: the training distribution didn't match deployment. I "killed my darling" — disabled RL entirely, replaced it with supervised
+  learning + Phase G safety filter + adaptive conformal recalibration. The final system was simpler and more robust.
+
+  On Financial Simplicity specifically:
+  - "What do you know about what we do?"
+  Your answer: You build Portfolio Assurance Systems — the control layer that continuously verifies client portfolios against their mandates. CPS for bespoke accounts, MPS for model portfolios, f/s labs as your API toolkit, and ATS for external algorithm validation. You manage $30B+. Your founder Stuart Holdsworth has been building this since 2003. Most importantly, you've identified that as AI makes portfolio production easier, verification becomes the
+  scarce, valuable capability. That's exactly what my research on conformal prediction addresses — provable statistical guarantees on AI-driven decisions.
+  - "Where do you see AI adding value in our business?"
+  Your answer: Three layers. First, anomaly detection at scale — instead of rule-based drift thresholds, a causal-temporal model could flag not just that a portfolio diverged, but why (regime shift, causal contagion from a hub asset, macro shock). Second, automated assurance testing — your ATS product validates client algorithms. An AI-powered test harness could generate synthetic market scenarios (like my CrisisVAE does) to stress-test rebalancing logic
+  under 2008-style, 2020-style, and 2022-style conditions. Third, confidence scoring on recommendations — when your system suggests a rebalancing action, attaching a calibrated uncertainty score (via conformal prediction) lets advisers communicate risk honestly to clients.
+
+  Questions YOU Should Ask Them
+
+  1. "You mention AI-enabled development is on the roadmap. Is there a specific initiative already underway, or is this intern role expected to help define what that looks like?"
+  (Shows you read their careers page, want to understand scope)
+  2. "I saw the Portfolio Assurance Application Engineer role — 'the machine that tests our machines.' How does that team interface with the platform engineering and product teams?"
+  (Shows deep research, understands their org)
+  3. "What does the legacy stack look like today? Are we talking .NET/Java monoliths, or more modern microservices?"
+  (Shows you're ready to roll up sleeves on legacy)
+  4. "Stuart wrote about 'Trusting the Machine' and the human challenge of agentic software. How is the leadership thinking about calibrated uncertainty — i.e., when should the machine defer to human judgment?"
+  (Shows you read his articles, operate at strategic level)
+  5. "For someone on this pathway to permanent role, what does 'success' look like in the first 90 days?"
+  (Shows ambition, long-term thinking)
+
+  Risk Flags to Avoid
+
+  ┌────────────────────────────────────────────┬───────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │                 Don't say                  │                            Why                            │                                                              Instead say                                                               │
+  ├────────────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ "I want to work with AI" too generically   │ They explicitly reject ChatGPT-for-assignments candidates │ "I build systems that combine neural architectures with statistical guarantees — like conformal prediction for portfolio signals"      │
+  ├────────────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ "I only want to do AI research"            │ Role requires legacy system work too                      │ "I'm excited by both — I see legacy systems as the foundation that funds the future, and I've done full-stack production work"         │
+  ├────────────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Overhype NeuralQuant metrics               │ Only 1 GitHub star, 100 observations in simulation        │ "It's a live proof-of-concept with real infrastructure — I'm iterating toward product-market fit"                                      │
+  ├────────────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Claim you're an expert in their exact tech │ You don't know their stack                                │ "My strength is learning stacks fast — I built NeuralQuant in Python/FastAPI/Next.js, but I've worked across AWS, Docker, React, Node" │
+  └────────────────────────────────────────────┴───────────────────────────────────────────────────────────┴────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+  Follow-Up from Video (Be Ready to Go Deeper)
+
+  They said: "We'll go a little deeper into one of the topics you mentioned and explore how you think through practical scenarios."
+
+  If they pick Ethos-X:
+  Be ready to whiteboard the architecture: 3 inputs (EYES/BRINE/SPINE), decision frequency, risk management. Then be ready for a scenario: "The AI is shorting and the 20-day MA crosses above — what happens?" Answer: Tactical Safety Override blocks the short, flips to Hold or Buy depending on regime. Explain why — not just rule, but the lesson from V-shaped recoveries.
+
+  If they pick "explaining process over outcomes":
+  They might ask: "You're in a sprint, your code is working but you know it's brittle. Deadline is Friday. What do you do?"
+  Answer: Ship a working version with a documented tech-debt ticket and a safety guardrail. But start the refactor next sprint. Reference PROMETHEUS: I shipped Phase 1 supervised model knowing Phase 2 RL was conceptually better, but disabled it because it failed validation gates. Pragmatism + process orientation.
+
+  ---
+  FINAL TACTICAL ADVICE
+
+  1. Bring the paper. If this is in-person or you can share screen, have PROMETHEUS open. The architecture diagram (Exhibit 1) is beautiful and professional. Walk them through it if relevant.
+
+  2. Demo NeuralQuant. Have the live URL ready. Even if they don't ask, offering "I can show you the live platform if you're curious" demonstrates shipping.
+
+  3. Reference Stuart's articles. Mentioning "Trusting the Machine" or "The Human Condition in the Age of AI Investing" shows you're not just applying to any fintech — you engaged with their intellectual framework.
+
+  4. Own the visa. Mention proactively: "I'm on student visa 500, 48 hrs/fortnight, based in Ultimo — no relocation needed, ready to start immediately."
+
+  5. Your energy is your moat. The JD says "high-energy, curious, fun." In the live interview, let your enthusiasm for the intersection of AI and portfolio assurance show. This is genuinely your sweet spot — it should be obvious.
+
+  ---
+  Want me to drill deeper into any section? I can also mock-interview you live, or prepare flashcards for the technical follow-ups.
+
+✻ Worked for 10m 2s
+
+※ recap: Completed deep-dive interview prep for Financial Simplicity AI intern role covering your profile, the company, and tactical playbook. Tell me which section to drill deeper into next, or if you want a live mock interview. (disable recaps in /config)

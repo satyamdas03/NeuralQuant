@@ -13,6 +13,7 @@ apps/web/node_modules/
 # local tooling artifacts — do not commit
 .graphify_*
 graphify-out/
+~$*.docx
 knowledgeGraph_NeuralQuant/
 docs/NeuralQuant_Report*.docx
 docs/NeuralQuant_Report*.pdf
