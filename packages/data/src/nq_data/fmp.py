@@ -178,6 +178,8 @@ class FMPClient:
                         "market_cap": q.get("marketCap"),
                         "volume": q.get("volume"),
                         "name": q.get("name"),
+                        "year_high": q.get("yearHigh") or q.get("week52High"),
+                        "year_low": q.get("yearLow") or q.get("week52Low"),
                     }
                 self._cache_set("batch_quote", cache_key, chunk_results)
                 results.update(chunk_results)

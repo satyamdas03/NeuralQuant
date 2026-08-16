@@ -186,6 +186,8 @@ def _fetch_yf_batch(tickers: list[str], market: str) -> dict[str, dict]:
             entry["pe"] = info.get("trailingPE")
             entry["year_high"] = info.get("fiftyTwoWeekHigh")
             entry["year_low"] = info.get("fiftyTwoWeekLow")
+            entry["analyst_target"] = info.get("targetMeanPrice")
+            entry["recommendation"] = info.get("recommendationKey")
             entry["name"] = info.get("longName") or info.get("shortName") or t
             entry["sector"] = info.get("sector")
             entry["industry"] = info.get("industry")
@@ -222,6 +224,10 @@ def _build_snapshot_rows(
         # 52w range
         week_52_high = fmp.get("year_high") if fmp.get("year_high") is not None else yf.get("year_high")
         week_52_low = fmp.get("year_low") if fmp.get("year_low") is not None else yf.get("year_low")
+
+        # Analyst target / recommendation (FMP batch quote lacks these; yfinance has them)
+        analyst_target = fmp.get("analyst_target") if fmp.get("analyst_target") is not None else yf.get("analyst_target")
+        recommendation = fmp.get("recommendation") if fmp.get("recommendation") is not None else yf.get("recommendation")
 
         # P/E: FMP batch often null — try yfinance, then static quantfactor, then None
         pe_ttm = fmp.get("pe")
@@ -260,8 +266,8 @@ def _build_snapshot_rows(
             "week_52_high": _safe_num(week_52_high),
             "week_52_low": _safe_num(week_52_low),
             "earnings_date": None,
-            "analyst_target": None,
-            "recommendation": None,
+            "analyst_target": _safe_num(analyst_target),
+            "recommendation": recommendation,
             "rsi_14d": None,
             "macd_signal": None,
             "insider_score": None,
