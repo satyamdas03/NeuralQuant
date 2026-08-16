@@ -67,9 +67,8 @@ export default function PrivacyPolicyPage() {
           <li><strong>Supabase</strong> — Authentication, database hosting (US region). Data encrypted at rest and in transit.</li>
           <li><strong>Anthropic</strong> — AI model inference for Ask Morgan and PARA-DEBATE. Queries are processed per Anthropic&apos;s data usage policy.</li>
           <li><strong>Stripe</strong> — Payment processing. We do not store credit card details; Stripe handles PCI compliance.</li>
-          <li><strong>LiveKit</strong> — Voice/video infrastructure for QuantAstra sessions.</li>
+          <li><strong>LiveKit</strong> — Voice/video infrastructure + text-to-speech (LiveKit Inference) for QuantAstra sessions.</li>
           <li><strong>Deepgram</strong> — Speech-to-text for QuantAstra voice input.</li>
-          <li><strong>ElevenLabs</strong> — Text-to-speech for QuantAstra voice output.</li>
           <li><strong>Resend</strong> — Transactional email delivery.</li>
           <li><strong>FMP (Financial Modeling Prep)</strong> — Market data. We send ticker symbols; no personal data is shared.</li>
         </ul>

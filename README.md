@@ -32,7 +32,7 @@
 - **QA pass** — fixed a false "loss-making" badge (card + screener), a CSP console error, and a "Sign In while authenticated" nav bug; removed the unused `/alerts` page.
 - **Mobile** — hamburger nav + bottom tab bar + responsive cards/charts/tables across the app; tightened cramped score grids on phones (verified live at 390px).
 
-**Operator follow-ups (not code):** rotate the ElevenLabs key on the voice worker, manual-deploy `nq-api` on Render (ships the latest API/security changes), apply migration `027_security_events.sql`. Before any live demo, run `python scripts/warmup.py` (~3–5 min prior) — first-hit Ask Morgan / PARA-DEBATE is ~50s / ~85s of inherent multi-agent LLM time, and warming the exact demo tickers makes the audience-facing clicks fast.
+**Operator follow-ups (not code):** manual-deploy `nq-api` on Render (auto-deploy is unreliable), manual-deploy `quantastra-agent` Render worker after voice changes, apply migration `027_security_events.sql`. Before any live demo, run `python scripts/warmup.py` (~3–5 min prior) — first-hit Ask Morgan / PARA-DEBATE is ~50s / ~85s of inherent multi-agent LLM time, and warming the exact demo tickers makes the audience-facing clicks fast.
 
 ---
 
