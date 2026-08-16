@@ -86,7 +86,7 @@ A full-stack AI stock intelligence platform that combines a **quantitative signa
 
 - **PARA-DEBATE** — 5 specialist agents (Macro, Fundamental, Technical, Sentiment, Geopolitical) + adversarial BEAR challenge + Head Analyst synthesis, run in parallel (`asyncio.gather`). Each agent's numeric claims are reconciled against live authoritative data before synthesis (hallucination guard). SSE-streamed.
 - **Ask Morgan** — natural-language queries with conversation memory and live data injection. *"Is AAPL a buy?"* → price, P/E, IRS%, QuantFactor breakdown, consensus.
-- **Voice analysts** — **QuantAstra** (on-demand voice) and **Veronica** (page-aware companion: wake word, morning briefing, reads the page you're on). Deepgram → Claude → ElevenLabs pipeline on a LiveKit worker.
+- **Voice analysts** — **QuantAstra** (on-demand voice) and **Veronica** (page-aware companion: wake word, morning briefing, reads the page you're on). Deepgram → Claude → LiveKit Inference pipeline on a LiveKit worker.
 - **QuantFactor engine + IRS%** — cross-sectional quintile scoring (Growth / Return / Valuation / Risk) vs index peers, distilled into the proprietary **Investment Readiness Score (IRS%)**. US + India.
 - **Hermes** — autonomous self-improving trading agent (paper). LLM "reflection" loop mutates one strategy variable at a time with a written rationale and version history. Surfaced at `/hermes`.
 - **Screener** — filter/rank by IRS%, QuantFactor composite, sector, market; presets.
@@ -126,10 +126,10 @@ A full-stack AI stock intelligence platform that combines a **quantitative signa
 ┌──────▼──────────────────────────────┐   ┌───────────────▼──────────────┐
 │            nq-data layer             │   │   livekit-agent (worker)     │
 │ yfinance · FMP · NSE Bhavcopy · FRED │   │  QuantAstra + Veronica       │
-│ EDGAR F4 · Finnhub · OpenBB proxy    │   │  Deepgram→Claude→ElevenLabs  │
+│ EDGAR F4 · Finnhub · OpenBB proxy    │   │  Deepgram→Claude→Inference   │
 └──────────────────────────────────────┘   └──────────────────────────────┘
 
-External: Hermes trading agent (Railway) ──proxied via /hermes──▶ nq-api
+External: Hermes trading agent (GCP VM) ──proxied via /hermes──▶ nq-api
 ```
 
 **Apps:** `apps/web` (Next.js, Vercel) · `apps/api` (FastAPI, Render) · `apps/livekit-agent` (voice worker, Render) · `apps/team` (internal Team Hub, Vercel) · `apps/mobile` (Expo). Packages: `packages/data` (nq-data), `packages/signals` (nq-signals).
@@ -276,7 +276,7 @@ FMP_API_KEY=...
 SUPABASE_URL=...           SUPABASE_SERVICE_ROLE_KEY=...   SUPABASE_ANON_KEY=...
 ADMIN_EMAILS=you@example.com
 # Payments (optional): STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, PAYPAL_*
-# Voice (optional, on the livekit-agent worker): LIVEKIT_*, DEEPGRAM_API_KEY, ELEVENLABS_API_KEY
+# Voice (optional, on the livekit-agent worker): LIVEKIT_*, DEEPGRAM_API_KEY (TTS via LiveKit Inference)
 # USE_BEDROCK=true to route Claude calls through AWS Bedrock
 ```
 
@@ -304,10 +304,10 @@ python scripts/warmup.py --tickers AAPL,MSFT,TCS                      # pre-demo
 |---------|----------|-------------|
 | **API** (`nq-api`) | Render (Docker) | `neuralquant.onrender.com` — **manual deploy** (auto-deploy unreliable) |
 | **Web** | Vercel | [`neuralquant.co`](https://neuralquant.co) |
-| **Voice** (`quantastra-agent`) | Render (worker) | LiveKit; holds `ELEVENLABS_API_KEY` |
+| **Voice** (`quantastra-agent`) | Render (worker) | LiveKit; TTS via LiveKit Inference (no separate key) |
 | **OpenBB** (`nq-openbb`) | Render | Terminal/extended data proxy |
 | **Team Hub** | Vercel | Internal ops board |
-| **Hermes** | Railway | External trading agent, proxied via `/hermes` |
+| **Hermes** | GCP e2-micro VM | External trading agent, proxied via `/hermes` |
 | **Database** | Supabase | Postgres + Auth + RLS |
 | **Payments** | Stripe + PayPal | Subscriptions + verified webhooks |
 | **CI/CD** | GitHub Actions | lint, gitleaks, dep-audit |

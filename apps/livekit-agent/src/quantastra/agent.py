@@ -2,7 +2,7 @@
 
 Long-running worker that connects to LiveKit Cloud over WebSocket,
 joins rooms matching quantastra-*, and runs the cascaded
-STT→LLM→TTS pipeline: Deepgram → Claude Sonnet 4.6 → ElevenLabs.
+STT→LLM→TTS pipeline: Deepgram → Claude Sonnet 4.6 → LiveKit Inference.
 
 Publishes agent state, transcripts, and tool results to frontend
 via LiveKit data channel (topic: "quantastra").
@@ -24,12 +24,12 @@ from livekit.agents import (
     ModelSettings,
     WorkerOptions,
     cli,
+    inference,
 )
 from livekit.agents.types import APIConnectOptions
 from livekit.agents.voice.agent_session import SessionConnectOptions
 from livekit.plugins import anthropic as lk_anthropic
 from livekit.plugins import deepgram
-from livekit.plugins import elevenlabs
 from livekit.rtc import LocalParticipant
 
 from quantastra.context import (
@@ -107,10 +107,9 @@ class QuantAstraAgent(
                 # rejects requests with >16 (400 on every turn = agent goes mute).
                 _strict_tool_schema=False,
             ),
-            tts=elevenlabs.TTS(
-                model="eleven_turbo_v2_5",
-                voice_id="EXAVITQu4vr4xnSDxMaL",
-                api_key=os.getenv("ELEVENLABS_API_KEY"),
+            tts=inference.TTS(
+                model=os.getenv("QUANTASTRA_TTS_MODEL", "cartesia/sonic-3.5"),
+                voice=os.getenv("QUANTASTRA_TTS_VOICE", "Daniela"),
             ),
             allow_interruptions=True,
         )

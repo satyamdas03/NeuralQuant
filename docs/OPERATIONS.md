@@ -18,7 +18,7 @@ Demo set: none (`DEMO_MODE=true`).
 | Supabase | Postgres + auth + PostgREST | $0 (free) – $25 (pro) |
 | Vercel | Next.js frontend hosting | $0 (hobby) |
 | Anthropic / Bedrock | LLM (PARA-DEBATE, Ask AI, Morgan) | usage-based |
-| LiveKit + Deepgram + ElevenLabs | voice agent (optional) | usage-based |
+| LiveKit + Deepgram + LiveKit Inference | voice agent (optional) | usage-based |
 | Resend | transactional email | $0 (free tier) |
 | Porkbun | neuralquant.co domain | ~$1 |
 
@@ -46,18 +46,18 @@ entry in `render.yaml`, point `startCommand` at `python scripts/cron_invoke.py
 
 ## Hermes live trading agent
 
-The `/hermes` page proxies the Hermes trading-agent state API running on Railway.
-Only `nq-api` talks directly to Railway; the browser never sees the upstream URL
-or secret.
+The `/hermes` page proxies the Hermes trading-agent state API running on a GCP
+Always Free `e2-micro` VM. Only `nq-api` talks directly to the VM; the browser
+never sees the upstream URL or secret.
 
 Required env vars on `nq-api`:
 
 | Var | Purpose |
 |---|---|
-| `HERMES_API_URL` | Base URL of the Hermes Railway service |
+| `HERMES_API_URL` | Base URL of the Hermes GCP VM (e.g. `http://<VM_IP>:8000`) |
 | `HERMES_API_SECRET` | Shared secret forwarded as `X-Hermes-Secret` |
 
-Optional Hermes-daemon vars (set on the Railway service itself, see
+Optional Hermes-daemon vars (set on the GCP VM itself, see
 `hermes-trading/README.md`):
 
 | Var | Purpose |

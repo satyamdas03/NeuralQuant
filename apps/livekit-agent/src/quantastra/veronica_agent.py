@@ -8,11 +8,11 @@ import json
 import logging
 import os
 
-from livekit.agents import Agent, AgentSession, AutoSubscribe, JobContext, ModelSettings
+from livekit.agents import Agent, AgentSession, AutoSubscribe, JobContext, ModelSettings, inference
 from livekit.agents.types import APIConnectOptions
 from livekit.agents.voice.agent_session import SessionConnectOptions
 from livekit.plugins import anthropic as lk_anthropic
-from livekit.plugins import deepgram, elevenlabs
+from livekit.plugins import deepgram
 from livekit.rtc import LocalParticipant
 
 from quantastra.context import _fetch_user_name, summarize_and_store_session
@@ -29,63 +29,6 @@ from quantastra.veronica_logic import (
 from quantastra.veronica_persona import VERONICA_SYSTEM_PROMPT
 
 log = logging.getLogger("veronica")
-
-# Veronica's ElevenLabs voice. Override per-env with VERONICA_VOICE_ID.
-# Default "Jessica" (playful/warm) — a default premade voice usable on free tier.
-VERONICA_VOICE_ID = os.getenv("VERONICA_VOICE_ID", "cgSgspJ2msm6clMCkdW9")
-
-# Ultra-safe fallback: "Sarah" (also QuantAstra's voice), a default premade voice
-# confirmed usable via the API on a free ElevenLabs account. IMPORTANT: ElevenLabs
-# free tier returns HTTP 402 ("Free users cannot use library voices via the API")
-# for Voice-Library voices (e.g. the old fallback Charlotte XB0fD...). Only voices
-# in the account's own /v1/voices list work — hence the membership check below.
-_SAFE_FALLBACK_VOICE = "EXAVITQu4vr4xnSDxMaL"
-_resolved_voice: str | None = None
-
-
-def _resolve_voice_id() -> str:
-    """Return VERONICA_VOICE_ID if the account can actually USE it, else a usable one.
-
-    The earlier version only checked that the voice *existed* (GET /v1/voices/{id}),
-    which passes for library voices that still 402 at TTS time on free tier. Instead,
-    fetch the account's usable voice list and require membership; fall back to Sarah,
-    then to any usable voice, so Veronica never goes silent. Cached after first call."""
-    global _resolved_voice
-    if _resolved_voice:
-        return _resolved_voice
-    key = os.getenv("ELEVENLABS_API_KEY")
-    want = VERONICA_VOICE_ID
-    if not key:
-        _resolved_voice = want
-        return _resolved_voice
-    try:
-        import json as _json
-        import urllib.request
-        req = urllib.request.Request(
-            "https://api.elevenlabs.io/v1/voices", headers={"xi-api-key": key},
-        )
-        with urllib.request.urlopen(req, timeout=8) as r:
-            usable = {v.get("voice_id") for v in _json.loads(r.read()).get("voices", [])}
-        if want in usable:
-            _resolved_voice = want
-        elif _SAFE_FALLBACK_VOICE in usable:
-            log.error(
-                "Veronica voice %s not usable by this ElevenLabs account (not in its "
-                "voice list — likely a Voice-Library voice needing a paid plan). "
-                "Falling back to %s.", want, _SAFE_FALLBACK_VOICE,
-            )
-            _resolved_voice = _SAFE_FALLBACK_VOICE
-        else:
-            first = next(iter(usable), want)
-            log.error(
-                "Neither %s nor fallback %s is usable; using first account voice %s.",
-                want, _SAFE_FALLBACK_VOICE, first,
-            )
-            _resolved_voice = first
-    except Exception as exc:
-        log.error("Could not verify ElevenLabs voices (%s); using %s.", exc, _SAFE_FALLBACK_VOICE)
-        _resolved_voice = _SAFE_FALLBACK_VOICE
-    return _resolved_voice
 
 
 async def _publish(participant: LocalParticipant | None, msg: dict) -> None:
@@ -125,10 +68,9 @@ class VeronicaAgent(
                 # Same >16-union API limit as QuantAstra (agent.py:108)
                 _strict_tool_schema=False,
             ),
-            tts=elevenlabs.TTS(
-                model="eleven_turbo_v2_5",
-                voice_id=_resolve_voice_id(),
-                api_key=os.getenv("ELEVENLABS_API_KEY"),
+            tts=inference.TTS(
+                model=os.getenv("VERONICA_TTS_MODEL", "cartesia/sonic-3.5"),
+                voice=os.getenv("VERONICA_TTS_VOICE", "Jacqueline"),
             ),
             allow_interruptions=True,
         )

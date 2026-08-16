@@ -1,10 +1,10 @@
-"""Proxy to the Hermes trading agent's state API (Railway).
+"""Proxy to the Hermes trading agent's state API (GCP VM).
 
 Same pattern as the OpenBB proxy: the browser only ever talks to nq-api;
-the Railway URL and shared secret stay server-side.
+the upstream URL and shared secret stay server-side.
 
 Env:
-    HERMES_API_URL     e.g. https://zonal-curiosity-production-96f0.up.railway.app
+    HERMES_API_URL     e.g. http://<GCP_VM_IP>:8000
     HERMES_API_SECRET  shared secret, forwarded as X-Hermes-Secret
 """
 
@@ -32,8 +32,7 @@ _TTLS: dict[str, float] = {
 _cache: dict[str, tuple[float, dict]] = {}
 
 _UPSTREAM_OFFLINE_DETAIL = (
-    "Hermes agent is offline. Railway service status: offline. "
-    "Last known data may be served from cache."
+    "Hermes agent is offline. Last known data may be served from cache."
 )
 
 
@@ -78,7 +77,7 @@ async def _proxy_get(path: str, params: dict | None = None) -> dict:
 
 @router.get("/health")
 async def health() -> dict:
-    """Public liveness probe for the Hermes Railway service."""
+    """Public liveness probe for the Hermes agent."""
     base = os.environ.get("HERMES_API_URL", "").rstrip("/")
     if not base:
         return {
@@ -138,12 +137,12 @@ async def events() -> StreamingResponse:
             async with httpx.AsyncClient(timeout=httpx.Timeout(None, connect=10.0)) as client:
                 async with client.stream("GET", f"{base}/events", headers=headers) as r:
                     if not r.is_success:
-                        yield f'data: {{"line": "Hermes agent is offline. Railway service status: returned {r.status_code}."}}\n\n'
+                        yield f'data: {{"line": "Hermes agent is offline. Upstream returned {r.status_code}."}}\n\n'
                         return
                     async for chunk in r.aiter_bytes():
                         yield chunk
         except httpx.HTTPError as e:
-            yield f'data: {{"line": "Hermes agent is offline. Railway service status: unreachable ({type(e).__name__})."}}\n\n'
+            yield f'data: {{"line": "Hermes agent is offline. Upstream unreachable ({type(e).__name__})."}}\n\n'
 
     # no-transform: stops intermediaries (incl. Next's compression) from
     # gzip-buffering the stream, which starves EventSource of events.

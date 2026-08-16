@@ -2,16 +2,15 @@
 
 Endpoints:
   POST /cron/nightly-score?market=US|IN|BOTH  — rebuild score_cache
-  POST /cron/anjali?market=US|IN|BOTH           — rebuild anjali_enrichment
-  POST /cron/market-refresh                      — refresh market data
+  POST /cron/quantfactor-sync                  — sync Excel → quantfactor_universe
+  POST /cron/market-refresh                    — refresh market data
+  POST /cron/anjali?market=US|IN|BOTH          — disabled (superseded by quantfactor_sync)
 
 In-process scheduler also runs:
-  - US scores:  02:00 UTC
-  - IN scores:  02:30 UTC
-  - Anjali:    20:30 UTC  (QuantFactor Engine)
-  - Onboarding: 09:00 UTC
-  - US wrap broadcast: 21:30 UTC (5:30pm ET, after market close)
-  - IN wrap broadcast: 11:00 UTC (4:30pm IST, after market close)
+  - Market refresh: every 30 min during market hours
+  - US scores:      02:00 UTC
+  - IN scores:      02:30 UTC
+  - QuantFactor sync: 03:00 UTC (auto-downloads Excel from GitHub raw URLs)
 
 All endpoints require CRON_SECRET header to prevent unauthorized triggers.
 Jobs run in background threads — endpoints return immediately with status.

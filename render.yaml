@@ -112,8 +112,9 @@ services:
     plan: standard
     healthCheckPath: /docs
 
-  # NOTE: nq-trader and quantastra-agent now run on the Oracle Cloud Free Tier VM.
-  # See infra/oracle-cloud/docker-compose.yml.
-
-  # NOTE: Cron jobs (anjali refresh, market refresh, nightly US/IN) now run
-  # on the Oracle Cloud Free Tier VM via host cron. See infra/oracle-cloud/.
+  # NOTE: Hermes runs on a separate GCP Always Free e2-micro VM
+  #       (see infra/gcp/ and hermes-trading/).
+  # NOTE: quantastra-agent and nq-trader are deployed as separate Render worker
+  #       services (not defined in this blueprint).
+  # NOTE: Cron jobs (market refresh, nightly US/IN, quantfactor sync) run
+  #       in-process inside nq-api via apps/api/src/nq_api/routes/cron.py.

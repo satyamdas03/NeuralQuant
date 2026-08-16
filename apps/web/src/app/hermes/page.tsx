@@ -1,7 +1,7 @@
 "use client";
 
 /* Hermes Live Trading — Matrix view of the autonomous trading agent.
-   Data flows: Railway (hermes state API) → nq-api /hermes proxy → here.
+   Data flows: Hermes state API (GCP VM) → nq-api /hermes proxy → here.
    Log pane streams over SSE; status/trades poll on an interval. */
 
 import { useCallback, useEffect, useRef, useState } from "react";
