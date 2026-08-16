@@ -38,6 +38,7 @@ each `.sql` file manually in the Supabase SQL editor, in numeric order.
 | `026_enable_rls.sql` | Row-Level Security (defense-in-depth net) |
 | `027_security_events.sql` | `security_events` audit-log table |
 | `028_remove_email_schema.sql` | Drop email schema (email feature removed) |
+| `029_drop_legacy_email_columns.sql` | Drop leftover `public.users` email columns (optional cleanup) |
 
 ## Renumbering (2026-08-16)
 

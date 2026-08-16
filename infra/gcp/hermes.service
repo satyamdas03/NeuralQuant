@@ -1,0 +1,18 @@
+[Unit]
+Description=Hermes trading agent (paper)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=hermes
+WorkingDirectory=/opt/hermes
+EnvironmentFile=/opt/hermes/.env
+ExecStart=/home/hermes/.local/bin/uv run python -m hermes_trading.run
+Restart=always
+RestartSec=10
+# 1 GB RAM is tight — cap memory and let swap absorb spikes
+MemoryMax=900M
+MemoryHigh=700M
+
+[Install]
+WantedBy=multi-user.target
