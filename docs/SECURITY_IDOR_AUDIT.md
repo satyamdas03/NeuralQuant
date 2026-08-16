@@ -3,7 +3,7 @@
 Audit of every nq-api route touching user-owned tables. Rule: every read/write must
 scope to the **authenticated `user.id`** from `get_current_user`, never to an
 unchecked client-supplied id. Backend uses `service_role` (RLS bypassed), so this
-app-layer scoping is the primary protection (RLS added in `020_enable_rls.sql` as a net).
+app-layer scoping is the primary protection (RLS added in `026_enable_rls.sql` as a net).
 
 | Route (method path) | Table(s) | Owner column | Scoped to user.id? | Verdict | Action |
 |---|---|---|---|---|---|
@@ -34,4 +34,4 @@ app-layer scoping is the primary protection (RLS added in `020_enable_rls.sql` a
 - Everything else: **PASS** — the codebase consistently scopes user-data reads/writes to `user.id`, and IDOR-prone by-id deletes/reads re-validate ownership.
 
 ## Defense-in-depth
-RLS migration `apps/api/migrations/020_enable_rls.sql` adds DB-level per-user policies as a net beneath this app-layer scoping. `shared_analyses` owner policy uses `creator_id` (confirmed here).
+RLS migration `supabase/migrations/026_enable_rls.sql` adds DB-level per-user policies as a net beneath this app-layer scoping. `shared_analyses` owner policy uses `creator_id` (confirmed here).

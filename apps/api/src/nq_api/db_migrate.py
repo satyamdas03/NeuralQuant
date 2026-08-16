@@ -24,7 +24,7 @@ async def run_pending():
 
     migration_map = {
         "enrichment_cache": "009_enrichment_cache.sql",
-        "score_cache_history": "010_score_cache_history.sql",
+        "score_cache_history": "012b_score_cache_history.sql",
         "signal_log": "013_signal_log.sql",
         "news_classifications": "014_news_classifications.sql",
     }

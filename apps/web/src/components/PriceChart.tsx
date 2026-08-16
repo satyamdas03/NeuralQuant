@@ -30,7 +30,6 @@ export function PriceChart({ ticker, market = "US" }: { ticker: string; market?:
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     api.getStockChart(ticker, period, market)
       .then(d => { setData(d.data); setPctChange(d.period_change_pct); })

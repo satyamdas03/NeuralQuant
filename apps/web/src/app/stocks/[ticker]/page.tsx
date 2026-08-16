@@ -4,7 +4,6 @@ import { useParams, useSearchParams } from "next/navigation";
 import { api, authedApi } from "@/lib/api";
 import { useSessionTracker } from "@/lib/session-tracker";
 import { trackApiEvent } from "@/lib/analytics";
-import Link from "next/link";
 import type { AIScore, AnalystResponse, StockMeta, Market, SentimentResponse } from "@/lib/types";
 import { AIScoreCard } from "@/components/AIScoreCard";
 import { ScoreBreakdown } from "@/components/ScoreBreakdown";
@@ -69,6 +68,9 @@ export default function StockPage() {
     authedApi.listWatchlist().then(r => {
       setWatchlisted(r.items.some(i => i.ticker === ticker.toUpperCase()));
     }).catch(() => {}); // Not logged in — non-critical
+    // `score` is read intentionally (stale) to avoid clearing loading mid-retry;
+    // adding it to deps would re-fetch on every score change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ticker, market, logActivity]);
 
   // Publish the on-screen numbers to Veronica so she can describe this page.

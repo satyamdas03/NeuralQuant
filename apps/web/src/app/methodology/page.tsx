@@ -1,5 +1,11 @@
 "use client";
 
+/* eslint-disable react-hooks/refs --
+ * `useAnimatedSection` returns `{ ref, visible }` where `visible` is React
+ * state (set via IntersectionObserver callback), not a ref-derived value.
+ * Reading `visible` during render is correct (it triggers re-render); the
+ * rule's heuristic flags the `ref` property name on the returned object.
+ */
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
@@ -1169,7 +1175,7 @@ export default function MethodologyPage() {
                 title: "Survivorship Acknowledgment",
                 body: "The universe is reconstituted quarterly from current index constituents. Delisted stocks are excluded. We acknowledge this inflates returns vs. a true point-in-time backtest and are working toward a survivorship-free dataset.",
               },
-            ].map((card, i) => (
+            ].map((card) => (
               <GhostBorderCard key={card.title} hover>
                 <h3 className="font-headline text-sm font-bold text-text-primary mb-2">
                   {card.title}
@@ -1575,7 +1581,7 @@ export default function MethodologyPage() {
                 value: "Versioned",
                 detail: "All PARA-DEBATE agent prompts are in git; changes are tracked and auditable",
               },
-            ].map((item, i) => (
+            ].map((item) => (
               <GhostBorderCard key={item.label} hover>
                 <span className="font-mono text-[10px] font-bold tracking-[0.15em] uppercase text-primary-fixed">
                   {item.label}

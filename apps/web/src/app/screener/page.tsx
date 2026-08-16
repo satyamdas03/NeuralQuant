@@ -59,7 +59,6 @@ function ScreenerInner() {
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMarket(urlMarket);
     load(urlMarket);
   }, [urlMarket]);

@@ -4,8 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Play, X, BarChart3, Brain, Shield } from "lucide-react";
 import GhostBorderCard from "@/components/ui/GhostBorderCard";
 
-const PLACEHOLDER_VIDEO_URL = "https://www.youtube.com/embed/dQw4w9WgXcQ"; // placeholder
-
 const FEATURES = [
   {
     icon: BarChart3,

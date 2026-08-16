@@ -15,7 +15,11 @@ export function matchesWakeWord(transcript: string): boolean {
  */
 export function useWakeWord(active: boolean, onWake: () => void): void {
   const onWakeRef = useRef(onWake);
-  onWakeRef.current = onWake;
+
+  // Keep the latest callback in a ref without re-subscribing the speech listener.
+  useEffect(() => {
+    onWakeRef.current = onWake;
+  }, [onWake]);
 
   useEffect(() => {
     if (!active) return;

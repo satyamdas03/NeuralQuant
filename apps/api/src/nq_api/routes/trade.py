@@ -219,17 +219,23 @@ def _compute_live_signals(
 
     top_tickers = tickers[: min(n, 50)]
 
+    def _fmp_sym(t: str) -> str:
+        """FMP symbol for a ticker. NSE-listed IN tickers need the .NS suffix."""
+        return f"{t}.NS" if market == "IN" and "." not in t else t
+
     # Step 1: Batch quotes — use shared FMP client (single call, no threading issue)
     from nq_data.fmp import get_fmp_client
     fmp_shared = get_fmp_client()
-    batch_quotes = fmp_shared.get_batch_quotes(top_tickers) or {}
+    batch_quotes_raw = fmp_shared.get_batch_quotes([_fmp_sym(t) for t in top_tickers]) or {}
+    # get_batch_quotes keys results by FMP symbol; remap back to bare tickers.
+    batch_quotes = {t: batch_quotes_raw.get(_fmp_sym(t), {}) for t in top_tickers}
 
     # Step 2: Per-ticker data in parallel — each thread owns its httpx.Client
     def _fetch_one(ticker: str):
         """Fetch key_metrics + financial_scores + profile + quote for one ticker.
         Uses dedicated httpx.Client per thread (thread-safe)."""
         local_client = httpx.Client(timeout=15.0, follow_redirects=True)
-        sym = ticker  # US tickers match FMP symbols; IN needs .NS (handled separately)
+        sym = _fmp_sym(ticker)
         try:
             def _get(endpoint: str, extra_params: dict | None = None):
                 params = {"symbol": sym, "apikey": api_key}

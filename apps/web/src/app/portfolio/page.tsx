@@ -97,6 +97,17 @@ export default function PortfolioPage() {
   const [error, setError] = useState<string | null>(null);
   const [market, setMarket] = useState<"IN" | "US">("IN");
 
+  // mkt must be passable explicitly: setMarket() hasn't committed yet when the
+  // tab's onClick fires, so reading `market` here loads the PREVIOUS tab's data.
+  const loadRecommendation = useCallback((profile: AstraRiskProfile, mkt?: "IN" | "US") => {
+    setLoading(true);
+    setError(null);
+    authedApi.getAstraRecommend(profile, mkt ?? market)
+      .then(setRecommendation)
+      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load recommendations"))
+      .finally(() => setLoading(false));
+  }, [market]);
+
   useEffect(() => {
     // Check for saved risk profile
     authedApi.getRiskProfile()
@@ -139,18 +150,8 @@ export default function PortfolioPage() {
           setLoading(false);
         }
       });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount
   }, []);
-
-  // mkt must be passable explicitly: setMarket() hasn't committed yet when the
-  // tab's onClick fires, so reading `market` here loads the PREVIOUS tab's data.
-  const loadRecommendation = useCallback((profile: AstraRiskProfile, mkt?: "IN" | "US") => {
-    setLoading(true);
-    setError(null);
-    authedApi.getAstraRecommend(profile, mkt ?? market)
-      .then(setRecommendation)
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load recommendations"))
-      .finally(() => setLoading(false));
-  }, [market]);
 
   const handleProfileComplete = (profile: AstraRiskProfile) => {
     setRiskProfile(profile);
@@ -178,7 +179,7 @@ export default function PortfolioPage() {
         <GhostBorderCard>
           <div className="text-center py-8 space-y-4">
             <h2 className="text-lg font-headline font-bold text-on-surface">
-              What's your risk appetite?
+              What&apos;s your risk appetite?
             </h2>
             <p className="text-sm text-on-surface-variant max-w-md mx-auto">
               We need to understand your risk tolerance before building your personalized portfolio.

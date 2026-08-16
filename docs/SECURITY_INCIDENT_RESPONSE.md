@@ -84,7 +84,7 @@ Pick the relevant playbook(s):
    fuse limit in `abuse_limit.py` if needed and redeploy.
 
 ### E. Data exposure (IDOR / over-broad query)
-1. Identify the route and the data class. RLS (migration `020_enable_rls.sql`)
+1. Identify the route and the data class. RLS (migration `026_enable_rls.sql`)
    is the backstop, but the backend uses `service_role`, which bypasses RLS — so
    the application-layer ownership filter is the real control.
 2. Patch the route to filter by `user.id` / gate behind `require_admin`, deploy.
@@ -106,7 +106,7 @@ Pick the relevant playbook(s):
 - Update this runbook with anything that was missing.
 
 ## Quick reference — where things live
-- Audit log table: `public.security_events` (migration `021_security_events.sql`)
+- Audit log table: `public.security_events` (migration `027_security_events.sql`)
 - Audit emitter: `apps/api/src/nq_api/auth/security_audit.py`
 - Admin gate: `require_admin` / `require_team_access` in `auth/deps.py` (`ADMIN_EMAILS`, `TEAM_API_TOKEN`)
 - Abuse fuse: `auth/abuse_limit.py`
@@ -114,4 +114,4 @@ Pick the relevant playbook(s):
 - Secret scanning: `.github/workflows/secret-scan.yml` (gitleaks)
 - Dependency scanning: `.github/workflows/dep-audit.yml` + `.github/dependabot.yml`
 - Log redaction: `nq_api/logging_redaction.py`
-- RLS: `apps/api/migrations/020_enable_rls.sql`
+- RLS: `supabase/migrations/026_enable_rls.sql`

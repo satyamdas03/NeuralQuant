@@ -1,5 +1,5 @@
--- Migration 023: Remove email-related schema after email functionality was disabled.
--- Apply after 021_security_events.sql and 022_score_cache_growth_percentile.sql.
+-- Migration 028: Remove email-related schema after email functionality was disabled.
+-- Apply after 027_security_events.sql and 022_score_cache_growth_percentile.sql.
 
 -- 1. Opt-in flag for daily market wrap emails (feature removed).
 ALTER TABLE public.user_profiles

@@ -32,7 +32,7 @@
 - **QA pass** — fixed a false "loss-making" badge (card + screener), a CSP console error, and a "Sign In while authenticated" nav bug; removed the unused `/alerts` page.
 - **Mobile** — hamburger nav + bottom tab bar + responsive cards/charts/tables across the app; tightened cramped score grids on phones (verified live at 390px).
 
-**Operator follow-ups (not code):** rotate the ElevenLabs key on the voice worker, manual-deploy `nq-api` on Render (ships the latest API/security changes), apply migration `021_security_events.sql`. Before any live demo, run `python scripts/warmup.py` (~3–5 min prior) — first-hit Ask Morgan / PARA-DEBATE is ~50s / ~85s of inherent multi-agent LLM time, and warming the exact demo tickers makes the audience-facing clicks fast.
+**Operator follow-ups (not code):** rotate the ElevenLabs key on the voice worker, manual-deploy `nq-api` on Render (ships the latest API/security changes), apply migration `027_security_events.sql`. Before any live demo, run `python scripts/warmup.py` (~3–5 min prior) — first-hit Ask Morgan / PARA-DEBATE is ~50s / ~85s of inherent multi-agent LLM time, and warming the exact demo tickers makes the audience-facing clicks fast.
 
 ---
 
@@ -203,7 +203,7 @@ Scores are computed cross-sectionally within a reference universe — no hardcod
 Hardened across a P0–P6 program (Sessions 92–93):
 
 - **Auth** — Supabase JWT verified via JWKS; admin surfaces gated on an `ADMIN_EMAILS` allowlist (not tier); internal Team Hub behind admin/service-token.
-- **Database** — Row-Level Security (migrations `020_enable_rls.sql`, `021_security_events.sql`); backend uses `service_role` with RLS as the net.
+- **Database** — Row-Level Security (migrations `026_enable_rls.sql`, `027_security_events.sql`); backend uses `service_role` with RLS as the net.
 - **Secrets** — log redaction filter (scrubs keys/tokens/emails); gitleaks secret scanning in CI; `.env` gitignored.
 - **Web** — HTTP security headers (HSTS, X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy) + Content-Security-Policy (report-only, pending enforce).
 - **Abuse / integrity** — per-IP rate fuse on expensive endpoints (e.g. LiveKit token); Stripe/PayPal webhook signatures verified (fail-closed); file-upload size caps + MIME allow-list; prompt-injection guards on LLM file analysis.

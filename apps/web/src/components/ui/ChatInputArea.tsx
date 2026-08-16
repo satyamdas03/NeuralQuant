@@ -23,7 +23,6 @@ export default function ChatInputArea({
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setVoiceSupported(!!SR);
   }, []);
 

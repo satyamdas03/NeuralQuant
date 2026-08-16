@@ -62,6 +62,13 @@ async def lifespan(app: FastAPI):
     # Prewarm threads with yfinance + asyncio.run() cause OOM/crash on cold starts.
     on_render = bool(os.environ.get("RENDER"))
 
+    def _daemon_timer(interval: float, fn) -> threading.Timer:
+        """Schedule a one-shot background task on a daemon thread so it never
+        blocks process shutdown (non-daemon Timer threads keep uvicorn alive)."""
+        t = threading.Timer(interval, fn)
+        t.daemon = True
+        return t
+
     # Run pending DB migrations before warming caches
     await _run_pending_migrations()
 
@@ -145,7 +152,7 @@ async def lifespan(app: FastAPI):
                 log.warning("News prewarm failed: %s", exc)
 
         threading.Thread(target=_warm, daemon=True).start()
-        threading.Timer(20.0, _warm_news).start()
+        _daemon_timer(20.0, _warm_news).start()
 
         # Background: refresh score_cache if empty or stale (for dashboard + screener)
         def _refresh_score_cache():
@@ -204,7 +211,7 @@ async def lifespan(app: FastAPI):
             except Exception as exc:
                 log.warning("score_cache refresh failed: %s", exc)
 
-        threading.Timer(30.0, _refresh_score_cache).start()
+        _daemon_timer(30.0, _refresh_score_cache).start()
     else:
         # On Render: use quantfactor fast path (no yfinance).
         # Always rebuild on cold start — a fresh cache from a previous deploy
@@ -225,7 +232,7 @@ async def lifespan(app: FastAPI):
             except Exception as exc:
                 log.warning("Render: score_cache refresh failed: %s", exc)
 
-        threading.Timer(30.0, _render_cache_refresh).start()
+        _daemon_timer(30.0, _render_cache_refresh).start()
         log.info("Render detected — score_cache cold-start rebuild scheduled (top-50 per market)")
 
     # Pre-warm enrichment cache for top tickers (RSI/MACD/ATR/insider/news)
@@ -279,7 +286,7 @@ async def lifespan(app: FastAPI):
         except Exception as exc:
             log.warning("Enrichment prewarm failed: %s", exc)
 
-    threading.Timer(45.0, lambda: threading.Thread(target=_warm_enrichment, daemon=True).start()).start()
+    _daemon_timer(45.0, lambda: threading.Thread(target=_warm_enrichment, daemon=True).start()).start()
 
     # Pre-warm quantfactor cache (Supabase REST call, ~500ms, avoids cold-start latency)
     def _warm_quantfactor():
@@ -330,7 +337,7 @@ async def lifespan(app: FastAPI):
         except Exception as exc:
             log.warning("Stock meta prewarm failed: %s", exc)
 
-    threading.Timer(60.0, lambda: threading.Thread(target=_warm_stock_meta, daemon=True).start()).start()
+    _daemon_timer(60.0, lambda: threading.Thread(target=_warm_stock_meta, daemon=True).start()).start()
 
     # Start Slack agent system (graceful: no crash if tokens missing)
     from nq_api.slack.app import start_slack_handler, stop_slack_handler
@@ -655,10 +662,11 @@ async def health_smoke(x_cron_secret: str | None = Header(default=None)):
     async def _check_stock_meta(ticker: str, market: str):
         """Hit /stocks/{ticker}/meta internally via httpx."""
         import httpx
+        port = os.environ.get("PORT", "10000")
         try:
             async with httpx.AsyncClient(timeout=12.0) as client:
                 r = await client.get(
-                    f"http://127.0.0.1:10000/stocks/{ticker}/meta",
+                    f"http://127.0.0.1:{port}/stocks/{ticker}/meta",
                     params={"market": market},
                 )
             if r.status_code == 200:

@@ -16,7 +16,7 @@ from pathlib import Path
 log = logging.getLogger(__name__)
 
 # Ensure packages importable when running standalone
-ROOT = Path(__file__).resolve().parents[4]
+ROOT = Path(__file__).resolve().parents[5]
 if str(ROOT / "packages" / "data" / "src") not in sys.path:
     sys.path.insert(0, str(ROOT / "packages" / "data" / "src"))
 if str(ROOT / "packages" / "signals" / "src") not in sys.path:
@@ -328,8 +328,11 @@ def warm_stock_meta(market: str = "US") -> int:
         try:
             fut_map = {ex.submit(_warm_one_ticker, sym, market): sym for sym in batch}
             pending = set(fut_map.keys())
-            while pending:
+            deadline = False
+            while pending and not deadline:
                 done, pending = fut_wait(pending, timeout=15, return_when=FIRST_COMPLETED)
+                if not done:  # 15s timeout — remaining futures are hung
+                    deadline = True
                 for future in done:
                     sym = fut_map[future]
                     try:
@@ -340,6 +343,10 @@ def warm_stock_meta(market: str = "US") -> int:
                             written += 1
                     except Exception as exc:
                         log.warning("[%s] stock_meta failed for %s: %s", market, sym, exc)
+            if deadline and pending:
+                for future in pending:
+                    sym = fut_map[future]
+                    log.warning("[%s] stock_meta timeout for %s", market, sym)
         finally:
             ex.shutdown(wait=False)
 

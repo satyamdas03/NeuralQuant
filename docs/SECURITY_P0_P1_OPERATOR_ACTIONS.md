@@ -18,7 +18,7 @@ could see platform-wide metrics). It is now gated on an explicit allowlist.
 - If unset, the dashboard returns 403 for everyone (safe default).
 
 ## 3. Apply the RLS migration
-1. Supabase Dashboard → SQL Editor → paste `apps/api/migrations/020_enable_rls.sql` → Run.
+1. Supabase Dashboard → SQL Editor → paste `supabase/migrations/026_enable_rls.sql` → Run.
 2. Run the verification block at the bottom as a sample user; confirm only that user's
    rows return.
 3. Smoke-test the app end-to-end. The backend uses `service_role` (bypasses RLS), so
@@ -42,7 +42,7 @@ could see platform-wide metrics). It is now gated on an explicit allowlist.
 - Analytics admin gate: tier → `ADMIN_EMAILS` allowlist.
 - IDOR audit (`docs/SECURITY_IDOR_AUDIT.md`) — all user-data routes PASS except the
   analytics gate (fixed) and a P2 follow-up on `team.py`.
-- RLS migration `020_enable_rls.sql` (apply per step 3).
+- RLS migration `026_enable_rls.sql` (apply per step 3).
 
 ## Deferred to later sessions (roadmap)
 P2 abuse/webhooks · P3 injection + upload size cap · P4 web headers (CSP/HSTS) ·
