@@ -26,7 +26,8 @@ type HermesStatus = {
   strategy: { version?: string; entry?: Record<string, unknown>; stop_loss_pct?: number; take_profit_pct?: number; position_size_r?: number };
   aggregates: {
     total_trades: number; closed_trades: number; open_positions: Trade[];
-    total_pnl_usd: number; win_rate_pct: number | null; avg_pnl_pct: number | null;
+    total_pnl_usd: number; unrealized_pnl_usd: number; total_pnl_usd_incl_unrealized: number;
+    win_rate_pct: number | null; avg_pnl_pct: number | null;
     best_trade_usd: number | null; worst_trade_usd: number | null;
   };
 };
@@ -135,8 +136,10 @@ export default function HermesPage() {
 
       {/* Stat row */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <Stat label="Total P&L (paper USD)" value={agg ? `${agg.total_pnl_usd >= 0 ? "+" : ""}$${agg.total_pnl_usd.toLocaleString()}` : "—"}
-              tone={agg && agg.total_pnl_usd >= 0 ? "pos" : "neg"} />
+        <Stat label="Total P&L (paper USD)" value={agg ? `${agg.total_pnl_usd_incl_unrealized >= 0 ? "+" : ""}$${agg.total_pnl_usd_incl_unrealized.toLocaleString()}` : "—"}
+              tone={agg && agg.total_pnl_usd_incl_unrealized >= 0 ? "pos" : "neg"} />
+        <Stat label="Unrealized P&L" value={agg ? `${agg.unrealized_pnl_usd >= 0 ? "+" : ""}$${agg.unrealized_pnl_usd.toLocaleString()}` : "—"}
+              tone={agg && agg.unrealized_pnl_usd >= 0 ? "pos" : "neg"} />
         <Stat label="Closed trades" value={agg ? String(agg.closed_trades) : "—"} />
         <Stat label="Win rate" value={agg?.win_rate_pct != null ? `${agg.win_rate_pct}%` : "—"} />
         <Stat label="Open positions" value={agg ? String(openPositions.length) : "—"} />
