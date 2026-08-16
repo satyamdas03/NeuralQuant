@@ -339,8 +339,8 @@ async def run_nl_query_v2(
             if detected:
                 effective_ticker_v2 = detected[0].replace(".NS", "").replace(".BO", "")
                 # Auto-detect IN market when all detected tickers are Indian
-                from nq_api.universe import IN_DEFAULT
-                in_set = set(IN_DEFAULT)
+                from nq_api.universe import in_tickers_full
+                in_set = in_tickers_full()
                 if all(t in in_set for t in detected):
                     effective_market_v2 = "IN"
                     log.info("Auto-detected IN market for /v2: %s", detected)
@@ -849,8 +849,8 @@ async def run_nl_query_v2_stream(
                 if detected:
                     stream_ticker = detected[0].replace(".NS", "").replace(".BO", "")
                     # Auto-detect IN market when all detected tickers are Indian
-                    from nq_api.universe import IN_DEFAULT
-                    in_set = set(IN_DEFAULT)
+                    from nq_api.universe import in_tickers_full
+                    in_set = in_tickers_full()
                     if all(t in in_set for t in detected):
                         stream_market = "IN"
                         log.info("Auto-detected IN market for /v2/stream: %s", detected)

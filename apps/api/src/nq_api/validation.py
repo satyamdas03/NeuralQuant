@@ -214,8 +214,8 @@ def _fetch_portfolio_real_data(
         is_in = ticker.upper().endswith((".NS", ".BO"))
         if not is_in and market == "IN":
             try:
-                from nq_api.universe import IN_DEFAULT
-                is_in = ticker.upper() in frozenset(IN_DEFAULT)
+                from nq_api.universe import in_tickers_full
+                is_in = ticker.upper() in in_tickers_full()
             except Exception:
                 pass
         sym = ticker + ".NS" if is_in and "." not in ticker else ticker

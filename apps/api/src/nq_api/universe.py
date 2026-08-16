@@ -65,6 +65,33 @@ UNIVERSE_BY_MARKET: dict[str, list[str]] = {
 }
 
 
+@lru_cache(maxsize=1)
+def in_tickers_full() -> frozenset[str]:
+    """Full IN ticker set: static JSON + quantfactor_universe (dynamic, 497+).
+
+    The static in_nifty200.json only holds ~200 Nifty names, but the live
+    universe has expanded to 497+ IN tickers via the daily NSE sheet sync.
+    Market detection that relies on IN_DEFAULT alone mislabels the ~300
+    extra tickers (CRAFTSMAN, NAVINFLUOR, EMCURE, THELEELA, …) as US, which
+    breaks price/enrichment lookups. This merges the DB universe in.
+    """
+    result = set(IN_DEFAULT)
+    try:
+        from nq_api.cache.quantfactor_cache import _supabase_rest
+        rows = _supabase_rest(
+            "quantfactor_universe", "GET",
+            {"select": "ticker", "market": "eq.IN", "limit": "2000"},
+        )
+        if isinstance(rows, list):
+            for r in rows:
+                t = str(r.get("ticker") or "").replace(".NS", "").replace(".BO", "").upper()
+                if t:
+                    result.add(t)
+    except Exception as e:
+        logger.debug("in_tickers_full DB load failed: %s", e)
+    return frozenset(result)
+
+
 @lru_cache(maxsize=2048)
 def sector_of(ticker: str, market: str = "US") -> str:
     """Return GICS/NSE sector for ticker; 'Unknown' if not in universe."""

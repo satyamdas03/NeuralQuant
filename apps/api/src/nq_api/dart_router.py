@@ -11,7 +11,7 @@ import yfinance as yf
 
 from nq_api.schemas import QueryRequest, QueryResponse, AnalystResponse
 from nq_api.cache import score_cache
-from nq_api.universe import US_DEFAULT, IN_DEFAULT
+from nq_api.universe import US_DEFAULT, IN_DEFAULT, in_tickers_full
 from nq_api.data_builder import build_real_snapshot, fetch_real_macro, fetch_real_macro_in, _fund_cache, _fetch_yf_info_cached
 from nq_api.deps import get_signal_engine
 from nq_api.score_builder import _score_to_1_10
@@ -114,7 +114,7 @@ def classify_query(question: str, explicit_ticker: str | None = None) -> tuple[R
 
 # ── Ticker extraction helpers ─────────────────────────────────────────────
 
-_KNOWN_TICKERS = set(US_DEFAULT) | set(IN_DEFAULT)
+_KNOWN_TICKERS = set(US_DEFAULT) | in_tickers_full()
 _NSE_NAME_MAP_LOWER = {
     "trent": "TRENT.NS", "titan": "TITAN.NS", "zomato": "ZOMATO.NS",
     "nykaa": "NYKAA.NS", "paytm": "PAYTM.NS", "dmart": "DMART.NS",

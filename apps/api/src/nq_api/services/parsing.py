@@ -21,9 +21,9 @@ def _detect_tickers_in_question(question: str, market: str = "US") -> tuple[list
     in_universe_tickers: known tickers found in question.
     out_of_universe_words: words that look like NSE tickers but aren't in universe.
     """
-    from nq_api.universe import US_DEFAULT, IN_DEFAULT
+    from nq_api.universe import US_DEFAULT, in_tickers_full
     known_us = set(US_DEFAULT)
-    known_in = set(IN_DEFAULT)
+    known_in = in_tickers_full()
     in_universe = []
     q_upper = question.upper()
 

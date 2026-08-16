@@ -535,8 +535,8 @@ def _enrich_with_platform_data(question: str, market: str, ticker_hint: str | No
 
     # Auto-detect IN market when all in-universe tickers are Indian (no India keywords needed)
     if target_market != "IN" and in_universe_tickers:
-        from nq_api.universe import IN_DEFAULT
-        in_set = set(IN_DEFAULT)
+        from nq_api.universe import in_tickers_full
+        in_set = in_tickers_full()
         if all(t in in_set for t in in_universe_tickers):
             target_market = "IN"
             log.info("Auto-detected IN market from tickers: %s", in_universe_tickers)
@@ -1137,8 +1137,8 @@ def _enrich_snap_structured(req) -> tuple[list, "ReasoningBlock", str]:
 
         # Find nearest competitor in cache for comparison
         try:
-            from nq_api.universe import US_DEFAULT, IN_DEFAULT
-            universe = IN_DEFAULT if market == "IN" else US_DEFAULT
+            from nq_api.universe import US_DEFAULT, in_tickers_full
+            universe = sorted(in_tickers_full()) if market == "IN" else US_DEFAULT
             # Try up to 8 nearby tickers to find a competitor with cached data
             for alt_ticker in universe[:8]:
                 if alt_ticker == ticker:

@@ -86,8 +86,8 @@ def _infer_portfolio_market(portfolio_stocks: list[dict], explicit_market: str |
     if not portfolio_stocks:
         return explicit_market or "US"
     try:
-        from nq_api.universe import IN_DEFAULT
-        in_set = frozenset(IN_DEFAULT)
+        from nq_api.universe import in_tickers_full
+        in_set = in_tickers_full()
         n_in = sum(1 for s in portfolio_stocks if s.get("ticker", "").upper() in in_set)
         if n_in >= len(portfolio_stocks) * 0.5:
             return "IN"
@@ -104,8 +104,8 @@ def _detect_stock_market(ticker: str) -> str:
     if t.endswith(".NS") or t.endswith(".BO"):
         return "IN"
     try:
-        from nq_api.universe import IN_DEFAULT
-        if t in frozenset(IN_DEFAULT):
+        from nq_api.universe import in_tickers_full
+        if t in in_tickers_full():
             return "IN"
     except Exception:
         pass
