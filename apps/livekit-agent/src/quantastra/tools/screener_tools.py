@@ -110,10 +110,10 @@ class ScreenerToolsMixin:
         try:
             from nq_api.cache.score_cache import _supabase_rest
 
-            # Query anjali_enrichment sorted by irs_pct descending
+            # Query quantfactor_universe sorted by irs_pct descending
             result = _supabase_rest(
-                f"anjali_enrichment?market=eq.{market}&irs_pct=not.is.null"
-                f"&order=irs_pct.desc&limit={n}&select=ticker,name,irs_pct,g_score,risk_eff_score,sector,composite_anjali_score",
+                f"quantfactor_universe?market=eq.{market}&irs_pct=not.is.null"
+                f"&order=irs_pct.desc&limit={n}&select=ticker,irs_pct,g_score,risk_eff_score,sector,composite_score",
                 method="GET",
             )
 
@@ -141,7 +141,7 @@ class ScreenerToolsMixin:
                     "irs_pct": round(irs_val, 1),
                     "g_score": r.get("g_score"),
                     "risk_eff_score": r.get("risk_eff_score"),
-                    "composite_score": r.get("composite_anjali_score"),
+                    "composite_score": r.get("composite_score"),
                     "sector": r.get("sector", ""),
                     "zone": zone,
                 })

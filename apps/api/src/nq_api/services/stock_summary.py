@@ -246,7 +246,7 @@ def _build_stock_summary(ticker: str | None, market: str, enrichment: dict, plat
                 return_score=anjali_data.get("return_score"),
                 valuation_score=val_score,
                 risk_score=anjali_data.get("risk_score"),
-                composite=anjali_data.get("composite_anjali_score"),
+                composite=anjali_data.get("composite_score"),
                 is_loss_making=bool(
                     anjali_data.get("loss_profit_yoy") or anjali_data.get("loss_profit_ttm") or anjali_data.get("loss_profit_qoq")
                 ),

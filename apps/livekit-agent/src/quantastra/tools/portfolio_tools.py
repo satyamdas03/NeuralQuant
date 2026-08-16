@@ -188,8 +188,8 @@ class PortfolioToolsMixin:
             sell_signals = []
             for ticker, market in tickers:
                 rows = _supabase_rest(
-                    f"anjali_enrichment?ticker=eq.{ticker}&market=eq.{market}"
-                    f"&select=ticker,name,irs_pct,g_score,risk_eff_score,sector,composite_anjali_score",
+                    f"quantfactor_universe?ticker=eq.{ticker}&market=eq.{market}"
+                    f"&select=ticker,irs_pct,g_score,risk_eff_score,sector,composite_score",
                     method="GET",
                 )
                 if not rows:
@@ -206,7 +206,7 @@ class PortfolioToolsMixin:
                     "irs_pct": round(irs_pct, 1),
                     "g_score": round(g_score, 1),
                     "risk_eff_score": round(risk_eff, 1),
-                    "composite_score": r.get("composite_anjali_score"),
+                    "composite_score": r.get("composite_score"),
                     "sector": r.get("sector", ""),
                     "zone": "STRONG BUY" if irs_pct > 65 else "MODERATE" if irs_pct > 45 else "WEAK" if irs_pct > 30 else "VERY WEAK",
                     "sell_signal": is_sell,
@@ -262,8 +262,8 @@ class PortfolioToolsMixin:
             neutral_zone = []
             for s in wl:
                 rows = _supabase_rest(
-                    f"anjali_enrichment?ticker=eq.{s['ticker']}&market=eq.{s.get('market', 'US')}"
-                    f"&select=ticker,name,g_score,risk_eff_score,irs_pct",
+                    f"quantfactor_universe?ticker=eq.{s['ticker']}&market=eq.{s.get('market', 'US')}"
+                    f"&select=ticker,g_score,risk_eff_score,irs_pct",
                     method="GET",
                 )
                 if not rows:

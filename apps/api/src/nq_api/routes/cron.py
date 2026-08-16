@@ -117,23 +117,21 @@ def cron_nightly_score_status(authorization: str | None = Header(None)):
 # ── QuantFactor Engine Enrichment ───────────────────────────────────────────────
 
 def _run_anjali(market: str) -> dict:
-    """Run QuantFactor enrichment synchronously (in a thread)."""
-    import asyncio as _aio
-    from nq_api.jobs.nightly_anjali import refresh_anjali_data
+    """QuantFactor enrichment — DISABLED (superseded by quantfactor_sync).
 
-    results = {"market": market, "started": datetime.now(timezone.utc).isoformat()}
-    try:
-        mkt_filter = None if market == "BOTH" else market
-        loop = _aio.new_event_loop()
-        res = loop.run_until_complete(refresh_anjali_data(market=mkt_filter))
-        loop.close()
-        results["universes"] = res
-        results["total"] = sum(res.values())
-    except Exception as exc:
-        log.exception("QuantFactor refresh failed: %s", exc)
-        results["error"] = str(exc)
-    results["completed"] = datetime.now(timezone.utc).isoformat()
-    return results
+    The old yfinance collector wrote to anjali_enrichment, which migration 025
+    replaced with quantfactor_universe (fed by the Excel path in
+    quantfactor_sync.py). The yfinance collector is redundant and broken on
+    Render (yfinance skipped on cloud IPs → 0 rows), so it's a no-op now.
+    """
+    log.info("[cron] QuantFactor enrichment disabled — superseded by quantfactor_sync (quantfactor_universe)")
+    return {
+        "market": market,
+        "disabled": True,
+        "reason": "superseded by quantfactor_sync",
+        "total": 0,
+        "completed": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 def _run_anjali_bg():

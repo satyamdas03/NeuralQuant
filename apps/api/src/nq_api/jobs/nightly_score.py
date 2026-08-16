@@ -60,23 +60,33 @@ def _run_market_from_quantfactor(market: str) -> int:
     except Exception:
         fmp = None
 
-    # 0. Delete stale/garbage rows from score_cache for this market before rebuilding
+    # 1. Read quantfactor_universe rows for this market (with retry). A
+    # concurrent market-refresh can transiently return empty; never wipe
+    # score_cache on a failed read (the old order deleted first, so a
+    # transient empty read left the market with 0 score rows).
+    qf_rows = None
+    for attempt in range(3):
+        qf_rows = _qf_rest(
+            "quantfactor_universe", "GET",
+            {"select": "*", "market": f"eq.{market}", "limit": "1500"},
+        )
+        if qf_rows:
+            break
+        log.warning("[%s] quantfactor_universe read empty (attempt %d/3) — retrying", market, attempt + 1)
+        time.sleep(2)
+    if not qf_rows:
+        log.warning("[%s] No quantfactor_universe rows after retries — aborting WITHOUT deleting score_cache", market)
+        return 0
+
+    log.info("[%s] quantfactor_universe: %d rows", market, len(qf_rows))
+
+    # 0. Delete stale/garbage rows from score_cache for this market before
+    # rebuilding (only after a successful read).
     try:
         _qf_rest("score_cache", method="DELETE", query={"market": f"eq.{market}"})
         log.info("[%s] Deleted existing score_cache rows before rebuild", market)
     except Exception as e:
         log.warning("[%s] Failed to delete existing score_cache rows: %s", market, e)
-
-    # 1. Read quantfactor_universe rows for this market
-    qf_rows = _qf_rest(
-        "quantfactor_universe", "GET",
-        {"select": "*", "market": f"eq.{market}", "limit": "1500"},
-    )
-    if not qf_rows:
-        log.warning("[%s] No quantfactor_universe rows — falling back to full pipeline", market)
-        return 0
-
-    log.info("[%s] quantfactor_universe: %d rows", market, len(qf_rows))
 
     # 2. Batch FMP quotes for live prices
     fmp_prices: dict[str, dict] = {}

@@ -42,4 +42,4 @@ jobs:
           cd neuralquant
           uv run python apps/api/src/nq_api/jobs/quantfactor_sync.py \
             --us-excel "../anjali-repo/US_Stock_Analysis_Coloured.xlsx" \
-            --india-csv "../anjali-repo/Indian_Stock_Data.csv"
+            --india-excel "../anjali-repo/stock_analysis_coloured (1).xlsx"

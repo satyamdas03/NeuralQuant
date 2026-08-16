@@ -242,7 +242,7 @@ async def build_greeting_context(user_id: str | None) -> str:
                 hard_sells = []
                 for s in wl:
                     rows = _supabase_rest(
-                        f"anjali_enrichment?ticker=eq.{s['ticker']}&market=eq.{s.get('market', 'US')}"
+                        f"quantfactor_universe?ticker=eq.{s['ticker']}&market=eq.{s.get('market', 'US')}"
                         f"&select=ticker,g_score,risk_eff_score,irs_pct",
                         method="GET",
                     )

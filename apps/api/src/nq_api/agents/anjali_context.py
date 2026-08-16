@@ -32,7 +32,7 @@ def build_anjali_context(enrichment: dict | None) -> str:
     ret = enrichment.get("return_score")
     val = enrichment.get("valuation_score")
     risk = enrichment.get("risk_score")
-    composite = enrichment.get("composite_anjali_score")
+    composite = enrichment.get("composite_score")
 
     # IRS scores (Phase 3)
     g_score = enrichment.get("g_score")
