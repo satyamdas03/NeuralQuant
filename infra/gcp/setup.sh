@@ -34,6 +34,8 @@ sudo -u "$SERVICE_USER" bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh
 
 echo "==> Cloning Hermes repo..."
 if [[ ! -d "$APP_DIR/.git" ]]; then
+    sudo mkdir -p "$APP_DIR"
+    sudo chown "$SERVICE_USER":"$SERVICE_USER" "$APP_DIR"
     sudo -u "$SERVICE_USER" git clone "$HERMES_REPO" "$APP_DIR"
 fi
 
