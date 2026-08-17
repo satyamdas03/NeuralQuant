@@ -40,22 +40,54 @@ def get_screener_presets() -> dict:
     return {"presets": PRESETS}
 
 
+def _is_merged_market(market: str) -> bool:
+    """BOTH/GLOBAL requests should combine US + IN universes."""
+    return market in ("BOTH", "GLOBAL")
+
+
+def _read_top_merged(n: int, max_age_seconds: int) -> list[dict[str, Any]]:
+    """Read top-N from US and IN score_cache and merge by composite_score."""
+    us_rows = score_cache.read_top("US", n=n, max_age_seconds=max_age_seconds) or []
+    in_rows = score_cache.read_top("IN", n=n, max_age_seconds=max_age_seconds) or []
+    merged = us_rows + in_rows
+    merged.sort(key=lambda r: r.get("composite_score") or 0, reverse=True)
+    return merged[:n]
+
+
+def _read_snapshot_merged(limit: int, max_age_minutes: int = 35) -> list[dict[str, Any]]:
+    """Read non-stale stock_snapshot rows for US and IN and merge by change_pct."""
+    us_rows = read_all_by_market("US", limit=limit) or []
+    in_rows = read_all_by_market("IN", limit=limit) or []
+    merged = [r for r in us_rows + in_rows if not is_stale(r, max_age_minutes=max_age_minutes)]
+    merged.sort(key=lambda r: r.get("change_pct") or 0, reverse=True)
+    return merged
+
+
 def _get_live_regime_id(market: str = "US") -> int:
     """Detect current regime via SignalEngine._get_regime().
     BUG-004 fix: _LiveMacro has no regime_id field so hasattr() always fails.
     Use the engine directly instead of reading a non-existent attribute."""
+    # BOTH/GLOBAL isn't a real market — use US regime as representative.
+    effective_market = "IN" if market == "IN" else "US"
     try:
-        if market == "IN":
+        if effective_market == "IN":
             from nq_api.data_builder import fetch_real_macro_in
             macro = fetch_real_macro_in()
         else:
             macro = fetch_real_macro()
         engine = get_signal_engine()
-        regime = engine._get_regime(macro, market)
+        regime = engine._get_regime(macro, effective_market)
         return regime.regime_id
     except Exception as e:
         logger.debug("Non-critical enrichment failed: %s", e)
         return 1
+
+
+def _read_top_for_preview(market: str, n: int, max_age_seconds: int) -> list[dict[str, Any]]:
+    """Unified cache read for preview: exact market OR merged US+IN."""
+    if _is_merged_market(market):
+        return _read_top_merged(n, max_age_seconds)
+    return score_cache.read_top(market, n=n, max_age_seconds=max_age_seconds)
 
 
 @router.get("/preview", response_model=ScreenerResponse)
@@ -65,16 +97,16 @@ async def screener_preview(market: str = "US", n: int = 8) -> ScreenerResponse:
     cache_age = "fresh"
     try:
         # Tier 1: fresh cache (≤5 min)
-        rows = await asyncio.to_thread(score_cache.read_top, market, n=n, max_age_seconds=300)
+        rows = await asyncio.to_thread(_read_top_for_preview, market, n, 300)
         if not rows:
             # Tier 2: stale cache (≤24 h) — nightly GHA data, better than timeout
-            rows = await asyncio.to_thread(score_cache.read_top, market, n=n, max_age_seconds=86400)
+            rows = await asyncio.to_thread(_read_top_for_preview, market, n, 86400)
             if rows:
                 cache_age = "stale"
                 logger.info("screener_preview: serving stale cache (>5min) for market=%s", market)
         if not rows:
             # Tier 3: any age — better than empty response
-            rows = await asyncio.to_thread(score_cache.read_top, market, n=n, max_age_seconds=999999999)
+            rows = await asyncio.to_thread(_read_top_for_preview, market, n, 999999999)
             if rows:
                 cache_age = "very_old"
                 logger.warning("screener_preview: serving very old cache for market=%s", market)
@@ -100,7 +132,10 @@ async def screener_preview(market: str = "US", n: int = 8) -> ScreenerResponse:
     # Tier 4: stock_snapshot fallback (fast, no API calls to Yahoo)
     if not rows or cache_age == "very_old":
         try:
-            snap_rows = await asyncio.to_thread(read_all_by_market, market, limit=200)
+            if _is_merged_market(market):
+                snap_rows = await asyncio.to_thread(_read_snapshot_merged, 200)
+            else:
+                snap_rows = await asyncio.to_thread(read_all_by_market, market, limit=200)
             if snap_rows:
                 # Filter out stale rows
                 snap_rows = [r for r in snap_rows if not is_stale(r, max_age_minutes=35)]
@@ -119,13 +154,14 @@ async def screener_preview(market: str = "US", n: int = 8) -> ScreenerResponse:
             logger.warning("screener_preview snapshot fallback failed for market=%s: %s", market, exc)
 
     if not rows:
-        # Tier 5: live compute (last resort, strict timeout)
+        # Tier 5: live compute (last resort, strict timeout). BOTH/GLOBAL falls back to US.
         import os
         on_render = bool(os.environ.get("RENDER"))
         live_n = min(n, 5) if on_render else min(n, 8)
         timeout_seconds = 25.0 if on_render else 25.0
+        live_market = "US" if _is_merged_market(market) else market
         logger.info("screener_preview: cache empty, falling back to live compute for market=%s render=%s tickers=%d timeout=%.0fs", market, on_render, live_n, timeout_seconds)
-        return await _preview_live_fallback(market, live_n, timeout_seconds)
+        return await _preview_live_fallback(live_market, live_n, timeout_seconds)
 
     regime_id = _get_live_regime_id(market)
     ai_scores = _cache_rows_to_ai_scores(rows, market, regime_id)
@@ -198,7 +234,10 @@ def _snapshot_rows_to_ai_scores(snap_rows: list[dict], market: str) -> list:
     results = []
     for snap in snap_rows:
         ticker = snap.get("ticker", "")
-        qf = get_quantfactor_scores(ticker, market) or {}
+        # Snapshot rows carry their actual market (US/IN); use it so merged
+        # BOTH/GLOBAL results still resolve QuantFactor scores correctly.
+        row_market = snap.get("market", market) if not _is_merged_market(market) else snap.get("market", "US")
+        qf = get_quantfactor_scores(ticker, row_market) or {}
 
         # Derive composite from quantfactor composite_score (-16..+16 → 0..1)
         qf_comp = qf.get("composite_score")
@@ -244,7 +283,7 @@ def _snapshot_rows_to_ai_scores(snap_rows: list[dict], market: str) -> list:
 
         results.append(AIScore(
             ticker=ticker,
-            market=market,
+            market=row_market,
             composite_score=composite,
             score_1_10=score_1_10,
             regime_id=1,
@@ -268,6 +307,13 @@ def _snapshot_rows_to_ai_scores(snap_rows: list[dict], market: str) -> list:
         -(s.sub_scores.momentum or 0),
     ))
     return results
+
+
+def _read_top_for_screener(market: str, n: int, max_age_seconds: int) -> list[dict[str, Any]]:
+    """Unified cache read for full screener: exact market OR merged US+IN."""
+    if _is_merged_market(market):
+        return _read_top_merged(n, max_age_seconds)
+    return score_cache.read_top(market, n=n, max_age_seconds=max_age_seconds)
 
 
 def _apply_preset_filters(scores: list, req: ScreenerRequest) -> list:
@@ -330,10 +376,10 @@ async def run_screener(
         # Development phase: use aggressive cache (60s) for all tiers
         if tier_age > 60:
             tier_age = 60
-        cached = await asyncio.to_thread(score_cache.read_top, req.market, n=max(100, req.max_results * 3), max_age_seconds=tier_age)
+        cached = await asyncio.to_thread(_read_top_for_screener, req.market, max(100, req.max_results * 3), tier_age)
         if not cached:
             # Broader fallback — stale cache better than live compute timeout
-            cached = await asyncio.to_thread(score_cache.read_top, req.market, n=max(100, req.max_results * 3), max_age_seconds=86400)
+            cached = await asyncio.to_thread(_read_top_for_screener, req.market, max(100, req.max_results * 3), 86400)
         cached = [r for r in cached if (r.get("composite_score") or 0) >= req.min_score]
         if cached:
             # regime: compute cheaply from macro (static across batch)
@@ -360,7 +406,7 @@ async def run_screener(
         # Return partial: try serving whatever cache we have, even if stale
         try:
             cached_fallback = await asyncio.to_thread(
-                score_cache.read_top, req.market, n=req.max_results, max_age_seconds=999999999
+                _read_top_for_screener, req.market, req.max_results, 999999999
             )
             if cached_fallback:
                 regime_id = _get_live_regime_id(req.market)
@@ -379,8 +425,10 @@ async def run_screener(
 
 def _run_screener_sync(req: ScreenerRequest, engine: Any) -> ScreenerResponse:
     """Blocking screener compute — runs in thread pool."""
-    tickers = req.tickers or UNIVERSE_BY_MARKET.get(req.market, UNIVERSE_BY_MARKET["US"])
-    snapshot = build_real_snapshot(tickers, req.market)
+    # BOTH/GLOBAL isn't a real universe — fall back to US for live compute.
+    effective_market = "US" if _is_merged_market(req.market) else req.market
+    tickers = req.tickers or UNIVERSE_BY_MARKET.get(effective_market, UNIVERSE_BY_MARKET["US"])
+    snapshot = build_real_snapshot(tickers, effective_market)
     result_df = engine.compute(snapshot)
 
     filtered = result_df[result_df["composite_score"] >= req.min_score]
@@ -391,7 +439,7 @@ def _run_screener_sync(req: ScreenerRequest, engine: Any) -> ScreenerResponse:
         from nq_api.cache.quantfactor_cache import get_quantfactor_scores
         anjali_pass = []
         for _, row in filtered.iterrows():
-            a = get_quantfactor_scores(str(row["ticker"]), req.market)
+            a = get_quantfactor_scores(str(row["ticker"]), effective_market)
             if a is None:
                 continue  # No QuantFactor data — skip if filters active
             comp = a.get("composite_score")
@@ -415,7 +463,7 @@ def _run_screener_sync(req: ScreenerRequest, engine: Any) -> ScreenerResponse:
 
     regime_id = int(result_df["regime_id"].iloc[0]) if not result_df.empty else 1
     ai_scores = [
-        row_to_ai_score(row, req.market, score_1_10_override=int(ranked_scores.iloc[i]))
+        row_to_ai_score(row, effective_market, score_1_10_override=int(ranked_scores.iloc[i]))
         for i, (_, row) in enumerate(filtered.iterrows())
     ]
     ai_scores = _apply_preset_filters(ai_scores, req)

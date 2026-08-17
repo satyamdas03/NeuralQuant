@@ -78,7 +78,7 @@ def _fmt_mcap(mc: float, market: str = "US") -> str:
 @router.get("/{ticker}", response_model=AIScore)
 async def get_stock_score(
     ticker: str,
-    market: Literal["US", "IN", "GLOBAL"] = Query("US"),
+    market: Literal["US", "IN", "GLOBAL", "BOTH"] = Query("US"),
     engine: Any = Depends(get_signal_engine),
 ) -> AIScore:
     ticker_upper = _normalize_ticker(ticker, market)
@@ -107,6 +107,20 @@ async def get_stock_score(
     except Exception as e:
         log.warning("score_cache.read_one failed: %s", e)
     if cached:
+        # BUG: score_cache rows don't store change_pct. Backfill from stock_snapshot
+        # so the stock detail page shows today's price change.
+        if cached.get("change_pct") is None:
+            try:
+                # BOTH/GLOBAL isn't a real market in stock_snapshot; try US then IN.
+                markets_to_try = [market] if market in ("US", "IN") else ["US", "IN"]
+                for m in markets_to_try:
+                    snap = await asyncio.to_thread(_read_stock_snapshot, ticker_upper, m)
+                    if snap and snap.get("change_pct") is not None:
+                        cached["change_pct"] = snap.get("change_pct")
+                        break
+            except Exception:
+                pass
+
         # Build AIScore from cache row — use regime_id from cache row itself
         df = pd.DataFrame([cached])
         if "regime_id" not in df.columns or pd.isna(df["regime_id"].iloc[0]):
@@ -1227,7 +1241,7 @@ def _fetch_stock_meta_fmp_light(ticker: str, market: str) -> dict | None:
 @router.get("/{ticker}/stream")
 async def stream_stock_score(
     ticker: str,
-    market: Literal["US", "IN", "GLOBAL"] = Query("US"),
+    market: Literal["US", "IN", "GLOBAL", "BOTH"] = Query("US"),
     engine: Any = Depends(get_signal_engine),
 ):
     """SSE endpoint: emits score updates every 60 seconds for the given ticker.
@@ -1237,8 +1251,8 @@ async def stream_stock_score(
         last_score = None
         while True:
             try:
-                # Offload sync get_stock_score to thread pool so event loop stays free
-                score_obj = await asyncio.to_thread(get_stock_score, ticker, market, engine)
+                # get_stock_score is async; await it directly in the event loop
+                score_obj = await get_stock_score(ticker, market, engine)
                 payload = score_obj.model_dump_json()
                 if last_score != payload:
                     yield f"event: score\ndata: {payload}\n\n"

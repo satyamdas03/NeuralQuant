@@ -38,7 +38,7 @@ class AnjaliScores(BaseModel):
 
 class AIScore(BaseModel):
     ticker: str
-    market: Literal["US", "IN", "GLOBAL"]
+    market: Literal["US", "IN", "GLOBAL", "BOTH"]
     composite_score: float       # 0-1
     score_1_10: int              # 1-10 for display
     regime_id: int               # 1-4
@@ -59,7 +59,7 @@ class AIScore(BaseModel):
 
 
 class ScreenerRequest(BaseModel):
-    market: Literal["US", "IN", "GLOBAL"] = "US"
+    market: Literal["US", "IN", "GLOBAL", "BOTH"] = "US"
     min_score: float = 0.0
     max_results: int = Field(50, le=200)
     tickers: Optional[list[str]] = None  # if None, use default universe
@@ -91,7 +91,7 @@ class AgentOutput(BaseModel):
 
 class AnalystRequest(BaseModel):
     ticker: str
-    market: Literal["US", "IN", "GLOBAL"] = "US"
+    market: Literal["US", "IN", "GLOBAL", "BOTH"] = "US"
     include_adversarial: bool = True
 
 
@@ -121,7 +121,7 @@ class UserProfile(BaseModel):
 class QueryRequest(BaseModel):
     question: str
     ticker: Optional[str] = None
-    market: Literal["US", "IN", "GLOBAL"] = "US"
+    market: Literal["US", "IN", "GLOBAL", "BOTH"] = "US"
     history: list[ConversationMessage] = []  # previous turns for multi-turn chat
     session_key: Optional[str] = None  # persistent conversation key (client-generated UUID)
     profile: UserProfile | None = None
