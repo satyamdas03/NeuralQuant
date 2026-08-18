@@ -69,7 +69,6 @@ export default function PrivacyPolicyPage() {
           <li><strong>Stripe</strong> — Payment processing. We do not store credit card details; Stripe handles PCI compliance.</li>
           <li><strong>LiveKit</strong> — Voice/video infrastructure + text-to-speech (LiveKit Inference) for QuantAstra sessions.</li>
           <li><strong>Deepgram</strong> — Speech-to-text for QuantAstra voice input.</li>
-          <li><strong>Resend</strong> — Transactional email delivery.</li>
           <li><strong>FMP (Financial Modeling Prep)</strong> — Market data. We send ticker symbols; no personal data is shared.</li>
         </ul>
       </section>
