@@ -280,10 +280,14 @@ def count_by_market(market: str) -> int:
         "stock_snapshot",
         method="GET",
         query={
-            "select": "count",
+            "select": "count()",
             "market": f"eq.{market}",
         },
     )
     if isinstance(data, list) and data:
-        return data[0].get("count", 0)
+        # PostgREST aggregation returns count as string; coerce to int.
+        try:
+            return int(data[0].get("count", 0))
+        except (TypeError, ValueError):
+            return 0
     return 0

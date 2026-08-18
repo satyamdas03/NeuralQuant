@@ -8,7 +8,7 @@ def test_health_returns_ok():
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "ok"
-    assert body["version"] == "4.1.2"
+    assert body["version"] == "4.1.3"
     # Freshness fields always present (None when Supabase unreachable)
     assert "score_cache_age_hours" in body
     assert "score_cache_rows" in body

@@ -121,6 +121,19 @@ async def get_stock_score(
             except Exception:
                 pass
 
+            # Final fallback: yfinance direct (IN stocks where FMP has no coverage).
+            # Keep a short timeout so we don't blow up the fast path.
+            if cached.get("change_pct") is None:
+                try:
+                    yf_meta = await asyncio.wait_for(
+                        asyncio.to_thread(_fetch_stock_meta, ticker_upper, market),
+                        timeout=8.0,
+                    )
+                    if isinstance(yf_meta, dict) and yf_meta.get("change_pct") is not None:
+                        cached["change_pct"] = yf_meta["change_pct"]
+                except Exception:
+                    pass
+
         # Build AIScore from cache row — use regime_id from cache row itself
         df = pd.DataFrame([cached])
         if "regime_id" not in df.columns or pd.isna(df["regime_id"].iloc[0]):
