@@ -315,6 +315,21 @@ async def start_scheduled_jobs():
 
     log.info("[scheduler] Starting in-process cron scheduler (includes market_refresh every 30min)")
 
+    # Cold-start guard: if stock_snapshot is empty, kick off a background market
+    # refresh immediately. The scheduler otherwise only runs during market hours,
+    # so a deploy outside 03:45–20:00 UTC would leave snapshots empty for hours.
+    try:
+        from nq_api.cache.snapshot_cache import count_by_market
+        if count_by_market("US") == 0 and count_by_market("IN") == 0:
+            log.info("[scheduler] stock_snapshot is empty — triggering cold-start market refresh")
+            if _market_refresh_lock.acquire(blocking=False):
+                _last_market_refresh = time.time()
+                threading.Thread(target=_run_market_refresh_bg, args=(None,), daemon=True).start()
+            else:
+                log.info("[scheduler] Market refresh already running, skipping cold-start kick")
+    except Exception:
+        log.exception("[scheduler] Cold-start snapshot check failed")
+
     # Simple scheduler: check every 60s if it's time to run a job
     async def _scheduler_loop():
         global _last_market_refresh
