@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 from nq_api.main import app
 from nq_api.deps import get_signal_engine
+from nq_api.routes.screener import _is_merged_market, _read_top_merged
 
 client = TestClient(app)
 
@@ -59,3 +60,27 @@ def test_screener_filters_by_min_score():
             assert r["composite_score"] >= 0.8
     finally:
         app.dependency_overrides.pop(get_signal_engine, None)
+
+
+def test_is_merged_market():
+    assert _is_merged_market("BOTH") is True
+    assert _is_merged_market("GLOBAL") is True
+    assert _is_merged_market("US") is False
+    assert _is_merged_market("IN") is False
+
+
+def test_read_top_merged_sorts_and_limits():
+    us_rows = [
+        {"ticker": "AAPL", "composite_score": 80.0},
+        {"ticker": "MSFT", "composite_score": 60.0},
+    ]
+    in_rows = [
+        {"ticker": "RELIANCE", "composite_score": 90.0},
+        {"ticker": "TCS", "composite_score": 70.0},
+    ]
+    with patch("nq_api.routes.screener.score_cache.read_top", side_effect=[us_rows, in_rows]):
+        merged = _read_top_merged(3, 300)
+    assert len(merged) == 3
+    assert merged[0]["ticker"] == "RELIANCE"
+    assert merged[1]["ticker"] == "AAPL"
+    assert merged[2]["ticker"] == "TCS"
