@@ -134,11 +134,13 @@ def _run_market_from_quantfactor(market: str) -> int:
     all_results = []
     kept_rows = []  # quantfactor rows in lockstep with all_results (for percentile ranking)
     for r in qf_rows:
-        t = r.get("ticker", "")
-        # Normalize Indian tickers: strip exchange suffix for consistent lookup
+        t = str(r.get("ticker", ""))
+        # Preserve .NS for IN in score_cache so /stocks/{ticker}?market=IN lookup
+        # matches quantfactor_universe, but also store a bare alias for UI/search.
         if market == "IN":
-            t = t.replace(".NS", "").replace(".BO", "")
-        if not is_valid_ticker(t):
+            if not t.endswith(".NS") and not t.endswith(".BO"):
+                t = t + ".NS"
+        if not is_valid_ticker(t.replace(".NS", "").replace(".BO", "")):
             continue
         # Live price: FMP first (US), then stock_snapshot fallback (IN — FMP
         # returns nothing for Indian tickers).
@@ -201,7 +203,7 @@ def _run_market_from_quantfactor(market: str) -> int:
             "debt_equity": 0.0,
             "roe": 0.0,
             "fcf_yield": 0.0,
-            "long_name": snap_names.get(t.upper()) or r.get("long_name") or t,
+            "long_name": snap_names.get(t.replace(".NS", "").replace(".BO", "").upper()) or r.get("long_name") or t,
             "industry": r.get("sub_sector", "") or r.get("sector", "") or "",
             "analyst_rec": "",
             "earnings_date": "",
