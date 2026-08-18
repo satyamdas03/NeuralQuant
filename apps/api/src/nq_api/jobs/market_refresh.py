@@ -199,6 +199,57 @@ def _fetch_yf_batch(tickers: list[str], market: str) -> dict[str, dict]:
 
 
 # ---------------------------------------------------------------------------
+# OpenBB fallback (IN stocks only, safety net on Render)
+# ---------------------------------------------------------------------------
+
+def _fetch_openbb_batch(tickers: list[str], market: str) -> dict[str, dict]:
+    """Fetch quotes via self-hosted nq-openbb for tickers that FMP/yfinance missed.
+
+    OpenBB runs on a separate Render service with a different outbound IP, so
+    its yfinance provider works for Indian tickers even when direct yfinance
+    from nq-api is blocked. Used as a safety net, not the primary path.
+    """
+    if market != "IN":
+        return {}
+    try:
+        from nq_data.openbb import get_openbb_client, _obb_symbol
+        obb = get_openbb_client()
+        if not obb.enabled:
+            log.debug("OpenBB not enabled — skipping IN fallback")
+            return {}
+    except Exception as e:
+        log.debug("OpenBB client init failed: %s", e)
+        return {}
+
+    results: dict[str, dict] = {}
+    for t in tickers:
+        sym = _obb_symbol(t, market)
+        try:
+            q = obb.get_quote(sym)
+            if not q:
+                continue
+            price = q.get("last_price") or q.get("price") or q.get("close")
+            prev = q.get("prev_close")
+            if price is None:
+                continue
+            entry = results.setdefault(t, {})
+            entry["price"] = float(price)
+            if prev:
+                entry["change_pct"] = round((float(price) - float(prev)) / float(prev) * 100, 2)
+            entry["volume"] = q.get("volume")
+            entry["market_cap"] = q.get("market_cap")
+            entry["year_high"] = q.get("year_high") or q.get("week_52_high") or q.get("fifty_two_week_high")
+            entry["year_low"] = q.get("year_low") or q.get("week_52_low") or q.get("fifty_two_week_low")
+            entry["name"] = q.get("name") or q.get("short_name")
+            entry["sector"] = q.get("sector")
+            entry["industry"] = q.get("industry")
+            entry["beta"] = q.get("beta")
+        except Exception as e:
+            log.debug("OpenBB quote failed for %s: %s", t, e)
+    return results
+
+
+# ---------------------------------------------------------------------------
 # Build snapshot rows
 # ---------------------------------------------------------------------------
 
@@ -322,6 +373,15 @@ def run_market_refresh(market_filter: str | None = None) -> dict:
     """
     from nq_api.cache.snapshot_cache import write_snapshot
 
+    # Render's outbound IPs are rate-limited by Yahoo, so direct yfinance for IN
+    # always fails. The India feed runs on the GCP VM instead. Restrict scheduled
+    # (market_filter=None) refreshes on Render to US only; IN can still be
+    # refreshed explicitly via --market IN or /cron/market-refresh?market=IN.
+    on_render = bool(os.environ.get("RENDER"))
+    if on_render and market_filter is None:
+        market_filter = "US"
+        log.info("market_refresh: Render detected — restricting scheduled refresh to US only; IN is refreshed by GCP feed")
+
     start = time.monotonic()
     log.info("market_refresh starting (market_filter=%s)", market_filter)
 
@@ -369,6 +429,15 @@ def run_market_refresh(market_filter: str | None = None) -> dict:
                 chunk_results = _fetch_yf_batch(chunk, mk)
                 yf_results.update(chunk_results)
                 time.sleep(1)
+
+            # 4b. OpenBB safety net: any IN tickers still missing after yfinance.
+            # OpenBB's yfinance provider runs on a different Render IP and often
+            # succeeds where direct yfinance from nq-api fails.
+            still_missing = [t for t in missing if t not in yf_results or not yf_results[t]]
+            if still_missing:
+                log.info("OpenBB fallback for %s IN tickers still missing after yfinance", len(still_missing))
+                openbb_results = _fetch_openbb_batch(still_missing, mk)
+                yf_results.update(openbb_results)
         else:
             log.warning("FMP missed %s US tickers — no fallback (yfinance unreliable on cloud)", len(missing))
 
@@ -383,7 +452,7 @@ def run_market_refresh(market_filter: str | None = None) -> dict:
         "success": True,
         "total_tickers": len(all_meta),
         "fmp_hits": len(fmp_results),
-        "yf_hits": len(yf_results),
+        "yf_hits": len([v for v in yf_results.values() if v]),
         "snapshot_rows_written": written,
         "elapsed_seconds": round(elapsed, 1),
     }

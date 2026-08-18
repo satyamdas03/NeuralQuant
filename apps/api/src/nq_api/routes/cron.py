@@ -318,12 +318,19 @@ async def start_scheduled_jobs():
     # Cold-start guard: if stock_snapshot is empty, kick off a background market
     # refresh immediately. The scheduler otherwise only runs during market hours,
     # so a deploy outside 03:45–20:00 UTC would leave snapshots empty for hours.
+    # On Render we only refresh US market (IN is refreshed by the GCP feed), so
+    # the guard only needs to check US rows there.
     try:
         from nq_api.cache.snapshot_cache import count_by_market
-        if count_by_market("US") == 0 and count_by_market("IN") == 0:
+        on_render = bool(os.environ.get("RENDER"))
+        us_empty = count_by_market("US") == 0
+        in_empty = count_by_market("IN") == 0
+        should_cold_start = (us_empty and in_empty) if not on_render else us_empty
+        if should_cold_start:
             log.info("[scheduler] stock_snapshot is empty — triggering cold-start market refresh")
             if _market_refresh_lock.acquire(blocking=False):
                 _last_market_refresh = time.time()
+                # On Render this will auto-restrict to US inside run_market_refresh.
                 threading.Thread(target=_run_market_refresh_bg, args=(None,), daemon=True).start()
             else:
                 log.info("[scheduler] Market refresh already running, skipping cold-start kick")
