@@ -9,6 +9,10 @@ Intended to run as a cron job on the same GCP e2-micro VM that hosts
 Hermes. The cron window should cover Indian market hours:
     09:15–15:30 IST  ==  03:45–10:00 UTC  (Mon–Fri)
 
+This script is DELIBERATELY SELF-CONTAINED. It does not import from the
+nq_api / nq_data workspace packages, so the VM only needs a lightweight
+venv with yfinance, curl_cffi, pandas, httpx and python-dotenv.
+
 Example crontab (every 15 min during market window):
     */15 3-10 * * 1-5 /opt/neuralquant/venv/bin/python /opt/neuralquant/infra/gcp/india_feed.py >> /var/log/india_feed.log 2>&1
 """
@@ -17,34 +21,26 @@ from __future__ import annotations
 import logging
 import math
 import os
+import re
 import sys
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
-# -----------------------------------------------------------------------------
-# Paths: when run from /opt/neuralquant/infra/gcp/india_feed.py, project root
-# is /opt/neuralquant. Add the source trees so we can reuse existing helpers.
-# -----------------------------------------------------------------------------
-_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-# infra/gcp/india_feed.py -> project root is two levels up
-_PROJECT_ROOT = os.path.abspath(os.path.join(_SCRIPT_DIR, "../.."))
-for _src in (f"{_PROJECT_ROOT}/apps/api/src", f"{_PROJECT_ROOT}/packages/data/src"):
-    if _src not in sys.path:
-        sys.path.insert(0, _src)
-
+import httpx
 from dotenv import load_dotenv
 
-# Load apps/api/.env (Supabase credentials live there).
-_ENV_PATH = os.path.join(_PROJECT_ROOT, "apps", "api", ".env")
-if os.path.exists(_ENV_PATH):
+# -----------------------------------------------------------------------------
+# Load environment from repo .env
+# -----------------------------------------------------------------------------
+_SCRIPT_DIR = Path(__file__).resolve().parent
+_PROJECT_ROOT = _SCRIPT_DIR.parents[2]  # infra/gcp/india_feed.py -> project root
+_ENV_PATH = _PROJECT_ROOT / "apps" / "api" / ".env"
+if _ENV_PATH.exists():
     load_dotenv(_ENV_PATH, override=True)
 
 import yfinance as yf
-from nq_api.cache.quantfactor_cache import _supabase_rest
-from nq_api.cache.snapshot_cache import write_snapshot
-from nq_api.data_builder import _get_yf_session
-from nq_data.ticker_validation import is_valid_ticker
 
 logging.basicConfig(
     level=logging.INFO,
@@ -60,6 +56,208 @@ _CHUNK_DELAY_S = 2           # small pause between yf.download chunks
 _MAX_AGE_MINUTES = 35        # stale threshold (matches market_refresh)
 
 
+# -----------------------------------------------------------------------------
+# Minimal yfinance session helpers (copied from data_builder to stay self-contained)
+# -----------------------------------------------------------------------------
+_yf_session = None
+
+
+def _get_yf_session():
+    """Return a curl_cffi session for yfinance."""
+    global _yf_session
+    if _yf_session is None:
+        try:
+            from curl_cffi.requests import Session as CurlSession
+            _yf_session = CurlSession(impersonate="chrome", timeout=30)
+            log.info("Using curl_cffi session for yfinance (impersonate=chrome, timeout=30s)")
+        except ImportError:
+            log.error("curl_cffi is NOT installed — yfinance calls will fail on cloud IPs!")
+            _yf_session = False
+    return _yf_session if _yf_session else None
+
+
+def _reset_yf_session():
+    """Reset the shared yfinance session after an Invalid Crumb auth error."""
+    global _yf_session
+    old = _yf_session
+    _yf_session = None
+    if old and old is not False:
+        try:
+            old.close()
+        except Exception:
+            pass
+    try:
+        import yfinance.utils as yf_utils
+        if hasattr(yf_utils, "_CRUMB"):
+            yf_utils._CRUMB = None
+        if hasattr(yf_utils, "_COOKIE"):
+            yf_utils._COOKIE = None
+    except Exception:
+        pass
+    log.info("Reset yfinance session after crumb/auth error")
+
+
+def _is_yf_crumb_error(exc: Exception) -> bool:
+    """Detect yfinance 'Invalid Crumb' or 401 auth errors."""
+    msg = str(exc).lower()
+    return "crumb" in msg or "401" in msg or "unauthorized" in msg
+
+
+# -----------------------------------------------------------------------------
+# Minimal Supabase REST helpers (copied to stay self-contained)
+# -----------------------------------------------------------------------------
+_env_loaded = False
+
+
+def _load_env():
+    global _env_loaded
+    if _env_loaded:
+        return
+    if _ENV_PATH.exists():
+        load_dotenv(_ENV_PATH, override=True)
+    _env_loaded = True
+
+
+def _is_nonfinite(v) -> bool:
+    try:
+        import pandas as pd
+        if pd.isna(v) and v is not None and v is not False:
+            return True
+    except Exception:
+        pass
+    if isinstance(v, float):
+        return math.isnan(v) or math.isinf(v)
+    if hasattr(v, "__float__") and not isinstance(v, (str, int, bool, type(None))):
+        try:
+            fv = float(v)
+            return math.isnan(fv) or math.isinf(fv)
+        except (TypeError, ValueError):
+            pass
+    return False
+
+
+def _sanitize_floats(d: dict) -> dict:
+    out = {}
+    for k, v in d.items():
+        if _is_nonfinite(v):
+            out[k] = None
+        elif isinstance(v, dict):
+            out[k] = _sanitize_floats(v)
+        elif isinstance(v, list):
+            out[k] = [
+                _sanitize_floats(i) if isinstance(i, dict)
+                else (None if _is_nonfinite(i) else i)
+                for i in v
+            ]
+        elif hasattr(v, "__float__") and not isinstance(v, (str, int, bool, type(None))):
+            try:
+                fv = float(v)
+                out[k] = None if _is_nonfinite(fv) else fv
+            except (TypeError, ValueError):
+                out[k] = v
+        else:
+            out[k] = v
+    return out
+
+
+def _supabase_rest(
+    table: str,
+    method: str = "GET",
+    query: dict | None = None,
+    body: list[dict[str, Any]] | dict[str, Any] | None = None,
+) -> list[dict[str, Any]] | dict[str, Any] | None:
+    """Direct REST call to Supabase PostgREST API."""
+    _load_env()
+    url = os.environ.get("SUPABASE_URL", "").rstrip("/")
+    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+    if not url or not key:
+        log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set")
+        return None
+
+    endpoint = f"{url}/rest/v1/{table}"
+    headers = {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation",
+    }
+
+    if body is not None:
+        if isinstance(body, list):
+            body = [_sanitize_floats(item) if isinstance(item, dict) else item for item in body]
+        elif isinstance(body, dict):
+            body = _sanitize_floats(body)
+
+    try:
+        _timeout = 30 if method == "POST" else 10
+        with httpx.Client(timeout=_timeout) as client:
+            if method == "GET":
+                r = client.get(endpoint, params=query or {}, headers=headers)
+            elif method == "POST":
+                upsert_headers = {**headers, "Prefer": "resolution=merge-duplicates,return=representation"}
+                r = client.post(endpoint, json=body, headers=upsert_headers)
+            elif method == "PATCH":
+                r = client.patch(endpoint, json=body, params=query or {}, headers=headers)
+            elif method == "DELETE":
+                r = client.delete(endpoint, params=query or {}, headers=headers)
+            else:
+                return None
+            r.raise_for_status()
+            return r.json() if r.content else None
+    except Exception as e:
+        log.warning("Supabase REST call failed for table=%s: %s", table, e)
+        return None
+
+
+# -----------------------------------------------------------------------------
+# Minimal snapshot upsert (copied to stay self-contained)
+# -----------------------------------------------------------------------------
+_known_snapshot_columns: set[str] | None = None
+
+
+def _get_snapshot_columns() -> set[str]:
+    global _known_snapshot_columns
+    if _known_snapshot_columns is not None:
+        return _known_snapshot_columns
+    data = _supabase_rest("stock_snapshot", "GET", {"select": "*", "limit": "1"})
+    if isinstance(data, list) and data:
+        _known_snapshot_columns = set(data[0].keys())
+    else:
+        _known_snapshot_columns = {
+            "ticker", "market", "price", "change_pct", "volume", "market_cap",
+            "pe_ttm", "eps", "beta", "pb_ratio", "week_52_high", "week_52_low",
+            "earnings_date", "analyst_target", "recommendation", "rsi_14d",
+            "macd_signal", "insider_score", "news_sentiment", "sector",
+            "sub_sector", "company_name", "currency", "cached_at", "stale", "source",
+        }
+    return _known_snapshot_columns
+
+
+def _normalize_snapshot_ticker(ticker: str, market: str) -> str:
+    t = ticker.upper()
+    if market == "IN":
+        t = t.replace(".NS", "").replace(".BO", "")
+    return t
+
+
+def write_snapshot(rows: list[dict[str, Any]]) -> int:
+    """Batch upsert rows into stock_snapshot keyed on (ticker, market)."""
+    if not rows:
+        return 0
+    known = _get_snapshot_columns()
+    now_iso = datetime.now(timezone.utc).isoformat()
+    for r in rows:
+        r.setdefault("cached_at", now_iso)
+        if r.get("market") == "IN" and "ticker" in r:
+            r["ticker"] = _normalize_snapshot_ticker(r["ticker"], "IN")
+    filtered = [_sanitize_floats({k: v for k, v in r.items() if k in known}) for r in rows]
+    result = _supabase_rest("stock_snapshot", method="POST", body=filtered)
+    return len(rows) if result is not None else 0
+
+
+# -----------------------------------------------------------------------------
+# Feeder logic
+# -----------------------------------------------------------------------------
 def _yf_sym(ticker: str) -> str:
     """Append .NS for NSE tickers that don't already have an exchange suffix."""
     t = ticker.strip().upper()
@@ -93,6 +291,28 @@ def _safe_int(v) -> int | None:
         return None
 
 
+_GARBAGE_RE = re.compile(
+    r"(?:LIGHT\s*GREEN|DARK\s*GREEN|LIGHT\s*RED|DARK\s*RED|WHITE|COLOR|SCORING|"
+    r"GROWTH|RETURN|VALUATION|RISK|RATIOS|SOURCE|FUTURE|BENCHMARK|HIERARCH|"
+    r"MATCHED|WORST|BEST|CHEAPEST|EXPENSIVE|SAFEST|RISKIEST|SWEET\s*SPOT|"
+    r"UNCOLORED|LOSS.MAKING|NETPROFIT|EXCLUDED|YFINANCE|YOY|TTM|QOQ|"
+    r"PERIOD|MARKET\s*CAP|REVENUE|DII|FII|PB|EV/|SUM|Q\d+\(|^[A-Z]{1,2}$)",
+    re.IGNORECASE,
+)
+
+
+def _is_valid_ticker(t: str) -> bool:
+    """Conservative ticker validator (avoids Excel-legend garbage rows)."""
+    t = t.strip().upper()
+    if not t or len(t) > 12 or len(t) < 2:
+        return False
+    if _GARBAGE_RE.search(t):
+        return False
+    if not any(c.isalpha() for c in t):
+        return False
+    return True
+
+
 def load_in_tickers() -> list[dict[str, Any]]:
     """Load IN tickers from quantfactor_universe."""
     data = _supabase_rest(
@@ -107,29 +327,18 @@ def load_in_tickers() -> list[dict[str, Any]]:
     if not isinstance(data, list):
         log.error("Failed to load IN tickers from quantfactor_universe")
         return []
-    filtered = [r for r in data if is_valid_ticker(str(r.get("ticker", "")))]
+    filtered = [r for r in data if _is_valid_ticker(str(r.get("ticker", "")))]
     log.info("Loaded %s IN tickers from quantfactor_universe (raw=%s)", len(filtered), len(data))
     return filtered
-
-
-def _is_yf_crumb_error(exc: Exception) -> bool:
-    """Detect yfinance 'Invalid Crumb' or 401 auth errors."""
-    msg = str(exc).lower()
-    return "crumb" in msg or "401" in msg or "unauthorized" in msg
 
 
 def fetch_yf_prices(tickers: list[str]) -> dict[str, dict]:
     """Batch-fetch live prices for IN tickers via yfinance.
 
-    Returns {bare_ticker: {price, change_pct}}. We intentionally avoid
-    individual Ticker.info calls — they are slow (500 tickers × 1s throttle
-    ≈ 8 min) and not needed for the core goal of populating price/change_pct.
-    Name/sector come from quantfactor_universe metadata.
+    Returns {bare_ticker: {price, change_pct}}.
     """
     if not tickers:
         return {}
-
-    from nq_api.data_builder import _reset_yf_session
 
     results: dict[str, dict] = {}
     session = _get_yf_session()
