@@ -157,6 +157,19 @@ def _reset_known_columns():
 # Public API
 # ---------------------------------------------------------------------------
 
+def _normalize_snapshot_ticker(ticker: str, market: str) -> str:
+    """Normalize IN tickers to bare form for snapshot lookup/write.
+
+    quantfactor_universe stores IN tickers with .NS/.BO suffix, but the rest
+    of the app (stocks.py, nightly_score.py, portfolio.py) keys stock_snapshot
+    lookups by bare ticker. Normalize on write + read so both forms work.
+    """
+    t = ticker.upper()
+    if market == "IN":
+        t = t.replace(".NS", "").replace(".BO", "")
+    return t
+
+
 def write_snapshot(rows: list[dict[str, Any]]) -> int:
     """Batch upsert rows into stock_snapshot keyed on (ticker, market)."""
     if not rows:
@@ -165,6 +178,9 @@ def write_snapshot(rows: list[dict[str, Any]]) -> int:
     now_iso = datetime.now(timezone.utc).isoformat()
     for r in rows:
         r.setdefault("cached_at", now_iso)
+        # Normalize IN ticker to bare form so lookups are consistent.
+        if r.get("market") == "IN" and "ticker" in r:
+            r["ticker"] = _normalize_snapshot_ticker(r["ticker"], "IN")
     # Filter to only columns that exist in the table
     filtered = [_sanitize_floats({k: v for k, v in r.items() if k in known}) for r in rows]
     result = _supabase_rest("stock_snapshot", method="POST", body=filtered)
@@ -173,12 +189,13 @@ def write_snapshot(rows: list[dict[str, Any]]) -> int:
 
 def read_snapshot(ticker: str, market: str) -> dict[str, Any] | None:
     """Read a single stock snapshot by ticker + market."""
+    t = _normalize_snapshot_ticker(ticker, market)
     data = _supabase_rest(
         "stock_snapshot",
         method="GET",
         query={
             "select": "*",
-            "ticker": f"eq.{ticker.upper()}",
+            "ticker": f"eq.{t}",
             "market": f"eq.{market}",
             "limit": "1",
         },
@@ -195,10 +212,11 @@ def read_snapshot_batch(tickers: list[str], market: str) -> list[dict[str, Any]]
     # PostgREST supports in=(A,B,C) for up to ~100 items
     # For larger batches, split into chunks
     CHUNK = 80
+    normalized = [_normalize_snapshot_ticker(t, market) for t in tickers]
     all_results: list[dict] = []
-    for i in range(0, len(tickers), CHUNK):
-        chunk = tickers[i:i + CHUNK]
-        tickers_csv = ",".join(t.upper() for t in chunk)
+    for i in range(0, len(normalized), CHUNK):
+        chunk = normalized[i:i + CHUNK]
+        tickers_csv = ",".join(chunk)
         data = _supabase_rest(
             "stock_snapshot",
             method="GET",

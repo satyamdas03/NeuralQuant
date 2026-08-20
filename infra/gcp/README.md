@@ -86,12 +86,34 @@ sudo -u hermes bash -c 'cd /opt/hermes && git pull origin main && ~/.local/bin/u
 sudo systemctl restart hermes
 ```
 
+## India price feed (autonomous cron)
+
+Render's outbound IPs are blocked by Yahoo, so `market_refresh` cannot fetch
+Indian prices directly. The GCP VM's IP works, so we run a lightweight feeder
+here that writes IN prices to the same `stock_snapshot` table.
+
+Setup:
+```bash
+sudo bash /opt/neuralquant/infra/gcp/setup_india_feed.sh
+sudo nano /opt/neuralquant/apps/api/.env   # add SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY
+sudo /opt/neuralquant/venv/bin/python /opt/neuralquant/infra/gcp/india_feed.py
+```
+
+The feeder runs every 15 minutes during Indian market hours
+(09:15–15:30 IST = 03:45–10:00 UTC, Mon–Fri). It is a short-lived cron process,
+so memory is freed after each run.
+
+Render's in-process scheduler now refreshes **US only**; IN rows are owned by
+this GCP feeder. A manual `/cron/market-refresh?market=IN` on Render still falls
+back to the `nq-openbb` service as a safety net.
+
 ## OOM safety
 
-The e2-micro's 1 GB RAM is tight for Python + pandas + numpy + ccxt + FastAPI.
-`setup.sh` adds a **2 GB swap file** as an OOM safety net. If you see OOM kills
-in `journalctl -u hermes`, the fallback is `e2-small` (2 GB RAM, ~$7/mo) — a
-later call, not now.
+The e2-micro's 1 GB RAM is tight for Python + pandas + numpy + ccxt + FastAPI
+plus the periodic India feeder. `setup.sh` adds a **2 GB swap file** as an OOM
+safety net. The feeder is a short-lived cron, so it only briefly spikes memory.
+If you see OOM kills in `journalctl -u hermes`, the fallback is `e2-small`
+(2 GB RAM, ~$7/mo) — a later call, not now.
 
 ## Railway cleanup
 

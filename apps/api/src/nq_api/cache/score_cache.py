@@ -248,21 +248,37 @@ def read_one(
     market: str,
     max_age_seconds: int = 7200,
 ) -> dict[str, Any] | None:
-    """Return a single ticker's cached score if fresh, else None."""
+    """Return a single ticker's cached score if fresh, else None.
+
+    For Indian stocks the table stores suffixed tickers (e.g. RELIANCE.NS) but
+    callers often pass the bare form. Try bare first, then .NS/.BO suffixes.
+    """
     cutoff = (datetime.now(timezone.utc) - timedelta(seconds=max_age_seconds)).isoformat()
-    data = _supabase_rest(
-        "score_cache",
-        method="GET",
-        query={
-            "select": "*",
-            "ticker": f"eq.{ticker.upper()}",
-            "market": f"eq.{market}",
-            "computed_at": f"gte.{cutoff}",
-            "limit": "1",
-        },
-    )
-    if isinstance(data, list) and data:
-        return data[0]
+
+    candidates = [ticker.upper()]
+    if market == "IN":
+        bare = ticker.upper().replace(".NS", "").replace(".BO", "")
+        if bare not in candidates:
+            candidates.insert(0, bare)
+        for suffix in (".NS", ".BO"):
+            suffixed = bare + suffix
+            if suffixed not in candidates:
+                candidates.append(suffixed)
+
+    for t in candidates:
+        data = _supabase_rest(
+            "score_cache",
+            method="GET",
+            query={
+                "select": "*",
+                "ticker": f"eq.{t}",
+                "market": f"eq.{market}",
+                "computed_at": f"gte.{cutoff}",
+                "limit": "1",
+            },
+        )
+        if isinstance(data, list) and data:
+            return data[0]
     return None
 
 

@@ -160,8 +160,9 @@ def _fetch_yf_batch(tickers: list[str], market: str) -> dict[str, dict]:
                     if vals is not None and len(vals) >= 2:
                         price = float(vals.iloc[-1])
                         prev = float(vals.iloc[-2])
-                        results.setdefault(t, {})["price"] = price
-                        results.setdefault(t, {})["change_pct"] = round((price - prev) / prev * 100, 2)
+                        bare = _bare(t)
+                        results.setdefault(bare, {})["price"] = price
+                        results.setdefault(bare, {})["change_pct"] = round((price - prev) / prev * 100, 2)
                 except Exception:
                     pass
     except Exception as e:
@@ -172,7 +173,7 @@ def _fetch_yf_batch(tickers: list[str], market: str) -> dict[str, dict]:
         sym = _yf_sym(t, market)
         try:
             info = yf.Ticker(sym, session=session).info or {}
-            entry = results.setdefault(t, {})
+            entry = results.setdefault(_bare(t), {})
             # Only fill fields not already set by download
             if not entry.get("price"):
                 entry["price"] = info.get("currentPrice") or info.get("regularMarketPrice")
@@ -232,7 +233,7 @@ def _fetch_openbb_batch(tickers: list[str], market: str) -> dict[str, dict]:
             prev = q.get("prev_close")
             if price is None:
                 continue
-            entry = results.setdefault(t, {})
+            entry = results.setdefault(_bare(t), {})
             entry["price"] = float(price)
             if prev:
                 entry["change_pct"] = round((float(price) - float(prev)) / float(prev) * 100, 2)
@@ -263,8 +264,10 @@ def _build_snapshot_rows(
     for meta in tickers_meta:
         t = meta["ticker"]
         m = meta["market"]
-        fmp = fmp_data.get(t, {})
-        yf = yf_data.get(t, {})
+        # FMP/yfinance result dicts are keyed by bare ticker (see _bare in fetch methods)
+        bare = _bare(t)
+        fmp = fmp_data.get(bare, {})
+        yf = yf_data.get(bare, {})
 
         # Price priority: FMP → yfinance → None
         price = fmp.get("price") if fmp.get("price") is not None else yf.get("price")
@@ -414,7 +417,11 @@ def run_market_refresh(market_filter: str | None = None) -> dict:
     # 3. Identify tickers that FMP missed entirely
     missing_by_market: dict[str, list[str]] = {}
     for mk, meta_list in by_market.items():
-        missing = [m["ticker"] for m in meta_list if m["ticker"] not in fmp_results or not fmp_results[m["ticker"]]]
+        missing = [
+            m["ticker"]
+            for m in meta_list
+            if _bare(m["ticker"]) not in fmp_results or not fmp_results.get(_bare(m["ticker"]))
+        ]
         if missing:
             missing_by_market[mk] = missing
 
@@ -433,7 +440,10 @@ def run_market_refresh(market_filter: str | None = None) -> dict:
             # 4b. OpenBB safety net: any IN tickers still missing after yfinance.
             # OpenBB's yfinance provider runs on a different Render IP and often
             # succeeds where direct yfinance from nq-api fails.
-            still_missing = [t for t in missing if t not in yf_results or not yf_results[t]]
+            still_missing = [
+                t for t in missing
+                if _bare(t) not in yf_results or not yf_results.get(_bare(t))
+            ]
             if still_missing:
                 log.info("OpenBB fallback for %s IN tickers still missing after yfinance", len(still_missing))
                 openbb_results = _fetch_openbb_batch(still_missing, mk)

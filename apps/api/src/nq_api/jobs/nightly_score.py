@@ -140,16 +140,17 @@ def _run_market_from_quantfactor(market: str) -> int:
         if market == "IN":
             if not t.endswith(".NS") and not t.endswith(".BO"):
                 t = t + ".NS"
-        if not is_valid_ticker(t.replace(".NS", "").replace(".BO", "")):
+        bare_t = t.replace(".NS", "").replace(".BO", "").upper()
+        if not is_valid_ticker(bare_t):
             continue
         # Live price: FMP first (US), then stock_snapshot fallback (IN — FMP
         # returns nothing for Indian tickers).
         price = 0.0
         if fmp_prices:
-            fb = (fmp_prices.get(t) or fmp_prices.get(f"{t}.NS") or fmp_prices.get(f"{t}.BO") or {})
+            fb = (fmp_prices.get(bare_t) or fmp_prices.get(t) or fmp_prices.get(f"{t}.NS") or fmp_prices.get(f"{t}.BO") or {})
             price = float(fb.get("price") or 0)
         if not price:
-            price = snap_prices.get(t.upper(), 0.0)
+            price = snap_prices.get(bare_t, 0.0)
 
         # Derive composite_score from quantfactor composite (scale 0-1 → 0-10)
         qf_composite = r.get("composite_score")
@@ -168,7 +169,7 @@ def _run_market_from_quantfactor(market: str) -> int:
         regime_id = 1 if composite_score >= 6 else (2 if composite_score >= 4 else 3)
         regime_label = {1: "Risk-On", 2: "Neutral", 3: "Bear"}[regime_id]
 
-        sm = snap_meta.get(t.upper(), {})
+        sm = snap_meta.get(bare_t, {})
         all_results.append({
             "ticker": t,
             "market": market,
@@ -203,7 +204,7 @@ def _run_market_from_quantfactor(market: str) -> int:
             "debt_equity": 0.0,
             "roe": 0.0,
             "fcf_yield": 0.0,
-            "long_name": snap_names.get(t.replace(".NS", "").replace(".BO", "").upper()) or r.get("long_name") or t,
+            "long_name": snap_names.get(bare_t) or r.get("long_name") or t,
             "industry": r.get("sub_sector", "") or r.get("sector", "") or "",
             "analyst_rec": "",
             "earnings_date": "",
