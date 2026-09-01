@@ -436,7 +436,7 @@ def _fetch_single_info(sym: str, bare: str, session) -> tuple[str, dict]:
         return bare, {}
 
 
-def fetch_yf_info(tickers: list[str], max_workers: int = 5) -> dict[str, dict]:
+def fetch_yf_info(tickers: list[str], max_workers: int = 4) -> dict[str, dict]:
     """Fetch company_name / market_cap / sector / industry via Ticker.info.
 
     Uses a small thread pool to keep the GCP feeder fast. Missing fields are
