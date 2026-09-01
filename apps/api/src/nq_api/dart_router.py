@@ -14,7 +14,7 @@ from nq_api.cache import score_cache
 from nq_api.universe import US_DEFAULT, IN_DEFAULT, in_tickers_full
 from nq_api.data_builder import build_real_snapshot, fetch_real_macro, fetch_real_macro_in, _fund_cache, _fetch_yf_info_cached
 from nq_api.deps import get_signal_engine
-from nq_api.score_builder import _score_to_1_10
+from nq_api.score_builder import _score_to_1_10, normalize_cache_composite
 from nq_api.agents.orchestrator import ParaDebateOrchestrator
 from nq_api.routes.analyst import _fetch_finnhub_data
 logger = logging.getLogger(__name__)
@@ -597,7 +597,14 @@ def _inject_peer_fundamentals(context: dict, primary_ticker: str, market: str) -
                     if peer_data and not peer_data.get("long_name", "").startswith("Empty"):
                         prefix = f"peer_{peer_idx + 1}"
                         context[f"{prefix}_ticker"] = peer_ticker
-                        context[f"{prefix}_score"] = int(peer.get("composite_score", 0.5) * 10)
+                        # Prefer stored score_1_10; fall back to normalized composite to avoid
+                        # the 700/10 bug when composite_score is on the qf*10 scale.
+                        s1_10 = peer.get("score_1_10")
+                        if s1_10 is not None:
+                            context[f"{prefix}_score"] = max(1, min(10, int(round(float(s1_10)))))
+                        else:
+                            n = normalize_cache_composite(peer.get("composite_score")) or 0.5
+                            context[f"{prefix}_score"] = _score_to_1_10(n)
                         context[f"{prefix}_source"] = "screener_ranked"
                         for field in _FUNDAMENTAL_FIELDS:
                             v = peer_data.get(field)
@@ -678,7 +685,7 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
             **macro_in,
             # Stock-specific fields from cache
             "sector": cached.get("sector") or "Unknown",
-            "composite_score": round(float(cached.get("composite_score", 0.5)), 4),
+            "composite_score": round(normalize_cache_composite(cached.get("composite_score")) or 0.5, 4),
             "quality_percentile": round(float(cached.get("quality_percentile", 0.5)), 3),
             "momentum_percentile": round(float(cached.get("momentum_percentile", 0.5)), 3),
             "value_percentile": round(float(cached.get("value_percentile", 0.5)), 3),

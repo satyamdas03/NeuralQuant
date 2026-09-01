@@ -180,7 +180,7 @@ def _run_market_from_quantfactor(market: str) -> int:
             "regime_label": regime_label,
             "value_percentile": _pct(r.get("valuation_score")),
             "momentum_percentile": _pct(r.get("return_score")),  # return ≈ momentum
-            "quality_percentile": _pct(r.get("growth_score")),  # growth ≈ quality
+            "quality_percentile": _pct(0.6 * float(r.get("growth_score") or 0) + 0.4 * float(r.get("risk_score") or 0), 4.0),
             "low_vol_percentile": _pct(r.get("risk_score"), 4.0),  # risk ≈ low_vol inverse
             "growth_percentile": _pct(r.get("growth_score")),
             "short_interest_percentile": 0.5,
@@ -226,13 +226,20 @@ def _run_market_from_quantfactor(market: str) -> int:
         pct = col.rank(pct=True, method="average")
         return [float(p) if pd.notna(p) else 0.5 for p in pct]
 
+    # Synthetic quality score: blend growth and stability (higher Anjali risk_score = lower risk).
+    for row in kept_rows:
+        g = float(row.get("growth_score") or 0)
+        r = float(row.get("risk_score") or 0)
+        row["quality_score"] = 0.6 * g + 0.4 * r
+
     _ret_pct = _rank_pct("return_score")      # return ≈ momentum
-    _grw_pct = _rank_pct("growth_score")      # growth ≈ quality
+    _qly_pct = _rank_pct("quality_score")     # synthetic growth + stability
+    _grw_pct = _rank_pct("growth_score")      # pure growth
     _val_pct = _rank_pct("valuation_score")
     _risk_pct = _rank_pct("risk_score")       # higher Anjali risk_score = lower risk = higher low_vol
     for i, res in enumerate(all_results):
         res["momentum_percentile"] = round(_ret_pct[i], 3)
-        res["quality_percentile"] = round(_grw_pct[i], 3)
+        res["quality_percentile"] = round(_qly_pct[i], 3)
         res["growth_percentile"] = round(_grw_pct[i], 3)
         res["value_percentile"] = round(_val_pct[i], 3)
         res["low_vol_percentile"] = round(_risk_pct[i], 3)

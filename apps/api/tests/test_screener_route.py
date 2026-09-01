@@ -51,7 +51,8 @@ def test_screener_filters_by_min_score():
     engine.compute.return_value = _mock_engine_for_universe(10)
     app.dependency_overrides[get_signal_engine] = lambda: engine
     try:
-        with patch("nq_api.routes.screener.build_real_snapshot", side_effect=_mock_snapshot):
+        with patch("nq_api.routes.screener.build_real_snapshot", side_effect=_mock_snapshot), \
+             patch("nq_api.routes.screener._read_top_for_screener", return_value=[]):
             response = client.post("/screener", json={"market": "US", "min_score": 0.8})
         assert response.status_code == 200
 

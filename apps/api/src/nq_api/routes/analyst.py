@@ -18,6 +18,7 @@ from nq_api.agents.orchestrator import ParaDebateOrchestrator
 from nq_api.auth.rate_limit import enforce_tier_quota, enforce_expensive_anon_cap
 from nq_api.auth.deps import get_current_user_optional
 from nq_api.auth.models import User
+from nq_api.score_builder import normalize_cache_composite
 
 
 def _fire_analysis_event(ticker: str, market: str, user: User | None) -> None:
@@ -216,7 +217,7 @@ def _build_analyst_context(ticker: str, market: str) -> dict:
         value_p = float(cache_row.get("value_percentile", 0.5))
         lowvol_p = float(cache_row.get("low_vol_percentile", 0.5))
         shortint_p = float(cache_row.get("short_interest_percentile", 0.5))
-        composite = float(cache_row.get("composite_score", 0.5))
+        composite = normalize_cache_composite(cache_row.get("composite_score")) or 0.5
     else:
         # No cache — estimate from raw values with quality flags
         quality_p = min(1.0, max(0.0, gpm)) if gpm is not None else 0.5
@@ -763,7 +764,7 @@ def _build_context_from_cache(ticker: str, market: str) -> dict | None:
             "regime_label": regime_labels.get(regime_id, "Risk-On"),
             **macro,
             **macro_in,
-            "composite_score":           round(_safe_float(cached.get("composite_score"), 0.5), 4),
+            "composite_score":           round(normalize_cache_composite(cached.get("composite_score")) or 0.5, 4),
             "quality_percentile":        round(_safe_float(cached.get("quality_percentile"), 0.5), 3),
             "momentum_percentile":       round(_safe_float(cached.get("momentum_percentile"), 0.5), 3),
             "value_percentile":          round(_safe_float(cached.get("value_percentile"), 0.5), 3),

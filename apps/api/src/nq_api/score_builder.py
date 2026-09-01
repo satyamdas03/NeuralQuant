@@ -189,6 +189,13 @@ def row_to_ai_score(row: pd.Series, market: str, score_1_10_override: int | None
     regime_id = int(row.get("regime_id", 1) or 1)
     composite = _safe_float(row.get("composite_score", 0.0), 0.0)
 
+    # score_cache stores composite_score as qf_composite * 10 (range roughly
+    # -160..+160), while the live engine path already returns 0-1. Normalize
+    # cache rows so blending and 1-10 mapping are consistent across screener,
+    # stock detail, and snapshot fallbacks.
+    if composite < 0.0 or composite > 1.0:
+        composite = normalize_cache_composite(composite) or 0.5
+
     # Blend with QuantFactor if available
     anjali_data = get_anjali_enrichment(str(row["ticker"]), market)
     composite, anjali_available = blend_anjali_score(composite, anjali_data)

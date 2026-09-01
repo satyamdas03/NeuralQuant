@@ -35,8 +35,9 @@ def _row_score_10(row: dict) -> int:
     if c is None:
         return 5
     try:
-        from nq_api.score_builder import _score_to_1_10
-        return _score_to_1_10(float(c))
+        from nq_api.score_builder import _score_to_1_10, normalize_cache_composite
+        n = normalize_cache_composite(float(c))
+        return _score_to_1_10(n if n is not None else 0.5)
     except (TypeError, ValueError, ImportError):
         return 5
 
@@ -1071,7 +1072,6 @@ def _enrich_with_platform_data(question: str, market: str, ticker_hint: str | No
 def _enrich_snap_structured(req) -> tuple[list, "ReasoningBlock", str]:
     """Build metrics and reasoning from score cache for SNAP responses."""
     from nq_api.cache import score_cache
-    from nq_api.score_builder import _score_to_1_10
     from nq_api.schemas import MetricItem, ReasoningBlock
 
     ticker = (req.ticker or "").upper()
@@ -1097,8 +1097,7 @@ def _enrich_snap_structured(req) -> tuple[list, "ReasoningBlock", str]:
         pass
 
     if cached:
-        score = cached.get("composite_score", 0.5)
-        score_10 = _score_to_1_10(float(score)) if score is not None else 5
+        score_10 = _row_score_10(cached)
         momentum = cached.get("momentum_percentile")
         quality = cached.get("quality_percentile")
         value = cached.get("value_percentile")
@@ -1145,8 +1144,7 @@ def _enrich_snap_structured(req) -> tuple[list, "ReasoningBlock", str]:
                     continue
                 alt_cached = score_cache.read_one(alt_ticker, market, 86400)
                 if alt_cached and alt_cached.get("composite_score") is not None:
-                    alt_score = float(alt_cached["composite_score"])
-                    alt_10 = _score_to_1_10(alt_score)
+                    alt_10 = _row_score_10(alt_cached)
                     second_best = alt_ticker
                     why_not_alt = f"{alt_ticker} scores {alt_10}/10 -- selected stock has {'higher' if score_10 >= alt_10 else 'comparable'} composite score"
                     confidence_gap = f"ForeCast {score_10} vs {alt_10}, {'+' if score_10 >= alt_10 else ''}{score_10 - alt_10} edge"
