@@ -44,15 +44,15 @@ A complete, running software business-in-a-box: domain, brand, codebase, infrast
 |---|---|
 | Backend API routers | 33 |
 | Web pages / routes | 38 |
-| Running services | 7 (4 on Render, 1 Vercel, 1 Railway, 1 Supabase) |
-| Scheduled jobs | 4 daily cron jobs |
-| Production tests | 116+ (passing) |
+| Running services | 7 (4 on Render, 1 Vercel, 1 GCP, 1 Supabase) |
+| Scheduled jobs | 4 daily cron jobs (nightly scoring, market refresh, quantfactor sync) |
+| Production tests | 186+ (passing) |
 | Markets covered | US + India |
 | Stock universe | ~949 stocks (502 India + 447 US) |
 | AI agents | 8 distinct agents across research, debate, and voice |
 | Live voice interfaces | 2 (a voice PM and an ambient voice companion) |
 | Patent | Application filed (provisional stage) |
-| Current version | v4.1.0 |
+| Current version | v4.1.3 |
 
 ### 3.2 Flagship capabilities (all live)
 
@@ -87,10 +87,10 @@ NeuralQuant is not a one-size-fits-all asset — its value is highest to four di
 | Database / Auth | Supabase (Postgres + cookie-session auth) |
 | Voice real-time | LiveKit Cloud (WebRTC SFU) |
 | Speech-to-text | Deepgram |
-| Text-to-speech | ElevenLabs (neural voices) |
+| Text-to-speech | LiveKit Inference (cartesia/sonic-3.5) |
 | LLM providers | Anthropic (Claude) + AWS Bedrock (cross-region) |
 | Market data | FMP Premium, Finnhub, yfinance, OpenBB Platform, EDGAR, FRED |
-| Hosting | Render (4 services), Vercel (web), Railway (trading), Supabase (DB) |
+| Hosting | Render (4 services), Vercel (web), GCP Always Free (trading + India feeder), Supabase (DB) |
 | CI/CD | GitHub Actions, Render auto-deploy, Vercel GitHub auto-deploy |
 | Repo size | Monorepo, uv workspace |
 
@@ -110,7 +110,7 @@ All services are running and verified as of the date of this document.
 | Web app | neuralquant.co, 38 pages | Live |
 | Database | Postgres + auth | Live |
 
-**Scheduled jobs:** 4 daily cron jobs handling nightly scoring, market refresh, and per-market end-of-day wrap reports.
+**Scheduled jobs:** 4 daily cron jobs handling nightly scoring, market refresh, quantfactor sync, and quantfactor enrichment. End-of-day wrap reports were previously email-based and have been removed.
 
 **Security hardening:** The platform has undergone a multi-phase security pass including log redaction, secret-scanning in CI, row-level security policies, IDOR remediation, content-security-policy headers, rate-limiting fuses, upload guards, dependency auditing, and an audit-event log with an incident-response runbook.
 
@@ -125,7 +125,7 @@ All services are running and verified as of the date of this document.
 - Baseline stored in Supabase for reproducibility.
 
 ### 7.2 Automated smoke testing
-A 13-endpoint live smoke suite runs against production and currently passes 13/13, covering core pages, stock detail (US + India), screener, portfolio, trading dashboard, news, methodology, and pricing.
+A 15-endpoint live smoke suite runs against production and currently passes 15/15, covering core pages, stock detail (US + India), screener, portfolio, trading dashboard, news, methodology, and pricing.
 
 ### 7.3 Intellectual property & patent moat
 The platform benefits from a developing IP moat. A **provisional patent application** has been filed with the **Indian Patent Office**, covering three core inventive elements:
@@ -160,7 +160,7 @@ The asking price is grounded in what it would cost an acquirer to recreate an eq
 | Live trading dashboard | Real-time matrix, SSE stream, equity curve, trade tape | 1–2 |
 | DevOps & infra | 7-service deploy config, CI/CD, 4 cron jobs, secrets, monitoring | 1–2 |
 | Security hardening | RLS, IDOR, CSP, audit log, fuses, dep-audit, IR runbook | 1–2 |
-| Testing | 116+ tests, live smoke suite, backtest harness | 1–2 |
+| Testing | 186+ tests, live smoke suite, backtest harness | 1–2 |
 | **Total** | | **24–37 eng-months** |
 
 ### 8.2 Translated to cost
@@ -254,7 +254,7 @@ The seller is conducting a **structured sale process**:
 
 - Domain (neuralquant.co) and brand assets
 - Full source code (monorepo) under NDA / LOI
-- All infrastructure accounts (Render, Vercel, Supabase, Railway, LiveKit) — credentials transferred securely
+- All infrastructure accounts (Render, Vercel, Supabase, GCP, LiveKit) — credentials transferred securely
 - Data pipeline configurations and cached market data
 - Patent application (assignment to acquirer)
 - Methodology and backtest baselines
@@ -265,7 +265,7 @@ The seller is conducting a **structured sale process**:
 
 ## 14. Exclusions / Not Included
 
-- Third-party API keys are **not** transferred; the acquirer provisions its own accounts (FMP, Finnhub, ElevenLabs, Deepgram, Anthropic, AWS, LiveKit, OpenBB). This is standard and avoids key-abuse liability.
+- Third-party API keys are **not** transferred; the acquirer provisions its own accounts (FMP, Finnhub, Deepgram, Anthropic, AWS, LiveKit, OpenBB). This is standard and avoids key-abuse liability.
 - No customer/user data is represented as included (the platform is pre-revenue with minimal user base).
 - No revenue or traffic representations are made.
 - Proprietary algorithm internals, agent prompts, and scoring formulas are disclosed only during due diligence under NDA.
@@ -275,7 +275,7 @@ The seller is conducting a **structured sale process**:
 ## 15. Buyer's Due-Diligence Checklist (what you can verify)
 
 - [ ] Live site walk-through (neuralquant.co) — all flagship flows demonstrated live
-- [ ] Smoke test suite execution (13/13 passing)
+- [ ] Smoke test suite execution (15/15 passing)
 - [ ] Backtest reproduction (baseline stored in Supabase)
 - [ ] Patent filing receipt and invention disclosure (under NDA)
 - [ ] Service-by-service infra review (under NDA)
@@ -291,7 +291,7 @@ The seller is conducting a **structured sale process**:
 The founder is mid-way through a Master of Artificial Intelligence programme at UTS Sydney, and bandwidth is genuinely constrained. NeuralQuant has been built to production and IP-protected, but scaling it commercially — sales, partnerships, support, growth — deserves a full-time commercial team. The platform has outgrown what a solo founder in a full-time degree can give it. Selling now, while it is live, validated, and patent-pending, puts it in the hands of an owner who can take it to its full market potential.
 
 **"What happens on Day 1 for the buyer?"**
-Nothing has to. The platform is **live and running on Day 1**: 4 cron jobs execute automatically (nightly scoring, market refresh, per-market EOD wrap), the live smoke suite passes **13/13**, and the services self-restart. Running API/infra cost is approximately **$[confirm from billing]/month** at current usage. The buyer can **literally do nothing on Day 1 and the platform keeps running, scoring, and serving users.** Ownership begins from a position of stability — the work is scaling it, not rescuing it.
+Nothing has to. The platform is **live and running on Day 1**: 4 cron jobs execute automatically (nightly scoring, market refresh, quantfactor sync, enrichment), the live smoke suite passes **15/15**, and the services self-restart. Running API/infra cost is approximately **$60–80/month** at current usage (Render Pro + Standard, Supabase free tier, GCP free tier, Vercel hobby). The buyer can **literally do nothing on Day 1 and the platform keeps running, scoring, and serving users.** Ownership begins from a position of stability — the work is scaling it, not rescuing it.
 
 ---
 

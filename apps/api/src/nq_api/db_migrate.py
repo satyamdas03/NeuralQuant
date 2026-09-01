@@ -20,13 +20,38 @@ async def run_pending():
         log.warning("SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY not set — skipping migration check")
         return
 
-    required_tables = ["enrichment_cache", "score_cache_history", "signal_log", "news_classifications"]
+    required_tables = [
+        "stock_snapshot",
+        "score_cache",
+        "score_cache_history",
+        "quantfactor_universe",
+        "enrichment_cache",
+        "signal_log",
+        "news_classifications",
+        "user_profiles",
+        "security_events",
+        "conversations",
+        "shared_analyses",
+        "user_events",
+        "quarterly_testing",
+        "mobile_push_tokens",
+    ]
 
     migration_map = {
-        "enrichment_cache": "009_enrichment_cache.sql",
+        "stock_snapshot": "024_stock_snapshot.sql",
+        "score_cache": "012b_score_cache_history.sql / 022_score_cache_growth_percentile.sql",
         "score_cache_history": "012b_score_cache_history.sql",
+        "quantfactor_universe": "025_quantfactor_universe.sql",
+        "enrichment_cache": "009_enrichment_cache.sql",
         "signal_log": "013_signal_log.sql",
         "news_classifications": "014_news_classifications.sql",
+        "user_profiles": "011_user_profiles.sql / 023_user_profiles_risk_v2.sql",
+        "security_events": "027_security_events.sql",
+        "conversations": "007_conversations.sql",
+        "shared_analyses": "017_shared_analyses.sql",
+        "user_events": "018_user_events.sql",
+        "quarterly_testing": "021_quarterly_testing.sql",
+        "mobile_push_tokens": "022_mobile_push_tokens.sql",
     }
 
     async with httpx.AsyncClient(timeout=10.0) as client:

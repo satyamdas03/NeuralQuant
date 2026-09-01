@@ -30,7 +30,7 @@ What a buyer receives. Companion docs: [ARCHITECTURE.md](ARCHITECTURE.md),
 
 ## 3. Brand & web presence
 
-- neuralquant.co domain (Porkbun) + DNS/email (Resend DKIM) setup.
+- neuralquant.co domain (Porkbun) + Vercel DNS setup. Email functionality has been removed; no Resend/DKIM transfer needed.
 - Brand/design system ("Obsidian Quantum"), logo assets, OG images, PWA icons.
 - LinkedIn company page content history (transfer optional).
 

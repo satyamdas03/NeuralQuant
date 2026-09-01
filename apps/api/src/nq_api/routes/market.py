@@ -377,6 +377,19 @@ def _market_news_sync(n: int = 8):
     return {"news": result, "source": source_used}
 
 
+@router.get("/indices")
+async def market_indices(market: str = Query("ALL", description="US, IN, or ALL")):
+    """Live benchmark index quotes (S&P 500, Nifty 50, VIX, etc.)."""
+    mkt = market.upper()
+    markets = ["US", "IN"] if mkt == "ALL" else ([mkt] if mkt in ("US", "IN") else ["US"])
+    result = []
+    for m in markets:
+        overview = await asyncio.to_thread(_market_overview_sync, m)
+        for idx in overview.get("indices", []):
+            result.append({**idx, "market": m})
+    return {"indices": result, "market": mkt}
+
+
 @router.get("/sectors")
 async def market_sectors():
     global _sector_cache, _sector_ts

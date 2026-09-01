@@ -257,7 +257,7 @@ meta_data = [
     ("From", "Satyam Das  —  satyamdas03@gmail.com"),
     ("To", "StockEdge Fintech Pvt Ltd"),
     ("Audience", "Vineet Patawari, CEO  ·  Vivek Bajaj, MD"),
-    ("Status", "Live platform  ·  v4.1.0  ·  13/13 smoke tests passing"),
+    ("Status", "Live platform  ·  v4.1.3  ·  15/15 smoke tests passing"),
 ]
 for i, (k, v) in enumerate(meta_data):
     c0 = meta.rows[i].cells[0]; c1 = meta.rows[i].cells[1]
@@ -340,15 +340,15 @@ styled_table(doc,
     ["Dimension", "Scale"],
     [
         ["Live site", "neuralquant.co (Vercel, auto-deployed)"],
-        ["API", "neuralquant.onrender.com (FastAPI, v4.1.0)"],
+        ["API", "neuralquant.onrender.com (FastAPI, v4.1.3)"],
         ["Backend routers", "33"],
         ["Web pages", "38"],
-        ["Running services", "7 (4 Render, 1 Vercel, 1 Railway, 1 Supabase)"],
+        ["Running services", "7 (4 Render, 1 Vercel, 1 GCP, 1 Supabase)"],
         ["Markets", "US + India"],
         ["Stock universe", "~949 stocks (502 India + 447 US)"],
         ["AI agents", "8 distinct agents"],
         ["Live voice interfaces", "2 (voice PM + ambient companion)"],
-        ["Production tests", "148 backend tests passing, 13/13 live smoke suite"],
+        ["Production tests", "186 backend tests passing, 15/15 live smoke suite"],
         ["Patent status", "Provisional application filed (India), PCT contemplated"],
     ],
     col_widths=[2.0, 4.6])
@@ -361,7 +361,7 @@ styled_table(doc,
         ["IRS% scoring engine ★", "Five-factor composite (quality, momentum, value, low-vol, regime) + NSE Bhavcopy delivery_pct for India — unique market-microstructure signal."],
         ["HMM regime detection ★", "4-state Hidden Markov Model dynamically reweighting factor exposure by market regime."],
         ["Ask Morgan", "Written AI analyst with live price injection, clarification questions, and numeric reconciliation against a [VERIFIED] data layer."],
-        ["Veronica + QuantAstra", "Two live voice agents via LiveKit, Deepgram STT, ElevenLabs TTS, and Anthropic/Bedrock LLMs."],
+        ["Veronica + QuantAstra", "Two live voice agents via LiveKit, Deepgram STT, LiveKit Inference TTS, and Anthropic/Bedrock LLMs."],
         ["Hermes live trading dashboard", "Real-time paper-trading matrix with equity curve, trade tape, and strategy-reflection SSE stream."],
     ],
     col_widths=[2.1, 4.5])
@@ -373,7 +373,7 @@ styled_table(doc,
         ["Q1 FY27 benchmark", "NIFTY50: −6.38%"],
         ["Alpha vs NIFTY50", "+12.69% to +14.83%"],
         ["Hit rate", "87–91%"],
-        ["Live smoke suite", "13/13 passing"],
+        ["Live smoke suite", "15/15 passing"],
         ["Backtest reproducibility", "Baseline stored in Supabase"],
     ],
     col_widths=[2.4, 4.2])
@@ -451,7 +451,7 @@ h2(doc, "7.1 LinkedIn message to Vineet Patawari (CEO)")
 code_block(doc, "Hi Vineet — long-time admirer of what you and Vivek have built at StockEdge.\n\nWe have built an adversarial AI research committee (PARA-DEBATE) that forces a bull-vs-bear debate before any stock conclusion — exactly the 'noise removal' StockEdge stands for. It is live with dual-market US+IN coverage, an India-specific IRS% score, and a Q1FY27 backtest showing +12.69% to +14.83% alpha vs NIFTY50.\n\nI am not looking for a cash-heavy acquisition day one. I would love to explore a 12-month pilot inside StockEdge Pro that converts your 4M users into AI-tier subscribers, with an option to buy the IP later.\n\nWorth a 15-minute call?")
 
 h2(doc, "7.2 LinkedIn message to Vivek Bajaj (MD)")
-code_block(doc, "Hi Vivek — your Bloomberg-for-Bharat vision is why I started NeuralQuant.\n\nWe built the reasoning layer that turns market data into defended conclusions: a quantified adversarial committee, regime-adaptive scoring, and an India-specific IRS% metric. Live at neuralquant.co, 949 tickers, 13/13 smoke tests passing.\n\nI would welcome the chance to show you how it could sit inside StockEdge's existing SEBI RA/IA framework as a 12-month pilot — low risk, aligned incentives, and only an acquisition if your users actually pay for it.\n\nMay I send a one-page memo?")
+code_block(doc, "Hi Vivek — your Bloomberg-for-Bharat vision is why I started NeuralQuant.\n\nWe built the reasoning layer that turns market data into defended conclusions: a quantified adversarial committee, regime-adaptive scoring, and an India-specific IRS% metric. Live at neuralquant.co, 949 tickers, 15/15 smoke tests passing.\n\nI would welcome the chance to show you how it could sit inside StockEdge's existing SEBI RA/IA framework as a 12-month pilot — low risk, aligned incentives, and only an acquisition if your users actually pay for it.\n\nMay I send a one-page memo?")
 
 h2(doc, "7.3 Email subject lines")
 bullet(doc, "12-month AI research pilot for StockEdge Pro — low upfront, aligned upside")
@@ -463,7 +463,7 @@ h1(doc, 8, "10-Minute Demo Agenda")
 styled_table(doc,
     ["Time", "What to show"],
     [
-        ["0:00–0:30", "Live site, 949 tickers, 13/13 smoke tests, v4.1.0"],
+        ["0:00–0:30", "Live site, 949 tickers, 15/15 smoke tests, v4.1.3"],
         ["0:30–2:30", "Ask Morgan: natural-language question on RELIANCE / TCS / HDFCBANK"],
         ["2:30–5:30", "PARA-DEBATE on the same stock — 6 agents, mandated bear, consensus, risk section"],
         ["5:30–7:00", "IRS% / screener — rank NSE 200, show regime detection shifting factor weights"],
@@ -534,7 +534,7 @@ bullet(doc, "Proprietary algorithm internals disclosed only under NDA during due
 # ===== 12. DD CHECKLIST =====
 h1(doc, 12, "Due-Diligence Readiness Checklist")
 checkbox(doc, "Live product demonstration ready (neuralquant.co)")
-checkbox(doc, "13/13 smoke suite passing")
+checkbox(doc, "15/15 smoke suite passing")
 checkbox(doc, "Backtest baseline stored in Supabase (Q1FY27)")
 checkbox(doc, "Signed mutual NDA template")
 checkbox(doc, "Patent filing receipt + Form 31 grace-period filing status")

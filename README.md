@@ -13,26 +13,29 @@
 
 > **This codebase is available for acquisition.** Contact the author for details.
 
-**Live at [neuralquant.co](https://neuralquant.co)** · API `neuralquant.onrender.com` (v4.1.0)
+**Live at [neuralquant.co](https://neuralquant.co)** · API `neuralquant.onrender.com` (v4.1.3)
 
 </div>
 
 ---
 
-## Current Status — June 2026
+## Current Status — August 2026
 
-**Production live.** API v4.1.0, ~950 stocks in the score cache (≈450 US + ≈500 India), nightly refresh healthy. Last full prod smoke (2026-06-15): **13/13 endpoints PASS**, zero JS console errors across the app.
+**Production live.** API v4.1.3, ~950 stocks in the score cache (≈450 US + ≈500 India), nightly refresh healthy. Last full prod smoke (2026-08-18): **15/15 endpoints PASS**, zero JS console errors across the app.
 
-**Recently shipped (Sessions 90–94):**
+**Recently shipped (Sessions 90–109):**
 - **Branding** unified to NeuralQuant; landing, methodology, pricing refreshed.
-- **Voice analysts live** — QuantAstra (on-demand) + **Veronica** (page-aware companion with "Hey Veronica" wake word + morning briefing), via a LiveKit worker.
-- **Hermes** — autonomous self-improving trading agent surfaced at `/hermes` (live "Matrix" dashboard, SSE log stream).
-- **India data parity** — QuantFactor universe expanded from ~60 to ~500 NSE names via a daily-refreshed sheet sync.
+- **Voice analysts live** — QuantAstra (on-demand) + **Veronica** (page-aware companion with "Hey Veronica" wake word + morning briefing), via a LiveKit worker. TTS migrated from ElevenLabs to **LiveKit Inference** (cartesia/sonic-3.5).
+- **Hermes** — autonomous self-improving trading agent surfaced at `/hermes` (live "Matrix" dashboard, SSE log stream). Migrated from expired Railway trial to a **GCP Always Free e2-micro VM**.
+- **India data parity** — QuantFactor universe expanded from ~60 to ~500 NSE names via a daily-refreshed sheet sync. Legacy `anjali_enrichment` collapsed onto `quantfactor_universe`.
 - **Security hardening (P0–P6)** — Supabase RLS, log redaction, gitleaks + dependency scanning in CI, IDOR fixes, HTTP security headers + CSP (report-only), per-IP abuse limiting, webhook-signature enforcement, a security-event audit log, and an incident-response runbook. See [Security](#security).
-- **QA pass** — fixed a false "loss-making" badge (card + screener), a CSP console error, and a "Sign In while authenticated" nav bug; removed the unused `/alerts` page.
+- **Score-scale bug family fixed** — composite_score normalization that broke trade Kelly sizing, meta scores, and backtest hit rate.
+- **GCP India price feeder** — Render's outbound IPs are blocked by Yahoo, so a self-contained feeder on the GCP VM now fetches Indian prices and writes them to `stock_snapshot`.
+- **Screener** — `market=BOTH`/`GLOBAL` merges US + IN; empty/500 bugs fixed.
+- **QA pass** — fixed false "loss-making" badge, CSP console error, "Sign In while authenticated" nav bug, null `change_pct`, broken SSE stream, empty `stock_snapshot` cold-start; removed the unused `/alerts` page and all email functionality.
 - **Mobile** — hamburger nav + bottom tab bar + responsive cards/charts/tables across the app; tightened cramped score grids on phones (verified live at 390px).
 
-**Operator follow-ups (not code):** manual-deploy `nq-api` on Render (auto-deploy is unreliable), manual-deploy `quantastra-agent` Render worker after voice changes, apply migration `027_security_events.sql`. Before any live demo, run `python scripts/warmup.py` (~3–5 min prior) — first-hit Ask Morgan / PARA-DEBATE is ~50s / ~85s of inherent multi-agent LLM time, and warming the exact demo tickers makes the audience-facing clicks fast.
+**Operator follow-ups (not code):** finish installing `infra/gcp/india_feed.py` on the GCP VM (add Supabase env vars + enable cron), manual-deploy `quantastra-agent` Render worker if not yet deployed, final deletion of any remaining Railway account. Before any live demo, run `python scripts/warmup.py` (~3–5 min prior) — first-hit Ask Morgan / PARA-DEBATE is ~50s / ~85s of inherent multi-agent LLM time, and warming the exact demo tickers makes the audience-facing clicks fast.
 
 ---
 
@@ -136,11 +139,11 @@ External: Hermes trading agent (GCP VM) ──proxied via /hermes──▶ nq-ap
 
 ---
 
-## Live Endpoints (Verified 2026-06-15 — 13/13 PASS)
+## Live Endpoints (Verified 2026-08-18 — 15/15 PASS)
 
 | Endpoint | Method | Status | Notes |
 |----------|--------|--------|-------|
-| `/health` | GET | 200 | `v4.1.0`, ~950 cache rows |
+| `/health` | GET | 200 | `v4.1.3`, ~950 cache rows |
 | `/stocks/AAPL?market=US` | GET | 200 | IRS%, ForeCast, factor radar |
 | `/stocks/TCS?market=IN` | GET | 200 | India full render incl ₹ prices |
 | `/stocks/AAPL/chart?period=1mo` | GET | 200 | OHLCV |
@@ -292,7 +295,7 @@ API at `http://localhost:8000` · Swagger at `/docs`.
 ### 4. Tests + smoke
 ```bash
 uv run pytest apps/api/tests/ packages/ -v
-python scripts/smoke_test.py --api https://neuralquant.onrender.com   # 13 endpoints
+python scripts/smoke_test.py --api https://neuralquant.onrender.com   # 15 endpoints
 python scripts/warmup.py --tickers AAPL,MSFT,TCS                      # pre-demo warm-up
 ```
 
@@ -302,7 +305,7 @@ python scripts/warmup.py --tickers AAPL,MSFT,TCS                      # pre-demo
 
 | Service | Platform | URL / Notes |
 |---------|----------|-------------|
-| **API** (`nq-api`) | Render (Docker) | `neuralquant.onrender.com` — **manual deploy** (auto-deploy unreliable) |
+| **API** (`nq-api`) | Render (Docker) | `neuralquant.onrender.com` — auto-deploy enabled; verify `/health` after push |
 | **Web** | Vercel | [`neuralquant.co`](https://neuralquant.co) |
 | **Voice** (`quantastra-agent`) | Render (worker) | LiveKit; TTS via LiveKit Inference (no separate key) |
 | **OpenBB** (`nq-openbb`) | Render | Terminal/extended data proxy |
@@ -337,7 +340,7 @@ Scheduling runs via an **in-process scheduler** (02:00 / 02:30 / 20:30 UTC) — 
 ### Completed
 - [x] Quant signal engine (5 factors, HMM regime) + QuantFactor quintile engine + IRS%
 - [x] PARA-DEBATE (parallel agents + metric reconciliation) + SSE streaming
-- [x] 100% live data (yfinance, FMP, FRED, NSE, EDGAR, Finnhub, OpenBB)
+- [x] 100% live data (FMP, yfinance, FRED, NSE, EDGAR, Finnhub, OpenBB)
 - [x] Auth, tiers, screener, portfolio, watchlist, Stripe + PayPal
 - [x] Voice analysts (QuantAstra + Veronica)
 - [x] Hermes live trading dashboard
@@ -350,13 +353,15 @@ Scheduling runs via an **in-process scheduler** (02:00 / 02:30 / 20:30 UTC) — 
 - [ ] Multi-year backtest with published P&L / Sharpe / IC
 - [ ] Fitted HMM for India regime (currently heuristic)
 - [ ] Test coverage expansion
+- [ ] Populate `growth_percentile` in score_cache (currently 0.5 default)
+- [ ] Add `/market/indices` endpoint for live benchmark quotes
 
 ---
 
 ## Known Limitations
 
 1. **Cold-start / inherent LLM latency** — first-hit Ask Morgan ~50s, PARA-DEBATE ~85s (multi-agent live debate; faster once warm). Run `scripts/warmup.py` before live demos.
-2. **Render manual deploys** — `nq-api` auto-deploy has been unreliable; deploy manually.
+2. **Render auto-deploy** — now enabled; verify `/health` after push for version/cache_age.
 3. **CSP report-only** — security headers shipped; CSP not yet enforced (no violation collector yet).
 4. **India fundamentals gaps** — some FMP endpoints are US-only; IN relies on the sheet sync + yfinance.
 5. **QuantFactor "earnings declined" flag** — derived from profit-growth, not profit level; corrected in UI, full DB correction needs a re-sync.

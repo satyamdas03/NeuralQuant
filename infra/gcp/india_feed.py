@@ -24,6 +24,7 @@ import os
 import re
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -332,11 +333,36 @@ def load_in_tickers() -> list[dict[str, Any]]:
     return filtered
 
 
-def fetch_yf_prices(tickers: list[str]) -> dict[str, dict]:
-    """Batch-fetch live prices for IN tickers via yfinance.
+def _pick_series(df, sym: str, field: str):
+    """Pick a column/Series from a possibly-MultiIndex yfinance DataFrame."""
+    if df is None or df.empty:
+        return None
+    if isinstance(df.columns, pd.MultiIndex):
+        try:
+            return df[(field, sym)].dropna()
+        except KeyError:
+            return None
+    if len(df.columns.names) > 1:
+        try:
+            return df.xs(sym, level="Ticker", axis=1)[field].dropna()
+        except Exception:
+            return None
+    if sym in df.columns:
+        return df[sym].dropna()
+    if len(df.columns) == 1:
+        return df[df.columns[0]].dropna()
+    return None
 
-    Returns {bare_ticker: {price, change_pct}}.
+
+def fetch_yf_prices(tickers: list[str]) -> dict[str, dict]:
+    """Batch-fetch live prices + volume + 52-week range for IN tickers.
+
+    Uses one yf.download call per chunk (period=1y) so we can derive
+    year-high/low from the trailing 252 daily closes. Returns:
+        {bare_ticker: {price, change_pct, volume, year_high, year_low}}.
     """
+    import pandas as pd
+
     if not tickers:
         return {}
 
@@ -352,28 +378,29 @@ def fetch_yf_prices(tickers: list[str]) -> dict[str, dict]:
             try:
                 hist = yf.download(
                     chunk_syms,
-                    period="5d",
+                    period="1y",
                     progress=False,
                     auto_adjust=True,
                     threads=False,
                     session=session,
                 )
-                if hist is not None and not hist.empty and "Close" in hist.columns:
-                    close = hist["Close"]
+                if hist is not None and not hist.empty:
+                    close = hist["Close"] if "Close" in hist.columns else None
+                    volume = hist["Volume"] if "Volume" in hist.columns else None
                     for bare_t, sym in zip(chunk_bare, chunk_syms):
                         try:
-                            if len(chunk_syms) > 1 and sym in close.columns:
-                                vals = close[sym].dropna()
-                            elif len(chunk_syms) == 1:
-                                vals = close.dropna()
-                            else:
-                                vals = None
-                            if vals is not None and len(vals) >= 2:
-                                price = float(vals.iloc[-1])
-                                prev = float(vals.iloc[-2])
+                            close_vals = _pick_series(close, sym, "Close") if close is not None else None
+                            vol_vals = _pick_series(volume, sym, "Volume") if volume is not None else None
+                            if close_vals is not None and len(close_vals) >= 2:
+                                price = float(close_vals.iloc[-1])
+                                prev = float(close_vals.iloc[-2])
                                 entry = results.setdefault(bare_t, {})
                                 entry["price"] = price
                                 entry["change_pct"] = round((price - prev) / prev * 100, 2)
+                                entry["year_high"] = float(close_vals.max())
+                                entry["year_low"] = float(close_vals.min())
+                                if vol_vals is not None and len(vol_vals) >= 1:
+                                    entry["volume"] = int(vol_vals.iloc[-1])
                         except Exception:
                             pass
                 break  # success
@@ -390,23 +417,117 @@ def fetch_yf_prices(tickers: list[str]) -> dict[str, dict]:
     return results
 
 
+def _fetch_single_info(sym: str, bare: str, session) -> tuple[str, dict]:
+    """Fetch yfinance Ticker.info for one symbol. Returns (bare, info_dict)."""
+    try:
+        info = yf.Ticker(sym, session=session).info or {}
+        return bare, {
+            "name": info.get("longName") or info.get("shortName"),
+            "market_cap": info.get("marketCap"),
+            "sector": info.get("sector"),
+            "industry": info.get("industry"),
+            "beta": info.get("beta"),
+            "pe": info.get("trailingPE"),
+            "analyst_target": info.get("targetMeanPrice"),
+            "recommendation": info.get("recommendationKey"),
+        }
+    except Exception as e:
+        log.debug("yfinance .info failed for %s: %s", sym, e)
+        return bare, {}
+
+
+def fetch_yf_info(tickers: list[str], max_workers: int = 5) -> dict[str, dict]:
+    """Fetch company_name / market_cap / sector / industry via Ticker.info.
+
+    Uses a small thread pool to keep the GCP feeder fast. Missing fields are
+    omitted so the caller can fall back to whatever it already has.
+    """
+    if not tickers:
+        return {}
+
+    session = _get_yf_session()
+    syms = [_yf_sym(t) for t in tickers]
+    bare_list = [_bare(t) for t in tickers]
+
+    results: dict[str, dict] = {}
+    for attempt in range(2):
+        try:
+            with ThreadPoolExecutor(max_workers=max_workers) as ex:
+                futures = {
+                    ex.submit(_fetch_single_info, sym, bare, session): bare
+                    for sym, bare in zip(syms, bare_list)
+                }
+                for fut in as_completed(futures):
+                    bare, data = fut.result()
+                    if data:
+                        results[bare] = data
+            break
+        except Exception as e:
+            if _is_yf_crumb_error(e) and attempt == 0:
+                log.warning("yf.info batch crumb error, resetting session and retrying")
+                _reset_yf_session()
+                session = _get_yf_session()
+                continue
+            log.warning("yf.info batch fetch failed: %s", e)
+            break
+    return results
+
+
+def load_existing_snapshots(tickers: list[str]) -> dict[str, dict]:
+    """Read current IN snapshot rows so we can reuse names/caps already fetched."""
+    if not tickers:
+        return {}
+
+    bare_list = [_bare(t) for t in tickers]
+    existing: dict[str, dict] = {}
+    CHUNK = 80
+    for i in range(0, len(bare_list), CHUNK):
+        chunk = bare_list[i:i + CHUNK]
+        csv = ",".join(chunk)
+        data = _supabase_rest(
+            "stock_snapshot",
+            method="GET",
+            query={
+                "select": "ticker,company_name,market_cap,sector,sub_sector,week_52_high,week_52_low",
+                "market": "eq.IN",
+                "ticker": f"in.({csv})",
+                "limit": "10000",
+            },
+        )
+        if isinstance(data, list):
+            for r in data:
+                existing[_bare(str(r.get("ticker", "")))] = r
+    return existing
+
+
 def build_snapshot_rows(
     tickers_meta: list[dict[str, Any]],
     yf_data: dict[str, dict],
+    info_data: dict[str, dict],
+    existing: dict[str, dict],
 ) -> list[dict[str, Any]]:
-    """Merge yfinance results with static quantfactor metadata."""
+    """Merge yfinance price data, info, and static quantfactor metadata."""
     rows = []
     now_iso = datetime.now(timezone.utc).isoformat()
     for meta in tickers_meta:
         t = meta["ticker"]
         bare = _bare(t)
         yf = yf_data.get(bare, {})
+        info = info_data.get(bare, {})
+        old = existing.get(bare, {})
 
         price = yf.get("price")
         change_pct = yf.get("change_pct")
         beta = meta.get("qtr_beta") or meta.get("yr_beta")
         if beta is None:
-            beta = yf.get("beta")
+            beta = info.get("beta")
+
+        company_name = info.get("name") or old.get("company_name") or bare
+        market_cap = info.get("market_cap") or old.get("market_cap")
+        sector = meta.get("sector") or info.get("sector") or old.get("sector")
+        sub_sector = meta.get("sub_sector") or info.get("industry") or old.get("sub_sector")
+        year_high = yf.get("year_high") or old.get("week_52_high")
+        year_low = yf.get("year_low") or old.get("week_52_low")
 
         row = {
             "ticker": t,
@@ -414,23 +535,23 @@ def build_snapshot_rows(
             "price": _safe_float(price),
             "change_pct": _safe_float(change_pct),
             "volume": _safe_int(yf.get("volume")),
-            "market_cap": _safe_float(yf.get("market_cap")),
-            "pe_ttm": _safe_float(meta.get("pe_ratio")),
+            "market_cap": _safe_float(market_cap),
+            "pe_ttm": _safe_float(meta.get("pe_ratio") or info.get("pe")),
             "eps": None,
             "beta": _safe_float(beta),
             "pb_ratio": None,
-            "week_52_high": _safe_float(yf.get("year_high")),
-            "week_52_low": _safe_float(yf.get("year_low")),
+            "week_52_high": _safe_float(year_high),
+            "week_52_low": _safe_float(year_low),
             "earnings_date": None,
-            "analyst_target": None,
-            "recommendation": None,
+            "analyst_target": _safe_float(info.get("analyst_target")),
+            "recommendation": info.get("recommendation") or old.get("recommendation"),
             "rsi_14d": None,
             "macd_signal": None,
             "insider_score": None,
             "news_sentiment": None,
-            "sector": meta.get("sector") or yf.get("sector"),
-            "sub_sector": meta.get("sub_sector") or yf.get("industry"),
-            "company_name": yf.get("name") or bare,
+            "sector": sector,
+            "sub_sector": sub_sector,
+            "company_name": company_name,
             "currency": "INR",
             "cached_at": now_iso,
             "stale": False,
@@ -450,11 +571,28 @@ def run_feed(limit: int | None = None) -> dict[str, Any]:
         tickers_meta = tickers_meta[:limit]
         log.info("Test mode: limiting to first %s tickers", limit)
 
+    raw_tickers = [m["ticker"] for m in tickers_meta]
+
+    # Reuse metadata we already have in Supabase to avoid hammering Yahoo .info
+    existing = load_existing_snapshots(raw_tickers)
+
     log.info("Fetching yfinance prices for %s IN tickers", len(tickers_meta))
-    yf_data = fetch_yf_prices([m["ticker"] for m in tickers_meta])
+    yf_data = fetch_yf_prices(raw_tickers)
     log.info("yfinance returned prices for %s / %s tickers", len(yf_data), len(tickers_meta))
 
-    rows = build_snapshot_rows(tickers_meta, yf_data)
+    # Only call .info for tickers that are missing a company name or market cap.
+    need_info = [
+        t for t in raw_tickers
+        if not (existing.get(_bare(t), {}).get("company_name") and
+                existing.get(_bare(t), {}).get("market_cap"))
+    ]
+    info_data: dict[str, dict] = {}
+    if need_info:
+        log.info("Fetching yfinance info for %s tickers missing name/cap", len(need_info))
+        info_data = fetch_yf_info(need_info)
+        log.info("yfinance info returned for %s / %s tickers", len(info_data), len(need_info))
+
+    rows = build_snapshot_rows(tickers_meta, yf_data, info_data, existing)
     # Never overwrite existing good prices with nulls/zeros — only upsert rows
     # that actually got a price from yfinance.
     rows_with_price = [r for r in rows if r.get("price") and float(r["price"]) > 0]
@@ -468,6 +606,7 @@ def run_feed(limit: int | None = None) -> dict[str, Any]:
         "success": True,
         "total_tickers": len(tickers_meta),
         "yf_hits": len(yf_data),
+        "info_hits": len(info_data),
         "snapshot_rows_written": written,
         "skipped_null_price": skipped,
         "elapsed_seconds": elapsed,

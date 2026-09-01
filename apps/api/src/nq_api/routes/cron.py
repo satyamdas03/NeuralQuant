@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import random
 import threading
 import time
 from datetime import datetime, timezone
@@ -131,21 +132,6 @@ def _run_anjali(market: str) -> dict:
         "total": 0,
         "completed": datetime.now(timezone.utc).isoformat(),
     }
-
-
-def _run_anjali_bg():
-    """Background thread wrapper for QuantFactor enrichment."""
-    global _anjali_last_result
-    try:
-        log.info("[cron] Starting QuantFactor enrichment rebuild")
-        result = _run_anjali("BOTH")
-        _anjali_last_result = result
-        log.info("[cron] Completed QuantFactor enrichment rebuild: %s rows", result.get("total", 0))
-    except Exception:
-        log.exception("[cron] QuantFactor enrichment failed")
-        _anjali_last_result = {"error": "unexpected failure", "completed": datetime.now(timezone.utc).isoformat()}
-    finally:
-        _anjali_lock.release()
 
 
 @router.post("/anjali")
@@ -293,40 +279,52 @@ def _run_market_wrap_broadcast(market: str):
 _SCHEDULED_JOBS_STARTED = False
 _last_market_refresh: float = 0  # epoch timestamp of last market_refresh run
 _MARKET_REFRESH_INTERVAL = 1800  # 30 minutes
+_COLD_START_MIN_INTERVAL = 3600    # at most one cold-start refresh per hour
+_last_cold_start_attempt: float = 0  # last time we tried a cold-start refresh
 
 
 async def start_scheduled_jobs():
     """Start in-process cron scheduler for nightly + periodic jobs.
 
     Scheduled jobs:
-      - Market refresh:  every 30 min during market hours (09:25–20:05 UTC for US+IN)
+      - Market refresh:  every 30 min during market hours (03:45–20:00 UTC)
       - US scores:       02:00 UTC
       - IN scores:       02:30 UTC
       - QuantFactor sync: 03:00 UTC (syncs Excel data → quantfactor_universe)
-      - Anjali:          20:30 UTC (QuantFactor Engine enrichment)
 
     Uses asyncio loop + threading so it doesn't block API requests.
     Only starts once even if lifespan is called multiple times.
+
+    Operator note: set NQ_SCHEDULER_MASTER=false on non-primary Render instances
+    (or any horizontal replicas) to avoid duplicate job runs. The primary
+    instance keeps the default (master=true).
     """
-    global _SCHEDULED_JOBS_STARTED
+    global _SCHEDULED_JOBS_STARTED, _last_cold_start_attempt
     if _SCHEDULED_JOBS_STARTED:
         return
     _SCHEDULED_JOBS_STARTED = True
 
+    if os.environ.get("NQ_SCHEDULER_MASTER", "true").lower() == "false":
+        log.info("[scheduler] NQ_SCHEDULER_MASTER=false — skipping scheduler on this instance")
+        return
+
     log.info("[scheduler] Starting in-process cron scheduler (includes market_refresh every 30min)")
 
     # Cold-start guard: if stock_snapshot is empty, kick off a background market
-    # refresh immediately. The scheduler otherwise only runs during market hours,
-    # so a deploy outside 03:45–20:00 UTC would leave snapshots empty for hours.
-    # On Render we only refresh US market (IN is refreshed by the GCP feed), so
-    # the guard only needs to check US rows there.
+    # refresh. The scheduler otherwise only runs during market hours, so a deploy
+    # outside 03:45–20:00 UTC would leave snapshots empty for hours. We add a
+    # random sleep to de-correlate multiple instances that boot simultaneously,
+    # plus a minimum interval so repeated deploys don't hammer the data source.
+    await asyncio.sleep(random.uniform(5, 30))
     try:
         from nq_api.cache.snapshot_cache import count_by_market
         on_render = bool(os.environ.get("RENDER"))
         us_empty = count_by_market("US") == 0
         in_empty = count_by_market("IN") == 0
         should_cold_start = (us_empty and in_empty) if not on_render else us_empty
-        if should_cold_start:
+        cold_start_allowed = (time.time() - _last_cold_start_attempt) >= _COLD_START_MIN_INTERVAL
+        if should_cold_start and cold_start_allowed:
+            _last_cold_start_attempt = time.time()
             log.info("[scheduler] stock_snapshot is empty — triggering cold-start market refresh")
             if _market_refresh_lock.acquire(blocking=False):
                 _last_market_refresh = time.time()
@@ -334,15 +332,16 @@ async def start_scheduled_jobs():
                 threading.Thread(target=_run_market_refresh_bg, args=(None,), daemon=True).start()
             else:
                 log.info("[scheduler] Market refresh already running, skipping cold-start kick")
+        elif should_cold_start:
+            log.info("[scheduler] stock_snapshot empty but cold-start refresh already attempted recently")
     except Exception:
         log.exception("[scheduler] Cold-start snapshot check failed")
 
     # Simple scheduler: check every 60s if it's time to run a job
     async def _scheduler_loop():
-        global _last_market_refresh
+        global _last_market_refresh, _last_cold_start_attempt
         _ran_us_today = ""
         _ran_in_today = ""
-        _ran_anjali_today = ""
         _ran_qf_sync_today = ""
 
         while True:
@@ -391,15 +390,6 @@ async def start_scheduled_jobs():
                         threading.Thread(target=_run_qf_sync_bg, daemon=True).start()
                     else:
                         log.warning("[scheduler] QuantFactor sync already running, skipping")
-
-                # Anjali at 20:30 UTC (QuantFactor Engine)
-                if now.hour == 20 and now.minute >= 25 and now.minute < 35 and _ran_anjali_today != today:
-                    _ran_anjali_today = today
-                    log.info("[scheduler] Triggering QuantFactor enrichment at %s", now.isoformat())
-                    if _anjali_lock.acquire(blocking=False):
-                        threading.Thread(target=_run_anjali_bg_wrap, args=("BOTH",), daemon=True).start()
-                    else:
-                        log.warning("[scheduler] QuantFactor already running, skipping")
 
             except Exception:
                 log.exception("[scheduler] Error in scheduler loop")

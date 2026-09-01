@@ -8,7 +8,7 @@ Buyer-facing technical map. Verified against the codebase at tag `v4.1.0-sale-re
 apps/api/            FastAPI backend (nq_api) — 33 routers, agents, jobs, auth, cache
 apps/web/            Next.js 16 frontend (33+ pages, App Router)
 apps/mobile/         React Native / Expo app (5-tab)
-apps/livekit-agent/  QuantAstra voice agent (LiveKit + Deepgram + ElevenLabs)
+apps/livekit-agent/  QuantAstra voice agent (LiveKit + Deepgram + LiveKit Inference TTS)
 packages/data/       nq_data — all market data connectors + yf_guard gateway
 packages/signals/    nq_signals — factor engine, HMM regime, scoring
 supabase/migrations/ Canonical SQL migrations (001–025)

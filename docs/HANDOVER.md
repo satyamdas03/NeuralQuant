@@ -37,7 +37,7 @@ file covers what changes hands and in what order.
 - Registrar: Porkbun. Unlock → auth/EPP code → buyer initiates transfer at
   their registrar (5–7 days) — or push within Porkbun (instant, buyer needs
   Porkbun account).
-- DNS to recreate: Vercel A/CNAME for web, Resend TXT/DKIM for email.
+- DNS to recreate: Vercel A/CNAME for web. Email functionality has been removed; no Resend/DKIM needed.
 
 ## 4. Render / Vercel
 
@@ -56,8 +56,8 @@ file covers what changes hands and in what order.
 | SUPABASE_SERVICE_ROLE_KEY + JWT secret | API ↔ DB | Supabase dashboard |
 | FMP_API_KEY | market data | buyer's own subscription |
 | FINNHUB / FRED / TWELVE_DATA | data | free re-register |
-| RESEND_API_KEY | email | resend.com |
-| LIVEKIT / DEEPGRAM / ELEVENLABS | voice | respective consoles |
+| LIVEKIT / DEEPGRAM | voice | respective consoles |
+| ANTHROPIC_API_KEY | LLM agents | console.anthropic.com |
 | STRIPE / PAYPAL secrets + webhook IDs | payments | buyer's own accounts |
 | CRON_SECRET / SMOKE_TEST_SECRET | internal auth | generate new |
 

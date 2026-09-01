@@ -67,15 +67,15 @@ By embedding NeuralQuant as a **research-analysis tool under StockEdge's existin
 | Dimension | Scale |
 |---|---|
 | Live site | `neuralquant.co` (Vercel, auto-deployed) |
-| API | `neuralquant.onrender.com` (FastAPI, v4.1.0) |
+| API | `neuralquant.onrender.com` (FastAPI, v4.1.3) |
 | Backend routers | 33 |
 | Web pages | 38 |
-| Running services | 7 (4 Render, 1 Vercel, 1 Railway, 1 Supabase) |
+| Running services | 7 (4 Render, 1 Vercel, 1 GCP, 1 Supabase) |
 | Markets | US + India |
 | Stock universe | ~949 stocks (502 India + 447 US) |
 | AI agents | 8 distinct agents |
 | Live voice interfaces | 2 (voice PM + ambient companion) |
-| Production tests | 148 backend tests passing, 13/13 live smoke suite |
+| Production tests | 186 backend tests passing, 15/15 live smoke suite |
 | Patent status | Provisional application filed (India), PCT contemplated |
 
 ### 3.2 Flagship capabilities (all live today)
@@ -84,7 +84,7 @@ By embedding NeuralQuant as a **research-analysis tool under StockEdge's existin
 - **IRS% (Investment-Ready Score)** — a five-factor composite score combining quality (Piotroski F-Score), momentum (Jegadeesh-Titman), value, low-volatility, and HMM regime-adaptive weighting. India adds NSE Bhavcopy `delivery_pct` as a sixth liquidity-conviction signal — unique to Indian market microstructure.
 - **HMM regime detection** — Hidden Markov Model classifying market state into Risk-On / Risk-Off / Bear / Late-Cycle, dynamically reweighting factor exposure.
 - **Ask Morgan** — written AI research analyst with live price injection, clarification questions, and numeric reconciliation against a `[VERIFIED]` data layer.
-- **Veronica + QuantAstra** — two live voice agents (portfolio manager and ambient page-aware companion) via LiveKit, Deepgram STT, ElevenLabs TTS, and Anthropic/Bedrock LLMs.
+- **Veronica + QuantAstra** — two live voice agents (portfolio manager and ambient page-aware companion) via LiveKit, Deepgram STT, LiveKit Inference TTS, and Anthropic/Bedrock LLMs.
 - **Hermes live trading dashboard** — real-time paper-trading matrix with equity curve, trade tape, and strategy reflection SSE stream.
 
 ### 3.3 Validation & track record
@@ -94,7 +94,7 @@ By embedding NeuralQuant as a **research-analysis tool under StockEdge's existin
 | Q1 FY27 India backtest benchmark | NIFTY50: −6.38% |
 | Alpha vs NIFTY50 | **+12.69% to +14.83%** |
 | Hit rate | **87–91%** |
-| Live smoke suite | 13/13 passing |
+| Live smoke suite | 15/15 passing |
 | Backtest reproducibility | Baseline stored in Supabase |
 
 ---
@@ -220,7 +220,7 @@ Hi Vivek — your Bloomberg-for-Bharat vision is why I started NeuralQuant.
 
 We built the reasoning layer that turns market data into defended conclusions:
 a quantified adversarial committee, regime-adaptive scoring, and an India-specific
-IRS% metric. Live at neuralquant.co, 949 tickers, 13/13 smoke tests passing.
+IRS% metric. Live at neuralquant.co, 949 tickers, 15/15 smoke tests passing.
 
 I would welcome the chance to show you how it could sit inside StockEdge's
 existing SEBI RA/IA framework as a 12-month pilot — low risk, aligned incentives,
@@ -241,7 +241,7 @@ May I send a one-page memo?
 
 | Time | What to show |
 |---|---|
-| 0:00–0:30 | Live site, 949 tickers, 13/13 smoke tests, version v4.1.0 |
+| 0:00–0:30 | Live site, 949 tickers, 15/15 smoke tests, version v4.1.3 |
 | 0:30–2:30 | Ask Morgan: natural-language question on RELIANCE / TCS / HDFCBANK |
 | 2:30–5:30 | PARA-DEBATE on the same stock — 6 agents, mandated bear, consensus, risk section |
 | 5:30–7:00 | IRS% / screener — rank NSE 200, show regime detection shifting factor weights |
@@ -303,7 +303,7 @@ The **₹50 lakh pilot fee** is a fraction of the cost to recreate even one subs
 
 - Domain (`neuralquant.co`) and brand assets
 - Full source code (monorepo) under NDA / LOI
-- Infrastructure accounts (Render, Vercel, Supabase, Railway, LiveKit) — credentials transferred securely
+- Infrastructure accounts (Render, Vercel, Supabase, GCP, LiveKit) — credentials transferred securely
 - Data pipeline configurations and cached market data
 - Patent application — assignment to StockEdge
 - Methodology and backtest baselines
@@ -324,7 +324,7 @@ The **₹50 lakh pilot fee** is a fraction of the cost to recreate even one subs
 Before the first serious conversation, the following items will be completed and available:
 
 - [x] Live product demonstration ready (neuralquant.co)
-- [x] 13/13 smoke suite passing
+- [x] 15/15 smoke suite passing
 - [x] Backtest baseline stored in Supabase (Q1FY27)
 - [ ] Signed mutual NDA template
 - [ ] Patent filing receipt + Form 31 grace-period filing status
@@ -346,7 +346,7 @@ I am mid-way through a Master of Artificial Intelligence at UTS Sydney. NeuralQu
 StockEdge is the only Indian retail platform with both the distribution (4M users), the SEBI licenses (RA + IA), and the founder vision (Bloomberg-for-Bharat) that aligns with what NeuralQuant does. No other target offers all three.
 
 **"What happens on Day 1 of the pilot?"**  
-NeuralQuant exposes a private partner API, StockEdge's compliance team reviews output templates, and integration begins against a fixed universe. The live platform keeps running autonomously regardless — 4 cron jobs execute, 13/13 smoke tests pass, and all 7 services remain live.
+NeuralQuant exposes a private partner API, StockEdge's compliance team reviews output templates, and integration begins against a fixed universe. The live platform keeps running autonomously regardless — 4 cron jobs execute, 15/15 smoke tests pass, and all 7 services remain live.
 
 ---
 

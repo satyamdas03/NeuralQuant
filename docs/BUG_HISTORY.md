@@ -1,11 +1,11 @@
-# NeuralQuant — Bug History (Sessions 8–82)
+# NeuralQuant — Bug History (Sessions 8–109)
 
 > This catalog is published deliberately. It is the engineering maturity record
 > of this codebase: every yfinance failure mode, JSON serialization edge,
 > timeout boundary, and India-market quirk has already been found and fixed.
 > A team rebuilding this product rediscovers this list the hard way.
 >
-> 126 bugs were fixed across 82 documented build sessions (Nov 2024 – Jun 2026).
+> 150+ bugs were fixed across 109 documented build sessions (Nov 2024 – Aug 2026).
 > This file groups them by root-cause class with the highest-value entries;
 > per-session detail lives in the session-by-session commit history.
 
@@ -70,6 +70,32 @@ Blocking yfinance/Supabase calls inside the event loop (uvicorn stalls,
 httpx); five `ValueError` crashes from `%`-formatting in strings containing
 `>%5min` patterns.
 
+### Class 9 — score-scale / normalization family
+`score_cache.composite_score` was stored as quantfactor composite × 10
+(−160..+160) while consumers assumed 0–1. Result: every trade Kelly edge=1.0,
+meta scores pegged 10/10, backtest hit rate garbage (−3271%). Fixed by a single
+`score_builder.normalize_cache_composite()` and auditing every consumer.
+Factor scores were also floored at 0, zeroing quality/momentum in down markets;
+replaced with true cross-sectional percentile ranks.
+
+### Class 10 — India-market data completeness
+Render outbound IPs blocked by Yahoo → IN prices dropped. Mitigation became a
+dedicated GCP e2-micro India price feeder (`infra/gcp/india_feed.py`) that
+writes to `stock_snapshot`. `.NS`/`.BO` normalization moved to a single shared
+path in `snapshot_cache.py` and `score_cache.py` so `/stocks/{ticker}?market=IN`,
+`/screener?market=BOTH`, and nightly_score all agree on ticker keys.
+
+### Class 11 — infrastructure churn
+Railway trial expired → Hermes migrated to GCP Always Free e2-micro VM.
+ElevenLabs/Sarvam voice TTS replaced by LiveKit Inference (cartesia/sonic-3.5).
+Email functionality fully removed (Resend, DKIM, market-wrap emails) and schema
+cleaned via migrations 028/029. Render auto-deploy now enabled.
+
+### Class 12 — in-process scheduler cold-start herd
+Startup market refresh could fire from multiple simultaneous instances/restarts.
+Fixed with `NQ_SCHEDULER_MASTER` env gate, random startup jitter, and a
+per-process one-hour cold-start debounce.
+
 ## Selected chronology (high-signal incidents)
 
 | Session | Incident | Root cause |
@@ -86,12 +112,21 @@ httpx); five `ValueError` crashes from `%`-formatting in strings containing
 | 80b | 8 production crashes in one day | NaN serialization + tier query + rename fallout |
 | 81 | All stocks identical scores | `composite` vs `composite_score` |
 | 82 | TCS/RELIANCE/INFY 503 | `.NS`-suffixed universe keys + `len > 8` filter |
+| 84 | Sale-ready acceptance test | Docker stack CORS/NaN middleware strip → hardened acceptance runbook |
+| 90–91 | Branding + live price parity | QuantAlpha→NeuralQuant; OpenBB yfinance proxy for live prices |
+| 92–93 | Security P0–P6 | RLS, IDOR, headers, CSP, audit log, gitleaks/dependency scanning |
+| 94 | Demo badge/nav bugs | loss-growth flag misread as profit level; CSP/console; auth nav state |
+| 100–101 | Hermes paper-trading collapse | no trend filter + open-loop reflection + SPOF exchange → multi-exchange + telemetry + revert guard |
+| 102 | Factor scores floored at 0 | `max(0, val/4)` killed negatives → cross-sectional pct rank |
+| 104 | Score-scale bug family | composite stored qf×10 vs consumers expecting 0–1 |
+| 106–109 | Render→GCP + stale docs | Railway expiration, Resend/email removal, version/smoke/test count drift, IN screener merge bugs |
 
 ## Known open items (disclosed)
 
-- Anjali NIFTY200 sync produced 11 rows (~200 expected) — upstream Excel
-  completeness issue in the sister repo; code path is fixed and verified
-  against the rows that exist.
 - `/query/v2` deep-dive can exceed 60s on Render (multi-agent PARA-DEBATE);
   mitigations in place, async-polling redesign documented in OPERATIONS.md.
 - DII/FII flows are market-aggregate proxy, not per-stock.
+- CSP remains report-only until violation collector confirms no false positives.
+- No persistent Ask Morgan memory — sliding-window context, lost on refresh.
+- India HMM regime is still heuristic (VIX thresholds); fitted HMM on NIFTY
+  returns is the planned evolution.

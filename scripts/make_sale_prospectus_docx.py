@@ -346,16 +346,16 @@ styled_table(doc,
     [
         ["Backend API routers", "33"],
         ["Web pages / routes", "38"],
-        ["Running services", "7  (4 Render, 1 Vercel, 1 Railway, 1 Supabase)"],
-        ["Scheduled jobs", "4 daily cron jobs"],
-        ["Production tests", "116+ (passing)"],
+        ["Running services", "7  (4 Render, 1 Vercel, 1 GCP, 1 Supabase)"],
+        ["Scheduled jobs", "4 daily cron jobs (nightly scoring, market refresh, quantfactor sync, enrichment)"],
+        ["Production tests", "186+ (passing)"],
         ["Markets covered", "US + India"],
         ["Stock universe", "~949 stocks  (502 India + 447 US)"],
         ["AI agents", "8 distinct agents (research, debate, voice)"],
         ["Live voice interfaces", "2  (voice PM + ambient companion)"],
         ["Patent", "Application filed (provisional stage)"],
-        ["Current version", "v4.1.0"],
-        ["Day 1 for the acquirer", "Platform runs autonomously — 4 cron jobs execute, 13/13 smoke suite passes, all 7 services live. Take ownership and it keeps running with zero immediate intervention."],
+        ["Current version", "v4.1.3"],
+        ["Day 1 for the acquirer", "Platform runs autonomously — 4 cron jobs execute, 15/15 smoke suite passes, all 7 services live. Take ownership and it keeps running with zero immediate intervention."],
     ],
     col_widths=[1.9, 4.7])
 spacer(doc, 8)
@@ -373,7 +373,7 @@ styled_table(doc,
         ["HMM regime detection  ★",
          "Hidden Markov Model classifying market state into 4 regimes (Risk-On / Risk-Off / Bear / Late-Cycle). Factor weights dynamically reweight by detected regime — Bear weights quality and value; Risk-On weights momentum. No retail AI research platform offers regime-adaptive quantitative scoring."],
         ["Voice portfolio manager",
-         "Real-time conversational voice agent (LiveKit WebRTC + Deepgram STT + reasoning LLM + ElevenLabs TTS). ~20 function-calling tools, file upload, and a whiteboard. Full portfolio-discussion capability."],
+         "Real-time conversational voice agent (LiveKit WebRTC + Deepgram STT + reasoning LLM + LiveKit Inference TTS). ~20 function-calling tools, file upload, and a whiteboard. Full portfolio-discussion capability."],
         ["Ambient voice companion",
          "Always-listening voice assistant with page-context awareness, a wake word, and a morning market briefing. Voice-native equity research is ahead of the market — competitors are text-only."],
         ["Written research analyst",
@@ -398,7 +398,7 @@ arch_arrow(doc)
 arch_box(doc, "CORE API", "FastAPI  ·  33 routers  ·  auth  ·  quota  ·  rate-limit  ·  sessions")
 arch_arrow(doc)
 arch_box(doc, "DELIVERY LAYER",
-         "Web app (Next.js, 38 pages, PWA)   ·   Voice layer (LiveKit · STT · TTS · 2 agents)   ·   Live paper-trading engine (Railway · SSE)",
+         "Web app (Next.js, 38 pages, PWA)   ·   Voice layer (LiveKit · STT · TTS · 2 agents)   ·   Live paper-trading engine (GCP · SSE)",
          fill=LIGHT_HEX, hcolor=NAVY, bcolor=SLATE, border="0A1B2E")
 spacer(doc, 6)
 para(doc, "What is deliberately not shown: per-regime factor weights, HMM transition probabilities, the IRS% composite formula, and the PARA-DEBATE™ agent prompts. These are the asset's trade secrets — conveyed only under NDA. The diagram lets a buyer understand how value is produced without enabling replication.",
@@ -428,10 +428,10 @@ styled_table(doc,
         ["Database / Auth", "Supabase  (Postgres + cookie-session auth)"],
         ["Voice real-time", "LiveKit Cloud  (WebRTC SFU)"],
         ["Speech-to-text", "Deepgram"],
-        ["Text-to-speech", "ElevenLabs  (neural voices)"],
+        ["Text-to-speech", "LiveKit Inference  (cartesia/sonic-3.5)"],
         ["LLM providers", "Anthropic (Claude) + AWS Bedrock (cross-region)"],
         ["Market data", "FMP Premium, Finnhub, yfinance, OpenBB, EDGAR, FRED"],
-        ["Hosting", "Render (4), Vercel (web), Railway (trading), Supabase (DB)"],
+        ["Hosting", "Render (4), Vercel (web), GCP Always Free (trading + India feeder), Supabase (DB)"],
         ["CI/CD", "GitHub Actions, Render + Vercel auto-deploy"],
         ["Repository", "Monorepo, uv workspace"],
     ],
@@ -453,7 +453,7 @@ styled_table(doc,
     ],
     col_widths=[1.8, 3.4, 1.4])
 spacer(doc, 6)
-para(doc, "Scheduled jobs: 4 daily cron jobs handling nightly scoring, market refresh, and per-market end-of-day wrap reports.", size=10.5, space_after=6)
+para(doc, "Scheduled jobs: 4 daily cron jobs handling nightly scoring, market refresh, quantfactor sync, and quantfactor enrichment. End-of-day wrap reports were previously email-based and have been removed.", size=10.5, space_after=6)
 para(doc, "Security hardening: the platform has undergone a multi-phase security pass including log redaction, secret-scanning in CI, row-level security policies, IDOR remediation, content-security-policy headers, rate-limiting fuses, upload guards, dependency auditing, and an audit-event log with an incident-response runbook.", size=10.5, color=SLATE, space_after=6)
 
 # ===== 9. VALIDATION & TRACK RECORD =====
@@ -471,7 +471,7 @@ styled_table(doc,
     col_widths=[2.4, 4.2])
 spacer(doc, 6)
 h2(doc, "Automated smoke testing")
-para(doc, "A 13-endpoint live smoke suite runs against production and currently passes 13/13, covering core pages, stock detail (US + India), screener, portfolio, trading dashboard, news, methodology, and pricing.", size=10.5, space_after=6)
+para(doc, "A 15-endpoint live smoke suite runs against production and currently passes 15/15, covering core pages, stock detail (US + India), screener, portfolio, trading dashboard, news, methodology, and pricing.", size=10.5, space_after=6)
 h2(doc, "Intellectual property & patent moat")
 para(doc, "The platform benefits from a developing IP moat. A provisional patent application has been filed with the Indian Patent Office, covering three core inventive elements:", size=10.5, space_after=4)
 bullet(doc, "The PARA-DEBATE adversarial multi-agent debate architecture (a structured “Devil's Advocate” agent that steelmans the bear case before synthesis).")
@@ -499,7 +499,7 @@ styled_table(doc,
         ["Live trading dashboard", "Real-time matrix, SSE, equity curve, tape", "1–2"],
         ["DevOps & infra", "7-service deploy, CI/CD, 4 cron, secrets, monitoring", "1–2"],
         ["Security hardening", "RLS, IDOR, CSP, audit log, fuses, dep-audit, IR", "1–2"],
-        ["Testing", "116+ tests, live smoke, backtest harness", "1–2"],
+        ["Testing", "186+ tests, live smoke, backtest harness", "1–2"],
         ["TOTAL", "24–37 senior eng-months", ""],
     ],
     col_widths=[2.0, 3.4, 1.2])
@@ -560,7 +560,7 @@ para(doc, "The price is anchored on rebuild cost plus the live / de-risked premi
 h1(doc, 14, "What Transfers on Acquisition")
 bullet(doc, "Domain (neuralquant.co) and brand assets")
 bullet(doc, "Full source code (monorepo) under NDA / LOI")
-bullet(doc, "All infrastructure accounts (Render, Vercel, Supabase, Railway, LiveKit) — credentials transferred securely")
+bullet(doc, "All infrastructure accounts (Render, Vercel, Supabase, GCP, LiveKit) — credentials transferred securely")
 bullet(doc, "Data pipeline configurations and cached market data")
 bullet(doc, "Patent application (assignment to acquirer)")
 bullet(doc, "Methodology and backtest baselines")
@@ -569,7 +569,7 @@ bullet(doc, "A knowledge-transfer period (suggested 2–4 weeks) to hand over op
 
 # ===== 15. EXCLUSIONS =====
 h1(doc, 15, "Exclusions / Not Included")
-bullet(doc, "Third-party API keys are not transferred; the acquirer provisions its own accounts (FMP, Finnhub, ElevenLabs, Deepgram, Anthropic, AWS, LiveKit, OpenBB). This is standard and avoids key-abuse liability.")
+bullet(doc, "Third-party API keys are not transferred; the acquirer provisions its own accounts (FMP, Finnhub, Deepgram, Anthropic, AWS, LiveKit, OpenBB). This is standard and avoids key-abuse liability.")
 bullet(doc, "No customer / user data is represented as included (the platform is pre-revenue with minimal user base).")
 bullet(doc, "No revenue or traffic representations are made.")
 bullet(doc, "Proprietary algorithm internals, agent prompts, and scoring formulas are disclosed only during due diligence under NDA.")
@@ -577,7 +577,7 @@ bullet(doc, "Proprietary algorithm internals, agent prompts, and scoring formula
 # ===== 16. DD CHECKLIST =====
 h1(doc, 16, "Buyer's Due-Diligence Checklist")
 checkbox(doc, "Live site walk-through (neuralquant.co) — all flagship flows demonstrated live")
-checkbox(doc, "Smoke test suite execution (13/13 passing)")
+checkbox(doc, "Smoke test suite execution (15/15 passing)")
 checkbox(doc, "Backtest reproduction (baseline stored in Supabase)")
 checkbox(doc, "Patent filing receipt and invention disclosure (under NDA)")
 checkbox(doc, "Service-by-service infra review (under NDA)")

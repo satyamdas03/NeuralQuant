@@ -19,7 +19,7 @@ Demo set: none (`DEMO_MODE=true`).
 | Vercel | Next.js frontend hosting | $0 (hobby) |
 | Anthropic / Bedrock | LLM (PARA-DEBATE, Ask AI, Morgan) | usage-based |
 | LiveKit + Deepgram + LiveKit Inference | voice agent (optional) | usage-based |
-| Resend | transactional email | $0 (free tier) |
+| GCP (e2-micro) | Hermes agent + India price feeder | ~$0 (Always Free) |
 | Porkbun | neuralquant.co domain | ~$1 |
 
 Fixed run-rate ≈ **$51/week** all-in (detail: EMERGENCY_SHUTDOWN_RESUME_PLAN.md).
@@ -28,21 +28,22 @@ Fixed run-rate ≈ **$51/week** all-in (detail: EMERGENCY_SHUTDOWN_RESUME_PLAN.m
 
 | Service | Type | Plan | Purpose |
 |---|---|---|---|
-| nq-api | web | Pro | FastAPI backend |
+| nq-api | web | Pro | FastAPI backend (also runs the in-process scheduler) |
 | nq-openbb | web | Standard | OpenBB Platform proxy (Terminal) |
 | nq-trader | worker | Starter | trading daemon (paper) |
 | quantastra-agent | worker | Standard | LiveKit voice agent |
-| nq-anjali-refresh | cron `0 2 * * *` | Starter | Anjali Excel → quantfactor sync |
-| nq-market-refresh | cron `30 20 * * 1-5` | Starter | stock_meta + price refresh |
-| nq-wrap-in | cron `0 11 * * 1-5` | Starter | India EOD market wrap email |
-| nq-wrap-us | cron `30 21 * * 1-5` | Starter | US EOD market wrap email |
 
-Cron services call `POST /cron/*` on nq-api with the `X-Cron-Secret` HTTP
-header (`CRON_SECRET` env var). The cron bodies are thin wrappers in
-`scripts/cron_invoke.py`; each service in `render.yaml` passes `CRON_SECRET` as
-a synced (`sync: false`) secret. To add a new job, create another `type: cron`
-entry in `render.yaml`, point `startCommand` at `python scripts/cron_invoke.py
-<endpoint>`, and ensure `CRON_SECRET` is available.
+Scheduled jobs run **in-process** inside `nq-api` (see
+`apps/api/src/nq_api/routes/cron.py`). The scheduler wakes at **02:00, 02:30,
+and 20:30 UTC** to run:
+- QuantFactor sync + India sheet ingestion
+- Nightly score refresh (US + IN)
+- Market refresh for live prices and fundamentals
+
+The scheduler locks each job so overlapping runs can't stack, and it skips
+execution during cold-start thundering-herd windows. For one-off runs, call
+`POST /cron/*` on nq-api with the `X-Cron-Secret` HTTP header (`CRON_SECRET`
+env var).
 
 ## Hermes live trading agent
 
@@ -67,12 +68,30 @@ Optional Hermes-daemon vars (set on the GCP VM itself, see
 | `HERMES_BIN` / `HERMES_MODEL` | Reflection CLI + model overrides |
 | `RESEED_STRATEGY` | One-time reset flag; set once, then remove |
 
+## GCP India price feeder
+
+Render's outbound IPs are blocked by Yahoo/NSE for bulk price scraping. A
+small self-contained feeder (`infra/gcp/india_feed.py`) runs on the same GCP
+e2-micro VM as Hermes. It polls yfinance for NSE tickers and writes live
+quotes into the Supabase `stock_snapshot` table.
+
+Required setup on the GCP VM:
+
+```bash
+sudo apt update && sudo apt install -y python3-pip cron
+sudo pip3 install yfinance supabase python-dotenv curl_cffi
+# copy .env with SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY
+sudo crontab -e
+# add: */15 * * * * cd /opt/hermes && /usr/bin/python3 infra/gcp/india_feed.py
+```
+
+The feeder logs success/failure counts and emits each batch to stdout.
+
 ## Deploy
 
-**Render (current):** push to `master` → *manual* deploy from Render Dashboard
-(auto-deploy webhook is unreliable — known issue). Verify:
-`curl https://neuralquant.onrender.com/health` → check `version` and
-`score_cache_age_hours`.
+**Render (current):** push to `master` → auto-deploy is enabled in `render.yaml`
+(`autoDeploy: yes`). Verify: `curl https://neuralquant.onrender.com/health`
+→ check `version` and `score_cache_age_hours`.
 
 **Vercel:** GitHub App auto-deploys `apps/web` on push (rootDirectory must stay
 `apps/web` — was the cause of a multi-session deploy outage).
@@ -95,7 +114,7 @@ endpoint, not a regression by itself.
 
 ## Database
 
-- Canonical migrations: `supabase/migrations/001–025` (apply via Supabase SQL
+- Canonical migrations: `supabase/migrations/001–027` (apply via Supabase SQL
   editor; `db_migrate.py` checks required tables at startup and logs warnings).
 - Backups: `scripts/backup_database.py` / `.ps1` (pg_dump + gzip).
 - Demo schema for local Postgres is auto-generated: `scripts/export_demo_schema.py`.
@@ -113,4 +132,5 @@ endpoint, not a regression by itself.
    Render. Recommended evolution: async job + status polling.
 5. **Anjali NIFTY200 completeness** — sister-repo Excel currently yields 11 of
    ~200 India rows; ingestion code is correct against available rows.
-6. **Render auto-deploy webhook** — fires unreliably; use manual deploy.
+6. **Render auto-deploy webhook** — now enabled (`autoDeploy: yes` in
+   `render.yaml`); verify `/health` after each push.

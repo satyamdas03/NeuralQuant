@@ -146,12 +146,15 @@ def _get_known_columns() -> set[str]:
     else:
         # Table might be empty — use known schema
         _known_columns = {
-            "ticker", "market", "sector", "composite_score", "rank_score",
+            "ticker", "market", "sector", "composite_score", "score_1_10", "rank_score",
+            "regime_id", "regime_label",
             "value_percentile", "momentum_percentile", "quality_percentile",
-            "low_vol_percentile", "short_interest_percentile", "current_price",
-            "analyst_target", "pe_ttm", "market_cap", "week52_high", "week52_low",
-            "pb_ratio", "beta", "long_name", "industry", "analyst_rec",
-            "earnings_date", "dividend_yield",
+            "low_vol_percentile", "short_interest_percentile", "insider_percentile", "growth_percentile",
+            "current_price", "analyst_target", "pe_ttm", "market_cap", "week52_high", "week52_low",
+            "momentum_raw", "gross_profit_margin", "piotroski", "pb_ratio", "beta",
+            "realized_vol_1y", "short_interest_pct", "insider_cluster_score",
+            "accruals_ratio", "revenue_growth_yoy", "debt_equity", "roe", "fcf_yield",
+            "long_name", "industry", "analyst_rec", "earnings_date", "dividend_yield",
             "computed_at",
         }
     log.info("score_cache columns: %s", sorted(_known_columns))

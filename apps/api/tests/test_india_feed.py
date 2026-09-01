@@ -60,9 +60,13 @@ def test_run_feed_skips_rows_without_price(monkeypatch):
 def test_build_snapshot_rows_uses_bare_keys():
     meta = [{"ticker": "RELIANCE.NS", "market": "IN", "sector": "Energy", "sub_sector": "Oil",
              "qtr_beta": 1.1, "yr_beta": 1.2, "pe_ratio": 18.5}]
-    yf_data = {"RELIANCE": {"price": 2450.0, "change_pct": 0.85}}
-    rows = india_feed.build_snapshot_rows(meta, yf_data)
+    yf_data = {"RELIANCE": {"price": 2450.0, "change_pct": 0.85, "volume": 12345,
+                            "year_high": 2600.0, "year_low": 2200.0}}
+    rows = india_feed.build_snapshot_rows(meta, yf_data, info_data={}, existing={})
     assert len(rows) == 1
     assert rows[0]["ticker"] == "RELIANCE.NS"
     assert rows[0]["price"] == 2450.0
     assert rows[0]["change_pct"] == 0.85
+    assert rows[0]["volume"] == 12345
+    assert rows[0]["week_52_high"] == 2600.0
+    assert rows[0]["week_52_low"] == 2200.0
