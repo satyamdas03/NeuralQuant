@@ -56,7 +56,6 @@ class SessionReportSummary(BaseModel):
     id: str
     session_id: str
     summary: Optional[str]
-    email_sent: bool
     generated_at: Optional[str]
     started_at: Optional[str] = None
     duration_minutes: Optional[int] = None
@@ -267,7 +266,7 @@ def list_reports(user: Optional[User] = Depends(get_current_user_optional)):
             method="GET",
             query={
                 "user_id": f"eq.{user.id}",
-                "select": "id,session_id,summary,email_sent,generated_at",
+                "select": "id,session_id,summary,generated_at",
                 "order": "generated_at.desc",
                 "limit": "20",
             },
@@ -282,7 +281,6 @@ def list_reports(user: Optional[User] = Depends(get_current_user_optional)):
                 id=r["id"],
                 session_id=r["session_id"],
                 summary=r.get("summary"),
-                email_sent=r.get("email_sent", False),
                 generated_at=r.get("generated_at"),
             )
             # Try to get session started_at
@@ -336,7 +334,6 @@ def get_report(report_id: str, user: Optional[User] = Depends(get_current_user_o
             "session_id": r["session_id"],
             "summary": r.get("summary"),
             "report_text": r.get("report_text"),
-            "email_sent": r.get("email_sent", False),
             "generated_at": r.get("generated_at"),
         }
     except HTTPException:
