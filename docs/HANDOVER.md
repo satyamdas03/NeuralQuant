@@ -27,7 +27,7 @@ file covers what changes hands and in what order.
 
 - Org Settings → Transfer project to buyer's organization (buyer needs a
   Supabase account; transfer preserves data, URL, and keys).
-- Alternative: fresh project + `supabase/migrations/001–025` +
+- Alternative: fresh project + `supabase/migrations/001–029` +
   `scripts/backup_database.py` restore.
 - Tables with user PII (auth.users, user_profiles, session tracking): purge or
   contractually scope before transfer per the APA.
@@ -60,6 +60,7 @@ file covers what changes hands and in what order.
 | ANTHROPIC_API_KEY | LLM agents | console.anthropic.com |
 | STRIPE / PAYPAL secrets + webhook IDs | payments | buyer's own accounts |
 | CRON_SECRET / SMOKE_TEST_SECRET | internal auth | generate new |
+| ADMIN_EMAILS | admin gating / auth stats | update in `render.yaml` and env |
 
 `apps/api/.env` on the founder's machine contains live secrets — it is NOT in
 the repo and is destroyed after rotation, per APA.
