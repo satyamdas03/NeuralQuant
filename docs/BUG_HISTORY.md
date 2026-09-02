@@ -1,11 +1,11 @@
-# NeuralQuant — Bug History (Sessions 8–109)
+# NeuralQuant — Bug History (Sessions 8–110c)
 
 > This catalog is published deliberately. It is the engineering maturity record
 > of this codebase: every yfinance failure mode, JSON serialization edge,
 > timeout boundary, and India-market quirk has already been found and fixed.
 > A team rebuilding this product rediscovers this list the hard way.
 >
-> 150+ bugs were fixed across 109 documented build sessions (Nov 2024 – Aug 2026).
+> 150+ bugs were fixed across 110+ documented build sessions (Nov 2024 – Sep 2026).
 > This file groups them by root-cause class with the highest-value entries;
 > per-session detail lives in the session-by-session commit history.
 
@@ -88,8 +88,9 @@ path in `snapshot_cache.py` and `score_cache.py` so `/stocks/{ticker}?market=IN`
 ### Class 11 — infrastructure churn
 Railway trial expired → Hermes migrated to GCP Always Free e2-micro VM.
 ElevenLabs/Sarvam voice TTS replaced by LiveKit Inference (cartesia/sonic-3.5).
-Email functionality fully removed (Resend, DKIM, market-wrap emails) and schema
-cleaned via migrations 028/029. Render auto-deploy now enabled.
+Email functionality fully removed (Resend, DKIM, market-wrap emails); migrations
+027–029 are queued, with 028 unblocked in Session 110c by removing `email_sent`
+references from `session.py`. Render auto-deploy now enabled.
 
 ### Class 12 — in-process scheduler cold-start herd
 Startup market refresh could fire from multiple simultaneous instances/restarts.
@@ -120,6 +121,9 @@ per-process one-hour cold-start debounce.
 | 102 | Factor scores floored at 0 | `max(0, val/4)` killed negatives → cross-sectional pct rank |
 | 104 | Score-scale bug family | composite stored qf×10 vs consumers expecting 0–1 |
 | 106–109 | Render→GCP + stale docs | Railway expiration, Resend/email removal, version/smoke/test count drift, IN screener merge bugs |
+| 110 | Health sweep + IN feeder enrichment | docs refresh drift; `score_cache` default cols missing `growth_percentile`/`score_1_10`/regime; scheduler cold-start herd |
+| 110b | Residual score-scale sweep + quality fix | four cache consumers still bypassed `normalize_cache_composite`; `quality_percentile` duplicated `growth_percentile` |
+| 110c | Operator runbook + email schema unblock | migration 028 blocked by `session.py` `email_sent` refs; `ADMIN_EMAILS` env wiring |
 
 ## Known open items (disclosed)
 
@@ -130,3 +134,11 @@ per-process one-hour cold-start debounce.
 - No persistent Ask Morgan memory — sliding-window context, lost on refresh.
 - India HMM regime is still heuristic (VIX thresholds); fitted HMM on NIFTY
   returns is the planned evolution.
+- Supabase migrations 027–029 pending; migration 028 is now unblocked after
+  removing `email_sent` references from `session.py`.
+- GCP India price feeder is built and ready; pending install/schedule on the VM.
+- Render `quantastra-agent` manual deploy pending.
+- Railway cleanup pending (old Hermes Railway service still to be deleted).
+- Key rotation pending.
+- `ADMIN_EMAILS` value pending on the Render dashboard (already wired in
+  `render.yaml` and `.env.example`).
