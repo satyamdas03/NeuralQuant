@@ -29,7 +29,8 @@ app-layer scoping is the primary protection (RLS added in `026_enable_rls.sql` a
 | cron jobs (user_profiles etc.) | user_profiles | — | server-side trusted job, gated by cron secret (no per-user request) | PASS | acceptable; not user-facing |
 
 ## Findings
-- **1 real issue fixed:** `/internal/analytics/dashboard` exposed platform-wide growth metrics + user ids to any **pro/api-tier** user (tier ≠ admin). Now gated on an `ADMIN_EMAILS` allowlist. Operator must set `ADMIN_EMAILS` on nq-api.
+- **1 real issue fixed:** `/internal/analytics/dashboard` exposed platform-wide growth metrics + user ids to any **pro/api-tier** user (tier ≠ admin). Now gated on an `ADMIN_EMAILS` allowlist.
+  - As of Session 110c, `ADMIN_EMAILS` is present in `render.yaml` and `.env.example`. The operator must still set the actual allowlist value on the Render nq-api service.
 - **1 follow-up (P2):** `team.py` tasks/standups are team-shared collaboration data behind auth — confirm each query scopes to the caller's team membership (not blanket). Low risk (internal team feature, no PII like conversations), deferred.
 - Everything else: **PASS** — the codebase consistently scopes user-data reads/writes to `user.id`, and IDOR-prone by-id deletes/reads re-validate ownership.
 

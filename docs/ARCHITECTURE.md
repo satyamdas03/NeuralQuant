@@ -11,7 +11,7 @@ apps/mobile/         React Native / Expo app (5-tab)
 apps/livekit-agent/  QuantAstra voice agent (LiveKit + Deepgram + LiveKit Inference TTS)
 packages/data/       nq_data — all market data connectors + yf_guard gateway
 packages/signals/    nq_signals — factor engine, HMM regime, scoring
-supabase/migrations/ Canonical SQL migrations (001–025)
+supabase/migrations/ Canonical SQL migrations (001–029)
 docker/              Demo stack: initdb schema + seed, PostgREST nginx proxy
 data/demo_snapshot/  Bundled CSV snapshot (5 tables, 1,669 rows) + sample PARA-DEBATE
 scripts/             Smoke test, snapshot export, DB backup, quarterly test

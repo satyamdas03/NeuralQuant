@@ -13,7 +13,7 @@ What a buyer receives. Companion docs: [ARCHITECTURE.md](ARCHITECTURE.md),
 | PARA-DEBATE engine | 5 specialist + adversarial + head-analyst agents, parallel orchestration, metric validation, hallucination guards, consensus clamping |
 | yf_guard + data pipeline | 6-tier fallback chain; every yfinance/NSE/India quirk from 126 documented bugs already solved |
 | Demo stack | `docker compose up` with zero API keys — seeded Postgres + PostgREST + bundled PARA-DEBATE sample |
-| Test suite | 113 tests, single-command green (`pytest apps/api/tests/ packages/`) |
+| Test suite | 169 tests, single-command green (`pytest apps/api/tests/ packages/`) |
 | AWS Bedrock adapter | `.messages.create()`-compatible client; run on buyer's AWS account day one |
 
 ## 2. Methodology IP
@@ -37,7 +37,7 @@ What a buyer receives. Companion docs: [ARCHITECTURE.md](ARCHITECTURE.md),
 ## 4. Data
 
 - Supabase production database (score_cache, anjali_enrichment,
-  quantfactor_universe, quarterly test tables, 25 migrations).
+  quantfactor_universe, quarterly test tables, 29 migrations (001–029)).
 - Bundled demo snapshot (5 tables, 1,669 rows) + real PARA-DEBATE sample JSON.
 - DB backup tooling (`scripts/backup_database.*`).
 

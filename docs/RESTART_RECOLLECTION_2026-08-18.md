@@ -1,6 +1,6 @@
 # NeuralQuant — Restart Recollection
 
-**Date:** 2026-08-18  
+**Date:** 2026-09-01  
 **Project:** NeuralQuant (formerly QuantAlpha) — AI equity research + paper-trading platform  
 **Repo:** `C:\Users\point\projects\stockpredictor`  
 **Remote:** `satyamdas03/NeuralQuant`  
@@ -12,58 +12,19 @@
 
 | Item | Value |
 |---|---|
-| **Git HEAD** | `5770304` — `feat(market): Render skips IN refresh; add OpenBB IN fallback` |
+| **Git HEAD** | `6e077d9` — `fix(api): remove stale email_sent references and declare ADMIN_EMAILS` |
 | **API version** | `4.1.3` (`apps/api/src/nq_api/main.py:385`) |
-| **Uncommitted work** | `snapshot_cache.py`, `market_refresh.py`, `infra/gcp/README.md` (ticker-normalization + GCP India-feed docs) |
-| **New untracked files** | `infra/gcp/india_feed.py`, `infra/gcp/setup_india_feed.sh` |
-| **Score cache** | 943 rows (497 IN + 446 US) as of last build |
+| **Score cache** | 943 rows (497 IN + 446 US), post-Session 110/110b normalization fixes |
 | **Live backend** | `https://neuralquant.onrender.com` |
 | **Frontend** | `https://neuralquant.co` (Vercel) |
 | **Hermes trading agent** | GCP Always-Free `e2-micro` VM (`34.10.176.93` ephemeral) |
-| **Last full audit** | Session 109b — 15/15 smoke tests green, 2026-08-18 |
+| **Last full audit** | Session 110b — 169 backend tests green, Next.js build clean |
 
-**The single thing you were doing when the laptop restarted:** finishing the **India price-feed fix**. Render's outbound IPs are blocked by Yahoo, so the scheduled `market_refresh` could not populate `price`/`change_pct` for Indian tickers. You built an autonomous `india_feed.py` that runs as a cron on the same GCP VM hosting Hermes, fetches NSE prices via yfinance from an unblocked IP, and writes them into the same `stock_snapshot` table. The uncommitted edits on disk are the last pieces of that work.
-
----
-
-## 1. The current diff — what changed since the last commit
-
-### `apps/api/src/nq_api/cache/snapshot_cache.py`
-Added `_normalize_snapshot_ticker()` and applied it to `write_snapshot`, `read_snapshot`, and `read_snapshot_batch`.
-
-- **Why:** `quantfactor_universe` stores Indian tickers as `RELIANCE.NS`, but `stocks.py`, `nightly_score.py`, `portfolio.py`, and `market_refresh.py` historically keyed `stock_snapshot` by bare ticker (`RELIANCE`). The mismatch caused IN snapshot reads to miss rows that had actually been written.
-- **Fix:** normalize `.NS`/`.BO` to bare form on both write and read when `market == "IN"`.
-
-### `apps/api/src/nq_api/jobs/market_refresh.py`
-In `_build_snapshot_rows`, FMP/yfinance result dicts are now keyed by **bare** ticker via `_bare(t)` instead of the raw `meta["ticker"]` (which may be suffixed). This makes the merge between `tickers_meta`, `fmp_data`, and `yf_data` line up correctly after the snapshot-cache normalization change.
-
-### `infra/gcp/README.md`
-Added a new section **"India price feed (autonomous cron)"** documenting:
-- Render's yfinance block
-- the GCP feeder as the primary IN source
-- setup commands (`setup_india_feed.sh`, `.env`, manual run)
-- crontab window: every 15 min, 03:45–10:00 UTC, Mon–Fri
-- US-only refresh on Render; IN owned by the GCP feeder
-
-### New: `infra/gcp/india_feed.py`
-A ~230-line standalone feeder.
-- Loads all `market=IN` tickers from `quantfactor_universe` via `_supabase_rest`.
-- Fetches prices in chunks of 50 using `yf.download(period="5d", auto_adjust=True)` and computes `change_pct` from the last two closes.
-- Merges static metadata (sector, beta, P/E) from `quantfactor_universe`.
-- Upserts rows into `stock_snapshot` via `write_snapshot()` with `source="gcp_yfinance"`, `currency="INR"`.
-- Includes CLI `--limit` flag for testing.
-
-### New: `infra/gcp/setup_india_feed.sh`
-One-time root setup script:
-- installs `git`, `python3-venv`, `cron`
-- clones (or pulls) the repo into `/opt/neuralquant`
-- creates a venv and installs lightweight deps: `yfinance`, `curl_cffi`, `pandas`, `numpy`, `httpx`, `python-dotenv`
-- writes `.env` template for Supabase credentials
-- installs a crontab entry: `*/15 4-10 * * 1-5`
+**State:** all previously uncommitted India-feed and ticker-normalization work is now committed and pushed. The GCP India price feeder, snapshot-cache `.NS` normalization, and score-cache composite-scale fixes are in `master`. What remains are operational tasks (deploys, secret rotation, migration application, GCP VM setup) documented in `docs/OPERATOR_RUNBOOK_SESSION_110C.md`.
 
 ---
 
-## 2. Recent session chronology (last 8 sessions)
+## 1. Recent session chronology (last 8 sessions)
 
 ### Session 106 — Hermes → GCP + quantastra deploy fix
 - Migrated Hermes from expired Railway trial to a GCP Always-Free `e2-micro` VM (`us-central1-a`, Ubuntu 24.04, 30 GB standard disk, ephemeral IP `34.10.176.93`).
@@ -72,7 +33,7 @@ One-time root setup script:
 - Hermes live: paper mode, strategy v59, `/health` OK.
 
 ### Session 107 — US market_cap/name heal + Ask Morgan ticker hint
-- Root cause: 446 US score_cache rows had `market_cap=0`/`name=placeholder` because FMP batch failed during a deploy swap and all tickers became `source=fallback`.
+- Root cause: 446 US `score_cache` rows had `market_cap=0`/`name=placeholder` because FMP batch failed during a deploy swap and all tickers became `source=fallback`.
 - Healed `stock_snapshot` with `run_market_refresh('US')` → 446/446 FMP hits.
 - Rebuilt `score_cache` from `quantfactor_universe`.
 - Deleted 17 Excel-legend garbage rows from `stock_snapshot` (e.g., "COLOR HIERARCHIES…", "LIGHT GREEN (+0.5)").
@@ -80,7 +41,7 @@ One-time root setup script:
 - Verified live: all endpoints 200, Ask Morgan injects data, 76 tests green.
 
 ### Session 108 — Split-brain collapse → `quantfactor_universe`
-- Collapsed legacy `anjali_enrichment` (0 rows) onto `quantfactor_universe` (943 rows) across QuantAstra tools/context, anjali_context, stock_summary.
+- Collapsed legacy `anjali_enrichment` (0 rows) onto `quantfactor_universe` (943 rows) across QuantAstra tools/context, anjali_context, `stock_summary`.
 - Renamed `composite_anjali_score` → `composite_score`.
 - Hardened `nightly_score.py`: read `quantfactor_universe` **before** deleting `score_cache` (previously a transient empty read left the cache at 0 rows).
 - Fixed ingestor `fetched_at` → `refreshed_at` drift; GHA `--india-csv` → `--india-excel`; `_run_anjali` no-op.
@@ -92,7 +53,7 @@ One-time root setup script:
 - Deleted stale `infra/oracle-cloud/` kit.
 - Cleaned Railway→GCP Hermes references across `hermes.py`, `apps/web/src/app/hermes/page.tsx`, `.env.example`, `docs/OPERATIONS.md`, `README.md`.
 - 158 tests green, `/hermes/health` OK.
-- **Pending:** manual deploy of `quantastra-agent` Render worker to pick up TTS change; delete Railway service.
+- **Pending:** manual deploy of `quantastra-agent` Render worker to pick up TTS change.
 
 ### Session 109b — Railway cleanup + deep prod audit
 - Confirmed Railway Hermes deleted.
@@ -106,9 +67,30 @@ One-time root setup script:
 - **Smoke: 15/15 PASS.**
 - Follow-up commit `6516904` fixed `nightly_score.py` stripping `.NS` from IN tickers when writing `score_cache`, so `/stocks/TCS.NS?market=IN` and `/stocks/RELIANCE.NS?market=IN` now return real composite scores (5/10).
 
+### Session 110 — 100% health sweep
+- Refreshed README/OPERATIONS to v4.1.3, GCP/LiveKit Inference, no email.
+- Enriched `infra/gcp/india_feed.py` with volume, 52-week range, company name, and market_cap.
+- Fixed scheduler cold-start herd behavior.
+- Added `growth_percentile`/`score_1_10`/regime to the `score_cache` default column set; added `GET /market/indices`.
+- Extended `BUG_HISTORY` through Session 109.
+- **169 backend tests passed, Next.js build clean.**
+
+### Session 110b — Residual score-scale + quality/growth fix
+- Fixed four remaining `score_cache.composite_score` consumers that were not using `normalize_cache_composite`: `score_builder`, `analyst`, `dart_router`, `enrichment`.
+- Gave `quality_percentile` a distinct synthetic proxy (`0.6*growth + 0.4*risk`) in `nightly_score.py` instead of duplicating `growth_percentile`.
+- Isolated `test_screener_filters_by_min_score` from the live DB cache.
+- Commit `67e1c68` pushed to `master`.
+- **169 backend tests passed, Next.js build clean.**
+
+### Session 110c — Email schema cleanup + ADMIN_EMAILS declaration
+- Removed remaining stale `email_sent` references in `session.py` so migration `028_remove_email_schema.sql` is safe to apply.
+- Declared `ADMIN_EMAILS` requirement in code/env docs.
+- Commit `6e077d9` pushed to `master`.
+- **Next:** follow `docs/OPERATOR_RUNBOOK_SESSION_110C.md` for non-code operational tasks.
+
 ---
 
-## 3. Architecture snapshot
+## 2. Architecture snapshot
 
 ```
 Frontend (Next.js)  →  Vercel (hobby)  →  neuralquant.co
@@ -132,10 +114,11 @@ Cron/refresh        →  In-process scheduler on nq-api (no GHA)
 - `HERMES_API_URL`, `HERMES_API_SECRET` — Render nq-api → GCP Hermes proxy.
 - `CRON_SECRET` — required for `POST /cron/*` triggers.
 - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` — used by both Render and GCP feeder.
+- `ADMIN_EMAILS` — required for analytics dashboard access (e.g., `satyamdas03@gmail.com`).
 
 ---
 
-## 4. The problem you were solving when the restart happened
+## 3. The problem you were solving when the restart happened
 
 **India stocks had no price/change_pct.**
 
@@ -146,93 +129,92 @@ Root cause chain:
 4. `stock_snapshot` therefore had no `price`/`change_pct` for most IN tickers.
 5. Frontend showed "price unavailable" and `change_pct: null` for TCS, RELIANCE, etc.
 
-**Your solution (in progress):**
+**Solution (now committed and pushed):**
 - Commit `5770304` made the scheduled Render refresh US-only and added an OpenBB safety net for explicit `/cron/market-refresh?market=IN` calls.
-- New `infra/gcp/india_feed.py` runs on the unblocked GCP VM and writes IN prices to `stock_snapshot`.
-- Uncommitted edits normalize ticker suffixes so the feeder-written rows are readable by the rest of the app.
+- Commits `d15461e` and `878c2c6` centralized `.NS`/`.BO` ticker normalization in `snapshot_cache.py` and made the GCP feeder self-contained for VM deployment.
+- `infra/gcp/india_feed.py` runs on the unblocked GCP VM and writes IN prices to `stock_snapshot`.
+- Final code cleanup in `6e077d9` removed stale email references.
 
-**Why this matters:** once committed, pushed, and the GCP cron is enabled, `/stocks/TCS.NS?market=IN` (and every other Indian ticker) should show a live price and `change_pct` just like US tickers.
+**Why this matters:** once the GCP VM has its `.env` and cron enabled, `/stocks/TCS.NS?market=IN` (and every other Indian ticker) should show a live price and `change_pct` just like US tickers.
 
 ---
 
-## 5. Still-open items and known limitations
+## 4. Still-open items and known limitations
 
-### Operational / needs user action
-1. **quantastra-agent manual deploy** — Render worker needs a manual deploy to pick up the LiveKit Inference TTS change from Session 109.
-2. **Railway cleanup** — delete remaining Railway service `zonal-curiosity` + volume + account if no other paid services.
-3. **Key rotation** — explicitly deferred by you; CRON_SECRET and other secrets were pasted in chat.
-4. **GCP India feeder setup** — needs `.env` with Supabase credentials installed on the VM and the cron enabled.
-5. **FMP key** — still the primary US data source; rotate if needed.
+All remaining work is operational/non-code. Follow `docs/OPERATOR_RUNBOOK_SESSION_110C.md` for the exact commands.
 
-### Data-source limitations
-- **IN `change_pct` / price** — about to be solved by the GCP feeder, but until it runs, most IN tickers still show `None`.
-- **yfinance fragility** — mitigated by `yf_guard`, FMP primary, Render skip, and now GCP feeder.
+### 1. GCP VM — India price feeder
+- Gap: `TCS.NS` and `RELIANCE.NS` show `current_price` but `change_pct: null` because Render's IPs are blocked by Yahoo; the GCP VM can reach Yahoo.
+- Steps: SSH into the VM, run `sudo bash /opt/neuralquant/infra/gcp/setup_india_feed.sh`, add Supabase credentials to `.env`, test with `--limit 10`, enable cron, watch `/var/log/india_feed.log`.
+- Verify: `curl "https://neuralquant.onrender.com/stocks/TCS.NS?market=IN"` returns non-null `change_pct`.
+
+### 2. Render — manual deploy `quantastra-agent`
+- Dashboard → `quantastra-agent` → **Manual Deploy → Clear build cache & deploy**.
+- Wait ~3 min, then test Veronica from the web UI.
+
+### 3. Railway cleanup
+- Delete remaining `zonal-curiosity` service + persistent volume + account if no other paid services remain.
+- Pre-check: `curl https://neuralquant.onrender.com/hermes/health` returns `ok`.
+
+### 4. Secret rotation
+- **CRON_SECRET**: generate new 48-char secret, update on Render `nq-api`, redeploy.
+- **FMP_API_KEY**: revoke old key on fmp.io, generate new key, update Render `nq-api` and local `.env`.
+- **HERMES_API_SECRET** (optional): update on both the GCP VM (`/opt/hermes/.env`) and Render `nq-api`, then `sudo systemctl restart hermes`.
+- **SMOKE_TEST_SECRET**: production value should be **unset**; only set transiently when running `scripts/smoke_test.py`.
+
+### 5. Render env — set `ADMIN_EMAILS`
+- Required for analytics dashboard access: `ADMIN_EMAILS=satyamdas03@gmail.com`.
+
+### 6. Supabase migrations
+Apply in order via Supabase Dashboard → SQL Editor:
+1. `supabase/migrations/027_security_events.sql`
+2. `supabase/migrations/028_remove_email_schema.sql`
+3. `supabase/migrations/029_drop_legacy_email_columns.sql`
+
+After applying `026_enable_rls.sql` (if not already applied), run the verification block in `docs/SECURITY_P0_P1_OPERATOR_ACTIONS.md`.
+
+### 7. GCP VM IP drift check
+- The VM external IP is ephemeral. If it restarts, update `HERMES_API_URL` on Render.
+
+### Data-source / product limitations
 - **OpenBB cold start** — Render free-tier sleeps; first Terminal request after idle takes 30–60 s.
 - **`/query/v2` deep-dive latency** — multi-agent PARA-DEBATE can exceed 60 s on Render.
-
-### Code / product
-- `growth` sub-score is 0.5 for all stocks because `score_cache` lacks a `growth_percentile` column (non-blocking, known since Session 102).
-- `/market/indices` returns 404 — endpoint not implemented (noted in Session 109b).
-- `/backtest` is an API only; no frontend page (also noted in 109b).
+- **`/market/indices`** is implemented but relies on upstream data freshness.
+- **`/backtest`** remains API-only; no frontend page.
 
 ---
 
-## 6. Resume checklist — what to do next
+## 5. Resume checklist — what to do next
 
-To pick up exactly where you left off:
+Do not restart from the old commit/deploy steps below. The canonical next-actions list is now **`docs/OPERATOR_RUNBOOK_SESSION_110C.md`**. Use this checklist only to orient yourself:
 
-1. **Commit the India-feed work.**
-   ```bash
-   git add apps/api/src/nq_api/cache/snapshot_cache.py
-   git add apps/api/src/nq_api/jobs/market_refresh.py
-   git add infra/gcp/README.md
-   git add infra/gcp/india_feed.py
-   git add infra/gcp/setup_india_feed.sh
-   git commit -m "feat(infra): autonomous GCP India price feeder + snapshot ticker normalization"
-   git push origin master
-   ```
-
-2. **Deploy / install on the GCP VM.**
-   SSH into the Hermes VM and run:
-   ```bash
-   sudo bash /opt/neuralquant/infra/gcp/setup_india_feed.sh
-   sudo nano /opt/neuralquant/apps/api/.env   # add SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY
-   sudo /opt/neuralquant/venv/bin/python /opt/neuralquant/infra/gcp/india_feed.py --limit 10
-   ```
-
-3. **Verify live.**
-   ```bash
-   curl https://neuralquant.onrender.com/stocks/TCS.NS?market=IN
-   curl https://neuralquant.onrender.com/stocks/RELIANCE.NS?market=IN
-   ```
-   Expect non-null `price` and `change_pct` after the feeder has run once.
-
-4. **Run smoke tests.**
-   ```bash
-   python scripts/smoke_test.py
-   ```
-   Target: 15/15 green.
-
-5. **Optional housekeeping.**
-   - Manual deploy `quantastra-agent` on Render.
-   - Final Railway deletion.
-   - Key rotation (when you are ready).
+1. Open `docs/OPERATOR_RUNBOOK_SESSION_110C.md` and execute sections 1–7 in order.
+2. After operational tasks, run local tests: `python -m pytest apps/api/tests packages/ -q --tb=short`.
+3. Run production smoke tests only when `SMOKE_TEST_SECRET` is transiently set: `python scripts/smoke_test.py`.
+4. Spot-check:
+   - `curl https://neuralquant.onrender.com/health`
+   - `curl "https://neuralquant.onrender.com/stocks/TCS.NS?market=IN"`
+   - `curl https://neuralquant.onrender.com/hermes/health`
+5. Target: 15/15 smoke tests green, IN tickers show `change_pct`, Hermes health `ok`.
 
 ---
 
-## 7. Key gotchas to keep in mind
+## 6. Key gotchas to keep in mind
 
 - **`.NS` normalization is now centralized in `snapshot_cache.py`.** Any future code that reads or writes `stock_snapshot` for IN tickers will get the bare form automatically, but code that builds result dicts (like `market_refresh.py`) must also use `_bare()` when matching against snapshot rows.
 - **Render skips IN refresh.** `market_filter=None` on Render now forces `market_filter="US"`. To refresh IN explicitly, call `/cron/market-refresh?market=IN` or rely on the GCP feeder.
 - **GCP VM IP is ephemeral.** If the VM is stopped/restarted, `HERMES_API_URL` and any hardcoded IP references must be updated.
 - **Auto-deploy caveat.** Render auto-deploy webhook has been unreliable in the past; verify `/health` after each push.
 - **Version mismatch.** `apps/api/pyproject.toml` says `2.0.0`, but the live API reports `4.1.3` from `main.py`. Use `main.py` as the source of truth.
+- **Composite-score normalization.** `score_cache.composite_score` is stored on a ±10 quantfactor-style scale; consumers must use `score_builder.normalize_cache_composite()` to convert to the 0–10 presentation scale.
 
 ---
 
-## 8. Session memory cross-references
+## 7. Session memory cross-references
 
 Most relevant files (newest first):
+- `memory/session110b_residual_scale_quality_fix.md` — residual composite-scale fix + quality percentile
+- `memory/session110_100pct_health_fixes.md` — health sweep, India feeder enrichment, `/market/indices`
 - `memory/session109_railway_cleanup_deep_audit.md` — last full audit + `.NS` score-cache fix
 - `memory/session109_voice_infra_cleanup.md` — ElevenLabs removal + infra cleanup
 - `memory/session108_split_brain_collapse.md` — `quantfactor_universe` collapse
@@ -240,10 +222,11 @@ Most relevant files (newest first):
 - `memory/session106_gcp_hermes_migration.md` — GCP VM setup + hatchling pin
 
 Reference docs:
+- `docs/OPERATOR_RUNBOOK_SESSION_110C.md` — canonical non-code operational next steps
 - `docs/OPERATIONS.md` — runbook, env vars, services
 - `docs/BUG_HISTORY.md` — 126-bug catalog by root-cause class
 - `docs/EMERGENCY_SHUTDOWN_RESUME_PLAN.md` — cost breakdown + shutdown/resume steps
 
 ---
 
-*This recollection was generated on 2026-08-18 from the current repo state, git history, session memory files, and active code diffs.*
+*This recollection was updated on 2026-09-01 to reflect Session 110c state (Git HEAD `6e077d9`).*

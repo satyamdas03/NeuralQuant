@@ -114,7 +114,7 @@ endpoint, not a regression by itself.
 
 ## Database
 
-- Canonical migrations: `supabase/migrations/001–027` (apply via Supabase SQL
+- Canonical migrations: `supabase/migrations/001–029` (apply via Supabase SQL
   editor; `db_migrate.py` checks required tables at startup and logs warnings).
 - Backups: `scripts/backup_database.py` / `.ps1` (pg_dump + gzip).
 - Demo schema for local Postgres is auto-generated: `scripts/export_demo_schema.py`.
@@ -134,3 +134,7 @@ endpoint, not a regression by itself.
    ~200 India rows; ingestion code is correct against available rows.
 6. **Render auto-deploy webhook** — now enabled (`autoDeploy: yes` in
    `render.yaml`); verify `/health` after each push.
+7. **India `change_pct` gap** — the GCP India price feeder is the intended
+   source for reliable NSE intraday quotes. Until the VM feeder cron is fully
+   set up, `change_pct` for Indian tickers may be stale or missing; US tickers
+   are unaffected.
