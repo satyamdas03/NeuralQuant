@@ -108,16 +108,22 @@ async def get_stock_score(
         log.warning("score_cache.read_one failed: %s", e)
     if cached:
         # BUG: score_cache rows don't store change_pct. Backfill from stock_snapshot
-        # so the stock detail page shows today's price change.
-        if cached.get("change_pct") is None:
+        # so the stock detail page shows today's price change. Also backfill
+        # current_price because IN score_cache rows may be older than the fresh
+        # GCP feeder snapshot.
+        if cached.get("change_pct") is None or cached.get("current_price") is None:
             try:
                 # BOTH/GLOBAL isn't a real market in stock_snapshot; try US then IN.
                 markets_to_try = [market] if market in ("US", "IN") else ["US", "IN"]
                 for m in markets_to_try:
                     snap = await asyncio.to_thread(_read_stock_snapshot, ticker_upper, m)
-                    if snap and snap.get("change_pct") is not None:
-                        cached["change_pct"] = snap.get("change_pct")
-                        break
+                    if snap:
+                        if cached.get("change_pct") is None and snap.get("change_pct") is not None:
+                            cached["change_pct"] = snap.get("change_pct")
+                        if cached.get("current_price") is None and snap.get("price") is not None:
+                            cached["current_price"] = snap.get("price")
+                        if cached.get("change_pct") is not None and cached.get("current_price") is not None:
+                            break
             except Exception:
                 pass
 
