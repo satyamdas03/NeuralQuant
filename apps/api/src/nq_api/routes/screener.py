@@ -14,7 +14,7 @@ from nq_api.data_builder import build_real_snapshot, fetch_real_macro
 from nq_api.auth.rate_limit import enforce_guest_quota
 from nq_api.auth.models import User, TIER_LIMITS
 from nq_api.cache import score_cache
-from nq_api.cache.snapshot_cache import read_all_by_market, is_stale
+from nq_api.cache.snapshot_cache import read_all_by_market, is_stale, read_snapshot_batch, _normalize_snapshot_ticker
 from nq_api.cache.quantfactor_cache import get_quantfactor_scores
 
 logger = logging.getLogger(__name__)
@@ -45,13 +45,59 @@ def _is_merged_market(market: str) -> bool:
     return market in ("BOTH", "GLOBAL")
 
 
+def _enrich_cache_rows_from_snapshot(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Backfill change_pct, current_price, and long_name from stock_snapshot.
+
+    score_cache rows don't store change_pct. For BOTH/GLOBAL merges (and single-
+    market cache hits) we join against stock_snapshot so the screener response
+    shows today's price movement and current price.
+    """
+    if not rows:
+        return rows
+
+    # Group by market so we can issue one batched snapshot read per market.
+    by_market: dict[str, list[tuple[int, dict]]] = {}
+    for i, row in enumerate(rows):
+        market = row.get("market", "US")
+        by_market.setdefault(market, []).append((i, row))
+
+    # Snapshot keys are normalized (bare for IN); build a lookup.
+    lookup: dict[tuple[str, str], dict] = {}
+    for market, indexed_rows in by_market.items():
+        tickers = [r.get("ticker", "") for _, r in indexed_rows if r.get("ticker")]
+        if not tickers:
+            continue
+        for snap in read_snapshot_batch(tickers, market):
+            t = _normalize_snapshot_ticker(snap.get("ticker", ""), market)
+            lookup[(t, market)] = snap
+
+    enriched = [dict(r) for r in rows]
+    for row in enriched:
+        market = row.get("market", "US")
+        ticker = _normalize_snapshot_ticker(row.get("ticker", ""), market)
+        snap = lookup.get((ticker, market))
+        if not snap:
+            continue
+        if row.get("change_pct") is None and snap.get("change_pct") is not None:
+            row["change_pct"] = snap["change_pct"]
+        if row.get("current_price") is None and snap.get("price") is not None:
+            row["current_price"] = snap["price"]
+        if not row.get("long_name") and snap.get("company_name"):
+            row["long_name"] = snap["company_name"]
+    return enriched
+
+
 def _read_top_merged(n: int, max_age_seconds: int) -> list[dict[str, Any]]:
-    """Read top-N from US and IN score_cache and merge by composite_score."""
+    """Read top-N from US and IN score_cache and merge by composite_score.
+
+    change_pct is backfilled from stock_snapshot because score_cache doesn't
+    store it.
+    """
     us_rows = score_cache.read_top("US", n=n, max_age_seconds=max_age_seconds) or []
     in_rows = score_cache.read_top("IN", n=n, max_age_seconds=max_age_seconds) or []
     merged = us_rows + in_rows
     merged.sort(key=lambda r: r.get("composite_score") or 0, reverse=True)
-    return merged[:n]
+    return _enrich_cache_rows_from_snapshot(merged[:n])
 
 
 def _read_snapshot_merged(limit: int, max_age_minutes: int = 35) -> list[dict[str, Any]]:
@@ -87,7 +133,8 @@ def _read_top_for_preview(market: str, n: int, max_age_seconds: int) -> list[dic
     """Unified cache read for preview: exact market OR merged US+IN."""
     if _is_merged_market(market):
         return _read_top_merged(n, max_age_seconds)
-    return score_cache.read_top(market, n=n, max_age_seconds=max_age_seconds)
+    rows = score_cache.read_top(market, n=n, max_age_seconds=max_age_seconds) or []
+    return _enrich_cache_rows_from_snapshot(rows)
 
 
 @router.get("/preview", response_model=ScreenerResponse)
@@ -313,7 +360,8 @@ def _read_top_for_screener(market: str, n: int, max_age_seconds: int) -> list[di
     """Unified cache read for full screener: exact market OR merged US+IN."""
     if _is_merged_market(market):
         return _read_top_merged(n, max_age_seconds)
-    return score_cache.read_top(market, n=n, max_age_seconds=max_age_seconds)
+    rows = score_cache.read_top(market, n=n, max_age_seconds=max_age_seconds) or []
+    return _enrich_cache_rows_from_snapshot(rows)
 
 
 def _apply_preset_filters(scores: list, req: ScreenerRequest) -> list:
