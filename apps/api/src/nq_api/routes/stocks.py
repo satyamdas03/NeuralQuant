@@ -16,7 +16,7 @@ from nq_api.deps import get_signal_engine
 from nq_api.config import YAHOO_CHART_URL, YAHOO_QUOTE_URL
 from nq_api.schemas import AIScore
 from nq_api.score_builder import row_to_ai_score, rank_scores_in_universe
-from nq_api.universe import UNIVERSE_BY_MARKET
+from nq_api.universe import UNIVERSE_BY_MARKET, UNIVERSE_FULL
 from nq_api.data_builder import build_real_snapshot, _fund_cache, fetch_real_macro, _get_yf_session
 from nq_api.cache import score_cache
 from nq_api.cache.snapshot_cache import read_snapshot as _read_stock_snapshot, is_stale
@@ -122,7 +122,15 @@ async def get_stock_score(
                             cached["change_pct"] = snap.get("change_pct")
                         if cached.get("current_price") is None and snap.get("price") is not None:
                             cached["current_price"] = snap.get("price")
-                        if cached.get("change_pct") is not None and cached.get("current_price") is not None:
+                        # Backfill a readable name from stock_snapshot when the cache
+                        # only has a ticker placeholder (common for IN names).
+                        cached_name = cached.get("long_name") or cached.get("name")
+                        bare = ticker_upper.split(".")[0].upper()
+                        if (not cached_name or str(cached_name).split(".")[0].upper() == bare) and snap.get("company_name"):
+                            meta_name = str(snap["company_name"])
+                            if meta_name.split(".")[0].upper() != bare:
+                                cached["long_name"] = meta_name
+                        if cached.get("change_pct") is not None and cached.get("current_price") is not None and cached.get("long_name"):
                             break
             except Exception:
                 pass
@@ -598,9 +606,24 @@ def _ensure_price(meta: dict, ticker: str, market: str) -> dict:
     return meta
 
 
+def _name_from_universe(ticker: str, market: str) -> str | None:
+    """Return a readable company name from the static universe JSON if known.
+
+    Handles bare vs .NS/.BO exchange suffixes consistently.
+    """
+    bare = ticker.split(".")[0].upper()
+    for m in (market, "US", "IN"):
+        for row in UNIVERSE_FULL.get(m, []):
+            if row.get("ticker", "").upper() == bare:
+                nm = row.get("name")
+                if nm and str(nm).split(".")[0].upper() not in {bare, ""}:
+                    return str(nm)
+    return None
+
+
 def _ensure_name(meta: dict, ticker: str, market: str) -> dict:
     """Backfill a real company name when meta has name == ticker (FMP profile
-    unavailable). Sources: score_cache long_name, then quantfactor_universe."""
+    unavailable). Sources: score_cache long_name, then static universe mapping."""
     if not isinstance(meta, dict):
         return meta
     bare = ticker.split(".")[0].upper()
@@ -615,6 +638,11 @@ def _ensure_name(meta: dict, ticker: str, market: str) -> dict:
                 return meta
     except Exception:
         pass
+    # Fallback to static universe mapping (covers IN tickers where yfinance/FMP
+    # fail to provide a readable name and snapshot lacks company_name).
+    universe_name = _name_from_universe(ticker, market)
+    if universe_name:
+        meta["name"] = universe_name
     return meta
 
 

@@ -11,6 +11,7 @@ import os
 
 import pandas as pd
 from nq_api.schemas import AIScore, SubScores, FeatureDriver, AnjaliScores
+from nq_api.universe import UNIVERSE_FULL
 
 logger = logging.getLogger(__name__)
 
@@ -185,6 +186,23 @@ def blend_anjali_score(composite: float, anjali_data: dict | None) -> tuple[floa
     return round(blended_composite, 4), True
 
 
+def _resolve_display_name(ticker: str, market: str, candidate: str | None = None) -> str | None:
+    """Return a readable company name, falling back to the static universe JSON.
+
+    Handles bare vs .NS/.BO suffixes for Indian tickers.
+    """
+    bare = str(ticker).split(".")[0].upper()
+    if candidate and str(candidate).split(".")[0].upper() not in {bare, ""}:
+        return str(candidate)
+    for m in (market, "US", "IN"):
+        for uni_row in UNIVERSE_FULL.get(m, []):
+            if uni_row.get("ticker", "").upper() == bare:
+                nm = uni_row.get("name")
+                if nm and str(nm).split(".")[0].upper() not in {bare, ""}:
+                    return str(nm)
+    return None
+
+
 def row_to_ai_score(row: pd.Series, market: str, score_1_10_override: int | None = None) -> AIScore:
     regime_id = int(row.get("regime_id", 1) or 1)
     composite = _safe_float(row.get("composite_score", 0.0), 0.0)
@@ -244,7 +262,7 @@ def row_to_ai_score(row: pd.Series, market: str, score_1_10_override: int | None
         last_updated=datetime.now(timezone.utc).isoformat(),
         anjali=anjali_scores,
         quantfactor=anjali_scores,
-        name=str(row.get("long_name")) if row.get("long_name") else None,
+        name=_resolve_display_name(str(row["ticker"]), market, row.get("long_name")),
         current_price=_safe_opt_float(row.get("current_price")),
         change_pct=_safe_opt_float(row.get("change_pct")),
         pe_ttm=_safe_opt_float(row.get("pe_ttm")),
