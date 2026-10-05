@@ -1,31 +1,27 @@
 # NeuralQuant — Operator Runbook (Session 110c)
 
 Post-code-health non-code tasks required to make the live stack fully clean and secure.
-Code status: **green** (`64e9ecf` on `master`, 169 tests passed, Next.js build clean). Blocker fixed: `session.py` no longer references `session_reports.email_sent`, so migration `028_remove_email_schema.sql` is now safe to apply.
+Code status: **green** (`1020d77` on `master`, 216 tests passed, Next.js build clean). Blocker fixed: `session.py` no longer references `session_reports.email_sent`, so migration `028_remove_email_schema.sql` is safe to apply.
 
 ---
 
-## 1. GCP VM — India price feeder (fixes IN `change_pct: null`)
+## 1. GCP VM — India price feeder (operational)
 
-**Gap:** `TCS.NS` and `RELIANCE.NS` show `current_price` but `change_pct: null` because Render's IPs are blocked by Yahoo. The GCP e2-micro VM (same one running Hermes) can reach Yahoo.
+**Status:** The feeder is installed and running on the GCP e2-micro VM. It polls
+yfinance for NSE tickers and writes live quotes into `stock_snapshot`, fixing the
+`change_pct: null` gap caused by Yahoo blocking Render's IPs.
 
-**Steps:**
+**Maintenance / verification:**
 ```bash
 # SSH into the GCP VM
- gcloud compute ssh --zone us-central1-a <vm-name>
+gcloud compute ssh --zone us-central1-a <vm-name>
 
-# On the VM
-sudo bash /opt/neuralquant/infra/gcp/setup_india_feed.sh
-sudo nano /opt/neuralquant/apps/api/.env
-# Add:
-#   SUPABASE_URL=https://<project>.supabase.co
-#   SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
-
-# Test run
-sudo /opt/neuralquant/venv/bin/python /opt/neuralquant/infra/gcp/india_feed.py --limit 10
-
-# Watch cron log
+# Check the cron job is active and logs are healthy
+sudo crontab -l
 sudo tail -f /var/log/india_feed.log
+
+# Ad-hoc test run
+sudo /opt/neuralquant/venv/bin/python /opt/neuralquant/infra/gcp/india_feed.py --limit 10
 ```
 
 **Verify live:**
@@ -90,15 +86,19 @@ Set on Render `nq-api`, then redeploy.
 
 ## 6. Supabase migrations
 
-Migrations are **not auto-applied**. Apply these in order via Supabase Dashboard → SQL Editor:
+Migrations **027–029 are already applied** in production. The canonical migration
+inventory (including intentional numbering gaps and two `022` files) is
+`supabase/migrations/README.md`.
+
+If re-running is ever needed, the files use `IF NOT EXISTS` and are safe to
+re-apply in order:
 
 1. `supabase/migrations/027_security_events.sql`
 2. `supabase/migrations/028_remove_email_schema.sql`
 3. `supabase/migrations/029_drop_legacy_email_columns.sql`
 
-All files use `IF NOT EXISTS`, so re-running is safe.
-
-After applying `026_enable_rls.sql` (if not already applied), run the verification block in `docs/SECURITY_P0_P1_OPERATOR_ACTIONS.md`.
+After applying `026_enable_rls.sql` (if not already applied), run the
+verification block in `docs/SECURITY_P0_P1_OPERATOR_ACTIONS.md`.
 
 ---
 

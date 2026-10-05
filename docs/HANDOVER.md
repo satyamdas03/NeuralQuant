@@ -27,8 +27,9 @@ file covers what changes hands and in what order.
 
 - Org Settings → Transfer project to buyer's organization (buyer needs a
   Supabase account; transfer preserves data, URL, and keys).
-- Alternative: fresh project + `supabase/migrations/001–029` +
-  `scripts/backup_database.py` restore.
+- Alternative: fresh project + `supabase/migrations/` (full inventory in
+  `supabase/migrations/README.md`; note intentional gaps `001–003`, `005`,
+  `010` and two `022` files) + `scripts/backup_database.py` restore.
 - Tables with user PII (auth.users, user_profiles, session tracking): purge or
   contractually scope before transfer per the APA.
 

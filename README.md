@@ -19,7 +19,7 @@
 
 ---
 
-## Current Status — August 2026
+## Current Status — September 2026
 
 **Production live.** API v4.1.3, ~950 stocks in the score cache (≈450 US + ≈500 India), nightly refresh healthy. Last full prod smoke (2026-08-18): **15/15 endpoints PASS**, zero JS console errors across the app.
 
@@ -35,7 +35,7 @@
 - **QA pass** — fixed false "loss-making" badge, CSP console error, "Sign In while authenticated" nav bug, null `change_pct`, broken SSE stream, empty `stock_snapshot` cold-start; removed the unused `/alerts` page and all email functionality.
 - **Mobile** — hamburger nav + bottom tab bar + responsive cards/charts/tables across the app; tightened cramped score grids on phones (verified live at 390px).
 
-**Operator follow-ups (not code):** finish installing `infra/gcp/india_feed.py` on the GCP VM (add Supabase env vars + enable cron), manual-deploy `quantastra-agent` Render worker if not yet deployed, final deletion of any remaining Railway account. Before any live demo, run `python scripts/warmup.py` (~3–5 min prior) — first-hit Ask Morgan / PARA-DEBATE is ~50s / ~85s of inherent multi-agent LLM time, and warming the exact demo tickers makes the audience-facing clicks fast.
+**Operator follow-ups (not code):** manual-deploy `quantastra-agent` Render worker if not yet deployed, final deletion of any remaining Railway account. The GCP India price feeder is now functional. Before any live demo, run `python scripts/warmup.py` (~3–5 min prior) — first-hit Ask Morgan / PARA-DEBATE is ~50s / ~85s of inherent multi-agent LLM time, and warming the exact demo tickers makes the audience-facing clicks fast.
 
 ---
 
@@ -354,7 +354,7 @@ Scheduling runs via an **in-process scheduler** (02:00 / 02:30 / 20:30 UTC) — 
 - [ ] Fitted HMM for India regime (currently heuristic)
 - [ ] Test coverage expansion
 - [ ] Populate `growth_percentile` in score_cache (currently 0.5 default)
-- [ ] Add `/market/indices` endpoint for live benchmark quotes
+- [x] Add `/market/indices` endpoint for live benchmark quotes
 
 ---
 

@@ -14,7 +14,7 @@ Demo set: none (`DEMO_MODE=true`).
 | Service | Role | Monthly |
 |---|---|---|
 | FMP Premium | primary US market data (750 calls/min) | $49 |
-| Render | 4 services + 4 cron jobs (see below) | ~$100–150 |
+| Render | 4 services + 3 in-process scheduled jobs (see below) | ~$100–150 |
 | Supabase | Postgres + auth + PostgREST | $0 (free) – $25 (pro) |
 | Vercel | Next.js frontend hosting | $0 (hobby) |
 | Anthropic / Bedrock | LLM (PARA-DEBATE, Ask AI, Morgan) | usage-based |
@@ -114,8 +114,12 @@ endpoint, not a regression by itself.
 
 ## Database
 
-- Canonical migrations: `supabase/migrations/001–029` (apply via Supabase SQL
-  editor; `db_migrate.py` checks required tables at startup and logs warnings).
+- Canonical migrations: `supabase/migrations/` (see `supabase/migrations/README.md`
+  for the full inventory). The numbered sequence has intentional gaps
+  (missing `001–003`, `005`, `010`; renumbered during consolidation) and two
+  `022` files (`022_mobile_push_tokens.sql`, `022_score_cache_growth_percentile.sql`).
+  Apply via the Supabase SQL editor; `db_migrate.py` checks required tables at
+  startup and logs warnings.
 - Backups: `scripts/backup_database.py` / `.ps1` (pg_dump + gzip).
 - Demo schema for local Postgres is auto-generated: `scripts/export_demo_schema.py`.
 
@@ -134,7 +138,6 @@ endpoint, not a regression by itself.
    ~200 India rows; ingestion code is correct against available rows.
 6. **Render auto-deploy webhook** — now enabled (`autoDeploy: yes` in
    `render.yaml`); verify `/health` after each push.
-7. **India `change_pct` gap** — the GCP India price feeder is the intended
-   source for reliable NSE intraday quotes. Until the VM feeder cron is fully
-   set up, `change_pct` for Indian tickers may be stale or missing; US tickers
-   are unaffected.
+7. **India `change_pct`** — the GCP India price feeder now supplies NSE
+   intraday quotes. Remaining gaps are usually yfinance/source-level, not
+   infrastructure; US tickers are unaffected.

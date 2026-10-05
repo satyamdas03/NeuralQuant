@@ -5,25 +5,25 @@ Buyer-facing technical map. Verified against the codebase at tag `v4.1.0-sale-re
 ## Repo layout (uv workspace monorepo)
 
 ```
-apps/api/            FastAPI backend (nq_api) — 33 routers, agents, jobs, auth, cache
+apps/api/            FastAPI backend (nq_api) — 34 routers, agents, jobs, auth, cache
 apps/web/            Next.js 16 frontend (33+ pages, App Router)
 apps/mobile/         React Native / Expo app (5-tab)
 apps/livekit-agent/  QuantAstra voice agent (LiveKit + Deepgram + LiveKit Inference TTS)
 packages/data/       nq_data — all market data connectors + yf_guard gateway
 packages/signals/    nq_signals — factor engine, HMM regime, scoring
-supabase/migrations/ Canonical SQL migrations (001–029)
+supabase/migrations/ Canonical SQL migrations (inventory with intentional gaps; see `supabase/migrations/README.md`)
 docker/              Demo stack: initdb schema + seed, PostgREST nginx proxy
 data/demo_snapshot/  Bundled CSV snapshot (5 tables, 1,669 rows) + sample PARA-DEBATE
 scripts/             Smoke test, snapshot export, DB backup, quarterly test
 ```
 
-## Routers (33, mounted in `apps/api/src/nq_api/main.py`)
+## Routers (34, mounted in `apps/api/src/nq_api/main.py`)
 
 | Group | Routers |
 |-------|---------|
 | Core data | stocks, screener, market, sentiment, newsdesk, terminal |
 | AI | analyst (PARA-DEBATE), query (Ask AI v1/v2/v3), share |
-| Trading | backtest, broker, live, live_dashboard, testing (quarterly) |
+| Trading | backtest, broker, live, live_dashboard, testing (quarterly), hermes (external proxy) |
 | Users | auth, watchlists, alerts, referral, session, astra_portfolio, mobile |
 | Payments | checkout (PayPal), checkout_stripe, paypal_webhook, stripe_webhook |
 | Ops | cron, analytics, analytics_track, market_wrap, slack, team, auth_webhook, livekit_token |
@@ -56,12 +56,12 @@ Low-Volatility, Short-Interest (US) / Delivery % (IN). Rank-based percentiles �
 composite → 1–10 score. HMM 4-state market regime (separate US and IN macro
 feature sets) reweights factors per regime.
 
-**Anjali / IRS% system** (sister-repo ingestion → `anjali_enrichment` +
-`quantfactor_universe` tables):
+**IRS% system** (sister-repo ingestion → `quantfactor_universe` table; legacy
+`anjali_enrichment` collapsed in Session 108):
 - **G Score** = growth + return + valuation components, range −12..+12
 - **Risk Efficiency** = risk × 2, range −8..+8
 - **IRS%** = (G + RiskEff + 20) / 40 × 100 — single 0–100 ranking
-- Quintile engine over 1,750+ stocks (S&P 500/400/600 + NIFTY 200)
+- Quintile engine over ~950 stocks (US + India, daily sheet sync)
 
 **Quarterly testing framework** (`quarterly_test_runs` / `quarterly_test_results`
 tables + `scripts/`): pool selection by IRS% filters, entry snapshots, vs-NIFTY50
