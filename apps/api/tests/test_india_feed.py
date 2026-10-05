@@ -5,6 +5,7 @@ writes rows with valid prices and skips null/overwrite rows.
 """
 import importlib.util
 import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -70,3 +71,42 @@ def test_build_snapshot_rows_uses_bare_keys():
     assert rows[0]["volume"] == 12345
     assert rows[0]["week_52_high"] == 2600.0
     assert rows[0]["week_52_low"] == 2200.0
+
+
+def test_check_feed_health_fresh_row(monkeypatch):
+    """A recent IN row should be reported healthy."""
+    now = datetime.now(timezone.utc).isoformat()
+    monkeypatch.setattr(
+        india_feed, "_supabase_rest",
+        lambda table, method, query=None: [
+            {"ticker": "TCS", "cached_at": now, "price": 3500.0, "change_pct": 1.2,
+             "volume": 100000, "company_name": "Tata Consultancy Services"}
+        ]
+    )
+    status = india_feed.check_feed_health()
+    assert status["healthy"] is True
+    assert status["ticker"] == "TCS"
+    assert status["age_minutes"] is not None
+    assert status["age_minutes"] <= 1
+
+
+def test_check_feed_health_stale_row(monkeypatch):
+    """An old IN row should be reported unhealthy."""
+    stale = (datetime.now(timezone.utc) - timedelta(minutes=120)).isoformat()
+    monkeypatch.setattr(
+        india_feed, "_supabase_rest",
+        lambda table, method, query=None: [
+            {"ticker": "TCS", "cached_at": stale, "price": 3500.0, "change_pct": 1.2}
+        ]
+    )
+    status = india_feed.check_feed_health()
+    assert status["healthy"] is False
+    assert status["age_minutes"] >= 119
+
+
+def test_check_feed_health_no_rows(monkeypatch):
+    """An empty result should be reported unhealthy with a clear error."""
+    monkeypatch.setattr(india_feed, "_supabase_rest", lambda table, method, query=None: [])
+    status = india_feed.check_feed_health()
+    assert status["healthy"] is False
+    assert "No IN rows" in status["error"]

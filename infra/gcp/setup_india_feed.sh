@@ -8,6 +8,7 @@ VENV_DIR="${APP_DIR}/venv"
 REPO="https://github.com/satyamdas03/NeuralQuant.git"
 FEED_SCRIPT="${APP_DIR}/infra/gcp/india_feed.py"
 LOG_FILE="/var/log/india_feed.log"
+HEALTH_LOG="/var/log/india_feed_health.log"
 
 command -v sudo >/dev/null 2>&1 || { echo "sudo is required"; exit 1; }
 
@@ -25,16 +26,16 @@ sudo mkdir -p "${APP_DIR}"
 # If the repo is already present, pull; otherwise shallow-clone to keep disk use low.
 if [[ -d "${APP_DIR}/.git" ]]; then
     echo "==> NeuralQuant repo exists — pulling latest..."
-    sudo -u hermes bash -c "cd '${APP_DIR}' && git pull origin main" || true
+    sudo -u hermes bash -c "cd '${APP_DIR}' && git pull origin master" || true
 else
     echo "==> Cloning NeuralQuant repo (shallow, single branch)..."
     # Use a non-root owner if hermes user exists (created by Hermes setup), otherwise root.
     SERVICE_USER="hermes"
     if id "${SERVICE_USER}" &>/dev/null; then
-        sudo git clone --depth 1 --single-branch --branch main "${REPO}" "${APP_DIR}"
+        sudo git clone --depth 1 --single-branch --branch master "${REPO}" "${APP_DIR}"
         sudo chown -R "${SERVICE_USER}:${SERVICE_USER}" "${APP_DIR}"
     else
-        sudo git clone --depth 1 --single-branch --branch main "${REPO}" "${APP_DIR}"
+        sudo git clone --depth 1 --single-branch --branch master "${REPO}" "${APP_DIR}"
     fi
 fi
 
@@ -66,19 +67,32 @@ ENV
     echo "!!! Please edit ${APP_DIR}/apps/api/.env and add your Supabase credentials !!!"
 fi
 
-echo "==> Setting up log file..."
-sudo touch "${LOG_FILE}"
-sudo chmod 644 "${LOG_FILE}"
+echo "==> Setting up log files..."
+sudo touch "${LOG_FILE}" "${HEALTH_LOG}"
+sudo chmod 644 "${LOG_FILE}" "${HEALTH_LOG}"
 
-echo "==> Installing cron job (every 15 min, Indian market hours)..."
-CRON_LINE="*/15 3-10 * * 1-5 ${VENV_DIR}/bin/python ${FEED_SCRIPT} >> ${LOG_FILE} 2>&1"
-# Remove any existing india_feed cron line, then add the new one.
-( sudo crontab -l 2>/dev/null | grep -v 'infra/gcp/india_feed.py' || true ) | sudo crontab -
-( sudo crontab -l 2>/dev/null; echo "${CRON_LINE}" ) | sudo crontab -
+echo "==> Installing cron jobs (every 15 min during market hours + hourly health check)..."
+# Crontab uses /bin/sh by default on Debian/Ubuntu.  Force bash so that any
+# legacy 'source /opt/neuralquant/apps/api/.env' lines continue to work.
+CRON_FEED="*/15 3-10 * * 1-5 ${VENV_DIR}/bin/python ${FEED_SCRIPT} >> ${LOG_FILE} 2>&1"
+CRON_HEALTH="5 * * * 1-5 ${VENV_DIR}/bin/python ${FEED_SCRIPT} --health >> ${HEALTH_LOG} 2>&1"
+
+# Remove existing feeder lines (including any stray source line an operator may
+# have added to work around an older env-loading bug).
+( sudo crontab -l 2>/dev/null | grep -v 'infra/gcp/india_feed.py' | grep -v '/opt/neuralquant/apps/api/.env' || true ) | sudo crontab -
+
+# Ensure SHELL=/bin/bash is declared once at the top of the crontab.
+if ! sudo crontab -l 2>/dev/null | grep -q '^SHELL='; then
+    ( echo "SHELL=/bin/bash"; sudo crontab -l 2>/dev/null ) | sudo crontab -
+fi
+
+( sudo crontab -l 2>/dev/null; echo "${CRON_FEED}" ) | sudo crontab -
+( sudo crontab -l 2>/dev/null; echo "${CRON_HEALTH}" ) | sudo crontab -
 
 echo "==> Setup complete."
 echo "Next steps:"
 echo "  1. Edit secrets:  sudo nano ${APP_DIR}/apps/api/.env"
-echo "  2. Run once:      sudo ${VENV_DIR}/bin/python ${FEED_SCRIPT}"
+echo "  2. Run once:      sudo ${VENV_DIR}/bin/python ${FEED_SCRIPT} --limit 10"
 echo "  3. Check logs:    sudo tail -f ${LOG_FILE}"
-echo "  4. Verify live:   curl https://neuralquant.onrender.com/stocks/TCS.NS?market=IN"
+echo "  4. Check health:  sudo ${VENV_DIR}/bin/python ${FEED_SCRIPT} --health"
+echo "  5. Verify live:   curl https://neuralquant.onrender.com/stocks/TCS.NS?market=IN"

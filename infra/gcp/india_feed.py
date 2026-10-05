@@ -615,11 +615,71 @@ def run_feed(limit: int | None = None) -> dict[str, Any]:
     return summary
 
 
+def check_feed_health(max_age_minutes: int = _MAX_AGE_MINUTES) -> dict[str, Any]:
+    """Query Supabase for the freshest IN snapshot row and report age.
+
+    Returns a dict with `healthy` boolean plus the row metadata.  This is
+    intended for a lightweight cron health check or for an operator to run
+    manually after deployment.
+    """
+    data = _supabase_rest(
+        "stock_snapshot",
+        "GET",
+        {
+            "select": "ticker,cached_at,change_pct,price,volume,company_name",
+            "market": "eq.IN",
+            "order": "cached_at.desc",
+            "limit": "1",
+        },
+    )
+    if not isinstance(data, list) or not data:
+        return {"healthy": False, "error": "No IN rows found in stock_snapshot"}
+
+    row = data[0]
+    cached_at = row.get("cached_at")
+    age_minutes: float | None = None
+    if cached_at:
+        try:
+            dt = datetime.fromisoformat(str(cached_at).replace("Z", "+00:00"))
+            age_minutes = round((datetime.now(timezone.utc) - dt).total_seconds() / 60, 1)
+        except Exception:
+            pass
+
+    healthy = age_minutes is not None and age_minutes <= max_age_minutes
+    return {
+        "healthy": healthy,
+        "ticker": row.get("ticker"),
+        "price": row.get("price"),
+        "change_pct": row.get("change_pct"),
+        "volume": row.get("volume"),
+        "company_name": row.get("company_name"),
+        "cached_at": cached_at,
+        "age_minutes": age_minutes,
+        "max_age_minutes": max_age_minutes,
+    }
+
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="India price feeder")
     parser.add_argument("--limit", type=int, default=None, help="Only refresh first N tickers (for testing)")
+    parser.add_argument(
+        "--health",
+        action="store_true",
+        help="Check freshness of the latest IN snapshot row and exit 0 if healthy, 1 if stale/missing",
+    )
+    parser.add_argument(
+        "--freshness-hours",
+        type=float,
+        default=_MAX_AGE_MINUTES / 60,
+        help="Freshness threshold for --health (default: 35 minutes)",
+    )
     args = parser.parse_args()
+
+    if args.health:
+        status = check_feed_health(max_age_minutes=int(args.freshness_hours * 60))
+        print(status)
+        sys.exit(0 if status.get("healthy") else 1)
 
     result = run_feed(limit=args.limit)
     sys.exit(0 if result.get("success") else 1)
