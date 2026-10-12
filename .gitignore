@@ -38,6 +38,9 @@ docs/launch-playbook.md
 
 # audit / smoke / extraction artifacts
 prod_audit_report.json
+.coverage
+coverage.json
+apps/api/openapi_schema.json
 smoke_report.json
 docx_extract.txt
 extract_docx.py
