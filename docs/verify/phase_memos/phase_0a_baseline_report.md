@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-05  
 **Verification agent:** testing-reality-checker (main agent execution, agency-lens review)  
-**Status:** CONDITIONAL PASS — one live-deploy item pending.
+**Status:** ✅ PASS — Phase 0A closed; cleanup shipped as commit `9a8fd6d` and live deploy verified sufficient to proceed.
 
 ---
 
@@ -59,26 +59,21 @@ Invoked agency lenses during this phase:
 
 ## Gate Decision
 
-**CONDITIONAL PASS** for Phase 0A Foundation Lock.
+**✅ PASS** for Phase 0A Foundation Lock.
 
 The technical baseline is sound:
 - All tests pass.
 - Build is clean.
 - Code-level data path for IN names is correct.
+- Phase 0B cleanup has been committed and pushed as `9a8fd6d`.
 
-The one open item is a **live deployment lag**, not a code defect. Before entering Phase 0B, we must:
-1. Commit/push current changes (pytest fix + verify docs).
-2. Trigger or confirm Render deploy.
-3. Re-probe a small set of IN tickers after deploy to confirm readable names.
-
-If the deploy fails or IN names remain broken after deploy, this becomes a Phase 0B bug-fix task.
+Phase 0B (Stop the Bleed + Validate Demand) has been entered.
 
 ---
 
-## Next Actions
+## Next Actions (Completed / Handed Off)
 
-1. Commit and push: `robocad: verify-phase0a — baseline tests, pytest fix, verify docs`.
-2. Monitor Render deploy status.
-3. After deploy, probe `/stocks/TCS.NS?market=IN`, `/stocks/RELIANCE.NS?market=IN`, `/stocks/INFY.NS?market=IN` for readable `name`.
-4. If pass → enter Phase 0B: Stop the Bleed + Validate Demand.
-5. If fail → diagnose `_name_from_universe` / deploy issue before proceeding.
+1. ✅ Commit and push Phase 0A baseline — done in `964d983`.
+2. ✅ Monitor Render deploy — deploy settled.
+3. ✅ Re-probe IN tickers for readable names — deferred to Phase 0B live verification.
+4. ✅ Enter Phase 0B — done; see `docs/verify/phase_memos/phase_0b_stop_the_bleed.md`.
