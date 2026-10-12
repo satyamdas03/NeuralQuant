@@ -43,7 +43,7 @@
 
 **AI-powered stock intelligence platform — India + US.**
 
-Multi-agent Claude-powered research engine (PARA-DEBATE) · QuantFactor quintile engine + proprietary **IRS%** score across ~950 stocks · web + mobile (Expo) + voice (LiveKit) + an autonomous trading agent on one FastAPI backend · Anthropic Claude with an AWS Bedrock path · Q1FY27 documented backtest: **+13.5% avg alpha vs Nifty50, ~89% hit rate** (see [neuralquant.co/methodology](https://neuralquant.co/methodology)).
+Multi-agent Claude-powered research engine (PARA-DEBATE) · QuantFactor quintile engine + proprietary **IRS%** score across ~950 stocks · web + mobile (Expo) + voice (LiveKit) + an autonomous trading agent on one FastAPI backend · Anthropic Claude with an AWS Bedrock path. See [neuralquant.co/methodology](https://neuralquant.co/methodology) for the research approach.
 
 **18+ months of build. 90+ documented sessions.**
 
