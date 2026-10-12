@@ -1,0 +1,17 @@
+{
+  "files_checked": [
+    "README.md",
+    "docs/OPERATIONS.md",
+    "docs/HANDOVER.md",
+    "docs/ARCHITECTURE.md"
+  ],
+  "matches": [
+    "README.md: contains expected keywords",
+    "docs/OPERATIONS.md: contains expected keywords",
+    "docs/ARCHITECTURE.md: contains expected keywords"
+  ],
+  "mismatches": [
+    "docs/HANDOVER.md: missing keywords ['score_cache']"
+  ],
+  "migration_mention": "none"
+}

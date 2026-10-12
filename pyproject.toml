@@ -16,3 +16,4 @@ dev-dependencies = [
 addopts = "--import-mode=importlib"
 asyncio_mode = "auto"
 norecursedirs = ["hermes-trading"]
+testpaths = ["apps/api/tests", "packages"]

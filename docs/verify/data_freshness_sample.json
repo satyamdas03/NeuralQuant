@@ -1,0 +1,122 @@
+[
+  {
+    "ticker": "TCS.NS",
+    "market": "IN",
+    "status": "ERR",
+    "error": ""
+  },
+  {
+    "ticker": "RELIANCE.NS",
+    "market": "IN",
+    "status": "ERR",
+    "error": ""
+  },
+  {
+    "ticker": "INFY.NS",
+    "market": "IN",
+    "status": "ERR",
+    "error": ""
+  },
+  {
+    "ticker": "HDFCBANK.NS",
+    "market": "IN",
+    "status": "ERR",
+    "error": ""
+  },
+  {
+    "ticker": "ICICIBANK.NS",
+    "market": "IN",
+    "status": "ERR",
+    "error": ""
+  },
+  {
+    "ticker": "SBIN.NS",
+    "market": "IN",
+    "status": "ERR",
+    "error": ""
+  },
+  {
+    "ticker": "AXISBANK.NS",
+    "market": "IN",
+    "status": "ERR",
+    "error": ""
+  },
+  {
+    "ticker": "KOTAKBANK.NS",
+    "market": "IN",
+    "status": "ERR",
+    "error": ""
+  },
+  {
+    "ticker": "LT.NS",
+    "market": "IN",
+    "status": "ERR",
+    "error": ""
+  },
+  {
+    "ticker": "HINDUNILVR.NS",
+    "market": "IN",
+    "status": "ERR",
+    "error": ""
+  },
+  {
+    "ticker": "AAPL",
+    "market": "US",
+    "status": "ERR",
+    "error": ""
+  },
+  {
+    "ticker": "NVDA",
+    "market": "US",
+    "status": "ERR",
+    "error": ""
+  },
+  {
+    "ticker": "MSFT",
+    "market": "US",
+    "status": "ERR",
+    "error": ""
+  },
+  {
+    "ticker": "GOOGL",
+    "market": "US",
+    "status": "ERR",
+    "error": ""
+  },
+  {
+    "ticker": "AMZN",
+    "market": "US",
+    "status": "ERR",
+    "error": ""
+  },
+  {
+    "ticker": "META",
+    "market": "US",
+    "status": "ERR",
+    "error": ""
+  },
+  {
+    "ticker": "TSLA",
+    "market": "US",
+    "status": "ERR",
+    "error": ""
+  },
+  {
+    "ticker": "JPM",
+    "market": "US",
+    "status": "ERR",
+    "error": ""
+  },
+  {
+    "ticker": "V",
+    "market": "US",
+    "status": "ERR",
+    "error": ""
+  },
+  {
+    "ticker": "JNJ",
+    "market": "US",
+    "status": "ERR",
+    "error": ""
+  }
+]
