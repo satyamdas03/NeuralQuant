@@ -20,7 +20,7 @@ Allowed values for each item: `NOT STARTED` / `IN PROGRESS` / `MERGED-NOT-DEPLOY
 | S1 | Auth on `POST /live/classify` and `POST /trade/backtest` | F-07, F-08 | **MERGED-NOT-DEPLOYED** | `b48c835` | 209 passed, 19 warnings | `/health` still `version: 4.1.3`; `POST /live/classify` → 200 (expected 401); `POST /trade/backtest` → 422 (expected 401). **Render deploy pending.** |
 | S2 | Unknown ticker → 404, never score 10 | F-02 | **MERGED-NOT-DEPLOYED** | `02aa8ce` | 213 passed, 19 warnings | `/health` still `version: 4.1.3`; `GET /stocks/NOTAREALTICKERXYZ?market=US` → 200 (expected 404). **Render deploy pending.** |
 | S3 | India freshness: stale from `cached_at`, badge/refuse | F-01, F-14 | **MERGED-NOT-DEPLOYED** | `7b3bd64` | 216 passed, 19 warnings | `/health` still `version: 4.1.3`; `GET /stocks/TCS.NS/meta?market=IN` returns `cached_at=2026-09-03`, `stale=false` (expected `stale=true`). **Render deploy pending.** |
-| S4 | Ask AI blank summary → 502; length/history caps; prompt fence | F-03, F-04 | NOT STARTED | — | — | — |
+| S4 | Ask AI blank summary → 502; length/history caps; prompt fence | F-03, F-04 | **MERGED-NOT-DEPLOYED** | `d632e33` | 219 passed, 19 warnings | `/health` still `version: 4.1.3`. Live blank-summary behavior unchanged until deploy. **Render deploy pending.** |
 | S5 | CI runs full pytest; remove `--exit-zero` | F-19 | NOT STARTED | — | — | — |
 | S6 | Secret scan table; rotation by Satyam | F-24 | **MERGED-NOT-DEPLOYED** (docs-only; no deploy needed) | `a0b876e` | N/A | `docs/verify/evidence/secret_scan_2026-10-13.md`. No secret values printed. Owner rotation pending. |
 | S7 | Upgrade runtime deps; re-audit | F-16 | NOT STARTED | — | — | — |
@@ -93,7 +93,7 @@ Phase 0A status is **CONDITIONAL** until live India probe passes. Memos need dat
 
 ## Notes
 
-- Test counts: full suite = 216 passed (was 213 before S3; +3 new India-freshness tests).
+- Test counts: full suite = 219 passed (was 216 before S4; +3 new Ask-AI-v2 tests).
 - CI still runs no pytest; ruff runs `--exit-zero`.
 - Master plan file lives at `docs/NEURALQUANT_VERIFY_MASTER_PLAN.md`.
 - Audit dump `NEURALQUANT_MASTER_REPORT_AUDIT_GB` was removed in `26bc004`; history rewrite deferred to owner decision.
