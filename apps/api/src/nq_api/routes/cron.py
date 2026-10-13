@@ -25,13 +25,14 @@ import threading
 import time
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, Query
+
+from nq_api.auth.deps import require_admin_or_cron
+from nq_api.auth.models import User
 
 log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/cron", tags=["cron"])
-
-CRON_SECRET = os.environ.get("CRON_SECRET", "")
 
 # ── Lock to prevent concurrent runs ──────────────────────────────────────────────
 _score_lock = threading.Lock()
@@ -40,16 +41,6 @@ _anjali_lock = threading.Lock()
 # Track last run results for status polling
 _score_last_result: dict = {}
 _anjali_last_result: dict = {}
-
-
-def _verify_secret(authorization: str | None):
-    if not CRON_SECRET:
-        return  # No secret configured — allow all (dev mode)
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Missing Authorization header")
-    token = authorization.replace("Bearer ", "").strip()
-    if token != CRON_SECRET:
-        raise HTTPException(status_code=403, detail="Invalid cron secret")
 
 
 # ── Nightly Score ───────────────────────────────────────────────────────────────
@@ -95,11 +86,10 @@ def _run_score_bg(market: str):
 @router.post("/nightly-score")
 def cron_nightly_score(
     market: str = Query("BOTH", pattern="^(US|IN|BOTH)$"),
-    authorization: str | None = Header(None),
+    _admin_or_cron: User | None = Depends(require_admin_or_cron),
 ):
-    """Trigger score_cache rebuild. Protected by CRON_SECRET.
+    """Trigger score_cache rebuild. Protected by CRON_SECRET or admin JWT.
     Runs in background thread — returns immediately."""
-    _verify_secret(authorization)
     if not _score_lock.acquire(blocking=False):
         return {"status": "already_running", "market": market, "message": "Score rebuild is already running. Use GET /cron/nightly-score/status to check progress."}
     threading.Thread(target=_run_score_bg, args=(market,), daemon=False).start()
@@ -107,9 +97,10 @@ def cron_nightly_score(
 
 
 @router.get("/nightly-score/status")
-def cron_nightly_score_status(authorization: str | None = Header(None)):
+def cron_nightly_score_status(
+    _admin_or_cron: User | None = Depends(require_admin_or_cron),
+):
     """Check status of last nightly score run."""
-    _verify_secret(authorization)
     is_running = _score_lock.locked()
     return {"running": is_running, "last_result": _score_last_result}
 
@@ -137,11 +128,10 @@ def _run_anjali(market: str) -> dict:
 @router.post("/anjali")
 def cron_anjali(
     market: str = Query("BOTH", pattern="^(US|IN|BOTH)$"),
-    authorization: str | None = Header(None),
+    _admin_or_cron: User | None = Depends(require_admin_or_cron),
 ):
-    """Trigger QuantFactor enrichment rebuild. Protected by CRON_SECRET.
+    """Trigger QuantFactor enrichment rebuild. Protected by CRON_SECRET or admin JWT.
     Runs in background thread — returns immediately."""
-    _verify_secret(authorization)
     if not _anjali_lock.acquire(blocking=False):
         return {"status": "already_running", "market": market, "message": "QuantFactor refresh is already running. Use GET /cron/anjali/status to check progress."}
     mkt = market
@@ -165,9 +155,10 @@ def _run_anjali_bg_wrap(market: str):
 
 
 @router.get("/anjali/status")
-def cron_anjali_status(authorization: str | None = Header(None)):
+def cron_anjali_status(
+    _admin_or_cron: User | None = Depends(require_admin_or_cron),
+):
     """Check status of last QuantFactor enrichment run."""
-    _verify_secret(authorization)
     is_running = _anjali_lock.locked()
     return {"running": is_running, "last_result": _anjali_last_result}
 
@@ -197,11 +188,10 @@ def _run_market_refresh_bg(market_filter: str | None):
 @router.post("/market-refresh")
 def cron_market_refresh(
     market: str | None = Query(None, description="Filter to one market (US or IN), or leave blank for all"),
-    authorization: str | None = Header(None),
+    _admin_or_cron: User | None = Depends(require_admin_or_cron),
 ):
-    """Trigger stock_snapshot refresh. Protected by CRON_SECRET.
+    """Trigger stock_snapshot refresh. Protected by CRON_SECRET or admin JWT.
     Runs in background thread — returns immediately."""
-    _verify_secret(authorization)
     if not _market_refresh_lock.acquire(blocking=False):
         return {"status": "already_running", "message": "Market refresh is already running. Use GET /cron/market-refresh/status to check progress."}
     mkt = market if market in ("US", "IN") else None
@@ -210,9 +200,10 @@ def cron_market_refresh(
 
 
 @router.get("/market-refresh/status")
-def cron_market_refresh_status(authorization: str | None = Header(None)):
+def cron_market_refresh_status(
+    _admin_or_cron: User | None = Depends(require_admin_or_cron),
+):
     """Check status of last market refresh run."""
-    _verify_secret(authorization)
     is_running = _market_refresh_lock.locked()
     return {"running": is_running, "last_result": _market_refresh_last_result}
 
@@ -240,10 +231,11 @@ def _run_qf_sync_bg():
 
 
 @router.post("/quantfactor-sync")
-def cron_quantfactor_sync(authorization: str | None = Header(None)):
-    """Trigger quantfactor_universe sync. Protected by CRON_SECRET.
+def cron_quantfactor_sync(
+    _admin_or_cron: User | None = Depends(require_admin_or_cron),
+):
+    """Trigger quantfactor_universe sync. Protected by CRON_SECRET or admin JWT.
     Runs in background thread — returns immediately."""
-    _verify_secret(authorization)
     if not _qf_sync_lock.acquire(blocking=False):
         return {"status": "already_running", "message": "QuantFactor sync is already running. Use GET /cron/quantfactor-sync/status to check progress."}
     threading.Thread(target=_run_qf_sync_bg, daemon=True).start()
@@ -251,9 +243,10 @@ def cron_quantfactor_sync(authorization: str | None = Header(None)):
 
 
 @router.get("/quantfactor-sync/status")
-def cron_quantfactor_sync_status(authorization: str | None = Header(None)):
+def cron_quantfactor_sync_status(
+    _admin_or_cron: User | None = Depends(require_admin_or_cron),
+):
     """Check status of last QuantFactor sync run."""
-    _verify_secret(authorization)
     is_running = _qf_sync_lock.locked()
     return {"running": is_running, "last_result": _qf_sync_last_result}
 

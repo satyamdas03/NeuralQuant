@@ -19,9 +19,11 @@ log = logging.getLogger(__name__)
 from nq_api.logging_redaction import install_log_redaction
 install_log_redaction()
 
-from fastapi import FastAPI, Header
+from fastapi import Depends, FastAPI, Header
 from fastapi.middleware.cors import CORSMiddleware
 
+from nq_api.auth.deps import require_admin_or_cron
+from nq_api.auth.models import User
 from nq_api.config import CORS_ORIGINS, CORS_ORIGIN_REGEX, FRONTEND_URL
 from nq_api.routes import stocks, screener, analyst, query, market, auth, watchlists, sentiment, backtest, newsdesk, team, broker, trade, live, live_dashboard
 from nq_api.routes.terminal import router as terminal_router
@@ -586,17 +588,14 @@ def health():
 
 
 @app.get("/health/smoke")
-async def health_smoke(x_cron_secret: str | None = Header(default=None)):
+async def health_smoke(
+    _admin_or_cron: User | None = Depends(require_admin_or_cron),
+):
     """Deep health check — tests all critical dependencies in parallel.
-    Protected by CRON_SECRET header (same as /cron/* endpoints)."""
+    Protected by CRON_SECRET or admin JWT (same as /cron/* endpoints)."""
     import os
     import time
     from datetime import datetime, timezone
-
-    _secret = os.environ.get("CRON_SECRET", "")
-    if _secret and x_cron_secret != _secret:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=403, detail="invalid CRON_SECRET")
 
     checks: dict[str, dict] = {}
     failures: list[str] = []

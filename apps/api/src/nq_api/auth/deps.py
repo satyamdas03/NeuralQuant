@@ -126,7 +126,9 @@ def _smoke_bypass_ok(provided: str | None) -> bool:
     """Only honor the smoke bypass when a STRONG secret (>=24 chars) is set and
     matches. Prevents a weak/empty SMOKE_TEST_SECRET from enabling the bypass."""
     secret = os.environ.get("SMOKE_TEST_SECRET", "")
-    return bool(secret) and len(secret) >= 24 and provided == secret
+    if not secret or len(secret) < 24 or not provided:
+        return False
+    return secrets.compare_digest(provided, secret)
 
 
 def _extract_bearer(authorization: str | None) -> str | None:
