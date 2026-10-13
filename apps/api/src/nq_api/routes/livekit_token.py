@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 import uuid
@@ -31,6 +32,9 @@ LIVEKIT_API_URL = LIVEKIT_URL.replace("wss://", "https://") if LIVEKIT_URL else 
 
 VERONICA_DAILY_CAP_S = 1800  # 30 min/day fuse
 ORPHAN_SESSION_S = 600       # session_start without session_end (tab killed)
+
+GUEST_VOICE_DAILY_CAP_S = int(os.environ.get("GUEST_VOICE_DAILY_CAP_S", "600"))  # 10 min/day per IP
+LIVEKIT_GUEST_VOICE_ENABLED = os.environ.get("LIVEKIT_GUEST_VOICE_ENABLED", "true").lower() != "false"
 
 
 def _fetch_today_veronica_events(user_id: str) -> list[dict]:
