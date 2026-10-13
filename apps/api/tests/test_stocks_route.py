@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from fastapi.testclient import TestClient
 from unittest.mock import MagicMock, patch
 import pandas as pd
@@ -95,6 +96,7 @@ def test_get_stock_score_in_fallback_name_from_universe():
              patch("nq_api.routes.stocks._read_stock_snapshot", return_value={
                  "ticker": "TCS", "market": "IN", "company_name": None,
                  "price": 3500.0, "change_pct": 1.2,
+                 "cached_at": datetime.now(timezone.utc).isoformat(),
              }):
             response = client.get("/stocks/TCS.NS?market=IN")
         assert response.status_code == 200
@@ -126,6 +128,7 @@ def test_get_stock_score_in_name_from_snapshot_company_name():
                  "ticker": "RELIANCE", "market": "IN",
                  "company_name": "Reliance Industries Limited",
                  "price": 2450.0, "change_pct": 0.5,
+                 "cached_at": datetime.now(timezone.utc).isoformat(),
              }):
             response = client.get("/stocks/RELIANCE.NS?market=IN")
         assert response.status_code == 200
@@ -143,6 +146,7 @@ def test_get_stock_meta_in_fallback_name_from_universe():
         "ticker": "TCS", "market": "IN", "company_name": None,
         "price": 3500.0, "change_pct": 1.2,
         "sector": "Information Technology", "sub_sector": "IT Services",
+        "cached_at": datetime.now(timezone.utc).isoformat(),
     }
     with patch("nq_api.routes.stocks._read_stock_snapshot", return_value=snap), \
          patch("nq_api.routes.stocks._fetch_stock_meta_fmp_light", return_value=None), \

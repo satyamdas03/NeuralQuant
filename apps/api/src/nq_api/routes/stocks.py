@@ -129,11 +129,22 @@ async def get_stock_score(
                 markets_to_try = [market] if market in ("US", "IN") else ["US", "IN"]
                 for m in markets_to_try:
                     snap = await asyncio.to_thread(_read_stock_snapshot, ticker_upper, m)
-                    if snap:
-                        if cached.get("change_pct") is None and snap.get("change_pct") is not None:
-                            cached["change_pct"] = snap.get("change_pct")
-                        if cached.get("current_price") is None and snap.get("price") is not None:
-                            cached["current_price"] = snap.get("price")
+                    if not snap:
+                        continue
+                    # F-01: for IN, recompute staleness from cached_at. Do not
+                    # backfill price/change from a snapshot that the GCP feeder
+                    # stopped writing weeks ago.
+                    if m == "IN" and is_stale(snap, max_age_minutes=35):
+                        log.warning(
+                            "stale IN snapshot for %s/%s (cached_at=%s); "
+                            "skipping price backfill - GCP feeder may be stopped",
+                            ticker_upper, m, snap.get("cached_at"),
+                        )
+                        continue
+                    if cached.get("change_pct") is None and snap.get("change_pct") is not None:
+                        cached["change_pct"] = snap.get("change_pct")
+                    if cached.get("current_price") is None and snap.get("price") is not None:
+                        cached["current_price"] = snap.get("price")
                         # Backfill a readable name from stock_snapshot when the cache
                         # only has a ticker placeholder (common for IN names).
                         cached_name = cached.get("long_name") or cached.get("name")
@@ -517,7 +528,7 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
 
     if snap:
         try:
-            meta = _snapshot_to_meta(snap)
+            meta = _snapshot_to_meta(snap, market)
         except Exception as e:
             log.warning("_snapshot_to_meta failed for %s: %s", t_up, e)
             meta = _empty_meta(t_up)
@@ -667,7 +678,7 @@ def _safe_round(v, decimals: int) -> float | None:
         return None
 
 
-def _snapshot_to_meta(snap: dict) -> dict:
+def _snapshot_to_meta(snap: dict, market: str = "US") -> dict:
     """Convert a stock_snapshot row to the legacy meta dict shape."""
     mc = snap.get("market_cap")
     price = snap.get("price")
@@ -692,8 +703,20 @@ def _snapshot_to_meta(snap: dict) -> dict:
         "volume": snap.get("volume"),
         "rsi_14d": _safe_round(snap.get("rsi_14d"), 1),
         "cached_at": snap.get("cached_at"),
-        "stale": snap.get("stale", False),
+        "stale": _compute_stale(snap, market),
     }
+
+
+def _compute_stale(snap: dict, market: str) -> bool:
+    """Compute staleness from cached_at for IN; trust stored flag for US.
+
+    F-01: Indian snapshots were served weeks old with stale=false because the
+    API copied the stored flag. For IN we recompute from cached_at so the badge
+    reflects reality even if the GCP feeder stops writing.
+    """
+    if market == "IN":
+        return is_stale(snap, max_age_minutes=35)
+    return bool(snap.get("stale", False))
 
 
 def _read_score_cache(ticker: str, market: str) -> dict | None:
