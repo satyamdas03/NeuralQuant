@@ -16,7 +16,7 @@ from nq_api.deps import get_signal_engine
 from nq_api.config import YAHOO_CHART_URL, YAHOO_QUOTE_URL
 from nq_api.schemas import AIScore
 from nq_api.score_builder import row_to_ai_score, rank_scores_in_universe
-from nq_api.universe import UNIVERSE_BY_MARKET, UNIVERSE_FULL
+from nq_api.universe import UNIVERSE_BY_MARKET, UNIVERSE_FULL, in_tickers_full
 from nq_api.data_builder import build_real_snapshot, _fund_cache, fetch_real_macro, _get_yf_session
 from nq_api.cache import score_cache
 from nq_api.cache.snapshot_cache import read_snapshot as _read_stock_snapshot, is_stale
@@ -82,6 +82,18 @@ async def get_stock_score(
     engine: Any = Depends(get_signal_engine),
 ) -> AIScore:
     ticker_upper = _normalize_ticker(ticker, market)
+
+    # --- F-02: universe membership check (never score an unknown ticker 10) ---
+    if market == "US":
+        allowed = set(UNIVERSE_BY_MARKET["US"])
+    elif market == "IN":
+        allowed = set(in_tickers_full())
+    elif market in ("BOTH", "GLOBAL"):
+        allowed = set(UNIVERSE_BY_MARKET["US"]) | set(in_tickers_full())
+    else:
+        allowed = set()
+    if ticker_upper not in allowed:
+        raise HTTPException(status_code=404, detail=f"Unknown ticker {ticker}")
 
     # --- Fast path: read from Supabase score_cache (sub-100ms) ---
     # Tiered: try 5min → 24h → any age → live compute
