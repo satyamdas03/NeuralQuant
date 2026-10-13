@@ -7,7 +7,7 @@ import time
 from datetime import date
 
 import anthropic
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 import logging
 
@@ -137,7 +137,7 @@ async def run_nl_query(
 
     context_parts = [
         f"Today's date: {today}",
-        f"User question: {req.question}",
+        "User question:\n<user-query>\n" + (req.question or "")[:4000] + "\n</user-query>",
     ]
     if macro_ctx:
         context_parts.append(macro_ctx)
@@ -369,7 +369,7 @@ async def run_nl_query_v2(
 
     context_parts = [
         f"Today's date: {today}",
-        f"User question: {req.question}",
+        "User question:\n<user-query>\n" + (req.question or "")[:4000] + "\n</user-query>",
     ]
     if macro_ctx:
         context_parts.append(macro_ctx)
@@ -734,6 +734,25 @@ async def run_nl_query_v2(
                         if fill_notes and parsed.get("summary"):
                             parsed["summary"] += f" [Live prices verified: {'; '.join(fill_notes)}]"
                 result = StructuredQueryResponse(**parsed)
+                # F-03: if the structured tool produced an empty summary, try to
+                # salvage from any raw text block. If salvage also yields nothing,
+                # fail closed with a stable 502 instead of returning a blank 200.
+                if not (result.summary or "").strip():
+                    raw = ""
+                    for block in response.content:
+                        if getattr(block, "type", None) == "text":
+                            raw = block.text
+                            break
+                    freeform_resp = _parse_query_response(raw, route)
+                    salvaged = _structured_from_markdown(
+                        raw, freeform_resp, route,
+                        _build_stock_summary(effective_ticker_v2, effective_market_v2, enrichment, platform_ctx),
+                    )
+                    if (salvaged.summary or "").strip():
+                        result = salvaged
+                    else:
+                        log.warning("v2 blank summary for %s/%s; returning 502", effective_ticker_v2, effective_market_v2)
+                        raise HTTPException(status_code=502, detail="NQ_QUERY_EMPTY_ANSWER")
                 # Validate LLM metrics against injected [VERIFIED] data
                 verified = extract_verified_values(platform_ctx)
                 _, result.summary, _ = validate_response(result.metrics or [], result.summary or "", verified)
@@ -754,6 +773,8 @@ async def run_nl_query_v2(
                     )
                 return result
             except (ValidationError, Exception) as e:
+                if isinstance(e, HTTPException):
+                    raise
                 log.warning("Tool-use structured output validation failed: %s", e)
 
         # Extreme fallback: tool_use was rejected — salvage from any text block
@@ -767,6 +788,9 @@ async def run_nl_query_v2(
         # Validate LLM metrics against injected [VERIFIED] data
         verified = extract_verified_values(platform_ctx)
         _, result.summary, _ = validate_response(result.metrics or [], result.summary or "", verified)
+        if not (result.summary or "").strip():
+            log.warning("v2 blank summary after fallback for %s/%s; returning 502", effective_ticker_v2, effective_market_v2)
+            raise HTTPException(status_code=502, detail="NQ_QUERY_EMPTY_ANSWER")
         return result
 
     except (anthropic.APITimeoutError, asyncio.TimeoutError):
@@ -780,6 +804,8 @@ async def run_nl_query_v2(
             route=route,
         )
     except Exception as exc:
+        if isinstance(exc, HTTPException):
+            raise
         return StructuredQueryResponse(
             verdict="HOLD", confidence=0, timeframe="Medium-term",
             summary=f"Query failed: {str(exc)[:200]}",

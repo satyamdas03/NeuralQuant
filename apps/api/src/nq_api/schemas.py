@@ -1,6 +1,6 @@
 # apps/api/src/nq_api/schemas.py
 from __future__ import annotations
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, Literal
 
 
@@ -119,14 +119,26 @@ class UserProfile(BaseModel):
 
 
 class QueryRequest(BaseModel):
-    question: str
+    question: str = Field(..., max_length=4000)
     ticker: Optional[str] = None
     market: Literal["US", "IN", "GLOBAL", "BOTH"] = "US"
-    history: list[ConversationMessage] = []  # previous turns for multi-turn chat
+    history: list[ConversationMessage] = Field(default_factory=list)  # previous turns for multi-turn chat
     session_key: Optional[str] = None  # persistent conversation key (client-generated UUID)
     profile: UserProfile | None = None
     clarification_answers: list[str] | None = None  # answers from ClarificationCard
     is_report: bool = False  # True when DART classifies as REPORT (16-section institutional)
+
+    @field_validator("history")
+    @classmethod
+    def _cap_history(cls, v):
+        # F-04: cap history to 8 turns and 1500 chars per turn at the boundary
+        out = []
+        for m in (v or [])[-8:]:
+            content = m.content
+            if len(content) > 1500:
+                content = content[:1500]
+            out.append(ConversationMessage(role=m.role, content=content))
+        return out
 
 
 class QueryResponse(BaseModel):
