@@ -111,7 +111,7 @@ async def start_slack_handler() -> None:
 
     logger.info("Starting Slack Socket Mode handler...")
     # Start the handler in the background — it maintains the WebSocket
-    task = asyncio.create_task(handler.connect_async())
+    _ = asyncio.create_task(handler.connect_async())
     _socket_handler = handler
     logger.info("Slack Socket Mode handler started")
 

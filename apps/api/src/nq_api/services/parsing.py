@@ -10,6 +10,7 @@ from nq_api.services.constants import (
 from nq_api.schemas import (
     QueryResponse, MetricItem, ScenarioItem,
     ReasoningBlock, ComparisonItem, StockSummary,
+    StructuredQueryResponse,
 )
 
 log = logging.getLogger(__name__)
@@ -86,7 +87,6 @@ def _fmt_price_row(ticker: str, fund: dict, score: int, market: str, rank: int |
     rec      = fund.get("analyst_rec", "")
     chg      = fund.get("change_pct", 0.0)
     pe       = fund.get("pe_ttm")
-    pb       = fund.get("pb_ratio")
     name     = fund.get("long_name", ticker)
     mcap     = fund.get("market_cap")
 
@@ -144,7 +144,6 @@ def _parse_query_response(raw: str, route: str = "REACT") -> QueryResponse:
 
 def _extract_json_from_llm(text: str) -> dict | None:
     """Try to extract a JSON object from LLM output (may be wrapped in markdown or garbled)."""
-    import json as _json
 
     cleaned = text.strip()
 

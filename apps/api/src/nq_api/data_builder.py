@@ -22,6 +22,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import date
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -262,18 +263,24 @@ def _overlay_fmp_info(info: dict, ticker: str) -> None:
         if profile:
             has_data = False
             if profile.get("name") and not info.get("longName"):
-                info["longName"] = profile["name"]; has_data = True
+                info["longName"] = profile["name"]
+                has_data = True
             if profile.get("sector") and not info.get("sector"):
-                info["sector"] = profile["sector"]; has_data = True
+                info["sector"] = profile["sector"]
+                has_data = True
             if profile.get("industry") and not info.get("industry"):
-                info["industry"] = profile["industry"]; has_data = True
+                info["industry"] = profile["industry"]
+                has_data = True
             if profile.get("market_cap") and not info.get("marketCap"):
-                info["marketCap"] = profile["market_cap"]; has_data = True
+                info["marketCap"] = profile["market_cap"]
+                has_data = True
             if profile.get("beta") is not None and profile["beta"] > 0:
-                info["beta"] = profile["beta"]; has_data = True
+                info["beta"] = profile["beta"]
+                has_data = True
             if profile.get("price") is not None and profile["price"] > 0:
                 info["currentPrice"] = profile["price"]
-                info["regularMarketPrice"] = profile["price"]; has_data = True
+                info["regularMarketPrice"] = profile["price"]
+                has_data = True
             if has_data:
                 info["_cached_ok"] = True
 

@@ -217,7 +217,6 @@ def _validate_and_fill_portfolio_prices(
         # -- Tier 4: yf.download (often more reliable than Ticker.info on cloud) --
         if not live_price or live_price <= 0:
             try:
-                import yfinance as yf
                 hist = yf.download(sym, period="5d", progress=False, auto_adjust=True,
                                    threads=False, session=_get_yf_session())
                 if hist is not None and not hist.empty and "Close" in hist.columns:

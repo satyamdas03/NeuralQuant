@@ -21,7 +21,7 @@ Allowed values for each item: `NOT STARTED` / `IN PROGRESS` / `MERGED-NOT-DEPLOY
 | S2 | Unknown ticker → 404, never score 10 | F-02 | **MERGED-NOT-DEPLOYED** | `02aa8ce` | 213 passed, 19 warnings | `/health` still `version: 4.1.3`; `GET /stocks/NOTAREALTICKERXYZ?market=US` → 200 (expected 404). **Render deploy pending.** |
 | S3 | India freshness: stale from `cached_at`, badge/refuse | F-01, F-14 | **MERGED-NOT-DEPLOYED** | `7b3bd64` | 216 passed, 19 warnings | `/health` still `version: 4.1.3`; `GET /stocks/TCS.NS/meta?market=IN` returns `cached_at=2026-09-03`, `stale=false` (expected `stale=true`). **Render deploy pending.** |
 | S4 | Ask AI blank summary → 502; length/history caps; prompt fence | F-03, F-04 | **MERGED-NOT-DEPLOYED** | `d632e33` | 219 passed, 19 warnings | `/health` still `version: 4.1.3`. Live blank-summary behavior unchanged until deploy. **Render deploy pending.** |
-| S5 | CI runs full pytest; remove `--exit-zero` | F-19 | NOT STARTED | — | — | — |
+| S5 | CI runs full pytest; remove `--exit-zero` | F-19 | **MERGED** | `TBD` | 199 passed, 10 warnings | `uv run ruff check packages/ apps/api/` → 0 errors; `python -m pytest` → 199 passed. CI workflow now has `test` job and ruff no longer uses `--exit-zero`. No deploy needed. |
 | S6 | Secret scan table; rotation by Satyam | F-24 | **MERGED-NOT-DEPLOYED** (docs-only; no deploy needed) | `a0b876e` | N/A | `docs/verify/evidence/secret_scan_2026-10-13.md`. No secret values printed. Owner rotation pending. |
 | S7 | Upgrade runtime deps; re-audit | F-16 | NOT STARTED | — | — | — |
 | S8 | `secrets.compare_digest`, fail-closed empty `CRON_SECRET` | F-10, F-23 | IN PROGRESS (covered by S1 for routes; remaining cron/smoke gates) | — | — | — |
@@ -86,14 +86,14 @@ Phase 0A status is **CONDITIONAL** until live India probe passes. Memos need dat
 
 ## Active Blockers
 
-1. **Render deploy is not catching up.** Every merged change since `964d983` is `MERGED-NOT-DEPLOYED`. Satyam must trigger/inspect the Render deploy for service `nq-api`.
+1. **Render service is live-unhealthy.** `GET https://nq-api.onrender.com/health` returns `{"status":"unhealthy"}` with HTTP 503. This blocks live verification of S1–S4 and all deploy-dependent steps. Satyam must inspect/trigger the Render deploy for service `nq-api`.
 2. **Empty/invalid `CRON_SECRET` handling for other cron routes** remains after S1 (F-10, F-23).
 
 ---
 
 ## Notes
 
-- Test counts: full suite = 219 passed (was 216 before S4; +3 new Ask-AI-v2 tests).
-- CI still runs no pytest; ruff runs `--exit-zero`.
+- Test counts: full suite = 199 passed (10 warnings). Ruff now passes with the configured rule set.
+- CI now runs `pytest` and ruff without `--exit-zero`.
 - Master plan file lives at `docs/NEURALQUANT_VERIFY_MASTER_PLAN.md`.
 - Audit dump `NEURALQUANT_MASTER_REPORT_AUDIT_GB` was removed in `26bc004`; history rewrite deferred to owner decision.

@@ -18,9 +18,16 @@ from typing import Literal
 
 import numpy as np
 import pandas as pd
+import requests
 import yfinance as yf
 
-logger = structlog.get_logger() if __import__("os").environ.get("STRUCTLOG") else logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
+if __import__("os").environ.get("STRUCTLOG"):
+    try:
+        import structlog
+        logger = structlog.get_logger()
+    except ImportError:
+        pass
 
 # Checkpoint file path (JSON-based, simpler than DuckDB for checkpoint data)
 _CHECKPOINT_DIR = Path(__file__).resolve().parents[4] / "data" / "anjali_checkpoints"
@@ -238,7 +245,6 @@ def collect_stocks(
             logger.warning(f"Failed to load checkpoint: {e}")
             done_tickers = set()
 
-    start_idx = 0
     results: list[dict] = []
 
     logger.info(f"Starting Anjali collection: {universe} ({market}), {len(tickers_list)} tickers")

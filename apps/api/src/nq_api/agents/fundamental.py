@@ -179,7 +179,6 @@ Compare this stock's metrics to the sector median above when making your assessm
         rev_per_share_display = _fmt(context.get('revenue_per_share'))
         fcf_display = _fmt(context.get('free_cashflow'), ".0f")
         num_analysts = context.get('number_of_analyst_opinions', 'N/A')
-        rev_growth_yoy_display = _fmt(context.get('revenue_growth_yoy'), ".1f")
         fifty_day_avg_display = _fmt(context.get('fifty_day_avg'))
         two_hundred_day_avg_display = _fmt(context.get('two_hundred_day_avg'))
 

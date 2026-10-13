@@ -1,4 +1,6 @@
 """Data enrichment -- macro context, news, technical indicators, platform data."""
+from __future__ import annotations
+
 import logging
 import re
 import threading
@@ -8,6 +10,9 @@ from datetime import date as _date
 import yfinance as yf
 import pandas as pd
 
+from nq_data.fmp import get_fmp_client as _get_fmp_client
+
+from nq_api.schemas import ReasoningBlock
 from nq_api.services.constants import (
     _SECTOR_MAP, _STOP_WORDS, _TICKER_STOP_WORDS,
     _INDIA_KEYWORDS, _SCREENER_KEYWORDS,
@@ -130,7 +135,6 @@ def _fetch_relevant_news(question: str, ticker: str | None, n: int = 8) -> list[
     # ── yfinance fallback (skipped on Render — hangs on cloud IPs) ─────────
     if len(headlines) < n and not _is_render:
         from nq_api.data_builder import _get_yf_session
-        remaining = n - len(headlines)
         for sym in candidates[:8]:
             try:
                 items = yf.Ticker(sym, session=_get_yf_session()).news or []
@@ -906,7 +910,6 @@ def _enrich_with_platform_data(question: str, market: str, ticker_hint: str | No
                             primary_data = {"current_price": fmp_q["price"], "pe_ttm": fmp_q.get("pe"), "market_cap": fmp_q.get("market_cap")}
                     primary_pe = primary_data.get("pe_ttm") if primary_data else None
                     primary_mcap = primary_data.get("market_cap") if primary_data else None
-                    primary_price = primary_data.get("current_price") if primary_data else None
 
                     for pt in fmp_peer_tickers:
                         if _is_render:
@@ -939,9 +942,8 @@ def _enrich_with_platform_data(question: str, market: str, ticker_hint: str | No
                         p_pe = peer_metrics.get("pe_ttm")
                         p_mcap = peer_metrics.get("market_cap")
                         p_roe = peer_metrics.get("roe")
-                        p_margin = peer_metrics.get("gross_profit_margin")
                         cur = "Rs." if target_market == "IN" else "$"
-                        comp_parts = [f"ForeCast=N/A"]
+                        comp_parts = ["ForeCast=N/A"]
                         if p_price:
                             comp_parts.append(f"Price={cur}{p_price:,.2f}")
                         if p_pe is not None:
@@ -1104,7 +1106,7 @@ def _enrich_snap_structured(req) -> tuple[list, "ReasoningBlock", str]:
         pe = cached.get("pe_ttm")
         pb = cached.get("pb_ratio")
 
-        if score is not None:
+        if score_10 is not None:
             metrics.append(MetricItem(name="ForeCast Score", value=f"{score_10}/10", benchmark="5/10 avg", status="positive" if score_10 >= 6 else "negative"))
         if momentum is not None:
             metrics.append(MetricItem(name="Momentum", value=f"{float(momentum)*100:.0f}%", benchmark="50% avg", status="positive" if float(momentum) >= 0.5 else "negative"))

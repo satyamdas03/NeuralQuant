@@ -713,7 +713,7 @@ def run_quantfactor_sync(
     # Strategy: DELETE all rows, then INSERT fresh (avoids garbage legend rows persisting)
     for mkt in ("US", "IN"):
         try:
-            deleted = _supabase_rest(
+            _supabase_rest(
                 "quantfactor_universe", method="DELETE",
                 query={"market": f"eq.{mkt}"},
             )

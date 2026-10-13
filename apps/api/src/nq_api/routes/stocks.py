@@ -316,7 +316,6 @@ def _fetch_chart_fmp(sym: str, period: str, market: str) -> list[dict]:
 def _fetch_chart_yahoo_direct(sym: str, period: str) -> list[dict]:
     """Hit Yahoo's chart API directly (v8) — works when yfinance's scraping path fails
     in cloud environments (Render, etc.). Returns [] on any error."""
-    from nq_api.config import YAHOO_CHART_URL
     yrange, yinterval = _YAHOO_RANGE_MAP.get(period, ("1mo", "1d"))
     url = f"{YAHOO_CHART_URL}/{sym}"
     params = {"range": yrange, "interval": yinterval, "includePrePost": "false"}
@@ -1340,7 +1339,7 @@ async def stream_stock_score(
                     yield f"event: score\ndata: {payload}\n\n"
                     last_score = payload
                 else:
-                    yield f"event: heartbeat\ndata: {{}}\n\n"
+                    yield "event: heartbeat\ndata: {}\n\n"
             except Exception as e:
                 yield f"event: error\ndata: {json.dumps({'detail': str(e)})}\n\n"
             await asyncio.sleep(60)

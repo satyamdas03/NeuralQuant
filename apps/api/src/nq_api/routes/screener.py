@@ -159,7 +159,7 @@ async def screener_preview(market: str = "US", n: int = 8) -> ScreenerResponse:
                 logger.warning("screener_preview: serving very old cache for market=%s", market)
         if rows:
             logger.info("screener_preview: %d rows from cache for market=%s", len(rows), market)
-    except Exception as exc:
+    except Exception:
         logger.exception("screener_preview cache read failed for market=%s", market)
 
     # If cache is very old (>24h), try live compute first before serving stale data.
@@ -253,7 +253,7 @@ async def _preview_live_fallback(market: str, n: int, timeout: float = 25.0) -> 
     except asyncio.TimeoutError:
         logger.warning("screener_preview live fallback timed out for market=%s", market)
         return ScreenerResponse(regime_label="Unknown", regime_id=1, results=[], total=0)
-    except Exception as exc:
+    except Exception:
         logger.exception("screener_preview live fallback failed for market=%s", market)
         return ScreenerResponse(regime_label="Unknown", regime_id=1, results=[], total=0)
 

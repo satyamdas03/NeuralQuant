@@ -9,6 +9,21 @@ dev-dependencies = [
     "hatchling>=1.24",
 ]
 
+[tool.ruff]
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = [
+    "E401",  # multiple imports on one line — legacy style, low value
+    "E402",  # imports not at top — common in plugin / path-manipulation files
+    "E501",  # line length — project uses long strings and URLs
+    "E701",  # one-line if-statements — widely used in scoring helpers
+    "F401",  # unused imports — re-exports and lazy __init__ imports
+    "F403",  # from module import *
+    "F405",  # name may be undefined from star import
+]
+
 [tool.pytest.ini_options]
 # importlib mode: apps/api/tests and packages/*/tests are all packages named
 # "tests"; the default prepend mode raises ImportPathMismatchError when they

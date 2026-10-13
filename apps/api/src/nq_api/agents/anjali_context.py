@@ -105,7 +105,7 @@ def build_anjali_context(enrichment: dict | None) -> str:
     if composite is not None:
         score_parts.append(f"COMPOSITE QF: {composite}/16")
     if score_parts:
-        lines.append(f"  Quintile Scores (each -4 to +4 vs same-index peers):")
+        lines.append("  Quintile Scores (each -4 to +4 vs same-index peers):")
         for part in score_parts:
             lines.append(f"    {part}")
 
@@ -120,26 +120,26 @@ def build_anjali_context(enrichment: dict | None) -> str:
     if irs_pct is not None:
         irs_parts.append(f"IRS%: {irs_pct}%")
     if irs_parts:
-        lines.append(f"  Investment Readiness Score (IRS):")
+        lines.append("  Investment Readiness Score (IRS):")
         for part in irs_parts:
             lines.append(f"    {part}")
         # Interpret IRS thresholds
         if irs_pct is not None:
             if irs_pct > 65:
-                lines.append(f"    → STRONG BUY candidate (IRS% > 65%)")
+                lines.append("    → STRONG BUY candidate (IRS% > 65%)")
             elif irs_pct >= 45:
-                lines.append(f"    → MODERATE — watchlist candidate (IRS% 45-65%)")
+                lines.append("    → MODERATE — watchlist candidate (IRS% 45-65%)")
             elif irs_pct >= 30:
-                lines.append(f"    → WEAK — avoid or sell (IRS% 30-45%)")
+                lines.append("    → WEAK — avoid or sell (IRS% 30-45%)")
             else:
-                lines.append(f"    → VERY WEAK — sell signal (IRS% < 30%)")
+                lines.append("    → VERY WEAK — sell signal (IRS% < 30%)")
         # Sell signals
         if g_score is not None and g_score < -4:
-            lines.append(f"    ⚠ SELL SIGNAL: G Score < -4 (deeply negative fundamental conviction)")
+            lines.append("    ⚠ SELL SIGNAL: G Score < -4 (deeply negative fundamental conviction)")
         if risk_eff is not None and risk_eff < -3.5:
-            lines.append(f"    ⚠ SELL SIGNAL: Risk Eff Score < -3.5 (deeply negative risk-adjusted)")
+            lines.append("    ⚠ SELL SIGNAL: Risk Eff Score < -3.5 (deeply negative risk-adjusted)")
         if g_score is not None and g_score < -0.5:
-            lines.append(f"    ⚠ NEUTRAL ZONE: G Score < -0.5 — may take significant time to show returns")
+            lines.append("    ⚠ NEUTRAL ZONE: G Score < -0.5 — may take significant time to show returns")
 
     # Mining & Metals exclusion for India
     if market == "IN" and sector and sector.lower() in ("mining", "metals", "mining & metals"):

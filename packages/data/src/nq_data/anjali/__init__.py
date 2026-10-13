@@ -54,7 +54,7 @@ def __getattr__(name: str):
         return SCORE_MAP
     if name == "COLOR_HEX_MAP":
         from .scorer import COLOR_HEX_MAP
-        return COLOR_MAP
+        return COLOR_HEX_MAP
     if name == "hex_to_quintile":
         from .scorer import hex_to_quintile
         return hex_to_quintile

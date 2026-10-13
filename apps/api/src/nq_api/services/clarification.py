@@ -139,7 +139,6 @@ def _generate_clarification_questions(
     price = ctx.get("price")
     consensus = ctx.get("analyst_consensus", "").lower() if ctx.get("analyst_consensus") else None
     buy_pct = ctx.get("analyst_buy_pct")
-    target = ctx.get("analyst_target")
     div_yield = ctx.get("dividend_yield")
     earnings_date = ctx.get("next_earnings_date")
     pe = ctx.get("pe")

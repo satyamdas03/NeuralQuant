@@ -28,7 +28,7 @@ def auth_stats(user: User = Depends(get_current_user)):
             method="GET",
             query={"select": "id,email,tier,created_at", "order": "created_at.desc", "limit": "100"},
         )
-    except Exception as e:
+    except Exception:
         logger.exception("Failed to fetch user stats")
         users = []
 

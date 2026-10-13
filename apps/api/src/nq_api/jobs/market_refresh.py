@@ -150,7 +150,6 @@ def _fetch_yf_batch(tickers: list[str], market: str) -> dict[str, dict]:
             close = hist["Close"]
             for t, sym in zip(tickers, syms):
                 try:
-                    col = sym if len(syms) > 1 else "Close"
                     if len(syms) > 1 and sym in close.columns:
                         vals = close[sym].dropna()
                     elif len(syms) == 1:

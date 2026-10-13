@@ -697,7 +697,6 @@ def run_historical_backtest(
         freq="ME"
     )
 
-    strat = next((s for s in TRADE_STRATEGIES if s["id"] == req.strategy_id), TRADE_STRATEGIES[0])
     cash = req.initial_capital
     positions: dict[str, float] = {}  # ticker -> shares
     equity_curve: list[dict] = []

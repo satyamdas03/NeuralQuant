@@ -194,7 +194,7 @@ class FMPClient:
         Uses /stable/historical-price-eod/full endpoint.
         If from_date/to_date omitted, computed from `days` lookback.
         """
-        from datetime import datetime, timedelta
+        from datetime import timedelta
         if to_date is None:
             to_date = datetime.now().strftime("%Y-%m-%d")
         if from_date is None:
@@ -271,7 +271,6 @@ class FMPClient:
         # Use direction-specific endpoint path, but cache under movers category
         url = f"{self.BASE_URL}/{endpoint}"
         params = {"apikey": self._api_key}
-        cache_key = f"movers:__movers_{direction}__"
         # Check cache first
         cached = self._cache_get("movers", f"__movers_{direction}__")
         if cached is not None:

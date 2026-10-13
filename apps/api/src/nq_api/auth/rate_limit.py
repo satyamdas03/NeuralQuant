@@ -113,7 +113,7 @@ def _usage_rest(
     except httpx.HTTPStatusError as exc:
         log.warning("usage_log %s -> %s: %s", method, exc.response.status_code, exc.response.text[:200])
         raise
-    except Exception as exc:
+    except Exception:
         log.exception("usage_log %s failed", method)
         raise
 

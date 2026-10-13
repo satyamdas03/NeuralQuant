@@ -589,7 +589,8 @@ def health():
 async def health_smoke(x_cron_secret: str | None = Header(default=None)):
     """Deep health check — tests all critical dependencies in parallel.
     Protected by CRON_SECRET header (same as /cron/* endpoints)."""
-    import os, time
+    import os
+    import time
     from datetime import datetime, timezone
 
     _secret = os.environ.get("CRON_SECRET", "")
@@ -703,7 +704,7 @@ async def health_smoke(x_cron_secret: str | None = Header(default=None)):
 
     async def _check_stock_snapshot():
         from nq_api.cache.score_cache import _supabase_rest
-        data = await asyncio.to_thread(
+        _ = await asyncio.to_thread(
             _supabase_rest, "stock_snapshot", "GET",
             {"select": "id", "limit": "0"},
         )

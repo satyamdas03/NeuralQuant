@@ -95,8 +95,6 @@ def _generate_report_via_claude(
         log.warning("No ANTHROPIC_API_KEY — generating basic report without Claude")
         return _fallback_report(user_name, duration_minutes, activity_count)
 
-    greeting_name = user_name or "there"
-
     prompt = f"""You are writing a post-session summary for a user of NeuralQuant, an AI-powered stock analysis platform.
 
 The user just finished a {duration_minutes}-minute session. Here is everything they did:
@@ -153,11 +151,9 @@ IMPORTANT RULES:
 
         # Extract subject (first line, remove SUBJECT: prefix)
         lines = full_text.strip().split("\n")
-        subject = "Your NeuralQuant Session Summary"
         body_start = 0
 
         if lines and lines[0].upper().startswith("SUBJECT:"):
-            subject = lines[0].split(":", 1)[1].strip().strip('"')
             body_start = 1
 
         # Skip blank lines after subject

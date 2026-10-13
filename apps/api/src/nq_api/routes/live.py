@@ -400,7 +400,7 @@ async def _place_alpaca_order(symbol: str, qty: float, side: str = "buy") -> dic
             place_market_order, config, symbol, int(qty), side, "market", "day"
         )
         return {"id": result.get("id", "") if result else "", "symbol": symbol, "qty": qty, "side": side}
-    except Exception as exc:
+    except Exception:
         log.exception("Alpaca order failed")
         raise
 

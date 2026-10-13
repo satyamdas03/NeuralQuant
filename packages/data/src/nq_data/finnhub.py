@@ -390,7 +390,6 @@ class FinnhubClient:
 
             pos = sum(1 for s in sentiments if s == "positive")
             neg = sum(1 for s in sentiments if s == "negative")
-            neu = sum(1 for s in sentiments if s == "neutral")
             total = len(sentiments)
 
             bullish = pos / total if total else 0

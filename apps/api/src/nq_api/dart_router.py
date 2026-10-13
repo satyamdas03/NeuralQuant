@@ -533,7 +533,7 @@ def _inject_peer_fundamentals(context: dict, primary_ticker: str, market: str) -
     # ── Phase 1: FMP industry-based stock peers ──
     fmp_peers: list[str] = []
     try:
-        fmp = _get_fmp_client()
+        fmp = _get_fmp()
         if fmp._enabled:
             raw_peers = fmp.get_stock_peers(primary_ticker)
             if raw_peers:

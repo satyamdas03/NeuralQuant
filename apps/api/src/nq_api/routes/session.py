@@ -73,7 +73,8 @@ def _guest_id(request: Request) -> str:
     ip = forwarded.split(",")[0].strip() if forwarded else (
         request.client.host if request.client else "unknown"
     )
-    import hashlib, uuid
+    import hashlib
+    import uuid
     return str(uuid.uuid5(uuid.NAMESPACE_DNS, f"guest-{ip}"))
 
 

@@ -58,7 +58,7 @@ def _rest(
     except httpx.HTTPStatusError as exc:
         logger.warning("PostgREST %s %s -> %s: %s", method, table, exc.response.status_code, exc.response.text[:200])
         raise
-    except Exception as exc:
+    except Exception:
         logger.exception("PostgREST %s %s failed", method, table)
         raise
 

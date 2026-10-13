@@ -270,7 +270,7 @@ async def run_nl_query(
             follow_up_questions=[],
             route="REACT",
         )
-    except Exception as exc:
+    except Exception:
         return QueryResponse(
             answer="An error occurred while processing your query. Please try again.",
             data_sources=[],
@@ -863,7 +863,6 @@ async def run_nl_query_v2_stream(
         stream_ticker = req.ticker
         stream_market = req.market or "US"
         # India keyword detection — runs regardless of ticker presence
-        from nq_api.services.constants import _INDIA_KEYWORDS
         _q_upper = req.question.upper()
         _has_india_signal = any(k in _q_upper for k in _INDIA_KEYWORDS)
         if _has_india_signal and not req.market:

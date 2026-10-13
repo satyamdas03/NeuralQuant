@@ -81,7 +81,6 @@ def _select_stocks(test_type: str, top_n: int = 10) -> list[dict]:
             "select": "ticker,market,sector,g_score,risk_score,irs_pct,"
                        "growth_score,dii_quarter,fii_quarter,pe_ratio",
             "market": "eq.IN",
-            "irs_pct": "not.is.null",
             "growth_score": "gt.0",
             "risk_score": "gt.0",
             "dii_quarter": "gt.0",
@@ -96,7 +95,6 @@ def _select_stocks(test_type: str, top_n: int = 10) -> list[dict]:
             "select": "ticker,market,sector,g_score,risk_score,irs_pct,"
                        "growth_score,dii_quarter,fii_quarter,pe_ratio",
             "market": "eq.IN",
-            "irs_pct": "not.is.null",
             "growth_score": "gt.0",
             "risk_score": "gt.0",
             "fii_quarter": "gt.0",

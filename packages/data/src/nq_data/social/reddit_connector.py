@@ -38,11 +38,9 @@ class RedditConnector:
                     for post in posts:
                         d = post.get("data", {})
                         title = d.get("title", "")
-                        score = d.get("score", 0)
                         mentioned = _TICKER_RE.findall(title.upper())
                         title_lower = title.lower()
                         is_bullish = any(w in title_lower for w in _POS_WORDS)
-                        is_bearish = any(w in title_lower for w in _NEG_WORDS)
                         for t in mentioned:
                             if t not in tickers and f"{t}.NS" not in tickers:
                                 continue

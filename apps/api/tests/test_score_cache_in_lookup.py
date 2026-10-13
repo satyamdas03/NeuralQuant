@@ -13,7 +13,6 @@ def _make_supabase_rest(rows):
         if method != "GET" or table != "score_cache":
             return None
         wanted = query.get("ticker", "").replace("eq.", "")
-        cutoff = query.get("computed_at", "").replace("gte.", "")
         for row in rows:
             if row["ticker"] == wanted:
                 # Fake freshness by returning the row regardless of cutoff.

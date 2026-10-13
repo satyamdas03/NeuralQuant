@@ -1,11 +1,11 @@
-name: Lint
+name: CI
 
 on:
   pull_request:
     branches: [master]
 
 concurrency:
-  group: lint-${{ github.ref }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -28,7 +28,7 @@ jobs:
         run: uv sync --frozen
 
       - name: Ruff check
-        run: uv run ruff check packages/ apps/api/ --exit-zero
+        run: uv run ruff check packages/ apps/api/
 
       - uses: actions/setup-node@v4
         with:
@@ -41,3 +41,24 @@ jobs:
           cd apps/web
           npm ci
           npx eslint .
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-local-path: .uv-cache
+
+      - name: Install Python dependencies
+        run: uv sync --frozen
+
+      - name: Run pytest
+        run: uv run pytest

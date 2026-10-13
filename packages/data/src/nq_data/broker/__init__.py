@@ -126,7 +126,7 @@ def place_market_order(
         return {"error": str(e)}
 
 
-def deep_link_trade(symbol: str, side: str, broker: str = "alpaca") -> str:
+def deep_link_trade(symbol: str, side: str, broker_name: str = "alpaca") -> str:
     """
     Generate deep-link URL to pre-fill trade in broker app.
     Opens broker's trade ticket with symbol pre-filled.
@@ -134,9 +134,9 @@ def deep_link_trade(symbol: str, side: str, broker: str = "alpaca") -> str:
     """
     alpaca_dashboard = os.environ.get("ALPACA_DASHBOARD_URL", "https://app.alpaca.markets/trade/{symbol}")
     zerodha_trade = os.environ.get("ZERODHA_TRADE_URL", "https://kite.zerodha.com/chart/web/trade/{symbol}")
-    if broker == "alpaca":
+    if broker_name == "alpaca":
         return alpaca_dashboard.format(symbol=symbol.upper())
-    elif broker == "zerodha":
+    elif broker_name == "zerodha":
         return zerodha_trade.format(symbol=symbol)
     return alpaca_dashboard.format(symbol=symbol.upper())
 
