@@ -25,7 +25,7 @@ Allowed values for each item: `NOT STARTED` / `IN PROGRESS` / `MERGED-NOT-DEPLOY
 | S6 | Secret scan table; rotation by Satyam | F-24 | **MERGED-NOT-DEPLOYED** (docs-only; no deploy needed) | `a0b876e` | N/A | `docs/verify/evidence/secret_scan_2026-10-13.md`. No secret values printed. Owner rotation pending. |
 | S7 | Upgrade runtime deps; re-audit | F-16 | NOT STARTED | — | — | — |
 | S8 | `secrets.compare_digest`, fail-closed empty `CRON_SECRET` | F-10, F-23 | **MERGED** | `7f7430a` | 209 passed, 11 warnings | `/cron/*` and `/health/smoke` now use `require_admin_or_cron`; `SMOKE_TEST_SECRET` bypass uses `secrets.compare_digest`. Regression tests: 10 new cases. Live verification blocked by Render 503. |
-| S9a | Freeze Hermes page | F-06 | **MERGED** | `TBD` | 209 passed, web build clean | Removed Hermes from `SideNavBar` and `MobileDrawer`; `/hermes` layout now `noindex` with archive title/description; added freeze banner on the page. Live deploy pending Render recovery. |
+| S9a | Freeze Hermes page | F-06 | **MERGED** | `9140812` | 209 passed, web build clean | Removed Hermes from `SideNavBar` and `MobileDrawer`; `/hermes` layout now `noindex` with archive title/description; added freeze banner on the page. Live deploy pending Render recovery. |
 | S9b | Guest LiveKit budget / pause voice | F-22 | NOT STARTED | — | — | — |
 | S9c | Remaining medium/low security items | F-09, F-12, F-13, F-15, F-17, F-18, F-21 | NOT STARTED | — | — | — |
 
