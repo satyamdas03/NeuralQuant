@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "apps/web/src/components/layout/SideNavBar.tsx"
+        ],
+        "createdAt": "2026-10-13T01:41:17.430Z",
+        "reason": "Existing intentional active-state nav affordance from before this session; consistent with MobileDrawer.tsx"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "apps/web/src/components/layout/MobileDrawer.tsx"
+        ],
+        "createdAt": "2026-10-13T01:41:20.990Z",
+        "reason": "Existing intentional active-state nav affordance from before this session; consistent with SideNavBar.tsx"
+      }
+    ]
+  }
+}

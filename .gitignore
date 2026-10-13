@@ -45,6 +45,9 @@ smoke_report.json
 docx_extract.txt
 extract_docx.py
 
+# impeccable detector cache (config.json is tracked)
+.impeccable/hook.cache.json
+
 # local environment files (examples are tracked)
 apps/api/.env
 apps/web/.env.local
