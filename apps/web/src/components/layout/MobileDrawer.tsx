@@ -13,7 +13,6 @@ import {
   LogIn,
   LogOut,
   X,
-  Bot,
   TrendingUp,
 } from "lucide-react";
 
@@ -22,7 +21,6 @@ const NAV = [
   { href: "/news", label: "NewsDesk", icon: Newspaper },
   { href: "/screener", label: "Screener", icon: ScanSearch },
   { href: "/query", label: "Ask Morgan", icon: MessageSquareText },
-  { href: "/hermes", label: "Live Trading", icon: Bot, beta: true },
   { href: "/trade", label: "Trade Signals", icon: TrendingUp, beta: true },
   { href: "/watchlist", label: "Watchlist", icon: Star },
 ];

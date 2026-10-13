@@ -13,7 +13,6 @@ import {
   LogIn,
   LogOut,
   PieChart,
-  Bot,
   TrendingUp,
 } from "lucide-react";
 
@@ -23,7 +22,6 @@ const NAV = [
   { href: "/screener", label: "Screener", icon: ScanSearch },
   { href: "/query", label: "Ask Morgan", icon: MessageSquareText },
   { href: "/portfolio", label: "Portfolio", icon: PieChart },
-  { href: "/hermes", label: "Live Trading", icon: Bot, beta: true },
   { href: "/trade", label: "Trade Signals", icon: TrendingUp, beta: true },
   { href: "/watchlist", label: "Watchlist", icon: Star },
 ];

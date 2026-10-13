@@ -113,10 +113,16 @@ export default function HermesPage() {
 
   return (
     <div className="flex flex-col gap-5 p-4 md:p-6 max-w-[1400px] mx-auto">
+      {/* Freeze banner */}
+      <div className="rounded border border-amber-400/40 bg-amber-400/10 p-3 text-sm text-amber-100">
+        <strong>Internal archive:</strong> The Hermes live-trading page is frozen.
+        No new trades or P&L are displayed. Nothing here is investment advice.
+      </div>
+
       {/* Header */}
       <div className="flex flex-wrap items-center gap-3">
         <Bot size={20} className="text-primary-fixed" />
-        <h1 className="font-mono text-sm font-bold tracking-[0.2em] uppercase">Live Trading — Hermes Agent</h1>
+        <h1 className="font-mono text-sm font-bold tracking-[0.2em] uppercase">Hermes Agent — Frozen</h1>
         <span className={`flex items-center gap-1.5 font-mono text-[10px] font-bold tracking-widest px-2 py-1 border ${
           live ? "text-primary-fixed border-primary-fixed/40" : "text-amber-400 border-amber-400/40"
         }`}>
