@@ -22,7 +22,7 @@ Allowed values for each item: `NOT STARTED` / `IN PROGRESS` / `MERGED-NOT-DEPLOY
 | S3 | India freshness: stale from `cached_at`, badge/refuse | F-01, F-14 | NOT STARTED | — | — | — |
 | S4 | Ask AI blank summary → 502; length/history caps; prompt fence | F-03, F-04 | NOT STARTED | — | — | — |
 | S5 | CI runs full pytest; remove `--exit-zero` | F-19 | NOT STARTED | — | — | — |
-| S6 | Secret scan table; rotation by Satyam | F-24 | NOT STARTED | — | — | — |
+| S6 | Secret scan table; rotation by Satyam | F-24 | **MERGED-NOT-DEPLOYED** (docs-only; no deploy needed) | `a0b876e` | N/A | `docs/verify/evidence/secret_scan_2026-10-13.md`. No secret values printed. Owner rotation pending. |
 | S7 | Upgrade runtime deps; re-audit | F-16 | NOT STARTED | — | — | — |
 | S8 | `secrets.compare_digest`, fail-closed empty `CRON_SECRET` | F-10, F-23 | IN PROGRESS (covered by S1 for routes; remaining cron/smoke gates) | — | — | — |
 | S9a | Freeze Hermes page | F-06 | NOT STARTED | — | — | — |
