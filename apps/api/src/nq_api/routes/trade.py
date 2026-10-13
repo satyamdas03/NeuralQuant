@@ -19,7 +19,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from nq_api.auth.deps import get_current_user
+from nq_api.auth.deps import get_current_user, require_admin_or_cron
 from nq_api.auth.models import User
 
 from nq_api.cache import score_cache
@@ -651,9 +651,15 @@ class BacktestRequest(BaseModel):
 
 
 @router.post("/backtest")
-def run_historical_backtest(req: BacktestRequest) -> dict:
+def run_historical_backtest(
+    req: BacktestRequest,
+    _admin_or_cron: User | None = Depends(require_admin_or_cron),
+) -> dict:
     """Run multi-year historical backtest using FMP EOD data + composite scoring.
-    Monthly rebalancing across top 50 stocks. Returns equity curve, trades, metrics."""
+    Monthly rebalancing across top 50 stocks. Returns equity curve, trades, metrics.
+
+    Requires admin JWT or Bearer CRON_SECRET.
+    """
     import pandas as pd
     from datetime import datetime, timedelta
     from nq_data.fmp import get_fmp_client

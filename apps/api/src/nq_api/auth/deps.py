@@ -234,3 +234,23 @@ def get_current_user_smoke(
         )
     # No smoke secret match — require normal auth
     return get_current_user(authorization=authorization)
+
+
+def require_admin_or_cron(
+    authorization: str | None = Header(default=None),
+) -> User | None:
+    """Gate internal/automated endpoints: either a valid admin JWT or the
+    CRON_SECRET bearer. Fail-closed: empty/unset CRON_SECRET never authorizes.
+
+    Returns None for cron-automated calls; returns the User for admin JWTs.
+    Raises 401 otherwise."""
+    secret = os.environ.get("CRON_SECRET", "")
+    token = _extract_bearer(authorization)
+
+    if secret and token and secrets.compare_digest(token, secret):
+        return None  # authorized automation
+
+    # No valid cron secret — require an admin JWT
+    user = get_current_user(authorization)
+    require_admin(user)
+    return user

@@ -16,7 +16,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends
 
-from nq_api.auth.deps import get_current_user
+from nq_api.auth.deps import get_current_user, require_admin_or_cron
 from nq_api.auth.models import User
 
 from nq_api.cache import score_cache
@@ -73,11 +73,14 @@ def _get_signals_from_scores(
 async def classify_news(
     market: str = "US",
     top_n: int = 10,
+    _admin_or_cron: User | None = Depends(require_admin_or_cron),
 ) -> dict:
     """Run news classification pipeline for top-scored tickers.
 
     Fetches headlines from Finnhub + StockTwits, classifies via Claude,
     stores to Supabase news_classifications table.
+
+    Requires admin JWT or Bearer CRON_SECRET.
     """
     tickers = UNIVERSE_BY_MARKET.get(market, UNIVERSE_BY_MARKET["US"])
     if not tickers:
