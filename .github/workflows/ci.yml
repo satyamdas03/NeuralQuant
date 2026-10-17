@@ -1,6 +1,8 @@
 name: CI
 
 on:
+  push:
+    branches: [master]
   pull_request:
     branches: [master]
 
@@ -60,5 +62,14 @@ jobs:
       - name: Install Python dependencies
         run: uv sync --frozen
 
-      - name: Run pytest
-        run: uv run pytest
+      # Full suite = five directories (229 tests on 2026-10-18). Root
+      # testpaths only covers apps/api/tests + packages (209), so name them.
+      - name: Run pytest (full suite)
+        run: >-
+          uv run python -m pytest
+          apps/api/tests
+          packages/data
+          packages/signals
+          apps/livekit-agent/tests
+          scripts/backtest/tests
+          -q --tb=short

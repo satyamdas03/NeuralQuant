@@ -55,8 +55,15 @@ def _mock_context():
     )
 
 
-def test_v2_blank_summary_returns_502(client):
+# Obviously fake, low-entropy placeholder. The route returns 200 "service
+# unavailable" before the mocked LLM call when no key is set, so these tests
+# need a key present; the LLM call itself is always mocked.
+_DUMMY_KEY = "test-dummy-key"
+
+
+def test_v2_blank_summary_returns_502(client, monkeypatch):
     """F-03: a structured response with empty summary must fail closed as 502."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", _DUMMY_KEY)
     tool_input = {
         "verdict": "HOLD",
         "confidence": 50,
@@ -88,8 +95,9 @@ def test_v2_long_question_rejected(client):
     assert resp.status_code == 422
 
 
-def test_v2_user_question_wrapped_in_fence(client):
+def test_v2_user_question_wrapped_in_fence(client, monkeypatch):
     """F-04: the user question is wrapped in <user-query> tags before the LLM."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", _DUMMY_KEY)
     captured = {}
 
     async def _capture_call(*args, **kwargs):
