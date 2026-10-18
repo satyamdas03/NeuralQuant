@@ -24,14 +24,17 @@ Demo set: none (`DEMO_MODE=true`).
 
 Fixed run-rate ≈ **$51/week** all-in (detail: EMERGENCY_SHUTDOWN_RESUME_PLAN.md).
 
-## Render services (render.yaml)
+## Render services (as listed by the Render API, 2026-10-18)
 
 | Service | Type | Plan | Purpose |
 |---|---|---|---|
-| nq-api | web | Pro | FastAPI backend (also runs the in-process scheduler) |
-| nq-openbb | web | Standard | OpenBB Platform proxy (Terminal) |
-| nq-trader | worker | Starter | trading daemon (paper) |
-| quantastra-agent | worker | Standard | LiveKit voice agent |
+| NeuralQuant (`srv-d7a5pnchg0os73b9q2ag`, neuralquant.onrender.com) | web | Starter | FastAPI backend (also runs the in-process scheduler). `render.yaml` calls it `nq-api`; the live service name differs. autoDeploy was switched off by a rollback on 2026-09-03 |
+| nq-openbb | web | Starter | OpenBB Platform proxy (Terminal) |
+| nq-trader | worker (dashboard-created, not in the blueprint) | Starter | trading daemon (paper); autoDeploy on master |
+| quantastra-agent | worker (dashboard-created, not in the blueprint) | Standard | LiveKit voice agent; autoDeploy on master |
+
+Hermes runs on the GCP e2-micro VM (`infra/gcp/hermes.service`), not on Render.
+The public `/hermes` web page and API proxy were removed on 2026-10-18 (T8).
 
 Scheduled jobs run **in-process** inside `nq-api` (see
 `apps/api/src/nq_api/routes/cron.py`). The scheduler wakes at **02:00, 02:30,

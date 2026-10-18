@@ -26,7 +26,6 @@ function pageInfoFor(pathname: string): PageInfo {
   const map: Record<string, string> = {
     "/dashboard": "dashboard",
     "/portfolio": "portfolio",
-    "/hermes": "hermes_live_trading",
     "/analytics": "analytics",
     "/performance": "performance",
     "/compare": "compare",
