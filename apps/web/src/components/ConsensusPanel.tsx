@@ -1,5 +1,6 @@
 "use client";
 
+import { neutralBand } from "@/lib/neutralLabels";
 import { useState, useEffect } from "react";
 import type { OptionsSnapshot, StockMeta, Market } from "@/lib/types";
 import { api } from "@/lib/api";
@@ -38,7 +39,7 @@ function ConsensusBadge({ consensus }: { consensus: string | null }) {
   if (!consensus) return <span className="text-on-surface-variant">—</span>;
   const key = consensus.toLowerCase().replace(/\s+/g, "_");
   const color = CONSENSUS_COLORS[key] || "bg-surface-high text-on-surface";
-  const label = consensus.replace(/_/g, " ").toUpperCase();
+  const label = neutralBand(consensus);
   return (
     <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-bold uppercase ${color}`}>
       {label}

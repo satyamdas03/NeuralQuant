@@ -1,6 +1,7 @@
 "use client";
 
 import type { StockSummary, QuantFactorScores } from "@/lib/types";
+import { irsBand, LOW_G_SCORE_FLAG } from "@/lib/neutralLabels";
 
 type Props = { summary: StockSummary };
 
@@ -55,10 +56,7 @@ function quintileColor(score: number | null | undefined): string {
 
 function QuantFactorRow({ scores }: { scores: QuantFactorScores }) {
   const irsPct = scores.irs_pct;
-  const irsZone = irsPct == null ? null
-    : irsPct >= 65 ? "INVESTMENT READY"
-    : irsPct >= 45 ? "CAUTION"
-    : "AVOID";
+  const irsZone = irsPct == null ? null : irsBand(irsPct);
   const irsColor = irsPct == null ? ""
     : irsPct >= 65 ? "text-primary-fixed"
     : irsPct >= 45 ? "text-amber-400"
@@ -111,7 +109,7 @@ function QuantFactorRow({ scores }: { scores: QuantFactorScores }) {
         )}
         {scores.g_score != null && scores.g_score < -4 && (
           <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-red-500/15 text-red-400 border border-red-500/30">
-            HARD SELL
+            {LOW_G_SCORE_FLAG}
           </span>
         )}
       </div>

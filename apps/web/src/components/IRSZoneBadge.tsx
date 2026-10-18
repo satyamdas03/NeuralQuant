@@ -1,6 +1,7 @@
 "use client";
 
 import type { QuantFactorScores } from "@/lib/types";
+import { irsBand, LOW_G_SCORE_FLAG } from "@/lib/neutralLabels";
 import Link from "next/link";
 
 interface IRSZoneBadgeProps {
@@ -13,9 +14,10 @@ interface IRSZoneBadgeProps {
 
 function irsZone(pct: number | null | undefined): { label: string; color: string; bg: string } {
   if (pct == null) return { label: "N/A", color: "text-on-surface-variant", bg: "bg-surface-container" };
-  if (pct >= 65) return { label: "INVESTMENT READY", color: "text-primary-fixed", bg: "bg-primary-fixed/15" };
-  if (pct >= 45) return { label: "CAUTION", color: "text-amber-400", bg: "bg-amber-500/15" };
-  return { label: "AVOID", color: "text-cyber-red", bg: "bg-red-500/15" };
+  const label = irsBand(pct);
+  if (label === "Upper band") return { label, color: "text-primary-fixed", bg: "bg-primary-fixed/15" };
+  if (label === "Middle band") return { label, color: "text-amber-400", bg: "bg-amber-500/15" };
+  return { label, color: "text-cyber-red", bg: "bg-red-500/15" };
 }
 
 function scoreBar(value: number | null, min: number, max: number, label: string, colorFn: (v: number) => string) {
@@ -139,7 +141,7 @@ export default function IRSZoneBadge({ scores, ticker, market = "US", compact = 
         )}
         {(gScore != null && gScore < -4) && (
           <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-red-500/15 text-red-400 border border-red-500/30">
-            HARD SELL
+            {LOW_G_SCORE_FLAG}
           </span>
         )}
       </div>

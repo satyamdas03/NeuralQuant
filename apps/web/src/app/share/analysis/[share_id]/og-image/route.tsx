@@ -1,3 +1,4 @@
+import { neutralBand } from "@/lib/neutralLabels";
 import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
 
@@ -34,10 +35,7 @@ export async function GET(
     verdict.includes("SELL") || verdict === "BEAR" ? "#ef4444" :
     "#eab308";
 
-  const verdictLabel =
-    verdict.includes("BUY") || verdict === "BULL" ? "BULL" :
-    verdict.includes("SELL") || verdict === "BEAR" ? "BEAR" :
-    "NEUTRAL";
+  const verdictLabel = neutralBand(verdict);
 
   return new ImageResponse(
     (

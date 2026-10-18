@@ -1,4 +1,5 @@
 "use client";
+import { neutralBand } from "@/lib/neutralLabels";
 import type { StockMeta } from "@/lib/types";
 import GhostBorderCard from "@/components/ui/GhostBorderCard";
 import { QuoteFreshnessBadge } from "@/components/QuoteFreshnessBadge";
@@ -24,7 +25,7 @@ function MetaItem({ label, value, color }: { label: string; value: string; color
 export function StockMetaBar({ meta, market = "US" }: { meta: StockMeta; market?: string }) {
   const rec = meta.analyst_recommendation?.toLowerCase() ?? "";
   const recColor = REC_COLORS[rec] ?? "text-on-surface";
-  const recLabel = rec.replace(/_/g, " ").toUpperCase() || "—";
+  const recLabel = rec ? neutralBand(rec) : "—";
   const cur = market === "IN" ? "₹" : "$";
 
   const items = [
@@ -50,7 +51,7 @@ export function StockMetaBar({ meta, market = "US" }: { meta: StockMeta; market?
   if (meta.analyst_consensus) {
     const ac = meta.analyst_consensus;
     const acColor = REC_COLORS[ac.toLowerCase()] ?? "text-on-surface";
-    extraItems.push({ label: "Analyst Consensus", value: ac.replace(/_/g, " ").toUpperCase(), color: acColor });
+    extraItems.push({ label: "Analyst Consensus", value: neutralBand(ac), color: acColor });
   }
   if (meta.analyst_count) {
     extraItems.push({ label: "Analysts", value: `${meta.analyst_count}` });

@@ -501,7 +501,7 @@ export default function MethodologyPage() {
                     IRS% Band
                   </th>
                   <th className="text-left py-3 px-4 font-mono text-[10px] font-bold tracking-[0.2em] uppercase text-text-muted">
-                    Verdict
+                    Research band
                   </th>
                   <th className="text-left py-3 px-4 font-mono text-[10px] font-bold tracking-[0.2em] uppercase text-text-muted">
                     Typical Profile
@@ -512,31 +512,31 @@ export default function MethodologyPage() {
                 {[
                   {
                     band: "80 – 100%",
-                    verdict: "Strong Buy",
+                    verdict: "Upper band (top)",
                     profile:
                       "High ROE, low beta, reasonable valuation, consistent FCF",
                   },
                   {
                     band: "65 – 79%",
-                    verdict: "Buy",
+                    verdict: "Upper band",
                     profile:
                       "Solid growth with manageable risk; sector leader or challenger",
                   },
                   {
                     band: "45 – 64%",
-                    verdict: "Hold / Watch",
+                    verdict: "Middle band",
                     profile:
                       "One factor is weak (e.g., high P/E or elevated leverage)",
                   },
                   {
                     band: "25 – 44%",
-                    verdict: "Avoid",
+                    verdict: "Lower band",
                     profile:
                       "Multiple red flags: low growth, high debt, or poor returns",
                   },
                   {
                     band: "0 – 24%",
-                    verdict: "Strong Avoid",
+                    verdict: "Lower band (bottom)",
                     profile:
                       "Distress signals, negative earnings, or extreme volatility",
                   },
@@ -780,16 +780,16 @@ export default function MethodologyPage() {
                     <thead>
                       <tr className="border-b" style={{ borderColor: "rgba(0, 255, 178, 0.15)" }}>
                         <th className="text-left py-2 font-mono text-[9px] font-bold tracking-wider uppercase text-text-muted">Consensus</th>
-                        <th className="text-left py-2 font-mono text-[9px] font-bold tracking-wider uppercase text-text-muted">Allowed Verdict</th>
+                        <th className="text-left py-2 font-mono text-[9px] font-bold tracking-wider uppercase text-text-muted">Allowed band</th>
                       </tr>
                     </thead>
                     <tbody>
                       {[
-                        ["> +0.5", "BUY or STRONG BUY"],
-                        ["+0.25 to +0.5", "HOLD or BUY"],
-                        ["-0.25 to +0.25", "HOLD"],
-                        ["-0.5 to -0.25", "SELL or HOLD"],
-                        ["< -0.5", "STRONG SELL or SELL"],
+                        ["> +0.5", "Upper band"],
+                        ["+0.25 to +0.5", "Upper or middle band"],
+                        ["-0.25 to +0.25", "Middle band"],
+                        ["-0.5 to -0.25", "Lower or middle band"],
+                        ["< -0.5", "Lower band"],
                       ].map(([range, verdict], i) => (
                         <tr key={i} className="border-b" style={{ borderColor: "rgba(0, 255, 178, 0.08)" }}>
                           <td className="py-2 font-mono text-text-primary">{range}</td>
@@ -804,9 +804,9 @@ export default function MethodologyPage() {
                   </h4>
                   <p className="text-xs text-text-muted leading-relaxed">
                     The <strong className="text-text-primary">Head Analyst</strong> receives all 6 agent outputs + verified raw data.
-                    It synthesizes a final verdict (STRONG BUY / BUY / HOLD / SELL / STRONG SELL)
+                    It synthesizes a final research band (upper / middle / lower)
                     with investment thesis, bull/bear cases, and risk factors.
-                    Verdict is <strong className="text-text-primary">clamped</strong> — cannot deviate more than
+                    The band is <strong className="text-text-primary">clamped</strong> — cannot deviate more than
                     1 tier from consensus guidance.
                   </p>
                 </div>

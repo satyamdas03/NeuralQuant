@@ -1,3 +1,4 @@
+import { neutralBand } from "@/lib/neutralLabels";
 import { ImageResponse } from "next/og";
 import { type NextRequest } from "next/server";
 
@@ -120,7 +121,7 @@ export default async function OGImage(request: NextRequest) {
               }}
             >
               <span style={{ fontSize: 28, fontWeight: 800, color: accentColor }}>
-                {verdict.replace("_", " ")}
+                {neutralBand(verdict)}
               </span>
             </div>
 

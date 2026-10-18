@@ -1,5 +1,6 @@
 "use client";
 
+import { neutralBand } from "@/lib/neutralLabels";
 import { useEffect, useState } from "react";
 import { Check, Loader2, BrainCircuit } from "lucide-react";
 
@@ -82,7 +83,7 @@ export default function DebateProgressPanel({ state }: { state: DebateState }) {
 
       {done && state.verdict && (
         <p className="mt-3 text-center text-sm font-bold text-primary-fixed">
-          {state.verdict}
+          {neutralBand(state.verdict)}
           {state.consensusScore != null && (
             <span className="ml-2 font-mono text-xs text-on-surface-variant">
               consensus {state.consensusScore}
