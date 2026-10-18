@@ -543,8 +543,10 @@ app.include_router(astra_portfolio_router)
 app.include_router(mobile_router)
 app.include_router(testing_router)
 
-from nq_api.routes.hermes import router as hermes_router  # noqa: E402
-app.include_router(hermes_router)
+# Hermes proxy unmounted 2026-10-18 (T8 / F-06): the public /hermes page was
+# removed and the proxy served live paper-trading state to anyone. The Hermes
+# agent itself keeps running on the GCP VM. routes/hermes.py is kept so the
+# proxy can be re-mounted behind auth if needed.
 
 
 @app.get("/health")
