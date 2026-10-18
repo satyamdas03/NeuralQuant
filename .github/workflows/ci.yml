@@ -44,6 +44,11 @@ jobs:
           npm ci
           npx eslint .
 
+      - name: Test — web
+        run: |
+          cd apps/web
+          npm test
+
   test:
     name: Test
     runs-on: ubuntu-latest

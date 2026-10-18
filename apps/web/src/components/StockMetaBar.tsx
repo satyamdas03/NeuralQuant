@@ -1,6 +1,7 @@
 "use client";
 import type { StockMeta } from "@/lib/types";
 import GhostBorderCard from "@/components/ui/GhostBorderCard";
+import { QuoteFreshnessBadge } from "@/components/QuoteFreshnessBadge";
 
 const REC_COLORS: Record<string, string> = {
   "strong_buy": "text-tertiary",
@@ -69,6 +70,9 @@ export function StockMetaBar({ meta, market = "US" }: { meta: StockMeta; market?
 
   return (
     <GhostBorderCard>
+      <div className="mb-3 empty:hidden">
+        <QuoteFreshnessBadge stale={meta.stale} quoteStatus={meta.quote_status} asOf={meta.cached_at} />
+      </div>
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-x-6 gap-y-3">
         {items.map(({ label, value, color }) => (
           <MetaItem key={label} label={label} value={value} color={color} />
