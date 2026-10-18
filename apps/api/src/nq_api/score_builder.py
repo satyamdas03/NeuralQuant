@@ -203,7 +203,20 @@ def _resolve_display_name(ticker: str, market: str, candidate: str | None = None
     return None
 
 
-def row_to_ai_score(row: pd.Series, market: str, score_1_10_override: int | None = None) -> AIScore:
+def _data_time(computed_at) -> str:
+    if computed_at is None or (isinstance(computed_at, float) and computed_at != computed_at) or str(computed_at) in {"", "nan", "NaT"}:
+        return datetime.now(timezone.utc).isoformat()
+    return str(computed_at)
+
+
+def row_to_ai_score(
+    row: pd.Series,
+    market: str,
+    score_1_10_override: int | None = None,
+    quote: dict | None = None,
+) -> AIScore:
+    """Build an AIScore. `quote` is the resolved quote from
+    nq_api.quote_freshness.resolve_in_quote when the caller has one."""
     regime_id = int(row.get("regime_id", 1) or 1)
     composite = _safe_float(row.get("composite_score", 0.0), 0.0)
 
@@ -259,7 +272,9 @@ def row_to_ai_score(row: pd.Series, market: str, score_1_10_override: int | None
         ),
         top_drivers=build_top_drivers(row),
         confidence=_confidence(row),
-        last_updated=datetime.now(timezone.utc).isoformat(),
+        # Data time of the score row, not the request clock (F-01). Only rows
+        # computed live in this request (no computed_at) use now.
+        last_updated=_data_time(row.get("computed_at")),
         anjali=anjali_scores,
         quantfactor=anjali_scores,
         name=_resolve_display_name(str(row["ticker"]), market, row.get("long_name")),
@@ -268,4 +283,7 @@ def row_to_ai_score(row: pd.Series, market: str, score_1_10_override: int | None
         pe_ttm=_safe_opt_float(row.get("pe_ttm")),
         market_cap=_safe_opt_float(row.get("market_cap")),
         sector=str(row.get("sector")) if row.get("sector") and str(row.get("sector")) != "nan" else None,
+        stale=quote.get("stale") if quote else None,
+        quote_status=quote.get("quote_status") if quote else None,
+        price_as_of=quote.get("cached_at") if quote else None,
     )

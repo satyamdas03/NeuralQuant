@@ -56,6 +56,10 @@ class AIScore(BaseModel):
     pe_ttm: float | None = None
     market_cap: float | None = None
     sector: str | None = None
+    # Quote freshness (F-01). Set for IN; price fields are null when stale.
+    stale: bool | None = None
+    quote_status: str | None = None   # "ok" | "quote_stale"
+    price_as_of: str | None = None    # stock_snapshot cached_at behind current_price
 
 
 class ScreenerRequest(BaseModel):
