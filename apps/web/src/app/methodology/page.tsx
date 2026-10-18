@@ -11,8 +11,6 @@ import Link from "next/link";
 import {
   TrendingUp,
   ShieldAlert,
-  BarChart3,
-  Zap,
   Database,
   AlertTriangle,
   ArrowRight,
@@ -58,102 +56,6 @@ function useAnimatedSection(threshold = 0.12) {
   }, [threshold]);
 
   return { ref, visible };
-}
-
-/* ────────────────────────────
-   Metric counter card
-   ──────────────────────────── */
-function MetricCounterCard({
-  label,
-  value,
-  suffix = "",
-  prefix = "",
-  color = "primary",
-  animate,
-  subtext,
-  delay = 0,
-}: {
-  label: string;
-  value: number;
-  suffix?: string;
-  prefix?: string;
-  color?: "primary" | "secondary" | "tertiary" | "error" | "neutral";
-  animate: boolean;
-  subtext?: string;
-  delay?: number;
-}) {
-  const [display, setDisplay] = useState(0);
-  const raf = useRef<number | null>(null);
-  const hasAnimated = useRef(false);
-
-  const colorMap: Record<string, string> = {
-    primary: "var(--color-primary)",
-    secondary: "var(--color-secondary)",
-    tertiary: "var(--color-tertiary-fixed)",
-    error: "var(--color-cyber-red)",
-    neutral: "var(--color-text-muted)",
-  };
-
-  useEffect(() => {
-    if (!animate || hasAnimated.current) return;
-    hasAnimated.current = true;
-    const duration = 1500;
-    let start: number | null = null;
-
-    const tick = (ts: number) => {
-      if (start === null) start = ts;
-      const progress = Math.min((ts - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 4);
-      setDisplay(value * eased);
-      if (progress < 1) raf.current = requestAnimationFrame(tick);
-    };
-
-    const timer = setTimeout(() => {
-      raf.current = requestAnimationFrame(tick);
-    }, delay);
-
-    return () => {
-      clearTimeout(timer);
-      if (raf.current) cancelAnimationFrame(raf.current);
-    };
-  }, [animate, value, delay]);
-
-  const formatted =
-    value % 1 !== 0 ? display.toFixed(1) : Math.round(display).toString();
-  const c = colorMap[color];
-
-  return (
-    <div
-      className="relative flex flex-col items-center justify-center p-6 md:p-8 border"
-      style={{
-        background: "rgba(13, 20, 37, 0.7)",
-        backdropFilter: "blur(8px)",
-        WebkitBackdropFilter: "blur(8px)",
-        borderColor: "rgba(0, 255, 178, 0.15)",
-      }}
-    >
-      <div
-        className="absolute top-0 left-0 right-0 h-[2px]"
-        style={{ background: c }}
-      />
-      <span className="font-mono text-[10px] font-bold tracking-[0.2em] uppercase text-text-muted mb-3">
-        {label}
-      </span>
-      <div
-        className="font-headline text-4xl md:text-5xl font-bold tabular-nums tracking-tight"
-        style={{ color: c }}
-      >
-        {prefix}
-        {formatted}
-        {suffix}
-      </div>
-      {subtext && (
-        <span className="mt-2 font-mono text-[10px] text-text-muted tracking-wide">
-          {subtext}
-        </span>
-      )}
-    </div>
-  );
 }
 
 /* ────────────────────────────

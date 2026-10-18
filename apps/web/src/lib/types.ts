@@ -345,28 +345,6 @@ export interface TopStockItem {
   return_3m_pct?: number | null;
 }
 
-export interface AccuracyResponse {
-  hit_rate_at_7plus: number;
-  hit_rate_at_5plus: number;
-  baseline_hit_rate: number;
-  mean_return_top_decile: number;
-  mean_return_bottom_decile: number;
-  top_minus_bottom_spread: number;
-  sharpe_top_quartile: number;
-  max_drawdown_top_quartile: number;
-  win_rate_top_quartile: number;
-  observation_count: number;
-  period_start: string;
-  period_end: string;
-  avg_stocks_per_period: number;
-  methodology: string;
-  comparison: string;
-  note: string;
-  is_fallback?: boolean;
-  score_breakdown?: ScoreBreakdownItem[];
-  top_stocks_snapshot?: TopStockItem[];
-}
-
 // ── Structured Query Response (v2) ──────────────────────────────────────────
 
 export interface MetricItem {
