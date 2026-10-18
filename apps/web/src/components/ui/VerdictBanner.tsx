@@ -1,19 +1,21 @@
-const VERDICT_STYLES: Record<string, { bg: string; text: string; border: string }> = {
-  "STRONG BUY":  { bg: "bg-emerald-500/10", text: "text-emerald-400", border: "border-emerald-500/30" },
-  "BUY":         { bg: "bg-green-500/10",   text: "text-green-400",   border: "border-green-500/30" },
-  "HOLD":        { bg: "bg-amber-500/10",   text: "text-amber-400",   border: "border-amber-500/30" },
-  "SELL":        { bg: "bg-red-500/10",     text: "text-red-400",     border: "border-red-500/30" },
-  "STRONG SELL": { bg: "bg-red-600/10",     text: "text-red-500",     border: "border-red-600/30" },
+import { neutralBand, type NeutralBand } from "@/lib/neutralLabels";
+
+const BAND_STYLES: Record<NeutralBand, { bg: string; text: string; border: string }> = {
+  "Upper band":  { bg: "bg-green-500/10", text: "text-green-400",           border: "border-green-500/30" },
+  "Middle band": { bg: "bg-amber-500/10", text: "text-amber-400",           border: "border-amber-500/30" },
+  "Lower band":  { bg: "bg-red-500/10",   text: "text-red-400",             border: "border-red-500/30" },
+  "Unrated":     { bg: "bg-surface-container", text: "text-on-surface-variant", border: "border-outline-variant" },
 };
 
 type Props = { verdict: string; confidence: number; timeframe: string };
 
 export default function VerdictBanner({ verdict, confidence, timeframe }: Props) {
-  const style = VERDICT_STYLES[verdict] ?? VERDICT_STYLES["HOLD"];
+  const band = neutralBand(verdict);
+  const style = BAND_STYLES[band];
   return (
     <div className={`rounded-lg ${style.bg} border ${style.border} px-4 py-3 flex items-center justify-between flex-wrap gap-2`}>
       <div className="flex items-center gap-3">
-        <span className={`text-sm font-bold tracking-wide ${style.text}`}>{verdict}</span>
+        <span className={`text-sm font-bold tracking-wide ${style.text}`}>{band}</span>
         <span className="text-xs text-on-surface-variant">{timeframe}</span>
       </div>
       <div className="flex items-center gap-2">

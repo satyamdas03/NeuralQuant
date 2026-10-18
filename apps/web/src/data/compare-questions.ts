@@ -107,7 +107,7 @@ export const COMPARE_QUESTIONS: CompareQuestion[] = [
     category: "Multi-Agent Debate",
     responses: {
       neuralquant:
-        "PARA-DEBATE Verdict: HOLD. MACRO agent: Bullish (HY spreads tight, Fed dovish). FUNDAMENTAL agent: Neutral (IWM P/E 18x, mid-range). TECHNICAL agent: Bearish (below 50-day MA, RSI 42). SENTIMENT agent: Neutral (retail flows flat). GEOPOLITICAL agent: Cautious (tariff uncertainty). ADVERSARIAL agent: Challenges bullish case — small caps underperform in late-cycle. HEAD ANALYST: Mixed signals warrant caution. Regime is Risk-On but deteriorating. Wait for IWM to reclaim $220.",
+        "PARA-DEBATE band: Middle band. MACRO agent: Bullish (HY spreads tight, Fed dovish). FUNDAMENTAL agent: Neutral (IWM P/E 18x, mid-range). TECHNICAL agent: Bearish (below 50-day MA, RSI 42). SENTIMENT agent: Neutral (retail flows flat). GEOPOLITICAL agent: Cautious (tariff uncertainty). ADVERSARIAL agent: Challenges bullish case — small caps underperform in late-cycle. HEAD ANALYST: Mixed signals warrant caution. Regime is Risk-On but deteriorating.",
       chatgpt:
         "IWM (iShares Russell 2000 ETF) tracks small-cap US stocks. The decision to buy depends on your investment timeline, risk tolerance, and macro outlook. Small caps can outperform in economic recoveries but may struggle in high-rate environments. Consider dollar-cost averaging and diversification.",
       claude:

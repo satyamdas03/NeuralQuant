@@ -1,5 +1,6 @@
 "use client";
 
+import { neutralBand } from "@/lib/neutralLabels";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
@@ -130,7 +131,7 @@ export default function ShareAnalysisPage() {
             <VerdictIcon className={`h-8 w-8 ${verdictColor}`} />
           </div>
           <div className={`font-headline text-2xl font-bold ${verdictColor}`}>
-            {headVerdict}
+            {neutralBand(headVerdict)}
           </div>
           <div className="mt-2 text-4xl font-bold font-mono text-on-surface">
             {score.toFixed(1)}<span className="text-lg text-on-surface-variant">/10</span>

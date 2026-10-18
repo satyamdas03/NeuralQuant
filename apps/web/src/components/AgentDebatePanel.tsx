@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { neutralBand, type NeutralBand } from "@/lib/neutralLabels";
 import type { AgentOutput, AnalystResponse } from "@/lib/types";
 import GlassPanel from "@/components/ui/GlassPanel";
 
@@ -9,12 +10,11 @@ const STANCE_COLORS: Record<string, string> = {
   NEUTRAL: "text-on-surface-variant bg-surface-high ghost-border",
 };
 
-const VERDICT_COLORS: Record<string, string> = {
-  "STRONG BUY":  "text-primary-fixed bg-primary-fixed/20",
-  "BUY":         "text-primary-fixed bg-primary-fixed/10",
-  "HOLD":        "text-on-surface-variant bg-surface-high",
-  "SELL":        "text-cyber-red bg-cyber-red/10",
-  "STRONG SELL": "text-cyber-red bg-cyber-red/20",
+const BAND_COLORS: Record<NeutralBand, string> = {
+  "Upper band":  "text-primary-fixed bg-primary-fixed/10",
+  "Middle band": "text-on-surface-variant bg-surface-high",
+  "Lower band":  "text-cyber-red bg-cyber-red/10",
+  "Unrated":     "text-on-surface-variant bg-surface-high",
 };
 
 function AgentCard({ output }: { output: AgentOutput }) {
@@ -54,9 +54,9 @@ export function AgentDebatePanel({ report }: { report: AnalystResponse }) {
   return (
     <div className="space-y-4">
       <GlassPanel>
-        <p className="text-xs text-on-surface-variant uppercase tracking-wider mb-2">Head Analyst Verdict</p>
-        <div className={`inline-flex px-4 py-2 rounded-full text-lg font-bold mb-3 ${VERDICT_COLORS[report.head_analyst_verdict] ?? ""}`}>
-          {report.head_analyst_verdict}
+        <p className="text-xs text-on-surface-variant uppercase tracking-wider mb-2">Head Analyst Summary</p>
+        <div className={`inline-flex px-4 py-2 rounded-full text-lg font-bold mb-3 ${BAND_COLORS[neutralBand(report.head_analyst_verdict)]}`}>
+          {neutralBand(report.head_analyst_verdict)}
         </div>
         <p className="text-sm text-on-surface">{report.investment_thesis}</p>
       </GlassPanel>

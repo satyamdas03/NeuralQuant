@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { irsBand } from "@/lib/neutralLabels";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
@@ -40,9 +41,10 @@ function quintileLabel(score: number | null | undefined): string {
 }
 
 function irsZone(pct: number): { label: string; color: string; bg: string } {
-  if (pct >= 65) return { label: "INVESTMENT READY", color: "text-primary-fixed", bg: "bg-primary-fixed/15" };
-  if (pct >= 45) return { label: "CAUTION", color: "text-amber-400", bg: "bg-amber-500/15" };
-  return { label: "AVOID", color: "text-red-400", bg: "bg-red-500/15" };
+  const label = irsBand(pct);
+  if (label === "Upper band") return { label, color: "text-primary-fixed", bg: "bg-primary-fixed/15" };
+  if (label === "Middle band") return { label, color: "text-amber-400", bg: "bg-amber-500/15" };
+  return { label, color: "text-red-400", bg: "bg-red-500/15" };
 }
 
 export default function QuantFactorDetailPage() {
@@ -198,7 +200,7 @@ export default function QuantFactorDetailPage() {
           <p><strong>IRS%</strong> = ((G Score + Risk Efficiency Score + 20) / 40) × 100</p>
           <p><strong>G Score</strong> = Growth Score + Return Score + Valuation Score (range: -12 to +12)</p>
           <p><strong>Risk Efficiency Score</strong> = Risk Score × 2 (range: -8 to +8)</p>
-          <p className="mt-1"><strong>Sell Signal:</strong> G Score &lt; -4 or Risk Score &lt; -3.5 → HARD SELL</p>
+          <p className="mt-1"><strong>Low-score flag:</strong> G Score &lt; -4 or Risk Score &lt; -3.5 → flagged in the lower band</p>
           <p><strong>Caution Zone:</strong> G Score &lt; -0.5 → NEUTRAL (not investment ready)</p>
         </div>
       </GhostBorderCard>
