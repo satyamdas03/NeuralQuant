@@ -19,8 +19,9 @@ from nq_api.score_builder import row_to_ai_score, rank_scores_in_universe
 from nq_api.universe import UNIVERSE_BY_MARKET, UNIVERSE_FULL, in_tickers_full
 from nq_api.data_builder import build_real_snapshot, _fund_cache, fetch_real_macro, _get_yf_session
 from nq_api.cache import score_cache
-from nq_api.cache.snapshot_cache import read_snapshot as _read_stock_snapshot, is_stale
+from nq_api.cache.snapshot_cache import read_snapshot as _read_stock_snapshot
 from nq_api.cache.quantfactor_cache import get_quantfactor_scores
+from nq_api.quote_freshness import in_quote_is_stale, resolve_in_quote
 
 # REMOVED: _META_CACHE in-memory dict — replaced by Supabase stock_snapshot table
 # All live stock meta now reads from stock_snapshot (30-min TTL, populated by GHA)
@@ -118,6 +119,36 @@ async def get_stock_score(
                 log.warning("score_cache: serving very old data for %s/%s", ticker_upper, market)
     except Exception as e:
         log.warning("score_cache.read_one failed: %s", e)
+    if cached and market == "IN":
+        # F-01 / F-14: one resolver for card and meta. Stale snapshot -> no price.
+        snap = None
+        try:
+            snap = await asyncio.to_thread(_read_stock_snapshot, ticker_upper, "IN")
+        except Exception:
+            pass
+        quote = resolve_in_quote(ticker_upper, snap, cached)
+        if quote["stale"]:
+            log.warning(
+                "stale IN quote for %s (cached_at=%s); serving no price",
+                ticker_upper, quote["cached_at"],
+            )
+        cached = {
+            **cached,
+            "long_name": quote["name"],
+            "current_price": quote["current_price"],
+            "change_pct": quote["change_pct"],
+            "market_cap": quote["market_cap"],
+            "pe_ttm": quote["pe_ttm"],
+        }
+        df = pd.DataFrame([cached])
+        if "regime_id" not in df.columns or pd.isna(df["regime_id"].iloc[0]):
+            df["regime_id"] = 1
+        return row_to_ai_score(
+            df.iloc[0], market,
+            score_1_10_override=_score_1_10_from_cache(cached),
+            quote=quote,
+        )
+
     if cached:
         # BUG: score_cache rows don't store change_pct. Backfill from stock_snapshot
         # so the stock detail page shows today's price change. Also backfill
@@ -134,7 +165,7 @@ async def get_stock_score(
                     # F-01: for IN, recompute staleness from cached_at. Do not
                     # backfill price/change from a snapshot that the GCP feeder
                     # stopped writing weeks ago.
-                    if m == "IN" and is_stale(snap, max_age_minutes=35):
+                    if m == "IN" and in_quote_is_stale(snap.get("cached_at")):
                         log.warning(
                             "stale IN snapshot for %s/%s (cached_at=%s); "
                             "skipping price backfill - GCP feeder may be stopped",
@@ -512,18 +543,61 @@ _META_TIMEOUT = 15  # seconds — hard cap for meta enrichment; return partial o
 @router.get("/{ticker}/meta")
 async def get_stock_meta(ticker: str, market: str = Query("US")):
     """Return stock metadata. Reads from stock_snapshot (30-min TTL) first.
-    On miss/stale, falls back to FMP direct with 8s timeout."""
-    t_up = _normalize_ticker(ticker, market)
+    On miss/stale, falls back to FMP direct with 8s timeout.
 
-    # ── Phase 1: stock_snapshot (serve even if stale — partial data > no data) ──
-    snap = None
+    IN: name, price, change, market cap, P/E, cached_at and stale come from
+    resolve_in_quote (same as the card). A stale quote has no numeric price.
+    """
+    t_up = _normalize_ticker(ticker, market)
+    if market == "IN":
+        snap = None
+        try:
+            snap = await asyncio.wait_for(
+                asyncio.to_thread(_read_stock_snapshot, t_up, market),
+                timeout=8.0,
+            )
+        except Exception:
+            pass
+        meta = await _get_stock_meta_inner(t_up, market, snap)
+        return await asyncio.to_thread(_finalize_in_meta, meta, t_up, snap)
+    return await _get_stock_meta_inner(t_up, market, None, read_snapshot=True)
+
+
+def _finalize_in_meta(meta: dict, t_up: str, snap: dict | None) -> dict:
+    if not isinstance(meta, dict):
+        meta = _empty_meta(t_up)
+    row = None
     try:
-        snap = await asyncio.wait_for(
-            asyncio.to_thread(_read_stock_snapshot, t_up, market),
-            timeout=8.0,
-        )
+        row = score_cache.read_one(t_up, "IN", max_age_seconds=999999999)
     except Exception:
         pass
+    q = resolve_in_quote(t_up, snap, row)
+    mc = q["market_cap"]
+    meta.update(
+        name=q["name"] or meta.get("name") or t_up,
+        current_price=q["current_price"],
+        change_pct=q["change_pct"],
+        market_cap=mc,
+        market_cap_fmt=_fmt_mcap(mc, "IN") if mc else None,
+        pe_ttm=q["pe_ttm"],
+        cached_at=q["cached_at"],
+        stale=q["stale"],
+        quote_status=q["quote_status"],
+    )
+    return meta
+
+
+async def _get_stock_meta_inner(t_up: str, market: str, snap: dict | None, read_snapshot: bool = False) -> dict:
+
+    # ── Phase 1: stock_snapshot (serve even if stale — partial data > no data) ──
+    if read_snapshot:
+        try:
+            snap = await asyncio.wait_for(
+                asyncio.to_thread(_read_stock_snapshot, t_up, market),
+                timeout=8.0,
+            )
+        except Exception:
+            pass
 
     if snap:
         try:
@@ -616,7 +690,10 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
 
 def _ensure_price(meta: dict, ticker: str, market: str) -> dict:
     """Backfill current_price via the reliable openbb->snapshot->score_cache chain
-    when the meta path left it null (e.g. yfinance blocked on Render)."""
+    when the meta path left it null (e.g. yfinance blocked on Render).
+    Not used for IN: the IN price comes only from resolve_in_quote (F-01)."""
+    if market == "IN":
+        return meta
     if isinstance(meta, dict) and meta.get("current_price") is None:
         try:
             from nq_api.services.live_price import get_live_price
@@ -714,7 +791,7 @@ def _compute_stale(snap: dict, market: str) -> bool:
     reflects reality even if the GCP feeder stops writing.
     """
     if market == "IN":
-        return is_stale(snap, max_age_minutes=35)
+        return in_quote_is_stale(snap.get("cached_at"))
     return bool(snap.get("stale", False))
 
 
