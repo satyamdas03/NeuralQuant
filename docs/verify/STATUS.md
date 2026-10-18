@@ -62,7 +62,7 @@ Earlier 2026-10-17 12:07 UTC probes (handover) agree. The earlier claim that the
 - 00:57 UTC deploy of `f9f8182`: Render log `SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY not set`. The 3 Sep process held them in memory; the service environment no longer had them. `/health` showed `score_cache_rows: null`, AAPL card 503, TCS card score 10.
 - 01:17 UTC: `SUPABASE_URL` set on the service via the Render API (non-secret). ~02:27 UTC: Satyam added `SUPABASE_SERVICE_ROLE_KEY` and deployed. 02:35 UTC: `/health` `score_cache_rows: 944`.
 - **Still open:** `FMP_API_KEY` is also missing (Render log 02:43:21 UTC `FMP not enabled — skipping batch fetch`). Cold-start market_refresh then wrote 446 US `stock_snapshot` rows with `price: null` and reported success, and score_cache US now has 0/446 rows with `current_price > 0` (live AAPL card `current_price: 0.0`). Other `sync: false` keys in `render.yaml` may also be missing: unverified, because values are never read back.
-- Code fix: market_refresh now skips price-less rows and reports `success: false` (PR below). Restoring `FMP_API_KEY` and running a refresh heals US prices.
+- Code fix VERIFIED-LIVE: PR 18 (`f2866aa`, deploy `dep-dba392rrjlhs738nvkdg`). Render log 2026-10-18 03:01:52 UTC: `market_refresh: skipping 446 of 446 rows with no fresh price (existing snapshots kept)`, summary `success: False, snapshot_rows_written: 0`. US rows already nulled at 02:43 stay null until `FMP_API_KEY` is restored and a refresh runs.
 - BLOCKED (founder: compare the NeuralQuant service Environment tab with every `sync: false` key in `render.yaml` and restore missing ones, starting with `FMP_API_KEY`; rotate the service-role key that was pasted in chat on 2026-10-18).
 ---
 
