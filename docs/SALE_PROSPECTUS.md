@@ -73,7 +73,7 @@ NeuralQuant is not a one-size-fits-all asset — its value is highest to four di
 |---|---|---|
 | **Indian brokers** | A ready-made AI research layer for 90M+ Demat account holders — no build required | Differentiated retention/acquisition feature deployable on day one, instead of an 18-month internal build |
 | **US / global fintechs** | India market entry (NSE + BSE coverage with India-specific signals) | The dual-market pipeline would take ~18 months to build independently; here it is already live |
-| **PE firms / family offices** | Proven alpha (+12.69% to +14.83% vs NIFTY50), patent-protected, ready to monetise | A defensible, IP-encumbered asset to acquire and scale with a commercial team |
+| **PE firms / family offices** | Patent-pending research platform, ready to monetise | A defensible, IP-encumbered asset to acquire and scale with a commercial team |
 | **AI companies** | Voice-native equity research — 2 live voice agents already deployed | Voice-first financial research is ahead of the market; competitors are text-only |
 
 ---
@@ -118,11 +118,8 @@ All services are running and verified as of the date of this document.
 
 ## 7. Validation & Track Record
 
-### 7.1 Backtest results (Q1 FY27, India)
-- All three model pools beat the NIFTY50 benchmark.
-- Outperformance (alpha): **+12.69% to +14.83%** vs NIFTY50 (−6.38% in the same period).
-- Hit rate: **87–91%**.
-- Baseline stored in Supabase for reproducibility.
+### 7.1 Backtest results
+No performance figures are claimed. The stored Q1FY27 quarterly test is not an audited or reproducible result.
 
 ### 7.2 Automated smoke testing
 A 15-endpoint live smoke suite runs against production and currently passes 15/15, covering core pages, stock detail (US + India), screener, portfolio, trading dashboard, news, methodology, and pricing.
@@ -137,7 +134,7 @@ The platform benefits from a developing IP moat. A **provisional patent applicat
 This establishes **patent-pending status in India**, with a **PCT filing contemplated** to extend protection across 150+ jurisdictions. In parallel, the **PARA-DEBATE™ trademark** is being registered in India under **Class 42**, further strengthening the platform's proprietary positioning. Backend trade secrets — the per-regime factor weights, HMM transition probabilities, agent-prompt architecture, and IRS% composite formula — sit alongside the patent as a second, non-public layer of protection.
 
 ### 7.4 Regulatory posture
-Methodology and backtest results are published on a public methodology page in a legally-cautious manner (no guaranteed-return claims). SEBI-compliance considerations for India have been researched.
+The public methodology page describes the research process and its limitations; it publishes no backtest or performance figures. SEBI-compliance considerations for India have been researched.
 
 ---
 

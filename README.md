@@ -81,7 +81,6 @@ A full-stack AI stock intelligence platform that combines a **quantitative signa
 | **Multi-agent debate** | 6 agents + head analyst, 1 verdict | Single score | Aggregation | Single author |
 | **Pricing** | Free / $9.99 / $29.99 / $99.99 | Free / $20 / $49 / $99 | Free / $30 / $50 | $239/yr |
 
-> **Expert Assessment (May 2026):** Overall 8.6/10 — Technical Depth 9.2, USP Distinctiveness 9.0, Market Timing 8.4. PARA-DEBATE validated by FinDebate (+20.4% alpha), AlphaAgents (BlackRock), Apex Parliament, and TradingAgents research.
 
 ---
 
@@ -93,7 +92,7 @@ A full-stack AI stock intelligence platform that combines a **quantitative signa
 - **QuantFactor engine + IRS%** — cross-sectional quintile scoring (Growth / Return / Valuation / Risk) vs index peers, distilled into the proprietary **Investment Readiness Score (IRS%)**. US + India.
 - **Hermes** — autonomous self-improving trading agent (paper). LLM "reflection" loop mutates one strategy variable at a time with a written rationale and version history. Surfaced at `/hermes`.
 - **Screener** — filter/rank by IRS%, QuantFactor composite, sector, market; presets.
-- **Backtest** — walk-forward validation, Q1FY27 results published on `/methodology`.
+- **Backtest** — walk-forward research tooling. No backtest or performance figures are published.
 - **Dual market** — US (S&P 500) + India (NIFTY 500 pool) with India-specific signals (delivery %, India VIX regime).
 - **Payments** — Stripe + PayPal subscriptions, 4 tiers. Free during the development phase.
 

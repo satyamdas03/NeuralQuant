@@ -94,7 +94,7 @@ Earlier 2026-10-17 12:07 UTC probes (handover) agree. The earlier claim that the
 |---|---|---|---|
 | B1 | `/testing/quarterly/public-results` returns no metrics on any branch | VERIFIED-LIVE | `8274a06` (PR 17) | Live 2026-10-18 02:43 UTC with Supabase reachable: 200 `{"quarter": "Q1FY27", "available": false, "summary": null, "pool_breakdown": [], "equity_curve": [], ...}`. Endpoint no longer reads quarterly tables; tests red on old success path. |
 | B2 | Remove 87%/Q1FY27 from OG/Twitter and methodology FAQ | VERIFIED-LIVE | `55dc5d0` (PR 19) | Live 2026-10-18 04:03 UTC: `curl https://www.neuralquant.co/ \| grep -c 87%` → 0; `/methodology` → 0 (was 6 each on 2026-10-17). Metadata also drops "Beat the market", "Institutional-grade", "SEBI-compliant". |
-| B3 | Scrub README, ARCHITECTURE, ASSET_INVENTORY, pricing, prospectus | NOT STARTED | Task T5. |
+| B3 | Scrub README, ARCHITECTURE, ASSET_INVENTORY, pricing, prospectus | IN PROGRESS | Docs PR (T5): README (self-graded "Expert Assessment" + FinDebate alpha line, "Q1FY27 results published"), ARCHITECTURE:68, ASSET_INVENTORY, SALE_PROSPECTUS.md, STOCKEDGE prospectus md + regenerated .docx, STOCKEDGE thesis HTML, both `make_*prospectus_docx.py`. T5 rg remaining hits justified: compliance-doc disclaimer, third-party FinDebate citation in internal launch-playbook, negation in generate_report.mjs, false positive "impact on". Pricing copy: separate PR. |
 | B4 | Delete orphaned backtest components and `accuracy()` | NOT STARTED | Task T6. |
 | B5 | Neutralise BUY/SELL/AVOID labels | NOT STARTED | Task T7. |
 | B6 | Freeze Hermes page | IN PROGRESS | Partial via S9a; rows must agree. Task T8 (founder choice first). |

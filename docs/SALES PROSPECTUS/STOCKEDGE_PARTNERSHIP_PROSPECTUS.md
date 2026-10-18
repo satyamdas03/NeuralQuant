@@ -91,9 +91,7 @@ By embedding NeuralQuant as a **research-analysis tool under StockEdge's existin
 
 | Metric | Result |
 |---|---|
-| Q1 FY27 India backtest benchmark | NIFTY50: −6.38% |
-| Alpha vs NIFTY50 | **+12.69% to +14.83%** |
-| Hit rate | **87–91%** |
+| Backtest performance | Not claimed (no audited or reproducible result) |
 | Live smoke suite | 15/15 passing |
 | Backtest reproducibility | Baseline stored in Supabase |
 
@@ -203,8 +201,8 @@ Hi Vineet — long-time admirer of what you and Vivek have built at StockEdge.
 
 We have built an adversarial AI research committee (PARA-DEBATE) that forces a
 bull-vs-bear debate before any stock conclusion — exactly the "noise removal"
-StockEdge stands for. It is live with dual-market US+IN coverage, an India-specific
-IRS% score, and a Q1FY27 backtest showing +12.69% to +14.83% alpha vs NIFTY50.
+StockEdge stands for. It is live with dual-market US+IN coverage
+and an India-specific IRS% score.
 
 I am not looking for a cash-heavy acquisition day one. I would love to explore a
 12-month pilot inside StockEdge Pro that converts your 4M users into AI-tier
@@ -233,7 +231,7 @@ May I send a one-page memo?
 
 1. "12-month AI research pilot for StockEdge Pro — low upfront, aligned upside"
 2. "NeuralQuant + StockEdge: a Bloomberg-for-Bharat reasoning layer"
-3. "Adversarial AI research engine — 12.69–14.83% alpha vs NIFTY50 — pilot proposal"
+3. "Adversarial AI research engine — pilot proposal"
 
 ---
 
@@ -245,7 +243,7 @@ May I send a one-page memo?
 | 0:30–2:30 | Ask Morgan: natural-language question on RELIANCE / TCS / HDFCBANK |
 | 2:30–5:30 | PARA-DEBATE on the same stock — 6 agents, mandated bear, consensus, risk section |
 | 5:30–7:00 | IRS% / screener — rank NSE 200, show regime detection shifting factor weights |
-| 7:00–8:30 | Backtest evidence: Q1FY27 alpha +12.69–14.83%, hit rate 87–91% |
+| 7:00–8:30 | Methodology walkthrough and known limitations |
 | 8:30–10:00 | Proposed pilot: integration, SEBI umbrella, ₹50L upfront + 15% revenue share + call option |
 
 ---

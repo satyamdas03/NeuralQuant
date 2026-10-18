@@ -381,7 +381,7 @@ styled_table(doc,
         ["Live paper-trading dashboard",
          "Real-time trading matrix with equity curve, trade tape, and a strategy-reflection SSE stream. Dry-run operational; ready for live-trading activation."],
         ["Methodology & backtest page",
-         "Public methodology page with legally-cautious disclosure. Backtest baseline stored in Supabase for full reproducibility — 87–91% hit rate, +12.69 to +14.83% alpha vs NIFTY50 (Q1 FY27)."],
+         "Public methodology page describing the research process and its limitations. No backtest or performance figures are published."],
     ],
     col_widths=[2.0, 4.6])
 
@@ -412,7 +412,7 @@ styled_table(doc,
     [
         ["Indian brokers", "Ready-made AI research layer for 90M+ Demat holders — no build required", "Differentiated retention feature deployable on day one vs an 18-month internal build"],
         ["US / global fintechs", "India market entry (NSE + BSE with India-specific signals)", "The dual-market pipeline would take ~18 months to build independently; here it is already live"],
-        ["PE firms / family offices", "Proven alpha (+12.69% to +14.83% vs NIFTY50), patent-protected", "A defensible, IP-encumbered asset to acquire and scale with a commercial team"],
+        ["PE firms / family offices", "Patent-pending research platform", "A defensible, IP-encumbered asset to acquire and scale with a commercial team"],
         ["AI companies", "Voice-native equity research — 2 live voice agents already deployed", "Voice-first financial research is ahead of the market; competitors are text-only"],
     ],
     col_widths=[1.6, 2.7, 2.3])
@@ -458,17 +458,8 @@ para(doc, "Security hardening: the platform has undergone a multi-phase security
 
 # ===== 9. VALIDATION & TRACK RECORD =====
 h1(doc, 9, "Validation & Track Record")
-h2(doc, "Backtest results (Q1 FY27, India)")
-styled_table(doc,
-    ["Metric", "Result"],
-    [
-        ["Benchmark", "NIFTY50  (−6.38% over the period)"],
-        ["Model pools vs benchmark", "All three pools beat NIFTY50"],
-        ["Alpha (outperformance)", "+12.69% to +14.83%"],
-        ["Hit rate", "87–91%"],
-        ["Reproducibility", "Baseline stored in Supabase"],
-    ],
-    col_widths=[2.4, 4.2])
+h2(doc, "Backtest results")
+para(doc, "No performance figures are claimed. The stored Q1FY27 quarterly test is not an audited or reproducible result.")
 spacer(doc, 6)
 h2(doc, "Automated smoke testing")
 para(doc, "A 15-endpoint live smoke suite runs against production and currently passes 15/15, covering core pages, stock detail (US + India), screener, portfolio, trading dashboard, news, methodology, and pricing.", size=10.5, space_after=6)
@@ -479,7 +470,7 @@ bullet(doc, "The HMM-based regime-adaptive factor-weighting engine (factor weigh
 bullet(doc, "The NSE delivery_pct India-specific liquidity conviction signal — a market-microstructure factor not present in any comparable system.")
 para(doc, "This establishes patent-pending status in India, with a PCT filing contemplated to extend protection across 150+ jurisdictions. In parallel, the PARA-DEBATE™ trademark is being registered in India under Class 42. Backend trade secrets — per-regime factor weights, HMM transition probabilities, agent-prompt architecture, and the IRS% composite formula — sit alongside the patent as a second, non-public layer of protection.", size=10.5, space_after=6)
 h2(doc, "Regulatory posture")
-para(doc, "Methodology and backtest results are published on a public methodology page in a legally-cautious manner (no guaranteed-return claims). SEBI-compliance considerations for India have been researched.", size=10.5, color=SLATE, space_after=6)
+para(doc, "The public methodology page describes the research process and its limitations; it publishes no backtest or performance figures. SEBI-compliance considerations for India have been researched.", size=10.5, color=SLATE, space_after=6)
 
 # ===== 10. ENGINEERING INVESTMENT =====
 h1(doc, 10, "Engineering Investment (Cost Breakdown)")

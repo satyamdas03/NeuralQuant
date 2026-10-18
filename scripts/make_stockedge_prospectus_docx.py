@@ -370,9 +370,7 @@ h2(doc, "3.3 Validation & track record")
 styled_table(doc,
     ["Metric", "Result"],
     [
-        ["Q1 FY27 benchmark", "NIFTY50: −6.38%"],
-        ["Alpha vs NIFTY50", "+12.69% to +14.83%"],
-        ["Hit rate", "87–91%"],
+        ["Backtest performance", "Not claimed (no audited or reproducible result)"],
         ["Live smoke suite", "15/15 passing"],
         ["Backtest reproducibility", "Baseline stored in Supabase"],
     ],
@@ -448,7 +446,7 @@ styled_table(doc,
 # ===== 7. OUTBOUND MATERIALS =====
 h1(doc, 7, "Outbound Materials")
 h2(doc, "7.1 LinkedIn message to Vineet Patawari (CEO)")
-code_block(doc, "Hi Vineet — long-time admirer of what you and Vivek have built at StockEdge.\n\nWe have built an adversarial AI research committee (PARA-DEBATE) that forces a bull-vs-bear debate before any stock conclusion — exactly the 'noise removal' StockEdge stands for. It is live with dual-market US+IN coverage, an India-specific IRS% score, and a Q1FY27 backtest showing +12.69% to +14.83% alpha vs NIFTY50.\n\nI am not looking for a cash-heavy acquisition day one. I would love to explore a 12-month pilot inside StockEdge Pro that converts your 4M users into AI-tier subscribers, with an option to buy the IP later.\n\nWorth a 15-minute call?")
+code_block(doc, "Hi Vineet — long-time admirer of what you and Vivek have built at StockEdge.\n\nWe have built an adversarial AI research committee (PARA-DEBATE) that forces a bull-vs-bear debate before any stock conclusion — exactly the 'noise removal' StockEdge stands for. It is live with dual-market US+IN coverage, an India-specific IRS% score.\n\nI am not looking for a cash-heavy acquisition day one. I would love to explore a 12-month pilot inside StockEdge Pro that converts your 4M users into AI-tier subscribers, with an option to buy the IP later.\n\nWorth a 15-minute call?")
 
 h2(doc, "7.2 LinkedIn message to Vivek Bajaj (MD)")
 code_block(doc, "Hi Vivek — your Bloomberg-for-Bharat vision is why I started NeuralQuant.\n\nWe built the reasoning layer that turns market data into defended conclusions: a quantified adversarial committee, regime-adaptive scoring, and an India-specific IRS% metric. Live at neuralquant.co, 949 tickers, 15/15 smoke tests passing.\n\nI would welcome the chance to show you how it could sit inside StockEdge's existing SEBI RA/IA framework as a 12-month pilot — low risk, aligned incentives, and only an acquisition if your users actually pay for it.\n\nMay I send a one-page memo?")
@@ -456,7 +454,7 @@ code_block(doc, "Hi Vivek — your Bloomberg-for-Bharat vision is why I started 
 h2(doc, "7.3 Email subject lines")
 bullet(doc, "12-month AI research pilot for StockEdge Pro — low upfront, aligned upside")
 bullet(doc, "NeuralQuant + StockEdge: a Bloomberg-for-Bharat reasoning layer")
-bullet(doc, "Adversarial AI research engine — 12.69–14.83% alpha vs NIFTY50 — pilot proposal")
+bullet(doc, "Adversarial AI research engine — pilot proposal")
 
 # ===== 8. DEMO AGENDA =====
 h1(doc, 8, "10-Minute Demo Agenda")
@@ -467,7 +465,7 @@ styled_table(doc,
         ["0:30–2:30", "Ask Morgan: natural-language question on RELIANCE / TCS / HDFCBANK"],
         ["2:30–5:30", "PARA-DEBATE on the same stock — 6 agents, mandated bear, consensus, risk section"],
         ["5:30–7:00", "IRS% / screener — rank NSE 200, show regime detection shifting factor weights"],
-        ["7:00–8:30", "Backtest evidence: Q1FY27 alpha +12.69–14.83%, hit rate 87–91%"],
+        ["7:00–8:30", "Methodology walkthrough and known limitations"],
         ["8:30–10:00", "Proposed pilot: integration, SEBI umbrella, ₹50L + 15% + call option"],
     ],
     col_widths=[1.2, 5.4])
