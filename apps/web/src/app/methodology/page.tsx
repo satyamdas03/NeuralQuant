@@ -1386,7 +1386,7 @@ export default function MethodologyPage() {
               },
               {
                 title: "Regime Change",
-                body: "Models trained on bull-market data often underperform in bear markets. The Q1FY27 period was predominantly bullish.",
+                body: "Models trained on bull-market data often underperform in bear markets.",
               },
               {
                 title: "Black Swan Events",

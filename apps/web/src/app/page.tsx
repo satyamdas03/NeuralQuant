@@ -4,11 +4,11 @@ import LandingPage from "@/components/landing/LandingPage";
 export const metadata: Metadata = {
   title: "NeuralQuant — AI Stock Intelligence for US & India Markets",
   description:
-    "Beat the market with IRS% scoring and 7-agent PARA-DEBATE analysis. Institutional-grade AI for stocks — 87%+ hit rate in Q1FY27 backtest. Free tier available.",
+    "Research tools for US and India stocks: IRS% factor scoring and multi-agent PARA-DEBATE analysis. Information only, not investment advice.",
   openGraph: {
     title: "NeuralQuant — AI Stock Intelligence for US & India Markets",
     description:
-      "Beat the market with IRS% scoring and 7-agent PARA-DEBATE analysis. 87%+ hit rate in Q1FY27 backtest. Free tier available.",
+      "Research tools for US and India stocks: IRS% factor scoring and multi-agent PARA-DEBATE analysis. Information only, not investment advice.",
     url: "https://neuralquant.co",
     siteName: "NeuralQuant",
     images: [
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "NeuralQuant — AI Stock Intelligence for US & India Markets",
     description:
-      "Beat the market with IRS% scoring and 7-agent PARA-DEBATE analysis. 87%+ hit rate in Q1FY27 backtest. Free tier available.",
+      "Research tools for US and India stocks: IRS% factor scoring and multi-agent PARA-DEBATE analysis. Information only, not investment advice.",
     images: ["/og-image.png"],
     creator: "@neuralquant",
     site: "@neuralquant",
