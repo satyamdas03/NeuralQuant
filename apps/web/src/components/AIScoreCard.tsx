@@ -1,6 +1,7 @@
 "use client";
 import RegimeBadge from "@/components/ui/RegimeBadge";
 import type { AIScore } from "@/lib/types";
+import { QuoteFreshnessBadge } from "@/components/QuoteFreshnessBadge";
 
 function ScoreRing({ score }: { score: number }) {
   const pct = score / 10;
@@ -55,8 +56,11 @@ export function AIScoreCard({ data }: { data: AIScore }) {
       </div>
 
       <p className="text-xs text-on-surface-variant mt-4">
-        Updated {new Date(data.last_updated).toLocaleString()}
+        Score data {new Date(data.last_updated).toLocaleString()}
       </p>
+      <div className="mt-2 empty:hidden">
+        <QuoteFreshnessBadge stale={data.stale} quoteStatus={data.quote_status} asOf={data.price_as_of} />
+      </div>
     </div>
   );
 }

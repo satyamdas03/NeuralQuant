@@ -45,9 +45,17 @@ export interface AIScore {
   sub_scores: SubScores;
   top_drivers: FeatureDriver[];
   confidence: ConfidenceLevel;
-  last_updated: string;
+  last_updated: string;               // data time of the score row
   anjali?: QuantFactorScores | null;  // QuantFactor Engine scores (null if not available)
+  // Quote freshness (F-01). For IN, price fields are null when stale.
+  current_price?: number | null;
+  change_pct?: number | null;
+  stale?: boolean | null;
+  quote_status?: QuoteStatus | null;
+  price_as_of?: string | null;
 }
+
+export type QuoteStatus = "ok" | "quote_stale";
 
 export interface AgentOutput {
   agent: string;
@@ -234,6 +242,11 @@ export interface StockMeta {
   yield_curve_2y: number | null;
   yield_curve_10y: number | null;
   yield_curve_spread: number | null;
+  // Quote freshness (F-01). current_price is null when stale.
+  change_pct?: number | null;
+  cached_at?: string | null;
+  stale?: boolean | null;
+  quote_status?: QuoteStatus | null;
 }
 
 export interface AnalystConsensus {
