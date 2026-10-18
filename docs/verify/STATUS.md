@@ -92,7 +92,7 @@ Earlier 2026-10-17 12:07 UTC probes (handover) agree. The earlier claim that the
 | # | Task | Status | Notes |
 |---|---|---|---|
 | B1 | `/testing/quarterly/public-results` returns no metrics on any branch | VERIFIED-LIVE | `8274a06` (PR 17) | Live 2026-10-18 02:43 UTC with Supabase reachable: 200 `{"quarter": "Q1FY27", "available": false, "summary": null, "pool_breakdown": [], "equity_curve": [], ...}`. Endpoint no longer reads quarterly tables; tests red on old success path. |
-| B2 | Remove 87%/Q1FY27 from OG/Twitter and methodology FAQ | NOT STARTED | Live homepage meta still "87%+ hit rate". Task T4. |
+| B2 | Remove 87%/Q1FY27 from OG/Twitter and methodology FAQ | IN PROGRESS | T4 PR: home + methodology metadata rewritten with no numbers ("Beat the market", "Institutional-grade", "SEBI-compliant", "Backtest Results" also removed); Q1FY27 sentence dropped from the Regime Change FAQ. rg on the 3 files empty; built `.next` HTML for / and /methodology has no "87%"; eslint 0 errors; build exit 0. Missing: merge, Vercel deploy, live grep. |
 | B3 | Scrub README, ARCHITECTURE, ASSET_INVENTORY, pricing, prospectus | NOT STARTED | Task T5. |
 | B4 | Delete orphaned backtest components and `accuracy()` | NOT STARTED | Task T6. |
 | B5 | Neutralise BUY/SELL/AVOID labels | NOT STARTED | Task T7. |
