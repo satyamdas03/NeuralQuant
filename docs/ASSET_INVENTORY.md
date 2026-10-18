@@ -21,9 +21,9 @@ What a buyer receives. Companion docs: [ARCHITECTURE.md](ARCHITECTURE.md),
 - **IRS%** scoring system: G Score (−12..+12) + Risk Efficiency (−8..+8) →
   IRS% = (raw + 20) / 40 × 100, quintile engine over 1,750+ US + IN stocks.
 - 5-factor quant engine with HMM regime reweighting (separate US / IN macro).
-- Quarterly testing framework (machinery to keep generating proof) +
-  **Q1FY27 backtest results: +13.5% avg alpha vs Nifty50, ~89% hit rate**
-  across 3 pools, stored in Supabase + CSV export.
+- Quarterly testing framework (pool selection, entry snapshots, benchmark
+  comparison). Its stored Q1FY27 run is not an audited or reproducible result
+  and must not be cited as performance.
 - Agent prompts and orchestration logic.
 - Public methodology page (neuralquant.co/methodology) documenting derivations,
   walk-forward validation, model governance.

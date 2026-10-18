@@ -65,7 +65,8 @@ feature sets) reweights factors per regime.
 
 **Quarterly testing framework** (`quarterly_test_runs` / `quarterly_test_results`
 tables + `scripts/`): pool selection by IRS% filters, entry snapshots, vs-NIFTY50
-alpha measurement. Q1FY27 first run: +12.7% to +14.8% alpha, 87–91% hit rate.
+alpha measurement. No results from this framework are published or claimed; it is not a
+reproducible evaluation harness.
 
 ## Data pipeline (tiered fallbacks)
 
