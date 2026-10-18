@@ -65,6 +65,7 @@ Earlier 2026-10-17 12:07 UTC probes (handover) agree. The earlier claim that the
 |---|---|---|---|---|---|
 | step-0 | Remove audit dump from repo | F-24 | IN PROGRESS | `26bc004` | Gone from tree; blob still in history at `9a8fd6d`. History rewrite is a founder decision. |
 | T1 | Suite green in a clean env; ruff installed; CI on push + PR with full suite | F-19, F-03 tests | VERIFIED-LIVE (CI) | `a7650dc` | Green: workflow CI on push of `a7650dc`, https://github.com/satyamdas03/NeuralQuant/actions/runs/39080513854 — Test "229 passed, 22 warnings", Lint "All checks passed!". Red: draft PR satyamdas03/NeuralQuant#14 (branch `ci-red-proof-t1`, one `assert False` test, commit `8a15c3e`), https://github.com/satyamdas03/NeuralQuant/actions/runs/39080913156 — Test failure "1 failed, 229 passed". PR closed and branch deleted 2026-10-18. |
+| T1b | Gitleaks `generic-api-key` on test fixture `apps/api/tests/test_cron_smoke_auth.py:30` (flagged on `7f7430a`, run 38332179461) | F-24 hygiene | IN PROGRESS | T1b commit (this change) | Fixture now `CRON_SECRET = "x" * 32` (obvious placeholder, same test meaning). Clean-env full suite 229 passed; ruff exit 0. Missing: green secret-scan run URL on this commit. No history rewrite. |
 | S1 | Auth on `POST /live/classify`, `POST /trade/backtest` | F-07, F-08 | MERGED-NOT-DEPLOYED | `b48c835` | No non-admin 403 test; 401 test does not assert pipeline not called; `/live/execute` open to any signed-in user. Not live. |
 | S2 | Unknown ticker → 404 | F-02 | MERGED-NOT-DEPLOYED | `02aa8ce` | Score route only; `/meta` unchecked. Live fake ticker → 200 (2026-10-17 23:32 UTC). |
 | S3 | India freshness | F-01, F-14 | IN PROGRESS | `7b3bd64` | Wrong threshold (35 min); stale rows still serve price; `last_updated` is request clock; test encodes wrong acceptance. Live TCS `stale:false` with 2026-09-03 `cached_at`. Task T2. |
@@ -72,7 +73,7 @@ Earlier 2026-10-17 12:07 UTC probes (handover) agree. The earlier claim that the
 | S5 | CI runs real pytest | F-19 | VERIFIED-LIVE (CI) | `41a4341` + `a7650dc` | Completed by T1; see T1 row for green and red Actions URLs. |
 | S6 | Secret scan; rotation | F-24 | BLOCKED (founder: key rotation not confirmed) | `a0b876e` | Report only: `docs/verify/evidence/secret_scan_2026-10-13.md`. |
 | S7 | Upgrade runtime deps | F-16 | NOT STARTED | — | Task T13. |
-| S8 | `compare_digest`, fail-closed empty `CRON_SECRET` | F-10, F-23 | MERGED-NOT-DEPLOYED | `7f7430a` | Smoke bypass still mints a pro user in production. Gitleaks flagged a fixture at `apps/api/tests/test_cron_smoke_auth.py:30` (task T1b). Live cron status still pre-S8 wording. |
+| S8 | `compare_digest`, fail-closed empty `CRON_SECRET` | F-10, F-23 | MERGED-NOT-DEPLOYED | `7f7430a` | Smoke bypass still mints a pro user in production. Gitleaks fixture flag handled in T1b. Live cron status still pre-S8 wording. |
 | S9a | Freeze Hermes page | F-06 | IN PROGRESS | `9140812` | Nav hidden, `noindex`. Page still renders P&L and win rate; banner claims otherwise. Same work as B6. |
 | S9b | Guest LiveKit budget / pause voice | F-22 | IN PROGRESS | `f53ab9c` | Constants are never read; guests still dispatched. No test. |
 | S9c | Remaining medium/low items | F-09, F-12, F-13, F-15, F-17, F-18, F-21 | NOT STARTED | — | Task T14. |

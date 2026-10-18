@@ -27,7 +27,8 @@ def client_no_auth_override():
     app.dependency_overrides = overrides
 
 
-CRON_SECRET = "test-cron-secret-123456789012"
+# Obvious low-entropy placeholder (not a real secret; keeps gitleaks quiet).
+CRON_SECRET = "x" * 32
 
 
 def _patch_cron_runners():
