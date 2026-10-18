@@ -30,7 +30,7 @@ uv run python -m pytest apps/api/tests packages/data packages/signals apps/livek
 | packages/signals | 19 |
 | apps/livekit-agent/tests | 17 |
 | scripts/backtest/tests | 3 |
-| **Full suite** | **229** (T2 API: 239, apps/api/tests 137; T3: 241, apps/api/tests 139) |
+| **Full suite** | **229** (T2 API: 239; T3: 241; market_refresh fix: 243; accuracy gate: 246, apps/api/tests 144) |
 
 Root `uv run pytest` (testpaths = apps/api/tests + packages) collects 209. 209 is **not** the full suite.
 
@@ -96,7 +96,7 @@ Earlier 2026-10-17 12:07 UTC probes (handover) agree. The earlier claim that the
 | B1 | `/testing/quarterly/public-results` returns no metrics on any branch | VERIFIED-LIVE | `8274a06` (PR 17) | Live 2026-10-18 02:43 UTC with Supabase reachable: 200 `{"quarter": "Q1FY27", "available": false, "summary": null, "pool_breakdown": [], "equity_curve": [], ...}`. Endpoint no longer reads quarterly tables; tests red on old success path. |
 | B2 | Remove 87%/Q1FY27 from OG/Twitter and methodology FAQ | VERIFIED-LIVE | `55dc5d0` (PR 19) | Live 2026-10-18 04:03 UTC: `curl https://www.neuralquant.co/ \| grep -c 87%` → 0; `/methodology` → 0 (was 6 each on 2026-10-17). Metadata also drops "Beat the market", "Institutional-grade", "SEBI-compliant". |
 | B3 | Scrub README, ARCHITECTURE, ASSET_INVENTORY, pricing, prospectus | VERIFIED-LIVE (pricing live; docs have no live surface, merged in PR 20) | `c5ff4de` (PR 20 docs), `38e750f` (PR 21 pricing) | Live 2026-10-18 05:40 UTC: `curl https://www.neuralquant.co/pricing` → 0 matches for "proven edge", "genuinely predictive", "outperform"; "Transparent Factors" present. Docs PR: README, ARCHITECTURE, ASSET_INVENTORY, SALE_PROSPECTUS.md, StockEdge prospectus md + regenerated .docx, StockEdge thesis HTML, both generators. Remaining T5 rg hits justified (compliance disclaimer, third-party FinDebate citation in internal playbook, negation, false positive). |
-| B4 | Delete orphaned backtest components and `accuracy()` client | VERIFIED-LIVE (deleted code; web eslint 0 warnings; merged `7b97ec0`, PR 22) | T6 PR: deleted BacktestResultsSection, EquityCurveChart, QuarterlyBreakdownTable, AlphaCounterCard (rg: only imported by each other), `api.accuracy()` + `AccuracyResponse`, unused BarChart3/Zap/MetricCounterCard in methodology. eslint 0 errors, 0 warnings (was 3); build exit 0; web tests 3 passed. Open proposal (founder decision): `GET /backtest/accuracy` is public (live 200, 2026-10-18) and returns hit-rate/Sharpe/top-decile returns and `str(e)` on error; proposed `require_admin`, or remove. |
+| B4 | Delete orphaned backtest components and `accuracy()` client | VERIFIED-LIVE (deleted code; web eslint 0 warnings; merged `7b97ec0`, PR 22) | T6 PR: deleted BacktestResultsSection, EquityCurveChart, QuarterlyBreakdownTable, AlphaCounterCard (rg: only imported by each other), `api.accuracy()` + `AccuracyResponse`, unused BarChart3/Zap/MetricCounterCard in methodology. eslint 0 errors, 0 warnings (was 3); build exit 0; web tests 3 passed. `GET /backtest/accuracy` (public, live 200 on 2026-10-18, hit-rate/Sharpe/top-decile returns): gated with `require_admin` and `str(e)` removed (Satyam: "do what is recommended"); 3 tests (2 red on old code). Full suite 246. Live 401 pending deploy. |
 | B5 | Neutralise BUY/SELL/AVOID labels | NOT STARTED | Task T7. |
 | B6 | Freeze Hermes page | IN PROGRESS | Partial via S9a; rows must agree. Task T8 (founder choice first). |
 | B7 | "Not investment advice" line on `/pricing` | NOT STARTED | Checkout suspension is a founder decision. Task T9. |

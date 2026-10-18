@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field
 
 from nq_api.auth.rate_limit import enforce_guest_quota
 from nq_api.auth.models import User
+from nq_api.auth.deps import get_current_user, require_admin
 
 logger = logging.getLogger(__name__)
 
@@ -224,13 +225,14 @@ class AccuracyResponse(BaseModel):
 
 
 @router.get("/accuracy", response_model=AccuracyResponse)
-async def get_accuracy() -> AccuracyResponse:
+async def get_accuracy(user: User = Depends(get_current_user)) -> AccuracyResponse:
     """
-    Returns walk-forward backtest accuracy metrics for NeuralQuant ForeCast scores.
+    Internal walk-forward accuracy metrics for NeuralQuant ForeCast scores.
 
-    Hit rate = % of stocks with positive forward 3-month return at each score threshold.
-    This is the same metric competitors (Danelfin: 70%, Trade Ideas: 65%) publish.
+    Admin only (F-11): hit-rate / return figures are not audited and must not
+    be served on a public surface.
     """
+    require_admin(user)
     try:
         result = await asyncio.wait_for(
             asyncio.to_thread(_get_accuracy_sync),
@@ -243,7 +245,7 @@ async def get_accuracy() -> AccuracyResponse:
     except Exception as e:
         import traceback
         logger.warning("Backtest accuracy: %s\n%s", e, traceback.format_exc())
-        return _accuracy_default(str(e))
+        return _accuracy_default("Accuracy calculation failed.")
 
 
 def _get_accuracy_sync() -> AccuracyResponse:
@@ -463,7 +465,7 @@ def _get_accuracy_sync() -> AccuracyResponse:
     except Exception as e:
         import traceback
         logger.warning("Backtest accuracy: %s\n%s", e, traceback.format_exc())
-        return _accuracy_default(str(e))
+        return _accuracy_default("Accuracy calculation failed.")
 
 
 def _score_cache_rows() -> list[dict]:
