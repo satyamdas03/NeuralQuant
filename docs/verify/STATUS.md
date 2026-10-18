@@ -30,7 +30,7 @@ uv run python -m pytest apps/api/tests packages/data packages/signals apps/livek
 | packages/signals | 19 |
 | apps/livekit-agent/tests | 17 |
 | scripts/backtest/tests | 3 |
-| **Full suite** | **229** (239 with the T2 API PR: apps/api/tests 137) |
+| **Full suite** | **229** (T2 API: 239, apps/api/tests 137; T3: 241, apps/api/tests 139) |
 
 Root `uv run pytest` (testpaths = apps/api/tests + packages) collects 209. 209 is **not** the full suite.
 
@@ -91,7 +91,7 @@ Earlier 2026-10-17 12:07 UTC probes (handover) agree. The earlier claim that the
 
 | # | Task | Status | Notes |
 |---|---|---|---|
-| B1 | `/testing/quarterly/public-results` returns no metrics on any branch | CONDITIONAL (source success path still emits alpha/hit_rate when `quarterly_test_results` has `return_pct`; task T3) | Live 2026-10-18 01:12 UTC: 200 `{"quarter": "Q1FY27", "available": false, "summary": null, "pool_breakdown": [], ...}`. Fixture no longer served. |
+| B1 | `/testing/quarterly/public-results` returns no metrics on any branch | CONDITIONAL (T3 PR: endpoint no longer reads quarterly tables and always returns the unavailable notice; tests red on old success path, green now; full suite 241 passed. Missing: merge, deploy, live curl after Supabase creds are restored) | Live 2026-10-18 01:12 UTC: 200 `{"quarter": "Q1FY27", "available": false, "summary": null, "pool_breakdown": [], ...}`. Not conclusive: the API had no Supabase credentials at the time. |
 | B2 | Remove 87%/Q1FY27 from OG/Twitter and methodology FAQ | NOT STARTED | Live homepage meta still "87%+ hit rate". Task T4. |
 | B3 | Scrub README, ARCHITECTURE, ASSET_INVENTORY, pricing, prospectus | NOT STARTED | Task T5. |
 | B4 | Delete orphaned backtest components and `accuracy()` | NOT STARTED | Task T6. |

@@ -441,105 +441,15 @@ async def get_equity_curve(
 
 @router.get("/public-results")
 async def public_quarterly_results():
-    """Placeholder endpoint — no longer returns unaudited performance numbers.
+    """Public endpoint that never returns performance metrics (F-11 / B1).
 
-    During the NeuralQuant Verify pivot, public backtest displays are disabled.
-    Returns an unavailable notice and SEBI disclaimer instead of synthetic or
-    unaudited results.
+    NeuralQuant does not publish alpha, hit rate, returns or any backtest
+    figure on a public surface. This endpoint does not read
+    quarterly_test_runs / quarterly_test_results at all, so evaluated rows in
+    the database cannot leak into the response. It always returns the
+    unavailable notice and disclaimer.
     """
-    quarter = "Q1FY27"
-    try:
-        # Fetch the test run
-        run_resp = _supabase_rest(
-            "quarterly_test_runs",
-            "GET",
-            query={
-                "select": "id,run_date,quarter,test_type,selected_tickers",
-                "quarter": f"eq.{quarter}",
-                "order": "created_at.desc",
-                "limit": "1",
-            },
-        )
-
-        if not run_resp or not isinstance(run_resp, list) or len(run_resp) == 0:
-            return _unavailable_public_results()
-
-        run = run_resp[0]
-
-        # Fetch results
-        results_resp = _supabase_rest(
-            "quarterly_test_results",
-            "GET",
-            query={
-                "select": "ticker,entry_price,exit_price,return_pct,benchmark_return_pct,alpha,evaluated_at",
-                "run_id": f"eq.{run['id']}",
-            },
-        )
-
-        results = results_resp if results_resp and isinstance(results_resp, list) else []
-
-        if not results:
-            return _unavailable_public_results()
-
-        # If results exist but haven't been evaluated yet (no return_pct), unavailable
-        evaluated = [r for r in results if r.get("return_pct") is not None]
-        if not evaluated:
-            return _unavailable_public_results()
-
-        # Calculate aggregate stats from evaluated results only
-        returns = [r["return_pct"] for r in results if r.get("return_pct") is not None]
-        benchmark_returns = [r["benchmark_return_pct"] for r in results if r.get("benchmark_return_pct") is not None]
-
-        avg_return = sum(returns) / len(returns) if returns else 0
-        avg_benchmark = sum(benchmark_returns) / len(benchmark_returns) if benchmark_returns else 0
-        alpha = avg_return - avg_benchmark
-
-        # Hit rate: % of selections that beat benchmark
-        if returns and benchmark_returns:
-            avg_bench = avg_benchmark
-            beats = len([r for r in returns if r > avg_bench])
-            hit_rate = beats / len(returns) * 100
-        else:
-            hit_rate = 0
-
-        # Breakdown by test type (if multiple pools exist)
-        pool_breakdown = []
-        test_type = run.get("test_type", "microcap")
-        pool_breakdown.append({
-            "pool": test_type.replace("_", " ").title(),
-            "count": len(results),
-            "avg_return": round(avg_return, 2),
-            "avg_benchmark": round(avg_benchmark, 2),
-            "alpha": round(alpha, 2),
-            "hit_rate": round(hit_rate, 1),
-        })
-
-        # Equity curve data points (monthly snapshots)
-        # Build from individual returns, sorted by return
-        sorted_returns = sorted(returns) if returns else []
-        curve_points = []
-        for i, r in enumerate(sorted_returns):
-            pct = (i + 1) / len(sorted_returns) * 100
-            curve_points.append({"pct": round(pct, 1), "return": round(r, 2)})
-
-        return {
-            "quarter": quarter,
-            "run_date": run.get("run_date"),
-            "summary": {
-                "alpha": round(alpha, 2),
-                "hit_rate": round(hit_rate, 1),
-                "avg_return": round(avg_return, 2),
-                "avg_benchmark": round(avg_benchmark, 2),
-                "total_selections": len(results),
-            },
-            "pool_breakdown": pool_breakdown,
-            "equity_curve": curve_points,
-            "sebi_disclaimer": SEBI_DISCLAIMER,
-        }
-
-    except Exception as e:
-        logger.error("Public results fetch failed: %s", e)
-        return _unavailable_public_results()
+    return _unavailable_public_results()
 
 
 def _unavailable_public_results() -> dict:
