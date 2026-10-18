@@ -176,18 +176,18 @@ export default function PricingPage() {
         <div className="mt-16">
           <h2 className="font-headline text-2xl font-bold text-center">Why upgrade?</h2>
           <p className="mt-2 text-on-surface-variant text-center max-w-lg mx-auto text-sm">
-            NeuralQuant uses institutional-grade AI scoring on 100+ stocks. Free gives you a taste; Investor unlocks the full engine.
+            NeuralQuant provides AI-assisted research scoring on 100+ stocks. Free gives you a taste; Investor unlocks the full engine.
           </p>
           <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
             <WhyCard
               icon="📊"
-              title="Walk-Forward Validated"
-              desc="Every score is backtested against real 3-month forward returns. Not curve-fitted — genuinely predictive."
+              title="Transparent Factors"
+              desc="See the factor percentiles behind every score. Scores are research inputs, not predictions or advice."
             />
             <WhyCard
               icon="🎯"
               title="50+ Signals Per Stock"
-              desc="Quality, momentum, value, volatility, insider activity — all combined into a single 1-10 score you can act on."
+              desc="Quality, momentum, value, volatility, insider activity — all combined into a single 1-10 research score."
             />
             <WhyCard
               icon="⚡"
@@ -206,8 +206,8 @@ export default function PricingPage() {
             />
             <WhyCard
               icon="📈"
-              title="Proven Edge"
-              desc="Top-decile stocks outperform the market by measurable margins."
+              title="Methodology Published"
+              desc="Read how scores are built and their known limitations on the methodology page."
             />
           </div>
         </div>
