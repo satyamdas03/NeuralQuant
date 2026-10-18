@@ -451,18 +451,32 @@ def run_market_refresh(market_filter: str | None = None) -> dict:
             log.warning("FMP missed %s US tickers — no fallback (yfinance unreliable on cloud)", len(missing))
 
     # 5. Build snapshot rows
-    rows = _build_snapshot_rows(all_meta, fmp_results, yf_results)
+    built = _build_snapshot_rows(all_meta, fmp_results, yf_results)
+
+    # Never overwrite a stored row with a price-less row stamped as fresh.
+    # When FMP is down or not configured, every row came back empty; writing
+    # them replaced good snapshots with nulls and a new cached_at, which then
+    # flowed into score_cache as price 0.0. Skipped rows keep their old
+    # cached_at, so freshness checks report them as stale instead.
+    rows = [r for r in built if r.get("price") is not None]
+    skipped = len(built) - len(rows)
+    if skipped:
+        log.warning(
+            "market_refresh: skipping %s of %s rows with no fresh price (existing snapshots kept)",
+            skipped, len(built),
+        )
 
     # 6. Upsert to Supabase
-    written = write_snapshot(rows)
+    written = write_snapshot(rows) if rows else 0
 
     elapsed = time.monotonic() - start
     summary = {
-        "success": True,
+        "success": bool(rows),
         "total_tickers": len(all_meta),
         "fmp_hits": len(fmp_results),
         "yf_hits": len([v for v in yf_results.values() if v]),
         "snapshot_rows_written": written,
+        "rows_skipped_no_price": skipped,
         "elapsed_seconds": round(elapsed, 1),
     }
     log.info("market_refresh complete: %s", summary)

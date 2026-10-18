@@ -57,13 +57,13 @@ Earlier 2026-10-17 12:07 UTC probes (handover) agree. The earlier claim that the
 
 **Deploy state (updated 2026-10-18 01:13 UTC):** The public API is the Render web service **`NeuralQuant`** (`srv-d7a5pnchg0os73b9q2ag`, `neuralquant.onrender.com`), not `nq-api`. Its autoDeploy was switched off by Render when it was rolled back to `6e077d9` on 2026-09-03 01:30 UTC (`auto_deploy_disabled`, reason `rollback`), which is why master stopped shipping. On 2026-10-18 00:50 UTC, with Satyam's approval, deploy `dep-dba1fgvavr4c73fppap0` of master `f9f8182` was triggered; live at 00:57 UTC. Satyam re-enables autoDeploy in the dashboard. Workers `nq-trader` and `quantastra-agent` exist on Render with autoDeploy on (they redeployed on 2026-10-18 pushes). Vercel serves the 13 Oct web build.
 
-## ACTIVE INCIDENT (2026-10-18): API running without Supabase credentials
+## INCIDENT (2026-10-18): API restarted without several env vars
 
-- Render log 00:56:57 UTC on the new instance: `SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY not set — skipping migration check`. Then `[US] No quantfactor_universe rows after retries — aborting WITHOUT deleting score_cache`.
-- No code change between `6e077d9` and `f9f8182` alters how these env vars are read. The 3 Sep process held them in memory; the service's current environment does not have them.
-- Live effects at 01:12 UTC: `/health` `score_cache_rows: null`; `/health/score-cache` `{"status": "stale", "rows": null}`; `GET /stocks/AAPL?market=US` → 503; `GET /stocks/TCS?market=IN` falls to live compute and returns `composite_score 0.0`, `score_1_10 10`; IN meta returns `cached_at: null`, so stale/no-price is not valid S3 evidence.
-- BLOCKED (founder: restore `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` on the `NeuralQuant` Render service; check the other vars in `render.yaml` are present). A rollback would not help: it restarts with the same current environment.
-
+- 00:57 UTC deploy of `f9f8182`: Render log `SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY not set`. The 3 Sep process held them in memory; the service environment no longer had them. `/health` showed `score_cache_rows: null`, AAPL card 503, TCS card score 10.
+- 01:17 UTC: `SUPABASE_URL` set on the service via the Render API (non-secret). ~02:27 UTC: Satyam added `SUPABASE_SERVICE_ROLE_KEY` and deployed. 02:35 UTC: `/health` `score_cache_rows: 944`.
+- **Still open:** `FMP_API_KEY` is also missing (Render log 02:43:21 UTC `FMP not enabled — skipping batch fetch`). Cold-start market_refresh then wrote 446 US `stock_snapshot` rows with `price: null` and reported success, and score_cache US now has 0/446 rows with `current_price > 0` (live AAPL card `current_price: 0.0`). Other `sync: false` keys in `render.yaml` may also be missing: unverified, because values are never read back.
+- Code fix: market_refresh now skips price-less rows and reports `success: false` (PR below). Restoring `FMP_API_KEY` and running a refresh heals US prices.
+- BLOCKED (founder: compare the NeuralQuant service Environment tab with every `sync: false` key in `render.yaml` and restore missing ones, starting with `FMP_API_KEY`; rotate the service-role key that was pasted in chat on 2026-10-18).
 ---
 
 ## Phase 0-SEC — Security and Correctness
