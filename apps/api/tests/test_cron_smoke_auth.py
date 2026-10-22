@@ -140,11 +140,31 @@ def test_health_smoke_valid_secret_passes_gate(client_no_auth_override, monkeypa
     async def _fake_to_thread(*args, **kwargs):
         return {"ok": True}
 
+    class _FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return {"current_price": 1.0}
+
+    class _FakeAsyncClient:
+        """Plain async stand-in for httpx.AsyncClient. A MagicMock here left an
+        AsyncMock coroutine un-awaited and raised a RuntimeWarning."""
+
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return False
+
+        async def get(self, *args, **kwargs):
+            return _FakeResponse()
+
     import nq_api.main as main_mod
     with patch.object(main_mod.asyncio, "to_thread", _fake_to_thread):
-        with patch("httpx.AsyncClient") as mock_client:
-            mock_client.return_value.__aenter__.return_value.get.return_value.status_code = 200
-            mock_client.return_value.__aenter__.return_value.get.return_value.json.return_value = {"current_price": 1.0}
+        with patch("httpx.AsyncClient", _FakeAsyncClient):
             resp = client_no_auth_override.get(
                 "/health/smoke",
                 headers={"Authorization": f"Bearer {CRON_SECRET}"},

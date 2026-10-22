@@ -123,8 +123,13 @@ def require_team_access(
 
 
 def _smoke_bypass_ok(provided: str | None) -> bool:
-    """Only honor the smoke bypass when a STRONG secret (>=24 chars) is set and
-    matches. Prevents a weak/empty SMOKE_TEST_SECRET from enabling the bypass."""
+    """Only honor the smoke bypass when ENVIRONMENT=test and a STRONG secret
+    (>=24 chars) is set and matches. Any other environment (production,
+    development, unset) refuses the bypass even if the secret matches, so a
+    leaked SMOKE_TEST_SECRET cannot mint a pro user in production (S8 / F-10).
+    The secret value is never logged."""
+    if os.environ.get("ENVIRONMENT", "").strip().lower() != "test":
+        return False
     secret = os.environ.get("SMOKE_TEST_SECRET", "")
     if not secret or len(secret) < 24 or not provided:
         return False
