@@ -76,15 +76,9 @@ def _fmt_mcap(mc: float, market: str = "US") -> str:
     return f"${mc:,.0f}"
 
 
-@router.get("/{ticker}", response_model=AIScore)
-async def get_stock_score(
-    ticker: str,
-    market: Literal["US", "IN", "GLOBAL", "BOTH"] = Query("US"),
-    engine: Any = Depends(get_signal_engine),
-) -> AIScore:
-    ticker_upper = _normalize_ticker(ticker, market)
-
-    # --- F-02: universe membership check (never score an unknown ticker 10) ---
+def _require_known_ticker(ticker: str, ticker_upper: str, market: str) -> None:
+    """F-02 / S2: 404 unless the normalized ticker is in the market's universe.
+    Shared by the score route and /meta so both give the same message."""
     if market == "US":
         allowed = set(UNIVERSE_BY_MARKET["US"])
     elif market == "IN":
@@ -95,6 +89,18 @@ async def get_stock_score(
         allowed = set()
     if ticker_upper not in allowed:
         raise HTTPException(status_code=404, detail=f"Unknown ticker {ticker}")
+
+
+@router.get("/{ticker}", response_model=AIScore)
+async def get_stock_score(
+    ticker: str,
+    market: Literal["US", "IN", "GLOBAL", "BOTH"] = Query("US"),
+    engine: Any = Depends(get_signal_engine),
+) -> AIScore:
+    ticker_upper = _normalize_ticker(ticker, market)
+
+    # --- F-02: universe membership check (never score an unknown ticker 10) ---
+    _require_known_ticker(ticker, ticker_upper, market)
 
     # --- Fast path: read from Supabase score_cache (sub-100ms) ---
     # Tiered: try 5min → 24h → any age → live compute
@@ -549,6 +555,7 @@ async def get_stock_meta(ticker: str, market: str = Query("US")):
     resolve_in_quote (same as the card). A stale quote has no numeric price.
     """
     t_up = _normalize_ticker(ticker, market)
+    _require_known_ticker(ticker, t_up, market)
     if market == "IN":
         snap = None
         try:
