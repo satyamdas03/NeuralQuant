@@ -27,8 +27,32 @@ def client_no_auth_override():
 
 
 def test_backtest_no_auth_returns_401(client_no_auth_override):
-    resp = client_no_auth_override.post("/trade/backtest", json={"market": "US", "years": 1})
+    with patch("nq_data.fmp.get_fmp_client") as mock_get_fmp:
+        resp = client_no_auth_override.post("/trade/backtest", json={"market": "US", "years": 1})
     assert resp.status_code == 401
+    mock_get_fmp.assert_not_called()
+
+
+def test_backtest_non_admin_jwt_returns_403(client_no_auth_override, monkeypatch):
+    """S1: a valid JWT for a user outside ADMIN_EMAILS gets 403, and the FMP
+    client is never constructed."""
+    from nq_api.auth import deps as auth_deps
+
+    def fake_verify(token):
+        return {"sub": "user-1", "email": "customer@example.com"}
+
+    monkeypatch.setenv("ADMIN_EMAILS", "admin@neuralquant.internal")
+
+    with patch.object(auth_deps, "verify_supabase_jwt", fake_verify):
+        with patch("nq_data.fmp.get_fmp_client") as mock_get_fmp:
+            resp = client_no_auth_override.post(
+                "/trade/backtest",
+                json={"market": "US", "years": 1},
+                headers={"Authorization": "Bearer fake-jwt-token"},
+            )
+    assert resp.status_code == 403
+    assert resp.json()["detail"] == "Admin access required"
+    mock_get_fmp.assert_not_called()
 
 
 def test_backtest_wrong_cron_secret_returns_401(client_no_auth_override, monkeypatch):
