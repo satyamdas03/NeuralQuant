@@ -23,18 +23,18 @@ Full suite = five directories, run as:
 uv run python -m pytest apps/api/tests packages/data packages/signals apps/livekit-agent/tests scripts/backtest/tests -q
 ```
 
-| Directory | Tests (2026-10-18) |
+| Directory | Tests (2026-10-22) |
 |---|---|
-| apps/api/tests | 127 |
+| apps/api/tests | 150 |
 | packages/data | 63 |
 | packages/signals | 19 |
 | apps/livekit-agent/tests | 17 |
 | scripts/backtest/tests | 3 |
-| **Full suite** | **229** (T2 API: 239; T3: 241; market_refresh fix: 243; accuracy gate: 246, apps/api/tests 144) |
+| **Full suite** | **252** |
 
-Root `uv run pytest` (testpaths = apps/api/tests + packages) collects 209. 209 is **not** the full suite.
+Root `uv run pytest` (testpaths = apps/api/tests + packages) collects 232 (252 − 17 − 3). 232 is **not** the full suite.
 
-History: `53c61a2` 198; after S1–S4 219; `8cdc3e5` 229. No tests were deleted.
+History: `53c61a2` 198; after S1–S4 219; `8cdc3e5` 229; T2 API 239; T3 241; market_refresh fix 243; accuracy gate 246 (apps/api/tests 144); Hermes unmount 252 (apps/api/tests 150). The +6 versus 246 is `apps/api/tests/test_hermes_proxy_removed.py` (six parametrized 404 paths). No tests were deleted.
 
 Clean-environment note: `apps/api/src/nq_api/main.py` loads `apps/api/.env` with `override=True`. A local run with a populated `.env` therefore hides key-dependent failures. On 2026-10-18, with `.env` loading disabled and `ANTHROPIC_API_KEY` unset, HEAD `8cdc3e5` gave **2 failed / 227 passed** (`test_v2_blank_summary_returns_502`, `test_v2_user_question_wrapped_in_fence`). After the T1 fix, the same clean run gives **229 passed**.
 
@@ -94,8 +94,8 @@ Earlier 2026-10-17 12:07 UTC probes (handover) agree. The earlier claim that the
 | # | Task | Status | Notes |
 |---|---|---|---|
 | B1 | `/testing/quarterly/public-results` returns no metrics on any branch | VERIFIED-LIVE | `8274a06` (PR 17) | Live 2026-10-18 02:43 UTC with Supabase reachable: 200 `{"quarter": "Q1FY27", "available": false, "summary": null, "pool_breakdown": [], "equity_curve": [], ...}`. Endpoint no longer reads quarterly tables; tests red on old success path. |
-| B2 | Remove 87%/Q1FY27 from OG/Twitter and methodology FAQ | VERIFIED-LIVE | `55dc5d0` (PR 19) | Live 2026-10-18 04:03 UTC: `curl https://www.neuralquant.co/ \| grep -c 87%` → 0; `/methodology` → 0 (was 6 each on 2026-10-17). Metadata also drops "Beat the market", "Institutional-grade", "SEBI-compliant". |
-| B3 | Scrub README, ARCHITECTURE, ASSET_INVENTORY, pricing, prospectus | VERIFIED-LIVE (pricing live; docs have no live surface, merged in PR 20) | `c5ff4de` (PR 20 docs), `38e750f` (PR 21 pricing) | Live 2026-10-18 05:40 UTC: `curl https://www.neuralquant.co/pricing` → 0 matches for "proven edge", "genuinely predictive", "outperform"; "Transparent Factors" present. Docs PR: README, ARCHITECTURE, ASSET_INVENTORY, SALE_PROSPECTUS.md, StockEdge prospectus md + regenerated .docx, StockEdge thesis HTML, both generators. Remaining T5 rg hits justified (compliance disclaimer, third-party FinDebate citation in internal playbook, negation, false positive). |
+| B2 | Remove 87%/Q1FY27 from OG/Twitter and methodology FAQ | VERIFIED-LIVE | `55dc5d0` (PR 19) | Live 2026-10-18 04:03 UTC: `curl https://www.neuralquant.co/ \| grep -c 87%` → 0; `/methodology` → 0 (was 6 each on 2026-10-17). Homepage page metadata also drops "SEBI-compliant". Not gone: "Beat the market" and "Institutional-grade" remain in the root `apps/web/src/app/layout.tsx` metadata and its JSON-LD (live homepage HTML still has "Institutional-grade" in the JSON-LD on 2026-10-22). |
+| B3 | Scrub README, ARCHITECTURE, ASSET_INVENTORY, pricing, prospectus | VERIFIED-LIVE (pricing live; docs have no live surface, merged in PR 20) | `c5ff4de` (PR 20 docs), `38e750f` (PR 21 pricing) | Live 2026-10-18 05:40 UTC: `curl https://www.neuralquant.co/pricing` → 0 matches for "proven edge", "genuinely predictive", "outperform"; "Transparent Factors" present. Docs PR: README, ARCHITECTURE, ASSET_INVENTORY, SALE_PROSPECTUS.md, StockEdge prospectus md + regenerated .docx, StockEdge thesis HTML, both generators. Remaining T5 rg hits justified (compliance disclaimer, negation, false positive). |
 | B4 | Delete orphaned backtest components and `accuracy()` client | VERIFIED-LIVE (deleted code; web eslint 0 warnings; merged `7b97ec0`, PR 22) | T6 PR: deleted BacktestResultsSection, EquityCurveChart, QuarterlyBreakdownTable, AlphaCounterCard (rg: only imported by each other), `api.accuracy()` + `AccuracyResponse`, unused BarChart3/Zap/MetricCounterCard in methodology. eslint 0 errors, 0 warnings (was 3); build exit 0; web tests 3 passed. `GET /backtest/accuracy` (public, live 200 on 2026-10-18, hit-rate/Sharpe/top-decile returns): gated with `require_admin` and `str(e)` removed (Satyam: "do what is recommended"); 3 tests (2 red on old code). Full suite 246. Live 2026-10-18 08:43 UTC: `GET /backtest/accuracy` → 401 `{"detail": "missing Bearer token"}` (deploy `dep-dba894lg1s2s73b5ko2g`, `fd5e7e5`). |
 | B5 | Neutralize BUY/SELL/AVOID labels at UI boundary | CONDITIONAL (methodology pipeline-stage fix not yet live; API enums/prompts follow-up open) | 2026-10-22 (Sydney): review 3 found /methodology still rendered "Verdict BUY / HOLD / SELL" in the Data Pipeline Architecture stage 6. T7 remainder PR changes that stage to "Research band / Upper / Middle / Lower" (text only; no API enum, prompt or number change). Local: `rg -n "BUY / HOLD / SELL\|STRONG BUY\|STRONG SELL\|HARD SELL" apps/web/src` hits only `lib/types.ts` (Verdict type), `lib/neutralLabels.ts` and `NeutralLabels.test.tsx`; eslint exit 0, no warnings; vitest 8 passed; build exit 0; built methodology.html 0 matches for "BUY / HOLD / SELL". Live curl after Vercel deploy not yet pasted, so not VERIFIED-LIVE. Earlier: T7 web PR 24 (`135ce2b`). Live 2026-10-18 08:45 UTC: /, /methodology, /pricing → 0 matches for STRONG BUY / STRONG SELL / Strong Buy / Strong Avoid / HARD SELL / INVESTMENT READY; /methodology shows "Upper band". Details: `lib/neutralLabels.ts` maps stored verdicts/consensus/IRS zones to Upper / Middle / Lower band (unknown → Unrated). Wired into VerdictBanner, AgentDebatePanel, IRSZoneBadge, StockSummaryCard, StockMetaBar, ConsensusPanel, DebateProgressPanel, quantfactor page, methodology tables, share page and 3 OG images; "HARD SELL" → "G-SCORE < −4"; /compare IWM answer no longer says "HOLD … wait for $220". Render tests 5 (3 red on old components), web tests 8 passed, eslint 0/0, build 0; built /, /methodology, /pricing HTML 0 advice hits. Not done: API enums/prompts (follow-up PR); `GeopoliticalScanPanel` renders free-text `recommendation` from the API; /compare page quotes competitor answers (founder decision). |
 | B6 | Remove Hermes page and public proxy | VERIFIED-LIVE | `a65f1ad` (PR 25 web), `f46a679` (PR 26 API), deploy `dep-dbac3bqjnfac73f5b600` | Satyam 2026-10-18: remove /hermes, keep GCP VM. Live 2026-10-18 13:03 UTC: `https://www.neuralquant.co/hermes` → 404; `https://neuralquant.onrender.com/hermes/status` → 404 (was 200 with live positions); `/hermes/health` → 404; `/health` ok. GCP VM not touched. OPERATIONS.md Render table corrected. F-21 (SSE timeout) moot while the proxy is unmounted. |
@@ -108,12 +108,12 @@ Earlier 2026-10-17 12:07 UTC probes (handover) agree. The earlier claim that the
 | # | Task | Status | Notes |
 |---|---|---|---|
 | A1 | Fix STATUS link to master plan | MERGED-NOT-DEPLOYED (docs-only) | Fixed in `662559a`. |
-| A2 | Rewrite `phase_0a_baseline_report.md` | NOT STARTED | Memo says PASS over a partial table; dated 2026-09-05. Task T10. |
-| A3 | Rewrite `phase_0b_stop_the_bleed.md` | NOT STARTED | Memo says "complete and deployed"; nothing is deployed. Task T10. |
+| A2 | Rewrite `phase_0a_baseline_report.md` | MERGED-NOT-DEPLOYED (docs-only) | Task T10. Rewritten 2026-10-22: real dates (2026-10-12 pass, 2026-10-22 update), gate CONDITIONAL on stale India prices, A4 and A5. |
+| A3 | Rewrite `phase_0b_stop_the_bleed.md` | MERGED-NOT-DEPLOYED (docs-only) | Task T10. Rewritten 2026-10-22: real dates (2026-10-13 pass, 2026-10-22 update); audit-dump line removed; lists only items matched by public curls on 2026-10-22. |
 | A4 | `scripts/verify/probe_universe.py` 50+50 probe | NOT STARTED | Task T11. |
 | A5 | Docs match the live stack | NOT STARTED | Task T11. |
 
-Phase 0A overall: CONDITIONAL (India names/prices not fresh live; A2–A5 not started).
+Phase 0A overall: CONDITIONAL (India prices not fresh live; A4–A5 not started).
 
 ---
 
@@ -142,9 +142,9 @@ Phase 0A overall: CONDITIONAL (India names/prices not fresh live; A2–A5 not st
 
 ## Founder blockers (Satyam)
 
-1. BLOCKED (founder: Render deploy) — find why `autoDeploy: yes` has not shipped master since before 13 Oct; ship after T1 CI is green; confirm Vercel.
+1. BLOCKED (founder: Render autoDeploy) — the API behaviour on master through `f46a679` is deployed (public curls on 2026-10-22 match T3, T8, S2, S8 wording, accuracy gate). Whether autoDeploy is back on for the `NeuralQuant` service is unconfirmed; confirm in the Render dashboard. Do not treat a future master push as deployed until a curl changes.
 2. BLOCKED (founder: key rotation) — treat key material in history (chiefly the `9a8fd6d` dump) as real until confirmed; rotate; decide on history rewrite.
-3. BLOCKED (founder: Hermes and voice) — remove or archive `/hermes`; guest voice pause (F-22).
+3. BLOCKED (founder: guest voice) — the `/hermes` page and public proxy are removed (B6, VERIFIED-LIVE). Guest voice (F-22) is still open: guests are still dispatched to paid workers; pause or not is a founder decision.
 4. BLOCKED (founder: checkout) — suspend B2C checkout or not; approve disclaimer wording.
 5. BLOCKED (founder: employer contract and JV IP terms).
 6. BLOCKED (founder: patent attorney; complete spec due 2027-07-07).
