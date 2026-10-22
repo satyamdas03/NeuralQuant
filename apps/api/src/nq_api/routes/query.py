@@ -46,6 +46,9 @@ from nq_api.services.portfolio import (
     _infer_portfolio_market, _validate_and_fill_portfolio_prices,
 )
 from nq_api.services.stock_summary import _build_stock_summary
+from nq_api.services.fencing import (
+    collect_history, fence_clarification, fence_history, fence_question,
+)
 from nq_api.services.parsing import (
     _detect_tickers_in_question, _fmt_price_row, _parse_query_response,
     _extract_json_from_llm, _extract_tool_use_input, _structured_from_markdown,
@@ -68,6 +71,24 @@ from nq_api.validation import (
     validate_response,
     validate_portfolio_stocks,
 )
+
+
+# Stable error codes for Ask AI failures. Response bodies carry only these
+# codes and fixed text, never exception text (S4 / F-03).
+_ERR_TIMEOUT = "NQ_QUERY_TIMEOUT"
+_ERR_FAILED = "NQ_QUERY_FAILED"
+_ERR_UNAVAILABLE = "NQ_QUERY_UNAVAILABLE"
+_ERR_MESSAGES = {
+    _ERR_TIMEOUT: "The AI took too long to respond. Please try again with a shorter question.",
+    _ERR_FAILED: "The query could not be completed. Please try again.",
+    _ERR_UNAVAILABLE: "Ask AI is temporarily unavailable. Please try again later.",
+}
+
+
+def _sse_error(code: str) -> str:
+    """One SSE error event with a stable code and fixed, safe message."""
+    payload = {"status": "error", "code": code, "message": _ERR_MESSAGES.get(code, _ERR_MESSAGES[_ERR_FAILED])}
+    return f"data: {_json.dumps(payload)}\n\n"
 
 
 @router.post("", response_model=QueryResponse)
@@ -137,7 +158,7 @@ async def run_nl_query(
 
     context_parts = [
         f"Today's date: {today}",
-        "User question:\n<user-query>\n" + (req.question or "")[:4000] + "\n</user-query>",
+        fence_question(req.question),
     ]
     if macro_ctx:
         context_parts.append(macro_ctx)
@@ -230,11 +251,12 @@ async def run_nl_query(
 
     try:
         # Build message list — keep up to 4 prior turns; truncate long messages
-        messages = []
-        for m in (req.history or [])[-4:]:
-            content = m.content[:1500] if len(m.content) > 1500 else m.content
-            messages.append({"role": m.role, "content": content})
-        messages.append({"role": "user", "content": user_msg})
+        # Prior turns go inside the fence in the single user message, never
+        # as separate role messages the client could forge (F-04).
+        history_block = fence_history(collect_history(req.history))
+        if history_block:
+            user_msg = history_block + "\n\n" + user_msg
+        messages = [{"role": "user", "content": user_msg}]
 
         # ── Morgan REPORT tier for /v1 (unstructured) ──────────────────────
         _v1_system = _SYSTEM
@@ -304,17 +326,8 @@ async def run_nl_query_v2(
 
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
-        return StructuredQueryResponse(
-            verdict="HOLD",
-            confidence=0,
-            timeframe="Medium-term",
-            summary="Query service unavailable: ANTHROPIC_API_KEY not configured.",
-            reasoning=ReasoningBlock(
-                why_this="N/A", why_not_alt="N/A", edge_summary="N/A",
-                second_best="N/A", confidence_gap="N/A",
-            ),
-            route="REACT",
-        )
+        log.error("/query/v2 called but ANTHROPIC_API_KEY is not configured")
+        raise HTTPException(status_code=503, detail=_ERR_UNAVAILABLE)
 
     # ── DART routing ── (SNAP disabled — force REACT for full structured detail)
     classified, _is_report_v2 = dart.classify_query(req.question, req.ticker)
@@ -369,7 +382,7 @@ async def run_nl_query_v2(
 
     context_parts = [
         f"Today's date: {today}",
-        "User question:\n<user-query>\n" + (req.question or "")[:4000] + "\n</user-query>",
+        fence_question(req.question),
     ]
     if macro_ctx:
         context_parts.append(macro_ctx)
@@ -483,23 +496,15 @@ async def run_nl_query_v2(
         persistent_history = await asyncio.to_thread(
             _load_conversation_history, user_id, req.session_key, limit=10
         )
-        if persistent_history:
-            context_parts.insert(0, f"[Previous conversation context ({len(persistent_history)} turns)]")
-            user_msg = "\n".join(context_parts)
+
+    # Prior turns (client + stored) go inside the fence in the single user
+    # message, never as separate role messages the client could forge (F-04).
+    history_block = fence_history(collect_history(req.history, persistent_history))
+    if history_block:
+        user_msg = history_block + "\n\n" + user_msg
 
     try:
-        messages = []
-        # Merge client-provided history, persistent history, and current message
-        seen_content = set()
-        all_history = list(req.history or [])[-4:]
-        for ph in persistent_history:
-            all_history.append(ConversationMessage(role=ph["role"], content=ph["content"]))
-        for m in all_history[-8:]:  # max 8 total history turns
-            content = m.content[:1500] if len(m.content) > 1500 else m.content
-            if content not in seen_content:
-                seen_content.add(content)
-                messages.append({"role": m.role, "content": content})
-        messages.append({"role": "user", "content": user_msg})
+        messages = [{"role": "user", "content": user_msg}]
 
         # ── Clarification check (ask follow-up before answering) ──────────
         detected_tickers_v2 = []
@@ -512,9 +517,8 @@ async def run_nl_query_v2(
             detected_tickers_v2 = [req.ticker]
 
         if req.clarification_answers:
-            # Inject user's clarification answers into the prompt
-            answers_text = "\n".join(f"• {a}" for a in req.clarification_answers)
-            user_msg += f"\n\n[USER CONTEXT] User clarified their needs:\n{answers_text}"
+            # Inject user's clarification answers into the prompt, fenced
+            user_msg += "\n\n" + fence_clarification(req.clarification_answers)
             messages[-1] = {"role": "user", "content": user_msg}
 
         clarification = _needs_clarification(req.question, detected_tickers_v2, route, req.profile)
@@ -793,28 +797,16 @@ async def run_nl_query_v2(
             raise HTTPException(status_code=502, detail="NQ_QUERY_EMPTY_ANSWER")
         return result
 
+    except HTTPException:
+        raise
     except (anthropic.APITimeoutError, asyncio.TimeoutError):
-        return StructuredQueryResponse(
-            verdict="HOLD", confidence=0, timeframe="Medium-term",
-            summary="Query timed out — the AI took too long to respond. Try a shorter question.",
-            reasoning=ReasoningBlock(
-                why_this="N/A", why_not_alt="N/A", edge_summary="N/A",
-                second_best="N/A", confidence_gap="N/A",
-            ),
-            route=route,
-        )
-    except Exception as exc:
-        if isinstance(exc, HTTPException):
-            raise
-        return StructuredQueryResponse(
-            verdict="HOLD", confidence=0, timeframe="Medium-term",
-            summary=f"Query failed: {str(exc)[:200]}",
-            reasoning=ReasoningBlock(
-                why_this="N/A", why_not_alt="N/A", edge_summary="N/A",
-                second_best="N/A", confidence_gap="N/A",
-            ),
-            route=route,
-        )
+        # Fail closed: no 200 HOLD on a timeout (S4 / F-03).
+        log.warning("/query/v2 LLM call timed out")
+        raise HTTPException(status_code=504, detail=_ERR_TIMEOUT)
+    except Exception:
+        # Fail closed and keep exception text in the server log only.
+        log.exception("/query/v2 failed")
+        raise HTTPException(status_code=502, detail=_ERR_FAILED)
 
 
 @router.post("/v2/stream")
@@ -840,7 +832,8 @@ async def run_nl_query_v2_stream(
 
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         if not api_key:
-            yield f'data: {_json.dumps({"status":"error","message":"ANTHROPIC_API_KEY not configured"})}\n\n'
+            log.error("/query/v2/stream called but ANTHROPIC_API_KEY is not configured")
+            yield _sse_error(_ERR_UNAVAILABLE)
             yield "data: [DONE]\n\n"
             return
 
@@ -909,7 +902,7 @@ async def run_nl_query_v2_stream(
             log.info("Context gather completed in %.1fs (platform_ctx=%s, enrichment=%d fields)",
                      time.monotonic() - _gc_t0, "present" if platform_ctx else "absent",
                      len(enrichment) if enrichment else 0)
-            context_parts = [f"Today's date: {today}", f"User question: {req.question}"]
+            context_parts = [f"Today's date: {today}", fence_question(req.question)]
             if macro_ctx:
                 context_parts.append(macro_ctx)
             if platform_ctx:
@@ -984,7 +977,7 @@ async def run_nl_query_v2_stream(
             elapsed = time.monotonic() - ctx_start
             if elapsed > 30:                       # 30s: must be >= max inner timeout (25s) + buffer
                 context_task.cancel()
-                result_holder.setdefault("error", "Context gathering timed out")
+                result_holder.setdefault("error", _ERR_TIMEOUT)
                 break
             try:
                 await asyncio.wait_for(asyncio.shield(context_done.wait()), timeout=4.0)
@@ -992,7 +985,7 @@ async def run_nl_query_v2_stream(
                 pass
 
         if "error" in result_holder:
-            yield f'data: {_json.dumps({"status":"error","message":result_holder["error"]})}\n\n'
+            yield _sse_error(result_holder["error"])
             yield "data: [DONE]\n\n"
             return
 
@@ -1018,18 +1011,12 @@ async def run_nl_query_v2_stream(
                     except Exception:
                         pass
 
-                messages = []
-                # Merge client-provided history, persistent history, and current message
-                seen_content = set()
-                all_history = list(req.history or [])[-4:]
-                for ph in persistent_history_stream:
-                    all_history.append(ConversationMessage(role=ph["role"], content=ph["content"]))
-                for m in all_history[-8:]:
-                    content = m.content[:1500] if len(m.content) > 1500 else m.content
-                    if content not in seen_content:
-                        seen_content.add(content)
-                        messages.append({"role": m.role, "content": content})
-                messages.append({"role": "user", "content": result_holder["user_msg"]})
+                # Prior turns go inside the fence in the single user message,
+                # never as separate role messages the client could forge (F-04).
+                history_block = fence_history(collect_history(req.history, persistent_history_stream))
+                if history_block:
+                    result_holder["user_msg"] = history_block + "\n\n" + result_holder["user_msg"]
+                messages = [{"role": "user", "content": result_holder["user_msg"]}]
 
                 # ── Clarification check (ask follow-up before answering) ──────────
                 detected_tickers_stream = []
@@ -1042,8 +1029,7 @@ async def run_nl_query_v2_stream(
                     detected_tickers_stream = [req.ticker]
 
                 if req.clarification_answers:
-                    answers_text = "\n".join(f"• {a}" for a in req.clarification_answers)
-                    result_holder["user_msg"] += f"\n\n[USER CONTEXT] User clarified their needs:\n{answers_text}"
+                    result_holder["user_msg"] += "\n\n" + fence_clarification(req.clarification_answers)
                     messages[-1] = {"role": "user", "content": result_holder["user_msg"]}
 
                 # Build dynamic clarification context with live market data (streaming)
@@ -1177,12 +1163,8 @@ async def run_nl_query_v2_stream(
                         timeout=90.0,
                     )
                 except asyncio.TimeoutError:
-                    result_holder["result"] = StructuredQueryResponse(
-                        verdict="HOLD", confidence=0, timeframe="Medium-term",
-                        summary="Query timed out — the AI took too long to respond. Try a shorter question.",
-                        reasoning=ReasoningBlock(why_this="N/A", why_not_alt="N/A", edge_summary="N/A", second_best="N/A", confidence_gap="N/A"),
-                        route=route,
-                    )
+                    log.warning("/query/v2/stream LLM call timed out")
+                    result_holder["error"] = _ERR_TIMEOUT
                     llm_done.set()
                     return
 
@@ -1344,20 +1326,16 @@ async def run_nl_query_v2_stream(
                         result_holder["result"].summary or "",
                         verified,
                     )
-            except anthropic.APITimeoutError:
-                result_holder["result"] = StructuredQueryResponse(
-                    verdict="HOLD", confidence=0, timeframe="Medium-term",
-                    summary="Query timed out — the AI took too long to respond. Try a shorter question.",
-                    reasoning=ReasoningBlock(why_this="N/A",why_not_alt="N/A",edge_summary="N/A",second_best="N/A",confidence_gap="N/A"),
-                    route=route,
-                )
-            except Exception as exc:
-                result_holder["result"] = StructuredQueryResponse(
-                    verdict="HOLD", confidence=0, timeframe="Medium-term",
-                    summary=f"Query failed: {str(exc)[:200]}",
-                    reasoning=ReasoningBlock(why_this="N/A",why_not_alt="N/A",edge_summary="N/A",second_best="N/A",confidence_gap="N/A"),
-                    route=route,
-                )
+            except (anthropic.APITimeoutError, asyncio.TimeoutError):
+                # Fail closed: an error event, not a HOLD result (S4 / F-03).
+                log.warning("/query/v2/stream LLM call timed out")
+                result_holder.pop("result", None)
+                result_holder["error"] = _ERR_TIMEOUT
+            except Exception:
+                # Keep exception text in the server log only.
+                log.exception("/query/v2/stream failed")
+                result_holder.pop("result", None)
+                result_holder["error"] = _ERR_FAILED
             finally:
                 llm_done.set()
 
@@ -1378,12 +1356,9 @@ async def run_nl_query_v2_stream(
             total_elapsed = time.monotonic() - query_start
             if total_elapsed > 180:                 # bumped 60s -> 180s total cap
                 llm_task.cancel()
-                result_holder.setdefault("result", StructuredQueryResponse(
-                    verdict="HOLD", confidence=0, timeframe="Medium-term",
-                    summary="Analysis timed out after 3 minutes. Try a shorter or more specific question.",
-                    reasoning=ReasoningBlock(why_this="N/A",why_not_alt="N/A",edge_summary="N/A",second_best="N/A",confidence_gap="N/A"),
-                    route=route,
-                ))
+                if "result" not in result_holder:
+                    log.warning("/query/v2/stream hit the 180s total cap")
+                    result_holder.setdefault("error", _ERR_TIMEOUT)
                 llm_done.set()
                 break
             try:
@@ -1395,10 +1370,12 @@ async def run_nl_query_v2_stream(
         yield f'data: {_json.dumps({"status":"phase","phase":"parse","label":_PHASE_LABELS["parse"]})}\n\n'
         yield f'data: {_json.dumps({"status":"phase","phase":"render","label":_PHASE_LABELS["render"]})}\n\n'
 
-        if "result" in result_holder:
+        if "error" in result_holder:
+            yield _sse_error(result_holder["error"])
+        elif "result" in result_holder:
             yield f'data: {_json.dumps({"status":"done","result": result_holder["result"].model_dump()})}\n\n'
         else:
-            yield f'data: {_json.dumps({"status":"error","message":"No result produced"})}\n\n'
+            yield _sse_error(_ERR_FAILED)
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(

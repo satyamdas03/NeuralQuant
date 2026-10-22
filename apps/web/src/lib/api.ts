@@ -18,6 +18,16 @@ import type {
 // next.config.ts rewrites /api/:path* → NEXT_PUBLIC_API_URL/:path*
 const API_BASE = "/api";
 
+/** Failure reported by the Ask AI stream itself (stable code, safe message). */
+export class QueryServerError extends Error {
+  readonly code: string;
+  constructor(code: string, message: string) {
+    super(message);
+    this.name = "QueryServerError";
+    this.code = code;
+  }
+}
+
 const DEFAULT_TIMEOUT_MS = 15_000; // 15s — prevents infinite loading on cold backend
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
@@ -264,7 +274,7 @@ export const api = {
             } else if (evt.status === "done") {
               return evt.result as StructuredQueryResponse;
             } else if (evt.status === "error") {
-              throw new Error(evt.message ?? "Query failed");
+              throw new QueryServerError(evt.code ?? "NQ_QUERY_FAILED", evt.message ?? "Query failed");
             }
             // status === "running": keep-alive tick, ignore
           } catch (e) {
@@ -275,7 +285,10 @@ export const api = {
       }
       throw new Error("SSE stream ended without result");
     } catch (streamErr) {
-      // Fallback: try the regular endpoint if SSE fails
+      // The server already ran the query and reported a failure (for example
+      // a timeout). Re-running it on /query/v2 would only double the wait.
+      if (streamErr instanceof QueryServerError) throw streamErr;
+      // Fallback: try the regular endpoint if the SSE transport fails
       try {
         return await api.runQuery(body, signal);
       } catch {
