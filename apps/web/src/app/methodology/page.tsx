@@ -1143,7 +1143,7 @@ export default function MethodologyPage() {
                   "G + Risk Score\n-12 to +8",
                   "IRS% Composite\n0 – 100%",
                   "PARA-DEBATE\n6+1 Agents",
-                  "Verdict\nBUY / HOLD / SELL",
+                  "Research band\nUpper / Middle / Lower",
                 ].map((step, i) => (
                   <div key={i} className="flex items-center gap-2 md:gap-0">
                     <div
