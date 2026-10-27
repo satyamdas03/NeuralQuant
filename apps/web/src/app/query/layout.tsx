@@ -3,11 +3,11 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Ask Morgan — NeuralQuant",
   description:
-    "Ask Morgan anything about stocks, sectors, or macro. Senior equity research analyst with institutional-grade analysis, live data, and source citations.",
+    "Ask Morgan anything about stocks, sectors, or macro. AI equity research analyst with live data and source citations.",
   openGraph: {
     title: "Ask Morgan — AI Equity Research Analyst | NeuralQuant",
     description:
-      "Ask Morgan anything about stocks, sectors, or macro. Institutional-grade analysis, live data, and source citations.",
+      "Ask Morgan anything about stocks, sectors, or macro. AI research with live data and source citations.",
     url: "https://neuralquant.co/query",
     siteName: "NeuralQuant",
     images: [
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Ask Morgan — AI Equity Research Analyst | NeuralQuant",
     description:
-      "Ask Morgan anything about stocks, sectors, or macro. Institutional-grade analysis with live data and source citations.",
+      "Ask Morgan anything about stocks, sectors, or macro. AI research with live data and source citations.",
     creator: "@neuralquant",
     site: "@neuralquant",
   },

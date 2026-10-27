@@ -30,7 +30,7 @@ export default function MorganReportCard({ response }: MorganReportCardProps) {
               Morgan Institutional Report
             </span>
             <span className="block text-[9px] font-mono text-on-surface-variant mt-0.5">
-              {response.route} · Institutional-Grade Research
+              {response.route} · AI Research Note
             </span>
           </div>
         </div>

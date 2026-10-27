@@ -108,7 +108,7 @@ export default async function Image() {
             marginBottom: 40,
           }}
         >
-          Institutional-Grade AI Stock Intelligence for US &amp; India Markets
+          AI Stock Research for US &amp; India Markets
         </div>
 
         {/* Feature pills */}

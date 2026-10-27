@@ -80,7 +80,7 @@ export async function GET(
         </div>
         {/* Subtitle */}
         <div style={{ fontSize: 14, marginTop: 8, color: "#5a5a6a" }}>
-          7-Agent PARA-DEBATE • Institutional-Grade Research
+          7-Agent PARA-DEBATE • AI Research
         </div>
         {/* Accent line */}
         <div

@@ -12,7 +12,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: "View a shared AI-powered PARA-DEBATE stock analysis on NeuralQuant.",
     openGraph: {
       title: "NeuralQuant AI Stock Analysis",
-      description: "7-Agent PARA-DEBATE • Institutional-Grade Research",
+      description: "7-Agent PARA-DEBATE • AI Research",
       type: "article",
       siteName: "NeuralQuant",
       url: `https://neuralquant.co/analysis/${share_id}`,
@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     twitter: {
       card: "summary_large_image",
       title: "NeuralQuant AI Stock Analysis",
-      description: "7-Agent PARA-DEBATE • Institutional-Grade Research",
+      description: "7-Agent PARA-DEBATE • AI Research",
       images: [ogImageUrl],
       creator: "@neuralquant",
       site: "@neuralquant",

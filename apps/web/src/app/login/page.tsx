@@ -45,7 +45,7 @@ function LoginForm() {
             Sign in to NeuralQuant
           </h1>
           <p className="mt-1 text-xs text-on-surface-variant">
-            Institutional-grade AI stock intelligence
+            AI stock research for US and India markets
           </p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-3">
