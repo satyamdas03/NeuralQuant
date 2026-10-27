@@ -172,6 +172,10 @@ export default function PricingPage() {
           Secure payment via Stripe or PayPal. INR available for India via Stripe. Cancel anytime. No lock-in.
         </p>
 
+        <p className="mt-3 text-center text-xs text-on-surface-variant max-w-2xl mx-auto">
+          Information only, not investment advice: NeuralQuant is not registered with SEBI, does not hold an Australian Financial Services Licence, and is not a US registered investment adviser.
+        </p>
+
         {/* Why Upgrade */}
         <div className="mt-16">
           <h2 className="font-headline text-2xl font-bold text-center">Why upgrade?</h2>
