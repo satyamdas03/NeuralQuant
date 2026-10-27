@@ -16,7 +16,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends
 
-from nq_api.auth.deps import get_current_user, require_admin_or_cron
+from nq_api.auth.deps import require_admin_or_cron
 from nq_api.auth.models import User
 
 from nq_api.cache import score_cache
@@ -110,9 +110,12 @@ async def execute_pipeline(
     bankroll: float = 10000.0,
     n: int = 5,
     live: bool = False,
-    user: User = Depends(get_current_user),
+    _admin_or_cron: User | None = Depends(require_admin_or_cron),
 ) -> dict:
     """Run full signal-to-order pipeline.
+
+    Requires admin JWT or Bearer CRON_SECRET: it writes signal_log rows and,
+    with TRADE_ENABLED=true and DRY_RUN=false, can place broker orders.
 
     1. Get trade signals from score_cache (or live FMP fallback)
     2. Run news classification for context
