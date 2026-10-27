@@ -126,13 +126,13 @@ def build_anjali_context(enrichment: dict | None) -> str:
         # Interpret IRS thresholds
         if irs_pct is not None:
             if irs_pct > 65:
-                lines.append("    → STRONG BUY candidate (IRS% > 65%)")
+                lines.append("    → Upper research band (IRS% > 65%)")
             elif irs_pct >= 45:
-                lines.append("    → MODERATE — watchlist candidate (IRS% 45-65%)")
+                lines.append("    → Middle research band (IRS% 45-65%)")
             elif irs_pct >= 30:
-                lines.append("    → WEAK — avoid or sell (IRS% 30-45%)")
+                lines.append("    → Lower research band (IRS% 30-45%)")
             else:
-                lines.append("    → VERY WEAK — sell signal (IRS% < 30%)")
+                lines.append("    → Lower research band, weakest (IRS% < 30%)")
         # Sell signals
         if g_score is not None and g_score < -4:
             lines.append("    ⚠ SELL SIGNAL: G Score < -4 (deeply negative fundamental conviction)")
