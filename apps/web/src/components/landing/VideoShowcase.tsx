@@ -107,7 +107,7 @@ export default function VideoShowcase() {
               }`}
             >
               Watch how IRS% scoring and PARA-DEBATE analysis work together to deliver
-              institutional-grade equity research — in seconds.
+              transparent, source-cited equity research — in seconds.
             </p>
           </div>
 

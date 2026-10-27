@@ -1,7 +1,7 @@
 {
   "name": "NeuralQuant — AI Stock Intelligence",
   "short_name": "NeuralQuant",
-  "description": "Institutional-grade AI stock analysis for US and India markets. ForeCast Score, PARA-DEBATE multi-agent analysis, and regime detection.",
+  "description": "AI stock research for US and India markets. ForeCast Score, PARA-DEBATE multi-agent analysis, and regime detection.",
   "start_url": "/dashboard",
   "scope": "/",
   "id": "/?source=pwa",

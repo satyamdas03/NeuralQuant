@@ -172,7 +172,7 @@ export default function MethodologyPage() {
         name: "What is IRS% scoring?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "IRS% (Institutional Research Score) is NeuralQuant's proprietary composite metric that aggregates fundamental, technical, and sentiment signals into a single 0-100 score. Scores above 65 indicate institutional-grade conviction.",
+          text: "IRS% (Institutional Research Score) is NeuralQuant's proprietary composite metric that aggregates fundamental, technical, and sentiment signals into a single 0-100 score. Scores of 65 and above fall in the upper research band; it is a ranking, not a recommendation.",
         },
       },
       {
@@ -232,7 +232,7 @@ export default function MethodologyPage() {
               }}
             >
               <span className="w-2 h-2 rounded-full bg-primary-fixed animate-pulse" />
-              Institutional-Grade Transparency
+              Transparent Methodology
             </div>
             <h1
               className={`font-serif text-4xl sm:text-5xl md:text-6xl lg:text-7xl mb-6 transition-all duration-700 delay-100 ${
@@ -255,7 +255,7 @@ export default function MethodologyPage() {
               }`}
               style={{ color: "var(--color-text-muted)" }}
             >
-              Institutional-grade quantitative research, made transparent. Every
+              Quantitative research, made transparent. Every
               score is derived from audited financials, live price data, and
               peer-relative metrics — not opinion.
             </p>

@@ -148,7 +148,7 @@ export default function LandingPage() {
             NeuralQuant Engine V4.0 Live
           </div>
           <h1 className="font-serif hero-title text-4xl sm:text-5xl md:text-8xl lg:text-[10rem] mb-6">
-            <span className="block">Institutional-Grade</span>
+            <span className="block">Transparent</span>
             <span className="block text-primary-fixed italic">Equity Research.</span>
             <span className="block text-tertiary-fixed-dim italic text-2xl sm:text-3xl md:text-6xl lg:text-7xl mt-4">
               Powered by Multi-Agent AI.

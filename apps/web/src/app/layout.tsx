@@ -58,7 +58,7 @@ const jsonLd = {
       operatingSystem: "Web",
       url: "https://neuralquant.co",
       description:
-        "Institutional-grade AI stock analysis with IRS% scoring, PARA-DEBATE multi-agent consensus, and regime detection for US and India markets.",
+        "AI stock research for US and India markets with IRS% scoring, PARA-DEBATE multi-agent analysis, and regime detection. Information only, not investment advice.",
       offers: {
         "@type": "Offer",
         price: "0",
@@ -76,7 +76,7 @@ export const metadata: Metadata = {
     template: "%s | NeuralQuant",
   },
   description:
-    "Beat the market with IRS% scoring and 7-agent PARA-DEBATE analysis. Institutional-grade AI stock intelligence for US and India markets.",
+    "AI stock research for US and India markets: IRS% factor scoring and 7-agent PARA-DEBATE analysis. Information only, not investment advice.",
   keywords: [
     "stock analysis",
     "AI investing",
@@ -113,7 +113,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "NeuralQuant — AI Stock Intelligence",
     description:
-      "Institutional-grade AI stock analysis for US and India markets. IRS% scoring, PARA-DEBATE 7-agent consensus, and regime detection.",
+      "AI stock research for US and India markets. IRS% scoring, PARA-DEBATE 7-agent analysis, and regime detection.",
     siteName: "NeuralQuant",
     type: "website",
     url: "/",
@@ -131,7 +131,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "NeuralQuant — AI Stock Intelligence",
     description:
-      "Institutional-grade AI stock analysis for US and India markets. IRS% scoring, PARA-DEBATE 7-agent consensus, and regime detection.",
+      "AI stock research for US and India markets. IRS% scoring, PARA-DEBATE 7-agent analysis, and regime detection.",
     images: ["/og-image.png"],
     creator: "@neuralquant",
     site: "@neuralquant",

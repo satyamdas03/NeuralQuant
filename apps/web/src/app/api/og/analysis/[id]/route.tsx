@@ -137,7 +137,7 @@ export async function GET(
                 fontWeight: 400,
               }}
             >
-              7-Agent PARA-DEBATE &middot; Institutional-Grade Research
+              7-Agent PARA-DEBATE &middot; AI Research
             </div>
           </>
         ) : (
